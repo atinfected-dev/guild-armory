@@ -1,0 +1,50 @@
+# --- Zugangsdaten: NIEMALS committen -----------------------------------------
+.env
+.env.*
+!.env.example
+*.secret
+
+# --- Abrufcache & erzeugte Daten ---------------------------------------------
+# Warcraft-Logs-Reports sind unveraenderlich und jederzeit neu abrufbar.
+tools/.cache/
+data/
+
+# --- Node --------------------------------------------------------------------
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# --- WoW SavedVariables (falls jemand seine Datei zum Testen ablegt) ----------
+*.lua.bak
+SavedVariables/
+
+# --- OS / Editor -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- NIEMALS VEROEFFENTLICHEN ------------------------------------------------
+# backup/ enthaelt echte SavedVariables: Charakternamen, Gilden-GUIDs, das
+# komplette Gildenroster und eine Kopie des WTF-Ordners. Das sind Daten ueber
+# andere Menschen, nicht ueber Code.
+backup/
+
+# Gepackte Addons: gehoeren in ein Release, nicht in die Versionsgeschichte.
+*.zip
+
+# --- Nicht Teil des oeffentlichen Addon-Repositorys --------------------------
+# RaidBrain ist ein zweites, unfertiges Projekt und bleibt lokal. Soll es
+# spaeter mit hinein, reicht es, diese drei Zeilen zu entfernen.
+RaidBrain/
+RaidBrain_Probe/
+docs/ARCHITECTURE.md
+docs/WORKSPACE.md
+
+# --- Nur das Addon geht ins Repository ---------------------------------------
+# Dokumentation und Werkzeuge bleiben lokal. Sollen sie spaeter mit hinein,
+# reicht es, diese drei Zeilen zu entfernen und sie neu hinzuzufuegen.
+docs/
+tools/
+package.json

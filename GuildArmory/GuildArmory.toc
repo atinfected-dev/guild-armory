@@ -1,0 +1,80 @@
+## Interface: 16001
+## Title: Guild Armory |cffe5cc80Forever Edition|r
+## Notes: Gilden-Armory, LootCouncil, Loot-Historie, Wunschlisten und Gear-Tracking.
+## Author: Is Not Alone
+## Version: 0.1.0
+## SavedVariables: GuildArmoryDB
+## SavedVariablesPerCharacter: GuildArmoryCharDB
+## DefaultState: enabled
+## X-Category: Guild
+## X-Website: https://isnotalone.de
+## X-License: MIT
+
+# Interface 16001 ist gemessen (WoW: Forever Beta, Build 1.60.1, 18.09.2026).
+# Kein Flavor-Suffix im Dateinamen: die unsuffigierte .toc laedt in jeder Linie.
+
+# --- Kern: Reihenfolge ist bindend -------------------------------------------
+Core\Init.lua
+Compatibility\Compatibility.lua
+Core\Util.lua
+Core\Callbacks.lua
+Localization\Locale.lua
+Localization\enUS.lua
+Localization\deDE.lua
+Database\Schema.lua
+Database\Database.lua
+Core\Config.lua
+Core\Debug.lua
+Core\Json.lua
+Core\Events.lua
+Core\Export.lua
+Core\Import.lua
+Communication\Comm.lua
+
+# --- Module: Logik, niemals UI -----------------------------------------------
+# ItemIndex liegt in Database/, laedt aber hier: Es ist ein Modul mit OnEnable
+# und braucht Core\Debug, das erst nach dem Datenbankblock kommt.
+Database\ItemIndex.lua
+Database\AtlasBridge.lua
+Armory\Equipment.lua
+Armory\Guild.lua
+Armory\Inspect.lua
+Armory\Players.lua
+Armory\Notes.lua
+Armory\GuildHistory.lua
+LootHistory\Awards.lua
+LootHistory\LootTracker.lua
+LootHistory\Handover.lua
+LootCouncil\Session.lua
+LootCouncil\Rotation.lua
+LootCouncil\Rolls.lua
+LootCouncil\SoftRes.lua
+LootCouncil\PlusOne.lua
+Wishlist\Wishlist.lua
+Analytics\Analytics.lua
+Communication\Sync.lua
+Communication\VersionCheck.lua
+Communication\Announce.lua
+
+# --- UI: Theme -> Widgets -> MainFrame -> Views ------------------------------
+UI\Theme.lua
+UI\Widgets\Frame.lua
+UI\Widgets\Button.lua
+UI\Widgets\ScrollList.lua
+UI\Widgets\Dropdown.lua
+UI\MainFrame.lua
+UI\MinimapButton.lua
+UI\BidFrame.lua
+UI\Tooltips.lua
+UI\ImportDialog.lua
+UI\Views\Dashboard.lua
+UI\Views\Armory.lua
+UI\Views\Characters.lua
+UI\Views\LootCouncil.lua
+UI\Views\LootHistory.lua
+UI\Views\Wishlist.lua
+UI\Views\Analytics.lua
+UI\Views\Settings.lua
+
+# --- Zuletzt ------------------------------------------------------------------
+Core\Slash.lua

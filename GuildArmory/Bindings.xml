@@ -1,0 +1,32 @@
+<Bindings>
+    <!--
+        Tastenbelegung. WoW laedt diese Datei automatisch, wenn sie im Wurzel-
+        verzeichnis des Addons liegt — sie gehoert NICHT in die .toc.
+
+        Die Beschriftungen kommen aus BINDING_NAME_* / BINDING_HEADER_*, die
+        Core/Init.lua setzt. Ohne sie stuende in den Tastatureinstellungen der
+        nackte Bezeichner.
+
+        Warum hier kein "Jetzt zur Webapp senden" steht: Ein Addon kann keine
+        Netzwerkverbindung oeffnen. Die Taste baut den Exportstand auf; in die
+        Datei kommt er beim Ausloggen oder /reload. Siehe Core/Export.lua.
+    -->
+    <Binding name="GUILDARMORY_TOGGLE" header="GUILDARMORY" category="ADDONS">
+        if GuildArmory and GuildArmory.UI.MainFrame then
+            GuildArmory.UI.MainFrame:Toggle()
+        end
+    </Binding>
+
+    <Binding name="GUILDARMORY_COUNCIL">
+        if GuildArmory and GuildArmory.UI.MainFrame then
+            GuildArmory.UI.MainFrame:Show()
+            GuildArmory.UI.MainFrame:ShowView("lootcouncil")
+        end
+    </Binding>
+
+    <Binding name="GUILDARMORY_EXPORT">
+        if GuildArmory and GuildArmory.Core.Export then
+            GuildArmory.Core.Export:Refresh(true)
+        end
+    </Binding>
+</Bindings>
