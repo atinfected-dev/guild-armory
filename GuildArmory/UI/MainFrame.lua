@@ -40,6 +40,7 @@ local VIEW_ORDER = {
     { key = "lootcouncil", label = "NAV_LOOTCOUNCIL" },
     { key = "loothistory", label = "NAV_LOOTHISTORY" },
     { key = "wishlist",    label = "NAV_WISHLIST" },
+    { key = "achievements", label = "NAV_ACHIEVEMENTS" },
     { key = "analytics",   label = "NAV_ANALYTICS" },
     { key = "settings",    label = "NAV_SETTINGS" },
 }
@@ -309,7 +310,10 @@ function MainFrame:ShowView(key)
     view.frame:Show()
     if view.OnShow then view:OnShow() end
     if view.Refresh then view:Refresh() end
-    self:SetTitle(view.title or key, view.context)
+    -- Der SCHLUESSEL wird erst hier aufgeloest, nicht beim Laden der Ansicht:
+    -- Eine beim Laden kopierte Beschriftung wuesste von der gewaehlten Sprache
+    -- nichts (siehe Localization/Locale.lua).
+    self:SetTitle(view.titleKey and L[view.titleKey] or view.title or key, view.context)
 end
 
 function MainFrame:SetTitle(title, context)

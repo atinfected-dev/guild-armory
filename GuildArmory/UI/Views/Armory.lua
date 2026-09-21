@@ -19,7 +19,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-Armory.title = L.NAV_ARMORY_LONG or L.NAV_ARMORY
+Armory.titleKey = "NAV_ARMORY_LONG"
 
 local SLOT_SIZE = 42
 local SLOT_GAP = 6
@@ -29,11 +29,16 @@ local LEFT_COLUMN  = { 1, 2, 3, 15, 5, 4, 19, 9 }     -- Kopf .. Handgelenke
 local RIGHT_COLUMN = { 10, 6, 7, 8, 11, 12, 13, 14 }  -- Haende .. Schmuck 2
 local BOTTOM_ROW   = { 16, 17, 18 }                   -- Waffenhand, Schildhand, Distanz
 
-local CHARACTER_COLUMNS = {
-    { key = "name",  label = L.COL_NAME,  width = 104 },
-    { key = "class", label = L.COL_CLASS, width = 66 },
-    { key = "ilvl",  label = L.COL_ILVL,  width = 32, justify = "RIGHT" },
-}
+--- Als Funktion, nicht als Tabelle: Eine beim Laden gebaute Spaltenliste
+--- traegt die Beschriftungen der Sprache, die beim Laden galt — und die
+--- Einstellung steht erst bei PLAYER_LOGIN fest.
+local function characterColumns()
+    return {
+        { key = "name",  label = L.COL_NAME,  width = 104 },
+        { key = "class", label = L.COL_CLASS, width = 66 },
+        { key = "ilvl",  label = L.COL_ILVL,  width = 32, justify = "RIGHT" },
+    }
+end
 
 -- ================================================================== Aufbau ----
 
@@ -62,7 +67,7 @@ function Armory:Create(parent)
 
     self.characters = Widgets.ScrollList(listPanel.content, {
         rowHeight = Theme.size.rowHeight,
-        columns = CHARACTER_COLUMNS,
+        columns = characterColumns(),
         createRow = function(row, columns) Widgets.BuildCells(row, columns) end,
         updateRow = function(row, character)
             local cells = row.cells

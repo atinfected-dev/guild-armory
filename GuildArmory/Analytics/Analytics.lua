@@ -67,7 +67,13 @@ function Analytics:Each(filter, callback)
     for _, award in pairs(GA.Core.Database.account.awards) do
         -- Abgebrochenes und Korrigiertes zaehlt nicht mit: Das eine ist nie
         -- passiert, das andere ist durch seinen Nachfolger ersetzt.
-        local counts = DELIVERED[award.status] or PENDING[award.status]
+        -- PROBEVERGABEN ZAEHLEN NIRGENDWO MIT.
+        --
+        -- /ga test legt eine Vergabe an, um das Council durchzuspielen, ohne
+        -- dass Loot gefallen ist. Sie traegt test = true. Wuerde sie in
+        -- Statistik, Plus Eins oder Export einfliessen, waere eine Probe
+        -- nicht folgenlos — und genau das muss sie sein.
+        local counts = (DELIVERED[award.status] or PENDING[award.status]) and not award.test
         if counts and passes(award, filter) then
             callback(award, DELIVERED[award.status] == true)
         end

@@ -116,8 +116,11 @@ local function exportAwards(db, itemIDs)
         -- passiert, das andere ist durch seinen Nachfolger ersetzt. Beides
         -- mitzuschicken hiesse, die Webapp muesste dieselbe Regel noch einmal
         -- implementieren — und irgendwann anders.
+        -- Probevergaben (/ga test) bleiben ebenfalls draussen: Eine Probe
+        -- darf die Webapp nicht erreichen.
         if award.status ~= Schema.LootStatus.CANCELLED
             and award.status ~= Schema.LootStatus.CORRECTED
+            and not award.test
         then
             if award.itemID then itemIDs[award.itemID] = true end
             out[#out + 1] = {
@@ -174,6 +177,59 @@ local function exportItems(db, itemIDs)
     return out
 end
 
+--- Erfolge und Hall of Fame.
+---
+--- WARUM DAS EXPORTIERT WIRD, OBWOHL ES IM ADDON STEHT:
+---
+---   Die Hall of Fame ist der Ort, an dem etwas VEREWIGT wird. Im Addon
+---   ueberlebt sie keinen Clientfehler und keine Neuinstallation; auf der
+---   Webapp schon. Genau deshalb muss sie hinaus.
+---
+--- WAS MITWANDERT UND WARUM:
+---
+---   evidence  Worauf der Erfolg beruht — gemessen, beobachtet, eingetragen.
+---   state     Bei Gilden-Firsts: gemeldet, bestaetigt, ueberholt, strittig.
+---   claims    Wie viele Anspruecke es gab. Bei mehr als einem lohnt der Blick.
+---
+---   Eine Hall of Fame, die nur Namen zeigt, behauptet mehr als sie weiss.
+---   Ein "gemeldeter" First ist kein bestaetigter, und ein strittiger schon
+---   gar nicht — das darf die Seite nicht verschlucken.
+local function exportAchievements(db)
+    local Achievements = GA.Modules.Achievements
+    if not Achievements then return nil, nil end
+
+    local personal = {}
+    for playerId, entries in pairs(db.achievements or {}) do
+        local list = {}
+        for id, unlock in pairs(entries) do
+            list[#list + 1] = {
+                id = id,
+                ts = unlock.ts,
+                ev = unlock.evidence,
+                char = unlock.character,
+            }
+        end
+        if #list > 0 then
+            personal[#personal + 1] = { player = playerId, a = list }
+        end
+    end
+
+    local hall = {}
+    for _, row in ipairs(Achievements:HallOfFame()) do
+        hall[#hall + 1] = {
+            id = row.id,
+            player = row.playerId,
+            name = row.holder,
+            ts = row.ts,
+            state = row.state,
+            ev = row.evidence,
+            claims = row.claims,
+        }
+    end
+
+    return personal, hall
+end
+
 --- Baut den vollstaendigen Exportblock.
 --- @return table
 function Export:Build()
@@ -194,6 +250,15 @@ function Export:Build()
         awards = exportAwards(db, itemIDs),
         wishlists = exportWishlists(db, itemIDs),
     }
+    -- Erfolge sind ADDITIV zum Vertrag: Eine aeltere Webapp liest sie nicht
+    -- und stoert sich auch nicht daran. Deshalb bleibt version = 1 — eine
+    -- Erhoehung wuerde alte Leser zum Verweigern bringen, obwohl sich fuer
+    -- sie nichts geaendert hat.
+    local achievements, hall = exportAchievements(db)
+    payload.achievements = achievements
+    payload.hallOfFame = hall
+    payload.achievementsSince = db.achievementsSince
+
     payload.items = exportItems(db, itemIDs)
     return payload
 end

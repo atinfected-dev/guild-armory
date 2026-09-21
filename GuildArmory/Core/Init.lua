@@ -62,9 +62,13 @@ GA.has = {}
 --- Tastatureinstellungen suchen sie genau so. Ohne sie stuende dort der nackte
 --- Bezeichner. Sie werden hier gesetzt und nicht in der Lokalisierung, weil das
 --- Tastaturmenue sie schon beim Laden liest, bevor Locale:Apply() gelaufen ist.
+--- ENGLISCH, und zwar fest: Diese Namen liest das Tastaturmenue, bevor
+--- irgendetwas von der Datenbank steht — die Spracheinstellung kann sie also
+--- gar nicht erreichen. Eine der beiden Sprachen muss hier stehen, und es ist
+--- dieselbe wie die Grundeinstellung.
 _G.BINDING_HEADER_GUILDARMORY = "Guild Armory"
-_G.BINDING_NAME_GUILDARMORY_TOGGLE = "Fenster umschalten"
-_G.BINDING_NAME_GUILDARMORY_COUNCIL = "LootCouncil oeffnen"
-_G.BINDING_NAME_GUILDARMORY_EXPORT = "Export aktualisieren"
+_G.BINDING_NAME_GUILDARMORY_TOGGLE = "Toggle window"
+_G.BINDING_NAME_GUILDARMORY_COUNCIL = "Open loot council"
+_G.BINDING_NAME_GUILDARMORY_EXPORT = "Refresh export"
 
 _G.GuildArmory = GA

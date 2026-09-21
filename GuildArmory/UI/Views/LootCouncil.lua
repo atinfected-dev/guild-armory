@@ -29,7 +29,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-LootCouncil.title = L.NAV_LOOTCOUNCIL
+LootCouncil.titleKey = "NAV_LOOTCOUNCIL"
 
 local Status = GA.Data.Schema.LootStatus
 
@@ -162,6 +162,14 @@ function LootCouncil:UpdateItemRow(row, award)
 
     if award.id == self.selectedAwardId then
         row.name:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
+    end
+
+    -- Eine Probevergabe muss als solche zu erkennen sein. Sonst sieht sie in
+    -- der Liste aus wie echter Loot, und irgendwann vergibt jemand einen
+    -- Gegenstand, den es nie gab.
+    if award.test then
+        row.name:SetText(L.TEST_MARK .. "  " .. (row.name:GetText() or ""))
+        row.name:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
     end
 
     local session = GA.Modules.Session:Current()

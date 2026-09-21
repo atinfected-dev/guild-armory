@@ -22,6 +22,7 @@ Localization\Locale.lua
 Localization\enUS.lua
 Localization\deDE.lua
 Database\Schema.lua
+Achievements\Catalog.lua
 Database\Database.lua
 Core\Config.lua
 Core\Debug.lua
@@ -45,11 +46,14 @@ Armory\GuildHistory.lua
 LootHistory\Awards.lua
 LootHistory\LootTracker.lua
 LootHistory\Handover.lua
+Raids\Attendance.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
 LootCouncil\Rolls.lua
 LootCouncil\SoftRes.lua
 LootCouncil\PlusOne.lua
+Achievements\Achievements.lua
+Achievements\Rules.lua
 Wishlist\Wishlist.lua
 Analytics\Analytics.lua
 Communication\Sync.lua
@@ -67,12 +71,15 @@ UI\MinimapButton.lua
 UI\BidFrame.lua
 UI\Tooltips.lua
 UI\ImportDialog.lua
+UI\GrantDialog.lua
+UI\AchievementIcons.lua
 UI\Views\Dashboard.lua
 UI\Views\Armory.lua
 UI\Views\Characters.lua
 UI\Views\LootCouncil.lua
 UI\Views\LootHistory.lua
 UI\Views\Wishlist.lua
+UI\Views\Achievements.lua
 UI\Views\Analytics.lua
 UI\Views\Settings.lua
 

@@ -507,7 +507,7 @@ function Widgets.CopyDialog(title, text)
         local hint = Theme.Label(frame, "STRG+A, DANN STRG+C", fonts.small, Theme.color.textFaint)
         hint:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, -15)
 
-        local close = Widgets.Button(frame, "Schliessen", function() frame:Hide() end)
+        local close = Widgets.Button(frame, GA.L.BTN_CLOSE, function() frame:Hide() end)
         close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 14)
 
         local box = CreateFrame("Frame", nil, frame)
@@ -609,10 +609,10 @@ function Widgets.InputDialog(title, hintText, onAccept)
         frame.status:SetPoint("RIGHT", frame, "RIGHT", -180, 0)
         frame.status:SetJustifyH("LEFT")
 
-        local cancel = Widgets.Button(frame, "Abbrechen", function() frame:Hide() end)
+        local cancel = Widgets.Button(frame, GA.L.BTN_CANCEL, function() frame:Hide() end)
         cancel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 14)
 
-        frame.accept = Widgets.Button(frame, "Uebernehmen", function()
+        frame.accept = Widgets.Button(frame, GA.L.BTN_APPLY, function()
             if not frame.onAccept then frame:Hide() return end
 
             local ok, message = frame.onAccept(frame.edit:GetText())

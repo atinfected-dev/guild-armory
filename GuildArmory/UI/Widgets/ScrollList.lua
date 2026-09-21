@@ -94,7 +94,13 @@ function Widgets.ScrollList(parent, options)
     local thumb = CreateFrame("Button", nil, track)
     thumb:SetWidth(SCROLLBAR_WIDTH)
     thumb:SetPoint("TOP", track, "TOP", 0, 0)
-    Theme.Fill(thumb, Theme.color.goldDeep)
+
+    -- Der Rueckgabewert wird GEBRAUCHT: Theme.Fill legt eine Textur AUF den
+    -- Knopf und gibt sie zurueck. Wer ihn wegwirft und spaeter den Knopf
+    -- selbst bemalt, ruft SetColorTexture auf einem Frame auf — und das gibt
+    -- es dort nicht. Gemessen 21.09.2026, als jemand zum ersten Mal am
+    -- Bildlaufbalken zog.
+    local thumbFill = Theme.Fill(thumb, Theme.color.goldDeep)
     thumb:Hide()
 
     list.track = track
@@ -235,18 +241,18 @@ function Widgets.ScrollList(parent, options)
         local _, y = GetCursorPosition()
         dragStartY = y
         dragStartOffset = list.offset
-        Theme.Paint(thumb, Theme.color.goldDim)
+        Theme.Paint(thumbFill, Theme.color.goldDim)
     end)
     thumb:SetScript("OnMouseUp", function()
         dragging = false
-        Theme.Paint(thumb, Theme.color.goldDeep)
+        Theme.Paint(thumbFill, Theme.color.goldDeep)
     end)
 
     thumb:SetScript("OnUpdate", function()
         if not dragging then return end
         if not IsMouseButtonDown or not IsMouseButtonDown("LeftButton") then
             dragging = false
-            Theme.Paint(thumb, Theme.color.goldDeep)
+            Theme.Paint(thumbFill, Theme.color.goldDeep)
             return
         end
 

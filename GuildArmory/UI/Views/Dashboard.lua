@@ -15,7 +15,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-Dashboard.title = L.NAV_DASHBOARD
+Dashboard.titleKey = "NAV_DASHBOARD"
 
 local CARD_HEIGHT = 92
 local ROW_HEIGHT = 90

@@ -24,7 +24,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-LootHistory.title = L.NAV_LOOTHISTORY
+LootHistory.titleKey = "NAV_LOOTHISTORY"
 
 local Status = GA.Data.Schema.LootStatus
 local Confirmation = GA.Data.Schema.Confirmation

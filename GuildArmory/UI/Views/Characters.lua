@@ -19,7 +19,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-Characters.title = L.NAV_CHARACTERS
+Characters.titleKey = "NAV_CHARACTERS"
 
 local ROLES = {
     { key = GA.const.ROLE_ADMIN,      label = "ROLE_ADMIN" },

@@ -31,7 +31,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-WishlistView.title = L.NAV_WISHLIST
+WishlistView.titleKey = "NAV_WISHLIST"
 
 -- ================================================================== Aufbau ----
 

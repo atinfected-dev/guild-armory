@@ -19,7 +19,7 @@ local Widgets = GA.UI.Widgets
 local Util = GA.Core.Util
 local L = GA.L
 
-AnalyticsView.title = L.NAV_ANALYTICS
+AnalyticsView.titleKey = "NAV_ANALYTICS"
 
 local GROUPINGS = {
     { key = "player",    label = "ANA_BY_PLAYER",    fn = "ByPlayer" },

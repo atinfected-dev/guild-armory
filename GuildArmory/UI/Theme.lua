@@ -154,10 +154,19 @@ end
 --- Setzt eine einfarbige Textur. SetColorTexture fehlt in sehr alten Linien.
 function Theme.Paint(texture, color)
     local r, g, b, a = color[1], color[2], color[3], color[4] or 1
+
     if texture.SetColorTexture then
         texture:SetColorTexture(r, g, b, a)
-    else
+    elseif texture.SetTexture then
         texture:SetTexture(r, g, b, a)
+    else
+        -- EIN FRAME IST KEINE TEXTUR, und der Unterschied faellt sonst erst
+        -- als "attempt to call a nil value" auf — eine Meldung, die nicht
+        -- sagt, was gemeint war. Theme.Fill gibt die Textur ZURUECK; wer sie
+        -- wegwirft und den Frame bemalt, landet hier.
+        error("Theme.Paint braucht eine Textur, keinen " ..
+              tostring(texture.GetObjectType and texture:GetObjectType() or type(texture)) ..
+              " — Theme.Fill gibt die Textur zurueck, sie wird gebraucht", 2)
     end
     return texture
 end
@@ -273,18 +282,32 @@ end
 -- flachen Bausteine oben zurueck, statt zu werfen.
 -- ============================================================================
 
+--- TEXTURPFADE STEHEN IN [[...]], NICHT IN ANFUEHRUNGSZEICHEN.
+---
+--- Gemessen 21.09.2026: Hier stand "Interface\DialogFrame\UI-DialogBox-Border"
+--- mit EINFACHEN Backslashes. Lua 5.1 kennt weder \D noch \U als Escape und
+--- laesst den Backslash in so einem Fall einfach weg — aus dem Pfad wird
+--- "InterfaceDialogFrameUI-DialogBox-Border". Kein Fehler, keine Warnung, nur
+--- eine Textur, die nie laedt.
+---
+--- Genau das beschreibt der Abschnitt weiter unten als "SetBackdrop nahm die
+--- Pfade an und zeichnete nichts". Die Ursache lag nicht am Client, sondern an
+--- dieser Zeile. Die Schriftpfade oben standen von Anfang an in [[...]] und
+--- haben deshalb immer funktioniert — der Unterschied war der ganze Fehler.
+---
+--- [[...]] kennt keine Escapes. Deshalb steht jeder Pfad in dieser Datei so da.
 local BACKDROPS = {
     --- Goldrahmen des Hauptfensters: die klassische Dialogbox.
     window = {
-        bgFile   = "Interface\DialogFrame\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\DialogFrame\UI-DialogBox-Border",
+        bgFile   = [[Interface\DialogFrame\UI-DialogBox-Background-Dark]],
+        edgeFile = [[Interface\DialogFrame\UI-DialogBox-Border]],
         tile = true, tileSize = 32, edgeSize = 32,
         insets = { left = 11, right = 11, top = 11, bottom = 11 },
     },
     --- Innenpanel: schlanker Tooltip-Rahmen auf dunklem Grund.
     panel = {
-        bgFile   = "Interface\Tooltips\UI-Tooltip-Background",
-        edgeFile = "Interface\Tooltips\UI-Tooltip-Border",
+        bgFile   = [[Interface\Tooltips\UI-Tooltip-Background]],
+        edgeFile = [[Interface\Tooltips\UI-Tooltip-Border]],
         tile = true, tileSize = 16, edgeSize = 14,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     },
@@ -439,7 +462,7 @@ function Theme.ItemSlot(parent, slotID, size)
     empty:SetAllPoints(button)
     local name = SLOT_BACKGROUNDS[slotID]
     if name then
-        pcall(empty.SetTexture, empty, "Interface\PaperDoll\UI-PaperDoll-Slot-" .. name)
+        pcall(empty.SetTexture, empty, [[Interface\PaperDoll\UI-PaperDoll-Slot-]] .. name)
     end
     if not empty:GetTexture() then
         Theme.Paint(empty, Theme.color.rowAltBg)
@@ -457,14 +480,14 @@ function Theme.ItemSlot(parent, slotID, size)
     -- Qualitaetsrahmen: dieselbe Textur, die Blizzards ItemButton benutzt.
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetAllPoints(button)
-    pcall(border.SetTexture, border, "Interface\Common\WhiteIconFrame")
+    pcall(border.SetTexture, border, [[Interface\Common\WhiteIconFrame]])
     border:Hide()
     button.border = border
 
     -- Hover-Glanz wie bei Aktionsknoepfen.
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(button)
-    pcall(highlight.SetTexture, highlight, "Interface\Buttons\ButtonHilight-Square")
+    pcall(highlight.SetTexture, highlight, [[Interface\Buttons\ButtonHilight-Square]])
     pcall(highlight.SetBlendMode, highlight, "ADD")
 
     -- Itemlevel unten rechts, klein, mit Schatten fuer Lesbarkeit auf dem Icon.
@@ -597,6 +620,75 @@ function Theme.PanelInsets()
     }
 end
 
+--- Nimmt den Portraitkreis aus einem Fenster der Portraitvorlage.
+---
+--- PortraitFrameTemplate bringt oben links einen Charakterkreis mit. Fuer das
+--- Hauptfenster ist der richtig — es zeigt einen Charakter. Fuer einen Dialog
+--- ist er eine Behauptung: Dort geht es um einen Vorgang, nicht um eine
+--- Person, und ein leerer oder fremder Kopf daneben verwirrt nur.
+---
+--- Blizzard hat den Teil zwischen den Versionen umbenannt, deshalb werden
+--- alle bekannten Namen versteckt — und nur die, die es wirklich gibt.
+--- @return boolean  ob ueberhaupt etwas versteckt wurde
+function Theme.HidePortrait(frame)
+    local hidden = false
+
+    local parts = { frame.PortraitContainer, frame.portrait, frame.Portrait,
+                    frame.PortraitFrame }
+    for _, part in ipairs(parts) do
+        if type(part) == "table" and type(part.Hide) == "function" then
+            pcall(part.Hide, part)
+            hidden = true
+        end
+    end
+
+    if type(frame.PortraitContainer) == "table" then
+        for _, key in ipairs({ "portrait", "CircleMask", "PortraitMaskTexture" }) do
+            local part = frame.PortraitContainer[key]
+            if type(part) == "table" and type(part.Hide) == "function" then
+                pcall(part.Hide, part)
+            end
+        end
+    end
+
+    -- ------------------------------------------------------------------
+    -- DER GOLDENE RING IST NICHT DAS PORTRAIT, SONDERN DIE RAHMENECKE.
+    --
+    -- Gemessen am Screenshot vom 21.09.2026: Nach dem Verstecken des Bildes
+    -- stand der Ring weiter da, innen leer. Er gehoert zum NineSlice der
+    -- Vorlage — die obere linke Ecke von PortraitFrameTemplate ist eine
+    -- Textur MIT Ring. Kein Verstecken am Portrait der Welt entfernt sie.
+    --
+    -- Blizzard hat fuer genau diesen Fall eine zweite Rahmenaufteilung:
+    -- dieselbe Vorlage ohne den Ring. Ob dieser Client sie kennt, sagt der
+    -- Vergleich der Eckentextur VORHER und NACHHER — nicht die Existenz der
+    -- Funktion.
+    -- ------------------------------------------------------------------
+    local nine = frame.NineSlice
+    if type(nine) ~= "table" then return hidden end
+
+    local function cornerAtlas()
+        local corner = nine.TopLeftCorner
+        if type(corner) ~= "table" or type(corner.GetAtlas) ~= "function" then return nil end
+        local ok, atlas = pcall(corner.GetAtlas, corner)
+        return ok and atlas or nil
+    end
+
+    local before = cornerAtlas()
+    if type(_G.NineSliceUtil) == "table"
+        and type(NineSliceUtil.ApplyLayoutByName) == "function"
+    then
+        pcall(NineSliceUtil.ApplyLayoutByName, nine, "PortraitFrameTemplateNoCorners")
+        if cornerAtlas() ~= before then return true end
+    end
+
+    -- Rueckfall: den Rahmen der Vorlage ganz weg und den eigenen Goldrahmen
+    -- darunter. Lieber ein anderer Rahmen als ein leerer Ring.
+    pcall(nine.Hide, nine)
+    Theme.Backdrop(frame, "window", Theme.color.windowBg, Theme.color.goldMid)
+    return true
+end
+
 --- Textfeld einer Vorlage, egal wie Blizzard es gerade nennt.
 function Theme.NativeText(frame)
     if frame.TitleContainer and frame.TitleContainer.TitleText then return frame.TitleContainer.TitleText end
@@ -615,7 +707,7 @@ end
 function Theme.HeaderBar(frame)
     local bar = frame:CreateTexture(nil, "BACKGROUND")
     bar:SetAllPoints(frame)
-    local path = "Interface\QuestFrame\UI-QuestLogTitleHighlight"
+    local path = [[Interface\QuestFrame\UI-QuestLogTitleHighlight]]
     if Theme.TextureExists(path) then
         pcall(bar.SetTexture, bar, path)
         pcall(bar.SetBlendMode, bar, "ADD")

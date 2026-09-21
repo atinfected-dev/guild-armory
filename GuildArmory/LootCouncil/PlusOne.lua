@@ -66,6 +66,9 @@ end
 --- Zaehlt eine Vergabe mit?
 --- @return boolean zaehlt, boolean nurBehauptet
 local function counts(award, since, minQuality)
+    -- Eine Probevergabe (/ga test) darf niemanden hinten anstellen.
+    if award.test then return false end
+
     if award.status ~= Status.RECEIVED and award.status ~= Status.EQUIPPED then
         return false
     end

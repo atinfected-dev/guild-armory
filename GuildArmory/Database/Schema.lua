@@ -125,6 +125,14 @@ Schema.ACCOUNT_DEFAULTS = {
         collectorMinutes = 60,
     },
 
+    --- Sprache: "enUS" | "deDE" | "auto".
+    ---
+    --- ENGLISCH IST DIE GRUNDEINSTELLUNG, nicht die Clientsprache. Der
+    --- Forever-Client wechselt sie (deutsch und englisch am selben Tag
+    --- beobachtet), und eine Gilde spricht ohnehin nicht die Sprache ihres
+    --- Clients. "auto" bleibt als ausdrueckliche Wahl erhalten.
+    language = "enUS",
+
     ui = {
         main = { point = "CENTER", x = 0, y = 0, width = 1000, height = 640,
                  scale = 1.0, lastView = "dashboard" },
@@ -226,6 +234,39 @@ Schema.ACCOUNT_DEFAULTS = {
     --- Der Zaehler selbst wird gerechnet, nicht gefuehrt — hier steht nur,
     --- was jemand bewusst danebengestellt hat.
     plusOneOffsets = {},
+
+    --- Freigeschaltete Erfolge: [playerId][achievementId] = { ts, evidence, ... }
+    --- Nach SPIELER, nicht nach Charakter: Sonst haette derselbe Mensch mit
+    --- drei Twinks dreimal "Stufe 60 erreicht".
+    achievements = {},
+
+    --- Einmalige Gilden-Firsts: [achievementId] = { playerId, ts, state, claims }
+    --- Getrennt, weil dort nicht "habe ich es geschafft" zaehlt, sondern
+    --- "war jemand frueher" — eine Frage, die ein Client allein nicht
+    --- beantworten kann.
+    guildFirsts = {},
+
+    --- Seit wann ueberhaupt gezaehlt wird. Ohne das waere "50 Raids" eine
+    --- Aussage ueber das Addon und nicht ueber den Spieler.
+    achievementsSince = nil,
+
+    --- AUFGEKLAPPTE Erfolgskategorien: [category] = true.
+    ---
+    --- Gespeichert wird das Offene, nicht das Geschlossene, und darin steckt
+    --- die Grundeinstellung: Leer heisst "alles zu". Beim ersten Oeffnen
+    --- stehen dreizehn Kopfzeilen da statt 272 Zeilen.
+    ---
+    --- Eine Ansichtseinstellung, keine Messung — sie steht hier nur, damit sie
+    --- einen Reload ueberlebt, und sie wird nicht ins Journal geschrieben.
+    achievementsExpanded = {},
+
+    --- Abgeschlossene Raidabschnitte: { { start, stop, seconds, name, ... } }
+    --- Abschnitte statt eines laufenden Zaehlers: Ein Zaehler ueberlebt
+    --- keinen Absturz, und niemand weiss danach, ob die Zahl stimmt.
+    raidBlocks = {},
+
+    --- Der gerade laufende Abschnitt, oder nil.
+    raidOpen = nil,
 
     --- Rosterhistorie: { { ts, kind, name, class, rank, detail } }
     --- guildSeen haelt den letzten bekannten Stand fuer den Vergleich.

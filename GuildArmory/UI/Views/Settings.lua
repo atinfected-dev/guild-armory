@@ -13,7 +13,7 @@ local Theme = GA.UI.Theme
 local Widgets = GA.UI.Widgets
 local L = GA.L
 
-Settings.title = L.NAV_SETTINGS
+Settings.titleKey = "NAV_SETTINGS"
 
 
 --- Abstand zwischen zwei Bloecken und Hoehe des Loot-Blocks. Beides fest,
@@ -21,6 +21,11 @@ Settings.title = L.NAV_SETTINGS
 --- Bildlauf auf.
 local PANEL_GAP = 8
 local LOOT_PANEL_HEIGHT = 300
+local LANGUAGE_PANEL_HEIGHT = 116
+
+--- Die Auswahl, in der Reihenfolge der Knoepfe. "auto" steht hinten: Es ist
+--- die Ausnahme, nicht der Normalfall (siehe Localization/Locale.lua).
+local LANGUAGES = { "enUS", "deDE", "auto" }
 
 function Settings:Create(parent)
     local fonts = Theme.Fonts()
@@ -50,8 +55,60 @@ function Settings:Create(parent)
     columnB:SetPoint("TOPLEFT", column.content, "TOP", gap, 0)
     columnB:SetPoint("BOTTOMRIGHT", column.content, "BOTTOMRIGHT", -8, 0)
 
+    -- ------------------------------------------------------------ Sprache ---
+    --
+    -- Ganz oben und als eigener Block: Wer die Sprache sucht, sucht sie nicht
+    -- unter "Fenster". Drei Knoepfe statt einer Auswahlliste — bei drei
+    -- Moeglichkeiten ist eine Liste ein Klick zu viel, und man sieht sofort,
+    -- was gerade gilt.
+    local language = Widgets.Panel(columnA, L.SET_LANGUAGE)
+    language:SetPoint("TOPLEFT", columnA, "TOPLEFT", 0, 0)
+    language:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
+    language:SetHeight(LANGUAGE_PANEL_HEIGHT)
+
+    self.languageButtons = {}
+    local previousLanguage
+    for _, choice in ipairs(LANGUAGES) do
+        local button = Widgets.Button(language.content, L["SET_LANGUAGE_" .. string.upper(choice)],
+            function() Settings:ChooseLanguage(choice) end)
+        button:SetHeight(20)
+        if previousLanguage then button:SetPoint("LEFT", previousLanguage, "RIGHT", 4, 0)
+        else button:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -2) end
+        button.choice = choice
+        self.languageButtons[#self.languageButtons + 1] = button
+        previousLanguage = button
+    end
+
+    local languageHint = Theme.Label(language.content, L.SET_LANGUAGE_HINT,
+        fonts.small, Theme.color.textDim)
+    languageHint:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -28)
+    languageHint:SetPoint("RIGHT", language.content, "RIGHT", 0, 0)
+    languageHint:SetJustifyH("LEFT")
+    languageHint:SetHeight(28)
+
+    -- DER HINWEIS STEHT ERST DA, WENN ER STIMMT.
+    --
+    -- Was schon im Fenster steht, wurde beim Bauen in der alten Sprache
+    -- geschrieben und aendert sich nicht mehr. Ein Hinweis, der immer
+    -- dastuende, waere aber Rauschen — er erscheint deshalb erst nach einer
+    -- Umstellung, zusammen mit dem Knopf, der sie abschliesst.
+    self.languageReload = Theme.Label(language.content, L.SET_LANGUAGE_RELOAD,
+        fonts.small, Theme.color.warn)
+    self.languageReload:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -60)
+    self.languageReload:SetPoint("RIGHT", language.content, "RIGHT", -110, 0)
+    self.languageReload:SetJustifyH("LEFT")
+    self.languageReload:SetHeight(28)
+    self.languageReload:Hide()
+
+    self.reloadButton = Widgets.Button(language.content, L.BTN_RELOAD, function()
+        if type(_G.ReloadUI) == "function" then ReloadUI() end
+    end, "primary")
+    self.reloadButton:SetHeight(20)
+    self.reloadButton:SetPoint("TOPRIGHT", language.content, "TOPRIGHT", 0, -62)
+    self.reloadButton:Hide()
+
     local left = Widgets.Panel(columnA, L.SET_WINDOW)
-    left:SetPoint("TOPLEFT", columnA, "TOPLEFT", 0, 0)
+    left:SetPoint("TOPLEFT", language, "BOTTOMLEFT", 0, -gap)
     left:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
     left:SetHeight(232)
 
@@ -140,7 +197,7 @@ function Settings:Create(parent)
 
     -- Die hoehere der beiden Spalten bestimmt, wie weit der Bildlauf geht.
     self.columnHeights = {
-        left:GetHeight() + gap + publish:GetHeight(),
+        language:GetHeight() + gap + left:GetHeight() + gap + publish:GetHeight(),
         loot:GetHeight(),
     }
 
@@ -233,7 +290,28 @@ function Settings:UpdateColumnHeight()
     self.column:Refresh()
 end
 
+--- Stellt die Sprache um.
+---
+--- GA.L ist danach sofort neu gefuellt, aber das Fenster nicht: Jede
+--- Beschriftung, die schon dasteht, wurde beim Bauen kopiert. Deshalb wird
+--- hier nichts neu gezeichnet, sondern der Hinweis auf /reload gezeigt.
+function Settings:ChooseLanguage(choice)
+    if GA.Core.Locale:Choose(choice) then
+        self.languageChanged = true
+    end
+    self:Refresh()
+end
+
 function Settings:Refresh()
+    local chosen = GA.Core.Database.account.language or GA.Core.Locale.DEFAULT
+    for _, button in ipairs(self.languageButtons) do
+        button:SetEnabledState(button.choice ~= chosen)
+    end
+    if self.languageChanged then
+        self.languageReload:Show()
+        self.reloadButton:Show()
+    end
+
     self.scaleLabel:SetText(string.format(L.SET_SCALE, GA.Core.Config:GetUI("main").scale or 1))
     local debugOn = GA.Core.Database.char.debug
     self.debugState:SetText(debugOn and L.SET_ON or L.SET_OFF)

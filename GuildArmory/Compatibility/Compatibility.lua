@@ -820,6 +820,97 @@ function Compat.GetBagItems()
     return items
 end
 
+--- Wie viel Geld hat dieser Charakter, in Kupfer?
+--- @return number|nil  nil = nicht messbar
+function Compat.GetMoney()
+    if not isFunction(_G.GetMoney) then return nil end
+    local ok, copper = pcall(GetMoney)
+    if not ok or type(copper) ~= "number" then return nil end
+    return copper
+end
+
+--- Groesse der vier angelegten Taschen. Der Rucksack zaehlt NICHT mit: Er
+--- laesst sich nicht tauschen, und ein Erfolg ueber etwas, das jeder von
+--- Anfang an hat, waere keiner.
+--- @return table|nil { [1..4] = Plaetze }
+function Compat.GetBagSizes()
+    local container = _G.C_Container
+    local getSlots = (isTable(container) and container.GetContainerNumSlots)
+        or _G.GetContainerNumSlots
+    if not isFunction(getSlots) then return nil end
+
+    local sizes = {}
+    for bag = 1, 4 do
+        local ok, slots = pcall(getSlots, bag)
+        sizes[bag] = (ok and tonumber(slots)) or 0
+    end
+    return sizes
+end
+
+--- Die gelernten HAUPTberufe dieses Charakters.
+---
+--- LEER IST HIER NICHT NULL, SONDERN "WEISS NICHT".
+---
+--- GetProfessions liefert Indizes ins Zauberbuch. Gibt es beide nicht
+--- zurueck, kann das zweierlei heissen: Der Charakter hat keinen Beruf
+--- gelernt — oder der Client fuellt die Funktion auf einem Server mit
+--- Vanilla-Inhalt gar nicht. Von aussen sind die beiden Faelle nicht zu
+--- unterscheiden, und "0 von 1 Berufen" waere im zweiten Fall schlicht
+--- falsch. Deshalb kommt dann nil zurueck, und die Oberflaeche schreibt
+--- "noch nicht messbar", bis der erste Beruf auftaucht.
+---
+--- Sekundaerberufe (Kochen, Erste Hilfe, Angeln) bleiben draussen: Der
+--- Katalog spricht von Hauptberufen.
+---
+--- @return table|nil { { name, rank, maxRank } }
+function Compat.GetProfessions()
+    if not isFunction(_G.GetProfessions) or not isFunction(_G.GetProfessionInfo) then
+        return nil
+    end
+
+    local ok, first, second = pcall(GetProfessions)
+    if not ok then return nil end
+    if type(first) ~= "number" and type(second) ~= "number" then return nil end
+
+    local out = {}
+    for _, index in ipairs({ first, second }) do
+        if type(index) == "number" then
+            local okInfo, name, _, rank, maxRank = pcall(GetProfessionInfo, index)
+            if okInfo and type(name) == "string" and type(rank) == "number" then
+                out[#out + 1] = { name = name, rank = rank, maxRank = tonumber(maxRank) or 0 }
+            end
+        end
+    end
+    return out
+end
+
+--- Wo bin ich gerade?
+---
+--- GetInstanceInfo liefert (name, type, difficultyID, ...). `type` ist
+--- "none" ausserhalb, sonst "party", "raid", "pvp", "arena", "scenario".
+--- Geprueft wird der RUECKGABEWERT, nicht die Existenz: Die Funktion gibt es
+--- auf Forever, aber ob sie fuer jede Zone etwas Sinnvolles liefert, ist eine
+--- andere Frage.
+---
+--- @return table { inside, kind, name, difficultyID }
+function Compat.GetInstance()
+    if not isFunction(_G.GetInstanceInfo) then
+        return { inside = false, kind = nil }
+    end
+
+    local ok, name, kind, difficultyID = pcall(GetInstanceInfo)
+    if not ok or type(kind) ~= "string" or kind == "none" then
+        return { inside = false, kind = nil }
+    end
+
+    return {
+        inside = true,
+        kind = kind,
+        name = (type(name) == "string" and name ~= "") and name or nil,
+        difficultyID = tonumber(difficultyID),
+    }
+end
+
 --- Liest eine Wurfmeldung aus einer Systemzeile.
 ---
 --- DER WURF KOMMT VOM SERVER. CHAT_MSG_SYSTEM traegt, was der Server
