@@ -2,7 +2,7 @@
 ## Title: Guild Armory |cffe5cc80Forever Edition|r
 ## Notes: Gilden-Armory, LootCouncil, Loot-Historie, Wunschlisten und Gear-Tracking.
 ## Author: Is Not Alone
-## Version: 0.1.0
+## Version: 0.1.2
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled
