@@ -358,7 +358,19 @@ SlashCmdList["GUILDARMORY"] = function(input)
     elseif command == "trade" or command == "tausch" then
         local Tradables = GA.Modules.Tradables
 
-        if rest == "test" then
+        if string.sub(rest, 1, 3) == "why" then
+            -- "Geht nicht" laesst sich nicht reparieren. Diese Ausgabe macht
+            -- daraus eine Liste von Werten, von denen einer "nein" sagt.
+            local text = string.match(rest, "^%a+%s+(.+)$")
+            local itemID = text and GA.Core.Compat.ParseItemInput(text)
+            if not itemID then
+                Debug:Info(L.SLASH_NO_ITEM, tostring(text))
+            else
+                for _, zeile in ipairs(Tradables:Explain(itemID)) do
+                    Debug:Info("%s", zeile)
+                end
+            end
+        elseif rest == "test" then
             Tradables.testMode = not Tradables.testMode
             Tradables:Refresh()
             Debug:Info(L.TRADE_TEST, Tradables.testMode and L.SLASH_ON or L.SLASH_OFF)
@@ -385,25 +397,13 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local mine = Tradables:Offered()
 
         if rest == "post" or rest == "chat" then
-            -- IN DEN GILDENCHAT SCHREIBEN IST EIN AUSDRUECKLICHER BEFEHL,
-            -- kein Nebeneffekt. Ein Addon, das ungefragt postet, fliegt zu
-            -- Recht raus — dieselbe Regel wie bei Announce.
-            if #mine == 0 then
-                Debug:Info("%s", L.TRADE_NONE_OWN)
-            else
-                local names = {}
-                for _, item in ipairs(mine) do
-                    -- DER EIGENE LINK ZUERST: Er traegt den Zufallssuffix.
-                    -- Ein aus der ID nachgeschlagener Link postet
-                    -- "Nomad Tunic" in den Gildenchat, und wer darauf klickt,
-                    -- sieht andere Werte als die, die du anbietest.
-                    local info = GA.Core.Compat.GetItemInfo(item.link or item.itemID)
-                    local text = item.link or (info and info.link) or (info and info.name)
-                        or string.format(L.SLASH_ITEM_FALLBACK, item.itemID)
-                    names[#names + 1] = text .. (item.count > 1 and (" x" .. item.count) or "")
-                end
-                GA.Core.Compat.SendChatMessage(
-                    string.format(L.TRADE_ANNOUNCE, table.concat(names, ", ")), "GUILD")
+            -- Dieselbe Funktion, die der Knopf im Ueberblick ruft. Zwei
+            -- Wege in der Bedienung duerfen nicht zwei Fassungen im Code
+            -- werden — sonst postet der eine bald etwas anderes als der
+            -- andere.
+            local ok, grund = Tradables:Announce()
+            if not ok then
+                Debug:Info("%s", grund == "leer" and L.TRADE_NONE_OWN or L.TRADE_POST_FAILED)
             end
         end
 

@@ -53,7 +53,19 @@ local Util = GA.Core.Util
 local Debug = GA.Core.Debug
 
 --- Ab welcher Qualitaet. 3 = selten (blau).
-local MIN_QUALITY = 3
+--- ZWEI SCHWELLEN, UND SIE BEDEUTEN VERSCHIEDENES.
+---
+--- MIN_AUTO   ab hier laeuft ein Fund VON ALLEIN mit, wenn
+---            "Neue Funde automatisch anbieten" an ist.
+--- MIN_CHOICE ab hier darf man einen Gegenstand ueberhaupt WAEHLEN.
+---
+--- Gruene Stuecke stehen dazwischen: anbietbar, aber nie automatisch. Ein
+--- Beutel voll gruener Questbelohnungen wuerde die Liste der Gilde sonst
+--- so zuschuetten, dass niemand mehr das eine blaue Teil darin findet —
+--- und genau darum geht es bei dieser Liste. Wer ein gruenes Stueck
+--- loswerden will, sagt es ausdruecklich.
+local MIN_AUTO = 3
+local MIN_CHOICE = 2
 
 --- Sammelfenster fuer den Versand, in Sekunden.
 local SETTLE = 10
@@ -170,11 +182,23 @@ function Tradables:Scan()
     for _, entry in ipairs(Compat.GetBagItems()) do
         local info = Compat.GetItemInfo(entry.itemID)
 
-        if info and (test or ((tonumber(info.quality) or 0) >= MIN_QUALITY
+        if info and (test or ((tonumber(info.quality) or 0) >= MIN_CHOICE
             and info.bindType == Compat.BIND_ON_EQUIP))
         then
             -- Schon gebunden? Dann ist es keins mehr.
-            local bound = Compat.IsItemBound(entry.bag, entry.slot)
+            --
+            -- WEISS NICHT IST NICHT NEIN. Hier stand "if bound ~= true",
+            -- und damit galt ein Stueck, dessen Bindung sich nicht pruefen
+            -- liess, als tauschbar. Gemessen im Spiel: Ein laengst
+            -- gebundenes gruenes Teil kam so in die Liste, waehrend das
+            -- blaue daneben korrekt fehlte — weil es beim Aufheben bindet
+            -- und schon am bindType scheitert.
+            --
+            -- Ein unsicheres Stueck bleibt WAEHLBAR: Du siehst im Spiel,
+            -- was gebunden ist, und darfst es sagen. Es laeuft nur nicht
+            -- mehr von allein mit (siehe SeedNewFinds) und traegt seine
+            -- Unsicherheit bis in die Anzeige.
+            local bound = Compat.ItemIsBound(entry.bag, entry.slot)
             if bound == nil then sure = false end
 
             if bound ~= true then
@@ -187,7 +211,12 @@ function Tradables:Scan()
                     existing.count = existing.count + 1
                 else
                     local item = { itemID = entry.itemID, itemString = key,
-                                   link = entry.link, count = 1 }
+                                   link = entry.link, count = 1,
+                                   quality = tonumber(info.quality) or 0,
+                                   -- Je Stueck, nicht nur fuer den ganzen
+                                   -- Beutel: Sonst faerbt ein einziges
+                                   -- unklares Teil alle anderen mit ein.
+                                   bindKnown = bound ~= nil }
                     seen[key] = item
                     items[#items + 1] = item
                 end
@@ -233,10 +262,108 @@ end
 --- Drei Zustaende: ausdruecklich ja, ausdruecklich nein, noch nicht
 --- entschieden. Der dritte faellt auf die Einstellung zurueck — Vorgabe
 --- NEIN, denn ungefragt anzubieten ist genau das, was hier vermieden wird.
+--- Sagt Zeile fuer Zeile, warum ein Gegenstand angeboten werden kann — oder
+--- warum nicht.
+---
+--- "Geht nicht" ist keine Beobachtung, mit der sich etwas anfangen laesst.
+--- An jeder Bedingung, die das Anbieten verhindern kann, steht hier ihr
+--- gemessener Wert. Was hier "nein" sagt, ist die Antwort.
+---
+--- @return table zeilen
+function Tradables:Explain(itemID)
+    local zeilen = {}
+    local function sag(text, ...) zeilen[#zeilen + 1] = string.format(text, ...) end
+
+    if not itemID then
+        sag("Keine Item-ID erkannt.")
+        return zeilen
+    end
+
+    local info = Compat.GetItemInfo(itemID)
+    if not info then
+        sag("GetItemInfo(%d) liefert nichts — der Client kennt das Stueck "
+            .. "gerade nicht. Tooltip einmal ansehen und erneut versuchen.", itemID)
+        return zeilen
+    end
+
+    local quality = tonumber(info.quality) or -1
+    sag("Name:       %s", tostring(info.name))
+    sag("Qualitaet:  %d  (waehlbar ab %d, automatisch ab %d)",
+        quality, MIN_CHOICE, MIN_AUTO)
+    sag("Bindung:    bindType=%s  (gesucht: %s = beim Anlegen)",
+        tostring(info.bindType), tostring(Compat.BIND_ON_EQUIP))
+
+    -- Liegt es ueberhaupt im Beutel, und was sagt die Bindungspruefung?
+    local gefunden, gebunden
+    for _, entry in ipairs(Compat.GetBagItems()) do
+        if entry.itemID == itemID then
+            gefunden = entry
+            gebunden = Compat.ItemIsBound(entry.bag, entry.slot)
+            break
+        end
+    end
+
+    if not gefunden then
+        sag("Im Beutel:  NEIN — nur was in deinen Taschen liegt, kann angeboten werden.")
+    else
+        sag("Im Beutel:  Tasche %d, Platz %d", gefunden.bag, gefunden.slot)
+        sag("Gebunden:   %s   (C_Item.IsBound=%s, Beutelauskunft=%s)",
+            gebunden == nil and "UNBEKANNT" or tostring(gebunden),
+            tostring(Compat.IsItemBound(gefunden.bag, gefunden.slot)),
+            tostring(Compat.IsItemBoundByContainer(gefunden.bag, gefunden.slot)))
+    end
+
+    sag("Testmodus:  %s", tostring(self.testMode == true))
+    sag("Automatik:  %s", tostring(GA.Core.Config:Get("offerNewFinds") and true or false))
+    sag("Waehlbar:   %s", tostring(self:IsCandidate(itemID)))
+    sag("Angeboten:  %s", tostring(self:IsOffered(itemID)))
+    sag("Alt-Klick:  %s", tostring(self.hookPath or "NICHT eingehaengt"))
+
+    return zeilen
+end
+
+--- Traegt neue Funde einmalig ein, wenn die Automatik an ist.
+---
+--- DIE AUTOMATIK SAEHT, SIE UEBERSTIMMT NICHT.
+---
+--- Vorher war sie ein lebender Vorgabewert: Ein blaues Stueck ohne
+--- Eintrag GALT als angeboten, solange das Haekchen gesetzt war. Damit
+--- machte ein Alt-Klick darauf genau das Gegenteil dessen, was der Spieler
+--- wollte — er nahm es weg. Bei gruenen Stuecken fuegte derselbe Klick
+--- etwas hinzu, weil die Automatik sie nicht erfasst. Ein Knopf, der mal
+--- so und mal so wirkt, ist kaputt, auch wenn jede einzelne Regel fuer
+--- sich stimmt.
+---
+--- Die Einstellung heisst "Neue Funde automatisch anbieten". Genau das tut
+--- sie jetzt: eintragen, einmal, beim Finden. Danach gehoert der Eintrag
+--- dem Spieler.
+--- @return number wie viele neu eingetragen wurden
+function Tradables:SeedNewFinds()
+    if not GA.Core.Config:Get("offerNewFinds") then return 0 end
+
+    local gewaehlt = choices()
+    local neu = 0
+    for _, item in ipairs(self:Scan()) do
+        -- NUR WAS GEPRUEFT IST, GEHT VON ALLEIN HINAUS. Ein Angebot, das
+        -- niemand annehmen kann, schickt jemanden quer durch die Welt —
+        -- und wer es nicht selbst angeklickt hat, weiss nicht einmal,
+        -- warum sein Name daransteht.
+        if gewaehlt[item.itemID] == nil and item.bindKnown
+            and (item.quality or 0) >= MIN_AUTO
+        then
+            gewaehlt[item.itemID] = true
+            neu = neu + 1
+        end
+    end
+    return neu
+end
+
+--- Bietest du dieses Stueck an?
+---
+--- Eine einzige Quelle: der Eintrag. Kein Vorgabewert, der davon abweichen
+--- koennte.
 function Tradables:IsOffered(itemID)
-    local choice = choices()[itemID]
-    if choice ~= nil then return choice end
-    return GA.Core.Config:Get("offerNewFinds") and true or false
+    return choices()[itemID] == true
 end
 
 --- Setzt die Wahl. nil loescht sie wieder (zurueck zur Vorgabe).
@@ -328,6 +455,10 @@ function Tradables:Refresh()
     local identity = Compat.GetPlayerIdentity()
     if not identity.guid then return end
 
+    -- ERST SAEEN, DANN LESEN: Ein Fund, der gerade erst im Beutel gelandet
+    -- ist, muss eingetragen sein, bevor gezaehlt wird, was angeboten wird.
+    self:SeedNewFinds()
+
     local _, sure = self:Scan()
     local items = self:Offered()
     local mine = store()[identity.guid]
@@ -349,6 +480,38 @@ function Tradables:Refresh()
         pending = false
         Tradables:Publish()
     end)
+end
+
+--- Schreibt die eigenen Angebote in den Gildenchat.
+---
+--- IN DEN GILDENCHAT ZU SCHREIBEN IST EIN AUSDRUECKLICHER BEFEHL, kein
+--- Nebeneffekt. Ein Addon, das ungefragt postet, fliegt zu Recht raus.
+--- Diese Funktion wird deshalb NUR von zwei Stellen gerufen, die beide ein
+--- Mensch ausloest: dem Knopf im Ueberblick und /ga trade post.
+---
+--- @return boolean gepostet, string|nil grund
+function Tradables:Announce()
+    local mine = self:Offered()
+    if #mine == 0 then return false, "leer" end
+
+    local namen = {}
+    for _, item in ipairs(mine) do
+        -- DER EIGENE LINK ZUERST: Er traegt den Zufallssuffix. Ein aus der
+        -- ID nachgeschlagener Link postet "Nomad Tunic" in den Gildenchat,
+        -- und wer darauf klickt, sieht andere Werte als die, die du
+        -- anbietest.
+        local info = Compat.GetItemInfo(item.link or item.itemID)
+        local text = item.link or (info and info.link) or (info and info.name)
+            or string.format(GA.L.SLASH_ITEM_FALLBACK, item.itemID)
+        namen[#namen + 1] = text .. ((item.count or 1) > 1 and (" x" .. item.count) or "")
+    end
+
+    local ok = Compat.SendChatMessage(
+        string.format(GA.L.TRADE_ANNOUNCE, table.concat(namen, ", ")), "GUILD")
+    if not ok then return false, "chat" end
+
+    self.lastAnnounce = Compat.Now()
+    return true
 end
 
 function Tradables:Publish(channel)

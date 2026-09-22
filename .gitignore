@@ -53,3 +53,6 @@ docs/WORKSPACE.md
 docs/
 tools/
 package.json
+
+# Fertig gepackter Stand fuer die Veroeffentlichung.
+build/

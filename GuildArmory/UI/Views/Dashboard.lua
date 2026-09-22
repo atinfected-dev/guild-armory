@@ -155,6 +155,19 @@ function Dashboard:Create(parent)
     tradables:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
     self.tradablesPanel = tradables
 
+    -- IN DIE KOPFLEISTE, NICHT UEBER DIE LISTE: Der Knopf wird selten
+    -- gedrueckt, die Liste dauernd gelesen. Platz, den er sich aus der
+    -- Liste nimmt, kostet bei jedem Blick eine Zeile.
+    --
+    -- Er postet NUR auf Druck. Ein Addon, das von selbst in den Gildenchat
+    -- schreibt, fliegt zu Recht raus — deshalb gibt es auch keine
+    -- Einstellung, die das automatisiert.
+    self.tradablesPost = Widgets.Button(tradables.header or tradables,
+        L.DASH_TRADABLES_POST, function() Dashboard:PostTradables() end)
+    self.tradablesPost:SetHeight(18)
+    self.tradablesPost:SetPoint("RIGHT", tradables.header or tradables, "RIGHT", -6, 0)
+    if self.tradablesPost.SetWidth then self.tradablesPost:SetWidth(96) end
+
     local function layout()
         local width = frame:GetWidth()
         if not width or width <= 0 then return end
@@ -336,6 +349,41 @@ end
 GA.UI.MainFrame:RegisterView("dashboard", Dashboard)
 
 --- Was die Gilde gerade anzubieten hat.
+--- Postet die eigenen Angebote und sagt, was passiert ist.
+---
+--- DER KNOPF GIBT IMMER ANTWORT. Ein Knopf, der bei leerer Liste einfach
+--- nichts tut, sieht aus wie ein kaputter Knopf — und beim naechsten Mal
+--- drueckt jemand dreimal.
+function Dashboard:PostTradables()
+    local Tradables = GA.Modules.Tradables
+    if not Tradables then return end
+
+    local ok, grund = Tradables:Announce()
+    if ok then
+        GA.Core.Debug:Info("%s", L.TRADE_POSTED)
+    elseif grund == "leer" then
+        GA.Core.Debug:Info("%s", L.TRADE_NONE_OWN)
+    else
+        GA.Core.Debug:Warn("%s", L.TRADE_POST_FAILED)
+    end
+
+    self:RefreshTradables()
+end
+
+--- Graut den Knopf aus, wenn es nichts zu posten gibt.
+function Dashboard:UpdatePostButton(eigene)
+    local button = self.tradablesPost
+    if not button then return end
+
+    -- Lieber ausgegraut als versteckt: Ein Knopf, der verschwindet und
+    -- wiederkommt, laesst die Kopfleiste zappeln, und man sucht ihn.
+    if button.SetEnabledState then
+        button:SetEnabledState(eigene > 0)
+    elseif button.Enable and button.Disable then
+        if eigene > 0 then button:Enable() else button:Disable() end
+    end
+end
+
 function Dashboard:RefreshTradables()
     local Tradables = GA.Modules.Tradables
     if not Tradables or not self.tradables then return end
@@ -373,6 +421,10 @@ function Dashboard:RefreshTradables()
 
     table.sort(rows, function(a, b) return a.label < b.label end)
     self.tradables:SetData(rows)
+
+    -- Nur die EIGENEN zaehlen fuer den Knopf: Er postet ja auch nur die.
+    local eigene = GA.Modules.Tradables:Offered()
+    self:UpdatePostButton(#eigene)
 
     if #rows == 0 then self.tradablesEmpty:Show() else self.tradablesEmpty:Hide() end
 end

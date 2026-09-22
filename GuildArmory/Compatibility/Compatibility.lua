@@ -360,6 +360,45 @@ function Compat.IsItemBound(bag, slot)
     return bound and true or false
 end
 
+--- Zweite Quelle fuer die Bindung: die Beutelauskunft.
+---
+--- WARUM ZWEI. C_Item.IsBound gibt es, aber es schweigt nicht bei jedem
+--- Stueck gleich — gemessen: ein bereits gebundenes gruenes Teil kam als
+--- "unbekannt" heraus und wurde deshalb der Gilde angeboten. Ein Angebot,
+--- das niemand annehmen kann, ist schlimmer als kein Angebot: Jemand
+--- laeuft dafuer quer durch die Welt.
+---
+--- GetContainerItemInfo fuehrt dasselbe als Feld isBound. Stimmen beide
+--- nicht ueberein, gewinnt "gebunden" — die Seite, auf der man niemanden
+--- umsonst losschickt.
+--- @return boolean|nil
+function Compat.IsItemBoundByContainer(bag, slot)
+    local container = _G.C_Container
+    local fn = (isTable(container) and container.GetContainerItemInfo)
+        or _G.GetContainerItemInfo
+    if not isFunction(fn) then return nil end
+
+    local ok, info = pcall(fn, bag, slot)
+    if not ok or not isTable(info) then return nil end
+    if info.isBound == nil then return nil end
+    return info.isBound and true or false
+end
+
+--- Beide Quellen zusammen. nil heisst wirklich: keine von beiden weiss es.
+--- @return boolean|nil
+function Compat.ItemIsBound(bag, slot)
+    local a = Compat.IsItemBound(bag, slot)
+    if a == true then return true end
+
+    local b = Compat.IsItemBoundByContainer(bag, slot)
+    if b == true then return true end
+
+    -- Ab hier ist keine der beiden "true". Nur wenn wenigstens EINE
+    -- ausdruecklich "nein" sagt, ist es ein Nein.
+    if a == false or b == false then return false end
+    return nil
+end
+
 --- Tatsaechliches Itemlevel eines Items (beruecksichtigt Aufwertungen).
 --- Gemessen 18.09.2026: C_Item.GetDetailedItemLevelInfo(link) funktioniert.
 --- @return number|nil

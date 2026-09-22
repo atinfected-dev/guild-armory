@@ -8,20 +8,31 @@ release makes that visible.
 
 ### Offering items
 
-Your bags are scanned for rare and better items that still **bind on equip**
-— pieces you can actually hand over. Nothing is offered on its own: you
-choose, per item.
+Your bags are scanned for items that still **bind on equip** and are not
+soulbound yet — pieces you can genuinely hand over. Nothing is offered on
+its own: you choose, per item.
+
+Two thresholds, and they mean different things. **Uncommon and better can be
+offered by hand.** Only **rare and better** ever runs along on its own — a
+bag of green quest rewards would otherwise bury the one blue item in the
+list, which is the whole point of the list.
 
 * **Alt-click an item in your bags** to offer it, alt-click again to take it
   back. The tooltip says which of the two a click will do.
 * `/ga trade add <item>` and `/ga trade remove <item>` do the same from the
-  chat line, for anyone whose client does not support the click.
-* `/ga trade` lists what you offer and what would qualify.
-* `/ga trade post` writes your offers to guild chat. Only on that command —
-  the addon never posts by itself.
-* `Offer new finds automatically` in the settings offers everything that
-  qualifies, without asking. Off by default: a rare item you are keeping for
-  an alt should not be advertised without you saying so.
+  chat line, for anyone whose client does not pass the click through.
+* `/ga trade` lists what you offer and what would qualify, and says whether
+  alt-click is hooked up on this client at all.
+* `/ga trade post`, or the **Post to guild** button in the dashboard, writes
+  your offers to guild chat. Only on that command — the addon never posts by
+  itself, and there is no setting that automates it.
+* `/ga trade why <item>` prints, line by line, what the addon knows about a
+  piece: quality, bind type, bag slot, what each bind check returned, and
+  whether it is offerable. "Doesn't work" is not something anyone can fix;
+  this turns it into a list of values, one of which says no.
+* `Offer new finds automatically` in the settings records qualifying new
+  finds once, as you pick them up. Off by default: something you are keeping
+  for an alt should not be advertised without you saying so.
 
 ### Seeing what the guild has
 
@@ -31,8 +42,13 @@ random suffixes — "Nomad Tunic of the Boar" arrives as exactly that, with
 its stats, not as a bare "Nomad Tunic".
 
 An owner shown in **warning colour** means the reporting client could not
-check whether the piece is already soulbound. It may be gone. A name in
-normal colour means the check ran and passed.
+check whether that piece is already soulbound. It may be gone. A name in
+normal colour means the check ran and passed. The distinction is tracked per
+item, not per bag, so one unclear piece does not cast doubt on the rest.
+
+Two independent sources are asked about the bind state, because one of them
+stays silent on some items. If either says bound, the piece is treated as
+bound — the side where nobody walks across the world for nothing.
 
 Offers older than three days disappear on their own. Anything listed has
 been confirmed by its owner within that window.
@@ -87,3 +103,12 @@ boundary rather than a polite request.
   the reason several backgrounds never drew.
 * An unverified tradable report was stored in a way that read back as
   verified. Uncertainty now survives storage.
+* An item whose bind state could not be checked was treated as *not* bound
+  and offered to the guild. A soulbound green would show up as tradable
+  while the bind-on-pickup blue beside it correctly did not, which looked
+  like blue items being broken. Unknown is no longer read as no.
+* `Offer new finds automatically` acted as a live default rather than
+  recording a choice, so alt-clicking an item it covered *removed* the
+  offer while the same click on an item it did not cover added one. One
+  gesture, two directions. The setting now records new finds once, as its
+  name says, and a click always reverses what the tooltip shows.
