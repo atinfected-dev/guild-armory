@@ -9,6 +9,7 @@
 local _, GA = ...
 
 local Dashboard = {}
+
 local Theme = GA.UI.Theme
 local Widgets = GA.UI.Widgets
 local Util = GA.Core.Util
@@ -19,6 +20,47 @@ Dashboard.titleKey = "NAV_DASHBOARD"
 
 local CARD_HEIGHT = 92
 local ROW_HEIGHT = 90
+
+--- Fuellt den GameTooltip mit einem Gegenstand und sagt, ob es geklappt hat.
+---
+--- DREI WEGE, WEIL EIN FREMDES ANGEBOT NUR EINE ZAHL IST.
+---
+--- Wer in der Gilde einen Gegenstand anbietet, schickt seine ID — mehr
+--- passt nicht sinnvoll in eine Comm-Nachricht. Ein Itemlink liegt beim
+--- Empfaenger nur vor, wenn dieser Client den Gegenstand schon einmal
+--- gesehen hat. Bei genau dem Stueck, das man noch nicht hat, ist das
+--- typischerweise nicht der Fall — also darf der Tooltip nicht davon
+--- abhaengen.
+---
+--- SetItemByID kommt deshalb zuerst: Es braucht nur die Zahl und stoesst
+--- beim Server die Abfrage an. Solange die laeuft, steht im Tooltip
+--- "Retrieving item information" — das ist richtig so und besser als gar
+--- kein Tooltip, und beim naechsten Ueberfahren steht der Gegenstand da.
+local function showItemTooltip(itemID, link)
+    if not itemID and not link then return false end
+
+    -- DER LINK ZUERST, NICHT DIE ID.
+    --
+    -- Die ID allein sagt "irgendeine Nomadentunika". Werte aus einem
+    -- Zufallssuffix, der richtige Name, Haltbarkeit und Stufenanforderung
+    -- haengen am vollstaendigen Itemstring — und genau der kommt jetzt mit
+    -- der Meldung mit. SetItemByID bleibt als Rueckfall fuer alte
+    -- Meldungen, die noch keine Kennung tragen.
+    if link and pcall(GameTooltip.SetHyperlink, GameTooltip, link) then
+        return true
+    end
+
+    if itemID and type(GameTooltip.SetItemByID) == "function"
+        and pcall(GameTooltip.SetItemByID, GameTooltip, itemID)
+    then
+        return true
+    end
+
+    -- Letzter Weg: eine Kurzform des Links aus der blossen ID bauen.
+    return itemID
+        and pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. itemID)
+        and true or false
+end
 
 function Dashboard:Create(parent)
     local fonts = Theme.Fonts()
@@ -97,54 +139,31 @@ function Dashboard:Create(parent)
     self.handover:SetJustifyH("LEFT")
 
     -- ------------------------------------------------- Listen ---------------
-    local changes = Widgets.Panel(frame, L.DASH_CHANGES)
-    changes:SetPoint("TOPLEFT", guild, "BOTTOMLEFT", 0, -gap)
-    changes:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
-
+    --
+    -- "Letzte Aenderungen" stand hier bis zum 22.09.2026 und ist entfernt:
+    -- Eine Liste, die jedes An- und Ablegen eines Gegenstands mitschreibt,
+    -- fuellt sich schneller, als jemand sie liest — und beantwortet keine
+    -- Frage, die man an ein Dashboard stellt. Die Historie steht in der
+    -- eigenen Ansicht, der Ausruestungsverlauf in der Armory.
     local online = Widgets.Panel(frame, L.DASH_ONLINE)
-    online:SetPoint("TOPLEFT", changes, "TOPRIGHT", gap, 0)
-    online:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+    online:SetPoint("TOPLEFT", guild, "BOTTOMLEFT", 0, -gap)
+    online:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
     self.onlinePanel = online
+
+    local tradables = Widgets.Panel(frame, L.DASH_TRADABLES)
+    tradables:SetPoint("TOPLEFT", online, "TOPRIGHT", gap, 0)
+    tradables:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+    self.tradablesPanel = tradables
 
     local function layout()
         local width = frame:GetWidth()
         if not width or width <= 0 then return end
         local half = (width - pad * 2 - gap) * 0.5
         guild:SetWidth(half)
-        changes:SetWidth(half)
+        online:SetWidth(half)
     end
     frame:SetScript("OnSizeChanged", layout)
     self.layout = layout
-
-    self.changes = Widgets.ScrollList(changes.content, {
-        rowHeight = 24,
-        createRow = function(row)
-            row.icon = row:CreateTexture(nil, "ARTWORK")
-            row.icon:SetWidth(18) row.icon:SetHeight(18)
-            row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-            row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-            row.text = Theme.Label(row, "", fonts.body, Theme.color.text)
-            row.text:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-            row.text:SetPoint("RIGHT", row, "RIGHT", -70, 0)
-            row.text:SetJustifyH("LEFT")
-            row.when = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
-            row.when:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        end,
-        updateRow = function(row, entry)
-            if entry.icon then row.icon:SetTexture(entry.icon) row.icon:Show() else row.icon:Hide() end
-            row.text:SetText(entry.text)
-            local color = entry.color or Theme.color.text
-            row.text:SetTextColor(color[1], color[2], color[3])
-            row.when:SetText(entry.when or "")
-        end,
-        onEnterRow = function(row, entry)
-            if entry.link then
-                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-                if pcall(GameTooltip.SetHyperlink, GameTooltip, entry.link) then GameTooltip:Show() end
-            end
-        end,
-    })
-    self.changes:SetAllPoints(changes.content)
 
     self.online = Widgets.ScrollList(online.content, {
         rowHeight = 22,
@@ -172,73 +191,61 @@ function Dashboard:Create(parent)
     })
     self.online:SetAllPoints(online.content)
 
+    -- EINE ZEILE JE GEGENSTAND, nicht je Spieler: Gesucht wird nach dem
+    -- Gegenstand ("hat jemand den Guertel?"), nicht nach der Person.
+    self.tradables = Widgets.ScrollList(tradables.content, {
+        rowHeight = 20,
+        -- NICHT row.item: Diesen Namen belegt ScrollList selbst mit dem
+        -- Datensatz der Zeile, und zwar VOR jedem updateRow. Eine Anzeige
+        -- darin wird beim ersten Zeichnen ueberschrieben.
+        createRow = function(row)
+            local fonts = Theme.Fonts()
+            row.itemText = Theme.Label(row, "", fonts.row, Theme.color.text)
+            row.itemText:SetPoint("LEFT", row, "LEFT", 6, 0)
+            row.itemText:SetPoint("RIGHT", row, "RIGHT", -120, 0)
+            row.itemText:SetJustifyH("LEFT")
+            if row.itemText.SetWordWrap then
+                pcall(row.itemText.SetWordWrap, row.itemText, false)
+            end
+
+            row.ownerText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+            row.ownerText:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+            row.ownerText:SetWidth(112)
+            row.ownerText:SetJustifyH("RIGHT")
+        end,
+        updateRow = function(row, entry)
+            row.itemText:SetText(entry.label)
+            local color = entry.quality and Theme.QualityColor(entry.quality) or Theme.color.text
+            row.itemText:SetTextColor(color[1], color[2], color[3])
+            row.ownerText:SetText(entry.owner)
+            -- UNSICHER HEISST UNSICHER: Konnte der meldende Client nicht
+            -- pruefen, ob das Stueck schon gebunden ist, steht der Name in
+            -- Warnfarbe statt so auszusehen wie ein geprueftes Angebot.
+            local ownerColor = entry.sure and Theme.color.textDim or Theme.color.warn
+            row.ownerText:SetTextColor(ownerColor[1], ownerColor[2], ownerColor[3])
+        end,
+        onEnterRow = function(row, entry)
+            if not entry or not entry.itemID then return end
+            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+            if showItemTooltip(entry.itemID, entry.link) then
+                GameTooltip:Show()
+            else
+                GameTooltip:Hide()
+            end
+        end,
+        onLeaveRow = function() GameTooltip:Hide() end,
+    })
+    self.tradables:SetAllPoints(tradables.content)
+
+    self.tradablesEmpty = Theme.Label(tradables.content, L.DASH_TRADABLES_NONE,
+        Theme.Fonts().small, Theme.color.textFaint)
+    self.tradablesEmpty:SetPoint("TOPLEFT", tradables.content, "TOPLEFT", 4, -4)
+    self.tradablesEmpty:SetPoint("RIGHT", tradables.content, "RIGHT", -4, 0)
+    self.tradablesEmpty:SetJustifyH("LEFT")
+    self.tradablesEmpty:Hide()
+
     self.frame = frame
     return frame
-end
-
---- Baut die Liste der letzten Aenderungen aus den Snapshots aller eigenen
---- Charaktere. Jede Zeile ist ein angelegter oder abgelegter Gegenstand;
---- Staende ohne Platzwechsel (nur Itemlevel) und der erste Stand erscheinen
---- als eigene Zeile, damit die Liste die Erfassung selbst belegt.
-function Dashboard:CollectChanges(limit)
-    local db = GA.Core.Database.account
-    local rows = {}
-
-    for guid, snapshots in pairs(db.snapshots) do
-        local character = db.characters[guid]
-        local who = Util.ShortName(character and character.name or "?")
-        for index = #snapshots, 1, -1 do
-            local snapshot = snapshots[index]
-            local changes = snapshot.changes or {}
-            if index == 1 or #changes == 0 then
-                rows[#rows + 1] = {
-                    ts = snapshot.ts,
-                    text = string.format("%s: %s", who,
-                        string.format(L.DASH_SNAPSHOT_ROW, tostring(snapshot.itemLevel or "—"))),
-                    color = Theme.color.textDim,
-                    when = Util.TimeAgo(snapshot.ts),
-                }
-            end
-            for _, change in ipairs(changes) do
-                local itemID = change.to or change.from
-                local info = itemID and Compat.GetItemInfo(itemID)
-                local name = info and info.name or string.format(L.ITEM_FALLBACK, tostring(itemID))
-                rows[#rows + 1] = {
-                    ts = snapshot.ts,
-                    icon = info and info.icon or nil,
-                    link = info and info.link or nil,
-                    text = string.format(change.to and L.CHANGE_EQUIPPED or L.CHANGE_UNEQUIPPED, who, name),
-                    color = info and Theme.QualityColor(info.quality) or nil,
-                    when = Util.TimeAgo(snapshot.ts),
-                }
-            end
-        end
-    end
-
-    -- Rosterereignisse gehoeren in dieselbe Liste: "Bert ist beigetreten" und
-    -- "Anna hat den Helm angelegt" sind beides Dinge, die seit gestern
-    -- passiert sind. Sie getrennt zu zeigen hiesse, zweimal hinsehen zu
-    -- muessen.
-    for _, event in ipairs(GA.Modules.GuildHistory:List()) do
-        local color = Theme.color.textDim
-        if event.kind == GA.Modules.GuildHistory.LEFT then color = Theme.color.textFaint
-        elseif event.kind == GA.Modules.GuildHistory.PROMOTED then color = Theme.color.jade
-        elseif event.kind == GA.Modules.GuildHistory.DEMOTED then color = Theme.color.warn
-        elseif event.kind == GA.Modules.GuildHistory.JOINED then color = Theme.color.gold end
-
-        local text = string.format("%s: %s", event.name,
-            L["HIST_" .. event.kind] or event.kind)
-        if event.detail then text = text .. " " .. string.format(L.HIST_FROM_RANK, event.detail) end
-
-        rows[#rows + 1] = {
-            ts = event.ts, text = text, color = color,
-            when = Util.TimeAgo(event.ts),
-        }
-    end
-
-    table.sort(rows, function(a, b) return a.ts > b.ts end)
-    while #rows > (limit or 30) do rows[#rows] = nil end
-    return rows
 end
 
 function Dashboard:OnShow()
@@ -310,11 +317,7 @@ function Dashboard:Refresh()
         self.handover:SetText("")
     end
 
-    local changeRows = self:CollectChanges(40)
-    if #changeRows == 0 then
-        changeRows = { { text = L.DASH_NO_CHANGES, color = Theme.color.textFaint } }
-    end
-    self.changes:SetData(changeRows)
+    self:RefreshTradables()
 
     local onlineRows = GA.Modules.Guild:List(true)
     if self.onlinePanel and self.onlinePanel.SetTitle then
@@ -331,3 +334,49 @@ function Dashboard:Refresh()
 end
 
 GA.UI.MainFrame:RegisterView("dashboard", Dashboard)
+
+--- Was die Gilde gerade anzubieten hat.
+function Dashboard:RefreshTradables()
+    local Tradables = GA.Modules.Tradables
+    if not Tradables or not self.tradables then return end
+
+    local rows = {}
+    for _, entry in ipairs(Tradables:All()) do
+        for _, item in ipairs(entry.items) do
+            -- UEBER DEN LINK NACHSCHLAGEN, WENN ES IHN GIBT: Der Name aus
+            -- der blossen ID heisst "Nomad Tunic", der aus dem Link
+            -- "Nomad Tunic of the Boar". Beides ist derselbe Gegenstand
+            -- nur fuer jemanden, der die Werte nicht braucht.
+            local info = (item.link and GA.Core.Compat.GetItemInfo(item.link))
+                or (GA.Modules.ItemIndex and GA.Modules.ItemIndex:Get(item.itemID))
+                or GA.Core.Compat.GetItemInfo(item.itemID)
+            local label = (info and info.name)
+                or string.format(L.SLASH_ITEM_FALLBACK, item.itemID)
+            if (item.count or 1) > 1 then label = label .. "  x" .. item.count end
+
+            rows[#rows + 1] = {
+                label = label,
+                quality = info and info.quality,
+                owner = GA.Core.Util.ShortName(entry.name or "?"),
+                sure = entry.sure,
+                -- Fuer den Tooltip. DIE ID IST DAS EINZIGE, WAS SICHER DA
+                -- IST: Bei fremden Angeboten kommt nur sie ueber die
+                -- Comm-Nachricht, ein Link existiert dann hoechstens, wenn
+                -- dieser Client den Gegenstand schon einmal gesehen hat.
+                itemID = item.itemID,
+                -- Der Link des BESITZERS, nicht der aus dem eigenen
+                -- Verzeichnis: Nur er traegt den Zufallssuffix.
+                link = item.link or (info and info.link),
+            }
+        end
+    end
+
+    table.sort(rows, function(a, b) return a.label < b.label end)
+    self.tradables:SetData(rows)
+
+    if #rows == 0 then self.tradablesEmpty:Show() else self.tradablesEmpty:Hide() end
+end
+
+GA.Core.Callbacks:On("TRADABLES_CHANGED", function()
+    if Dashboard.frame and Dashboard.frame:IsVisible() then Dashboard:RefreshTradables() end
+end, "DashboardView")

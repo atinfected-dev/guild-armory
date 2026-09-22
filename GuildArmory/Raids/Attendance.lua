@@ -102,8 +102,16 @@ end
 
 --- Schliesst den laufenden Abschnitt.
 ---
---- @param reason string|nil  "left" | "recovered"
+--- @param reason string|nil  "left" | "recovered" | "logout"
 --- @return table|nil abschnitt
+---
+--- BEIM ABMELDEN WIRD NICHTS AUSGEWERTET.
+---
+--- Der Rueckruf loest Rules:Evaluate aus, und das geht 64 Regeln durch —
+--- samt GetMoney, GetProfessions, GetContainerNumSlots, GetInstanceInfo. All
+--- das in PLAYER_LOGOUT, waehrend der Client seinen Zustand abbaut.
+--- Freischalten kann es dort ohnehin nichts, was nicht beim naechsten Start
+--- genauso auffiele. Der Abschnitt wird geschlossen, mehr nicht.
 function Attendance:Close(reason)
     local account = db()
     local open = account.raidOpen
@@ -141,7 +149,11 @@ function Attendance:Close(reason)
 
     Debug:Print("core", "Raid verlassen: %s, %d Minuten%s",
         tostring(block.name), math.floor(duration / 60), capped and " (gekappt)" or "")
-    GA.Core.Callbacks:Fire("RAID_ATTENDANCE_CHANGED")
+
+    -- Siehe oben: beim Abmelden kein Rueckruf.
+    if reason ~= "logout" then
+        GA.Core.Callbacks:Fire("RAID_ATTENDANCE_CHANGED")
+    end
     return block
 end
 
@@ -149,6 +161,11 @@ end
 function Attendance:Poll()
     local inRaid, instance = self:InRaid()
     local open = db().raidOpen
+
+    -- Die Aufzeichnung haengt an derselben Frage wie der Abschnitt: Stehe
+    -- ich in einem Raid? Deshalb hier und nicht in einem zweiten Takt.
+    -- Tut nichts, solange die Einstellung aus ist (siehe Raids/CombatLog).
+    if GA.Modules.CombatLog then GA.Modules.CombatLog:Apply(inRaid) end
 
     if inRaid and not open then
         self:Open(instance)
@@ -261,8 +278,12 @@ function Attendance:OnEnable()
 
     -- Beim Abmelden sauber schliessen, damit der naechste Start keinen
     -- offenen Abschnitt kappen muss.
+    -- Der Abschnitt MUSS hier geschlossen werden: Bliebe er offen, rechnete
+    -- ihn der naechste Start bis zum Fund weiter, und die Zeit mit
+    -- geschlossenem Spiel zaehlte mit. Aber wirklich nur das Schliessen —
+    -- ohne Auswertung (siehe Attendance:Close).
     GA.Core.Events:Register("PLAYER_LOGOUT", function()
-        Attendance:Close("left")
+        Attendance:Close("logout")
     end, "Attendance")
 
     local function tick()

@@ -7,7 +7,12 @@
 # --- Abrufcache & erzeugte Daten ---------------------------------------------
 # Warcraft-Logs-Reports sind unveraenderlich und jederzeit neu abrufbar.
 tools/.cache/
-data/
+# Mit fuehrendem Schraegstrich: OHNE ihn traf das Muster auch
+# GuildArmory/Data/ — den Ordner, den die .toc laedt. Die Datei waere dann
+# nie im Repository angekommen, und jede Installation haette einen
+# .toc-Eintrag ins Leere gehabt.
+/data/
+tools/data/
 
 # --- Node --------------------------------------------------------------------
 node_modules/

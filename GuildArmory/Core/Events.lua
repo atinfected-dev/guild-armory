@@ -149,6 +149,9 @@ bootstrap:SetScript("OnEvent", function(self, event, arg1)
         -- Starten an Nachrichtentypen, und dafuer muss Comm schon stehen.
         if GA.Core.Comm then GA.Core.Comm:OnEnable() end
         if GA.Core.Export then GA.Core.Export:OnEnable() end
+        -- Die Sonde haengt unter GA.Core, nicht unter GA.Modules: Die
+        -- Schleife weiter unten wuerde sie nicht finden.
+        if GA.Core.Probe then GA.Core.Probe:OnEnable() end
 
         -- Module zuerst: Sie fuellen den Zustand, den die Views danach anzeigen.
         for name, module in pairs(GA.Modules) do

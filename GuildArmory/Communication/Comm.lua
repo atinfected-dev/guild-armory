@@ -181,7 +181,22 @@ function Comm:GroupChannel()
 end
 
 --- Schiebt eine fertige Nutzlast in die Warteschlange.
+--- Reiht eine fertige Nutzlast ein.
+---
+--- HIER wird das Fluesterziel gekuerzt, nicht bei den Aufrufern.
+---
+--- Gemeldet 21.09.2026 aus dem Spiel: "No player named 'Heisenberg
+--- Runeblight-ClassicBetaPvE2' is currently playing." Comm:Send kuerzte
+--- laengst richtig — aber Comm:SendBlob reichte sein Ziel ungekuerzt an
+--- diese Funktion durch. Der Kommentar in Send sagte damals schon, warum das
+--- an EINER Stelle stehen muss, und die naechste Funktion hat es trotzdem
+--- vergessen. Also steht es jetzt an der Stelle, durch die beide Wege
+--- muessen.
 local function enqueue(payload, channel, target, bulk)
+    if channel == "WHISPER" and target then
+        target = Comm:WhisperTarget(target)
+    end
+
     local list = bulk and queue.bulk or queue.urgent
     list[#list + 1] = { payload = payload, channel = channel, target = target }
     Comm:Drain()
@@ -219,9 +234,9 @@ function Comm:Send(messageType, fields, channel, target, bulk)
     if not channel then return false, "nochannel" end
     if channel == "WHISPER" and not target then return false, "notarget" end
 
-    -- An EINER Stelle umgesetzt statt an jedem Aufrufer: Sonst faellt es beim
-    -- naechsten neuen Nachrichtentyp wieder hinten runter.
-    if channel == "WHISPER" then target = self:WhisperTarget(target) end
+    -- Das Fluesterziel kuerzt enqueue, nicht diese Funktion: Dort laufen
+    -- Send UND SendBlob durch. Hier stand es vorher, und SendBlob ging daran
+    -- vorbei (siehe Kommentar bei enqueue).
 
     local payload = self:Encode(messageType, fields)
     if #payload > MAX_PAYLOAD then
@@ -351,8 +366,62 @@ function Comm:On(messageType, handler, owner)
     table.insert(handlers[messageType], { handler = handler, owner = owner })
 end
 
+--- Zaehlt, was abgewiesen wurde. /ga sync nennt es.
+Comm.rejected = { stranger = 0, unknown = 0 }
+
+--- Darf ich diese Nachricht ueberhaupt annehmen?
+---
+--- NUR CLIENTS DERSELBEN GILDE.
+---
+--- Bis 22.09.2026 nahm OnMessage jede Nachricht von jedem an. Ueber den
+--- GUILD-Kanal ist das harmlos: Dorthin kommt nur, wer in der Gilde ist —
+--- das entscheidet der Server, nicht das Addon. Ueber RAID und PARTY sitzt
+--- aber jeder Fremde im Schlachtzug mit, und eine FLUESTERNACHRICHT kann
+--- jeder auf dem Server schicken.
+---
+--- Damit konnte jeder Beliebige Charakterdaten, Vergaben und Erfolge in eine
+--- fremde Gildendatenbank schreiben. Nicht aus Boesartigkeit — es genuegt,
+--- dass zwei Gilden dasselbe Addon in derselben Schlachtzugsgruppe benutzen.
+---
+--- Der Absendername kommt vom Server und ist nicht faelschbar. Das ist die
+--- einzige belastbare Eigenschaft, die dieser Transportweg hat, und genau
+--- darauf baut die Pruefung.
+---
+--- @return boolean darf, string|nil grund
+function Comm:MayAccept(sender, channel)
+    -- Der GUILD-Kanal traegt die Antwort in sich: Der Server stellt ihn nur
+    -- Gildenmitgliedern zu.
+    if channel == "GUILD" then return true end
+
+    -- Eigene Nachrichten kommen zurueck; manche Empfaenger brauchen sie.
+    if self:IsSelf(sender) then return true end
+
+    local Guild = GA.Modules.Guild
+    if not Guild then return false, "unknown" end
+
+    local member = Guild:IsMember(sender)
+    if member == true then return true end
+    if member == false then return false, "stranger" end
+
+    -- WEISS NICHT — das Roster ist noch nicht da (kurz nach dem Einloggen)
+    -- oder unvollstaendig. Abgewiesen wird trotzdem: Eine fremde Nachricht
+    -- anzunehmen schreibt in die Datenbank, und das laesst sich nicht
+    -- zurueckholen. Eine verworfene Nachricht dagegen kommt wieder — der
+    -- Abgleich laeuft alle zehn Minuten von selbst.
+    Guild:RequestRebuild(2)
+    return false, "unknown"
+end
+
 function Comm:OnMessage(prefix, payload, channel, sender)
     if prefix ~= GA.const.COMM_PREFIX then return end
+
+    local allowed, reason = self:MayAccept(sender, channel)
+    if not allowed then
+        self.rejected[reason] = (self.rejected[reason] or 0) + 1
+        Debug:Print("comm", "Nachricht von %s ueber %s verworfen (%s)",
+            tostring(sender), tostring(channel), tostring(reason))
+        return
+    end
 
     local messageType, fields = self:Decode(payload)
     if not messageType then

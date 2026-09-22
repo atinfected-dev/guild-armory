@@ -138,6 +138,51 @@ function Guild:List(onlineOnly)
     return list
 end
 
+--- Ist dieser Name ein Mitglied MEINER Gilde?
+---
+--- DREI ANTWORTEN, NICHT ZWEI.
+---
+---   true   steht im Roster
+---   false  steht nicht drin, obwohl das Roster vollstaendig gelesen ist
+---   nil    weiss nicht — Roster leer oder unvollstaendig
+---
+--- Die dritte ist der Grund fuer diese Funktion. Kurz nach dem Einloggen ist
+--- das Roster noch nicht da; ein blosses "nicht gefunden" waere dann ein
+--- falsches Nein, und der Aufrufer wuerde jedes Gildenmitglied abweisen.
+--- Was in diesem Fall geschieht, entscheidet der Aufrufer — nicht diese
+--- Funktion, die es gar nicht wissen kann.
+---
+--- Verglichen wird ueber den KURZNAMEN. Der Absender einer Addon-Nachricht
+--- kommt als "Name-Realm", das Roster fuehrt ihn ohne — und auf Forever
+--- stehen Leerzeichen im Namen, also wird am Bindestrich getrennt.
+function Guild:IsMember(name)
+    if not name or name == "" then return false end
+
+    local db = GA.Core.Database.account.guild
+    local members = db and db.members
+    if not members or next(members) == nil then return nil end
+
+    local wanted = string.lower(Util.ShortName(name))
+    for _, member in pairs(members) do
+        if member.name and string.lower(member.name) == wanted then return true end
+    end
+
+    -- NICHT GEFUNDEN HEISST HIER WIRKLICH NEIN — und zwar auch bei einem
+    -- unvollstaendig gelesenen Roster.
+    --
+    -- Der erste Entwurf gab bei db.partial ein "weiss nicht" zurueck. Das
+    -- waere falsch gewesen: Ob das Roster vollstaendig ist, haengt daran, ob
+    -- der Spieler abgemeldete Mitglieder eingeblendet hat — eine Einstellung
+    -- im Gildenfenster, die dieses Addon nicht kennt und nicht anfassen
+    -- sollte. Bei ausgeblendeten Offline-Mitgliedern waere partial DAUERHAFT
+    -- gesetzt, und jede Pruefung endete fuer immer im "weiss nicht".
+    --
+    -- Der Filter blendet aber nur ABGEMELDETE aus. Wer gerade eine Nachricht
+    -- schickt, ist angemeldet und steht deshalb im Roster — egal wie
+    -- gefiltert wird. Wer nicht drinsteht, ist kein Mitglied.
+    return false
+end
+
 -- ================================================================== Start ------
 
 function Guild:OnEnable()

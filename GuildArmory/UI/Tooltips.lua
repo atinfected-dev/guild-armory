@@ -60,6 +60,21 @@ function Tooltips:OnItem(tooltip, itemID)
         end
     end
 
+    -- Tauschbar? Die Zeile steht NUR bei eigenen Beutelstuecken, die in
+    -- Frage kommen — bei jedem Gegenstand im Spiel waere sie Rauschen.
+    --
+    -- SIE IST KEIN KNOPF. Ein WoW-Tooltip zeigt Text und verschwindet; man
+    -- kann darin nichts anklicken. Deshalb sagt die Zeile, was ein Alt-Klick
+    -- im Beutel tut, und der Klick landet in Armory/Tradables.
+    local Tradables = GA.Modules.Tradables
+    if Tradables and Tradables:IsCandidate(itemID) then
+        local offered = Tradables:IsOffered(itemID)
+        tooltip:AddLine(PREFIX .. (offered and L.TIP_TRADE_ON or L.TIP_TRADE_OFF),
+            offered and 0.37 or 0.66, offered and 0.79 or 0.61, offered and 0.63 or 0.52)
+        tooltip:AddLine("  " .. (offered and L.TIP_TRADE_HINT_OFF or L.TIP_TRADE_HINT_ON),
+            0.5, 0.5, 0.5)
+    end
+
     -- Wurde er schon einmal vergeben?
     local awards = GA.Modules.Awards:List({ itemID = itemID })
     local last

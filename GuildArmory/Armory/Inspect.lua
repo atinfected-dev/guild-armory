@@ -73,14 +73,23 @@ end
 
 function Inspect:OnReady(guid)
     if not pending then return end
-    if guid and guid ~= pending.guid then return end
+    -- Auch hier kein blosses "~=": Der Wert kommt aus dem Ereignis und kann
+    -- verschleiert sein (siehe Compat.SameGUID).
+    if guid and not Compat.SameGUID(guid, pending.guid) then return end
 
     local request = pending
     local unit = request.unit
 
     -- Das Ziel kann inzwischen gewechselt haben: Nur lesen, wenn die Einheit
     -- noch derselbe Charakter ist.
-    if not UnitExists(unit) or UnitGUID(unit) ~= request.guid then
+    --
+    -- Compat.SameGUID statt "~=": Ein Vergleich mit einem verschleierten Wert
+    -- wirft (gemessen 21.09.2026 in LOOT_READY, dieselbe Bauart). Laesst er
+    -- sich nicht durchfuehren, gilt die Einheit als NICHT dieselbe — dann
+    -- bricht der Inspect ab, statt fremde Ausruestung unter dem falschen
+    -- Namen zu speichern.
+    local ok, unitGuid = pcall(_G.UnitGUID, unit)
+    if not UnitExists(unit) or not ok or not Compat.SameGUID(unitGuid, request.guid) then
         pending = nil
         Compat.ClearInspect()
         GA.Core.Callbacks:Fire("INSPECT_FAILED", request.name)

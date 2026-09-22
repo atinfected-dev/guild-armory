@@ -117,6 +117,22 @@ function Widgets.ScrollList(parent, options)
 
     --- Erzeugt fehlende Zeilen-Frames. Wird nur groesser, nie kleiner:
     --- ueberzaehlige Zeilen werden versteckt statt zerstoert.
+    ---
+    --- DIESE FELDNAMEN GEHOEREN ScrollList UND KEINER ANSICHT:
+    ---
+    ---     row.item        der Datensatz der Zeile
+    ---     row.dataIndex   seine Stelle in den Daten
+    ---     row.background  die Hintergrundflaeche
+    ---     row.index       die Nummer der Zeile im Fenster
+    ---     row.cells       die Spalten einer Tabellenzeile
+    ---
+    --- row.item und row.dataIndex werden VOR JEDEM updateRow neu gesetzt.
+    --- Wer in createRow eine Anzeige darunter ablegt, verliert sie beim
+    --- ersten Datensatz — und der Fehler erscheint dann in der Ansicht,
+    --- nicht hier. Genau so ist die Tradables-Liste gestolpert.
+    ---
+    --- Bewacht von tools/test/rowfields.test.js, das diese Liste aus dem
+    --- Quelltext hier liest statt sie nachzupflegen.
     local function ensureRows(count)
         for index = #list.rows + 1, count do
             local row = CreateFrame("Button", nil, body)

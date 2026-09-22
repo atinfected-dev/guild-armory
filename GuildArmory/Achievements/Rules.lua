@@ -76,6 +76,11 @@ local CLASS_COUNT = 9
 --- Ab wann eine Tasche als "gross" gilt. Vanilla-Grenze.
 local BIG_BAG_SLOTS = 16
 
+--- Hoechste Berufsfertigkeit in Vanilla-Inhalt. NICHT aus GetProfessionInfo
+--- ableiten: Das maxRank von dort ist die Grenze der aktuellen Lernstufe
+--- (75 fuer Lehrling), nicht die des Berufs.
+local PROFESSION_CAP = 300
+
 --- Sammelfenster fuer Ereignisse, die in Salven kommen (Geld, Taschen).
 local COLLECT_WINDOW = 5
 
@@ -345,17 +350,65 @@ function Rules.SOURCES.professions()
 end
 
 --- Auf Hoechstrang gebrachte Hauptberufe.
+---
+--- MAXRANK AUS DER API IST NICHT DIE GRENZE DES BERUFS.
+---
+--- Gemessen 22.09.2026 ueber /ga probe: "Alchemy 31/75". Die 75 ist die
+--- Grenze der LEHRLINGSSTUFE, nicht des Berufs — Vanilla kennt 75, 150, 225
+--- und 300. Die erste Fassung verglich rank >= maxRank und haette den Erfolg
+--- "Einen Hauptberuf maximieren" bei Fertigkeit 75 vergeben.
+---
+--- Verglichen wird deshalb mit der festen Obergrenze. maxRank dient nur noch
+--- als Gegenprobe: Meldet der Client eine hoehere Grenze, gilt seine.
 function Rules.SOURCES.professionsMaxed()
     local list = Compat.GetProfessions()
     if not list then return nil end
 
     local count = 0
     for _, profession in ipairs(list) do
-        if profession.maxRank > 0 and profession.rank >= profession.maxRank then
-            count = count + 1
-        end
+        local cap = math.max(PROFESSION_CAP, profession.maxRank or 0)
+        if profession.rank >= cap then count = count + 1 end
     end
     return count
+end
+
+-- ------------------------------------------------------ Aus hochgeladenen Logs
+--
+-- DER GROESSERE WERT GEWINNT, NICHT DIE SUMME.
+--
+-- Raids/Attendance misst, was dieser Client gesehen hat — ab Installation.
+-- Raids/History weiss, was hochgeladen wurde — auch von frueher, aber nur
+-- von Abenden, die jemand hochgeladen hat. Beide beschreiben DIESELBEN
+-- Abende. Zu addieren hiesse, jeden Abend doppelt zu zaehlen, der gemessen
+-- UND hochgeladen wurde.
+--
+-- Beide Zahlen sind Untergrenzen der Wahrheit. Die groessere ist die bessere.
+
+local function loggedStats()
+    local History = GA.Modules.History
+    if not History or not History:Available() then return nil end
+    return History:StatsFor(ownProfile())
+end
+
+--- Bosskills aus den Logs. Reine Log-Quelle: Der Client sieht Bosskills
+--- nicht (kein Combat Log), deshalb gibt es hier nichts zu vergleichen.
+function Rules.SOURCES.bossKills()
+    local stats = loggedStats()
+    return stats and stats.kills or nil
+end
+
+--- Wipes aus den Logs. Ebenfalls rein: Wer dabei war, war bei ihnen dabei.
+function Rules.SOURCES.wipes()
+    local stats = loggedStats()
+    return stats and stats.wipes or nil
+end
+
+--- Wie viele verschiedene Bosse hat die Gilde nachweislich gelegt?
+--- Fuer die Firstkill-Erfolge: Gezaehlt wird die Gilde, nicht der Spieler.
+function Rules.SOURCES.guildFirstKills()
+    local History = GA.Modules.History
+    if not History or not History:Available() then return nil end
+    return History:BossesDowned()
 end
 
 --- Raidstunden. Kommen aus Raids/Attendance.
@@ -364,15 +417,27 @@ end
 --- Die Oberflaeche nennt deshalb achievementsSince daneben.
 function Rules.SOURCES.raidHours()
     local Attendance = GA.Modules.Attendance
-    if not Attendance then return nil end
-    return math.floor(Attendance:Hours())
+    local gemessen = Attendance and math.floor(Attendance:Hours()) or nil
+
+    local stats = loggedStats()
+    local beobachtet = stats and math.floor(stats.minutes / 60) or nil
+
+    if gemessen == nil then return beobachtet end
+    if beobachtet == nil then return gemessen end
+    return math.max(gemessen, beobachtet)
 end
 
 --- Raidteilnahmen, je Abend und Instanz einmal.
 function Rules.SOURCES.raidsAttended()
     local Attendance = GA.Modules.Attendance
-    if not Attendance then return nil end
-    return Attendance:Count()
+    local gemessen = Attendance and Attendance:Count() or nil
+
+    local stats = loggedStats()
+    local beobachtet = stats and stats.nights or nil
+
+    if gemessen == nil then return beobachtet end
+    if beobachtet == nil then return gemessen end
+    return math.max(gemessen, beobachtet)
 end
 
 --- Wie oft habe ich im Council gepasst?
@@ -545,6 +610,27 @@ Rules.RULES = {
     -- GA-163 stand hier ebenfalls, bis Compat.GetProfessions da war. Die
     -- Regel ist nach oben zu den Berufen gewandert; hier bliebe sie sonst
     -- doppelt stehen, und die zweite haette die erste ueberschrieben.
+    -- Aus hochgeladenen Logs. Beleg: BEOBACHTET, nicht gemessen — dieser
+    -- Client hat die Abende nicht gesehen.
+    ["GA-086"] = { kind = "threshold", source = "bossKills", value = 1,   evidence = "observed" },
+    ["GA-087"] = { kind = "threshold", source = "bossKills", value = 10,  evidence = "observed" },
+    ["GA-088"] = { kind = "threshold", source = "bossKills", value = 50,  evidence = "observed" },
+    ["GA-089"] = { kind = "threshold", source = "bossKills", value = 100, evidence = "observed" },
+    ["GA-090"] = { kind = "threshold", source = "bossKills", value = 250, evidence = "observed" },
+    ["GA-091"] = { kind = "threshold", source = "bossKills", value = 500, evidence = "observed" },
+
+    ["GA-106"] = { kind = "threshold", source = "wipes", value = 1,    evidence = "observed" },
+    ["GA-107"] = { kind = "threshold", source = "wipes", value = 25,   evidence = "observed" },
+    ["GA-108"] = { kind = "threshold", source = "wipes", value = 100,  evidence = "observed" },
+    ["GA-109"] = { kind = "threshold", source = "wipes", value = 250,  evidence = "observed" },
+    ["GA-110"] = { kind = "threshold", source = "wipes", value = 500,  evidence = "observed" },
+    ["GA-111"] = { kind = "threshold", source = "wipes", value = 1000, evidence = "observed" },
+
+    ["GA-092"] = { kind = "threshold", source = "guildFirstKills", value = 1,  evidence = "observed" },
+    ["GA-093"] = { kind = "threshold", source = "guildFirstKills", value = 5,  evidence = "observed" },
+    ["GA-094"] = { kind = "threshold", source = "guildFirstKills", value = 10, evidence = "observed" },
+    ["GA-095"] = { kind = "threshold", source = "guildFirstKills", value = 25, evidence = "observed" },
+
     ["GA-158"] = { kind = "threshold", source = "syncedRecords", value = 1000 },
 }
 
@@ -597,8 +683,14 @@ function Rules:Evaluate()
         if not Achievements:IsUnlocked(id) then
             local progress = self:Progress(id)
             if progress.measurable and progress.done then
+                -- DER BELEG STEHT AN DER REGEL, nicht pauschal auf
+                -- "gemessen". Was aus hochgeladenen Logs kommt, hat dieser
+                -- Client nicht gesehen — das gehoert in die Ansicht.
+                local rule = self.RULES[id]
                 local ok = Achievements:Unlock(id, {
-                    evidence = Achievements.EVIDENCE.MEASURED,
+                    evidence = (rule and rule.evidence == "observed")
+                        and Achievements.EVIDENCE.OBSERVED
+                        or Achievements.EVIDENCE.MEASURED,
                     value = progress.current,
                 })
                 if ok then unlocked = unlocked + 1 end

@@ -10,6 +10,14 @@
                                (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
       Combat Log fuer Addons   NICHT verfuegbar (37 Kaempfe, 0 Ereignisse;
                                CombatLogGetCurrentEventInfo fehlt)
+      Combat Log als DATEI     VERFUEGBAR (gemessen 22.09.2026): /combatlog und
+                               LoggingCombat funktionieren, die Datei ist
+                               vollstaendig — Format 22, ADVANCED_LOG_ENABLED,
+                               7994 Zeilen mit UNIT_DIED und ZONE_CHANGE.
+                               Das Addon kann sie nicht lesen (Addons lesen
+                               keine Dateien), das Begleitprogramm schon.
+                               Die beiden Zeilen hier widersprechen sich also
+                               NICHT: blind im Spiel, lesbar von aussen.
       Auren                    nur C_UnitAuras; UnitAura/UnitBuff fehlen
       Addon-Nachrichten        nur C_ChatInfo; globale Fassung fehlt
       Gruppe                   GetNumGroupMembers ja, GetNumRaidMembers nein
@@ -63,6 +71,60 @@ local has = GA.has
 
 local function isFunction(value) return type(value) == "function" end
 local function isTable(value) return type(value) == "table" end
+
+--- Einmal angelegt statt bei jedem Aufruf: Compat.IsReadable laeuft in
+--- Tooltip-Rueckrufen, also bei jeder Mausbewegung.
+local function concatProbe(value) return value .. "" end
+local function compareProbe(a, b) return a == b end
+
+--- Laesst sich dieser Wert ueberhaupt lesen?
+---
+--- EIN "SECRET VALUE" SIEHT AUS WIE EIN STRING UND IST KEINER.
+---
+--- Der Retail-Client gibt manche Angaben verschleiert heraus: type() sagt
+--- "string", aber jede Umwandlung wirft
+---
+---   attempt to perform string conversion on a secret string value
+---   (execution tainted by 'GuildArmory')
+---
+--- Gemessen am Unit-Token eines Tooltips (20.09.2026) und an der GUID aus
+--- den Tooltipdaten (21.09.2026) — string.match darauf genuegt schon.
+---
+--- Es gibt keine Abfrage dafuer. Der einzige belastbare Test ist, die
+--- Umwandlung zu versuchen und den Fehler aufzufangen. Ein nicht lesbarer
+--- Wert ist KEIN Fehler im Addon: Er heisst nur, dass es fuer diese eine
+--- Einheit nichts zu holen gibt.
+---
+--- GEPRUEFT WERDEN ZWEI OPERATIONEN, NICHT EINE. Am 21.09.2026 kam erst
+--- "attempt to perform string conversion", eine Stunde spaeter "attempt to
+--- compare a secret string value" aus LOOT_READY. Eine Probe, die nur das
+--- Verketten versucht, haette den zweiten Fall durchgelassen und Sicherheit
+--- vorgetaeuscht.
+function Compat.IsReadable(value)
+    if value == nil then return false end
+    if type(value) ~= "string" then return true end
+    if not pcall(concatProbe, value) then return false end
+    return (pcall(compareProbe, value, ""))
+end
+
+--- Sind das dieselbe GUID?
+---
+--- EIN VERGLEICH IST KEINE HARMLOSE OPERATION.
+---
+--- Gemeldet 21.09.2026 aus LOOT_READY und LOOT_OPENED: "attempt to compare a
+--- secret string value". Hier stand ein schlichtes `UnitGUID("target") ==
+--- guid`, und der Rueckgabewert von UnitGUID ist auf diesem Client
+--- verschleiert.
+---
+--- FALSCH IST DIE RICHTIGE ANTWORT, wenn der Vergleich nicht geht: Die eine
+--- Stelle, die das braucht, fuellt dann den Namen des Gegners nicht aus —
+--- genau das, was sie ohnehin tun soll, wenn sie sich nicht sicher ist.
+--- Einen Namen zu raten waere schlechter als keiner.
+function Compat.SameGUID(a, b)
+    if type(a) ~= "string" or type(b) ~= "string" then return false end
+    local ok, equal = pcall(compareProbe, a, b)
+    return (ok and equal) and true or false
+end
 
 -- ================================================================== Existenz --
 -- Nur, was durch Existenz allein entscheidbar ist. Der Rest in Measure().
@@ -244,7 +306,7 @@ function Compat.GetItemInfo(itemLinkOrID)
     if not isFunction(fn) then return nil end
 
     local ok, name, link, quality, itemLevel, requiredLevel, itemType, itemSubType,
-          stackCount, equipLoc, icon, sellPrice, classID, subclassID =
+          stackCount, equipLoc, icon, sellPrice, classID, subclassID, bindType =
         pcall(fn, itemLinkOrID)
 
     if not ok or not name then return nil end
@@ -254,7 +316,48 @@ function Compat.GetItemInfo(itemLinkOrID)
         requiredLevel = requiredLevel, type = itemType, subType = itemSubType,
         stackCount = stackCount, equipLoc = equipLoc, icon = icon,
         sellPrice = sellPrice, classID = classID, subclassID = subclassID,
+        -- 0 = bindet nie, 1 = beim Aufheben, 2 = beim Anlegen, 3 = bei
+        -- Benutzung, 4 = Questgegenstand.
+        bindType = tonumber(bindType),
     }
+end
+
+--- Bindet dieser Gegenstand erst beim Anlegen?
+Compat.BIND_ON_EQUIP = 2
+
+--- Der Link eines einzelnen Beutelplatzes.
+function Compat.GetBagItemLink(bag, slot)
+    local container = _G.C_Container
+    local fn = (isTable(container) and container.GetContainerItemLink)
+        or _G.GetContainerItemLink
+    if not isFunction(fn) then return nil end
+
+    local ok, link = pcall(fn, bag, slot)
+    return (ok and link) or nil
+end
+
+--- Ist dieser Gegenstand im Beutel bereits seelengebunden?
+---
+--- DIE BINDUNGSART IST EINE EIGENSCHAFT DES GEGENSTANDS, NICHT DES STUECKS.
+---
+--- GetItemInfo sagt "bindet beim Anlegen" — auch dann, wenn genau dieses
+--- Exemplar laengst angelegt WAR und damit gebunden ist. Wer nur bindType
+--- liest, bietet der Gilde Gegenstaende an, die niemand mehr weitergeben
+--- kann.
+---
+--- @return boolean|nil  nil = laesst sich auf diesem Client nicht feststellen
+function Compat.IsItemBound(bag, slot)
+    if not isTable(_G.C_Item) or not isFunction(_G.C_Item.IsBound) then return nil end
+    if not isTable(_G.ItemLocation) or not isFunction(_G.ItemLocation.CreateFromBagAndSlot) then
+        return nil
+    end
+
+    local okLoc, location = pcall(_G.ItemLocation.CreateFromBagAndSlot, bag, slot)
+    if not okLoc or not location then return nil end
+
+    local okBound, bound = pcall(_G.C_Item.IsBound, location)
+    if not okBound then return nil end
+    return bound and true or false
 end
 
 --- Tatsaechliches Itemlevel eines Items (beruecksichtigt Aufwertungen).
@@ -708,6 +811,13 @@ end
 --- @return number|nil npcID  nur bei Kreaturen
 function Compat.ParseGUID(guid)
     if type(guid) ~= "string" then return nil end
+
+    -- Schon string.match wirft, wenn der Client die GUID verschleiert
+    -- herausgibt. Hier abgefangen und nicht beim Aufrufer: Dann ist JEDER
+    -- Weg zur GUID geschuetzt, nicht nur der, an dem es zuerst auffiel.
+
+    if not Compat.IsReadable(guid) then return nil end
+
     local kind = string.match(guid, "^(%a+)%-")
     if not kind then return nil end
     if kind == "Creature" or kind == "Vehicle" or kind == "Pet" then
@@ -734,8 +844,13 @@ function Compat.GetLootSource(slot)
 
     local kind, npcID = Compat.ParseGUID(guid)
     local name
-    if isFunction(_G.UnitGUID) and UnitGUID("target") == guid then
-        name = UnitName("target")
+    -- Compat.SameGUID statt "==": Der Rueckgabewert von UnitGUID ist auf
+    -- diesem Client verschleiert, und schon der Vergleich wirft.
+    if isFunction(_G.UnitGUID) then
+        local ok, targetGuid = pcall(_G.UnitGUID, "target")
+        if ok and Compat.SameGUID(targetGuid, guid) then
+            name = UnitName("target")
+        end
     end
 
     return { guid = guid, kind = kind, npcID = npcID, name = name }
@@ -882,6 +997,29 @@ function Compat.GetProfessions()
         end
     end
     return out
+end
+
+--- Laeuft die Aufzeichnung ins Combat Log gerade?
+--- @return boolean|nil  nil = der Client kennt die Funktion nicht
+function Compat.IsCombatLogging()
+    if not isFunction(_G.LoggingCombat) then return nil end
+    local ok, running = pcall(_G.LoggingCombat)
+    if not ok then return nil end
+    return running and true or false
+end
+
+--- Schaltet die Aufzeichnung ein oder aus.
+---
+--- GEPRUEFT AM RUECKGABEWERT, nicht am Aufruf: LoggingCombat(true) kann
+--- durchlaufen und nichts tun. Zurueck kommt der Zustand NACHHER — also wird
+--- er noch einmal gelesen und verglichen.
+---
+--- @return boolean|nil zustand danach, nil wenn es nicht geht
+function Compat.SetCombatLogging(on)
+    if not isFunction(_G.LoggingCombat) then return nil end
+    local ok = pcall(_G.LoggingCombat, on and true or false)
+    if not ok then return nil end
+    return Compat.IsCombatLogging()
 end
 
 --- Wo bin ich gerade?
@@ -1084,8 +1222,18 @@ function Compat.GetUnitIdentity(unit)
         if ok then guildName, guildRank, guildRankIndex = g, r, i end
     end
 
+    -- KEIN VERSCHLEIERTER WERT IN DIE DATENBANK.
+    --
+    -- Eine GUID, die sich nicht vergleichen laesst, ist als Schluessel
+    -- wertlos — und sie wuerde dort liegen bleiben und bei jedem spaeteren
+    -- Vergleich werfen, weit weg von der Stelle, an der sie hereinkam. An
+    -- der Grenze abgefangen ist sie ein fehlendes Feld, und das kann der
+    -- Aufrufer behandeln.
+    local okGuid, unitGuid = pcall(_G.UnitGUID, unit)
+    if not okGuid or not Compat.IsReadable(unitGuid) then unitGuid = nil end
+
     return {
-        guid = UnitGUID(unit),
+        guid = unitGuid,
         name = name,
         realm = realm,
         class = classFile,

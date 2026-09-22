@@ -194,9 +194,10 @@ function SoftRes:Import(text)
             else
                 for piece in string.gmatch(items, "[^,;]+") do
                     local token = string.match(piece, "^%s*(.-)%s*$")
-                    local parsed = token ~= "" and Compat.ParseItemInput(token) or nil
-                    if parsed and parsed.itemID then
-                        local ok = self:Add({ name = name }, parsed.itemID, "list")
+                    -- ParseItemInput liefert die ID DIREKT, keine Tabelle.
+                    local itemID = token ~= "" and Compat.ParseItemInput(token) or nil
+                    if itemID then
+                        local ok = self:Add({ name = name }, itemID, "list")
                         if ok then added = added + 1
                         else skipped[#skipped + 1] = { line = token, reason = "duplicate" } end
                     else

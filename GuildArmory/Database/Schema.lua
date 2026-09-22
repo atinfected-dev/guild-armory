@@ -118,6 +118,17 @@ Schema.ACCOUNT_DEFAULTS = {
         -- angezeigt werden, und der Nutzen ist sofort sichtbar.
         tooltipItems = true,
         tooltipPlayers = true,
+        -- Neue seltene Funde ungefragt der Gilde anbieten. STANDARD AUS:
+        -- Wer einen blauen Guertel fuer seinen Twink aufhebt, will ihn nicht
+        -- beworben sehen. Siehe Armory/Tradables.lua.
+        offerNewFinds = false,
+
+        -- Combat Log beim Betreten eines Raids selbst einschalten.
+        -- STANDARD AUS: Es entsteht eine Datei auf der Festplatte mit den
+        -- Namen aller Anwesenden, auch der Nicht-Gildenmitglieder. Das fragt
+        -- man, statt es zu tun. Siehe Raids/CombatLog.lua.
+        autoCombatLog = false,
+
         -- Sammlerbetrieb: Der Client laedt regelmaessig neu, damit die
         -- SavedVariables-Datei frisch bleibt. Nur fuer EINEN Client gedacht,
         -- der genau dafuer parkt — siehe Core/Export.lua. Standard AUS.
@@ -272,6 +283,12 @@ Schema.ACCOUNT_DEFAULTS = {
     --- guildSeen haelt den letzten bekannten Stand fuer den Vergleich.
     guildLog = {},
     guildSeen = nil,
+
+    --- Tauschbare Gegenstaende je Charakter: [guid] = { name, ts, sure, items }
+    --- Seltene Beutelstuecke, die beim Anlegen binden — eigene und fremde.
+    --- Woher sie stammen (Welt, Dungeon, Raid), spielt keine Rolle: Gescannt
+    --- wird der Beutel. Siehe Armory/Tradables.lua.
+    tradables = {},
 
     --- Gegenstandsverzeichnis: [itemID] = { name, icon, quality, equipLoc, level, ts }
     --- Gefuellt aus allem, was der Client aufloest (siehe Database/ItemIndex.lua).

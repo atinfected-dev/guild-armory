@@ -136,6 +136,15 @@ SlashCmdList["GUILDARMORY"] = function(input)
             Debug:Info(L.SLASH_SYNC_PEER, name,
                 tostring(peer.addon), tostring(peer.version))
         end
+
+        -- Abgewiesene Nachrichten gehoeren hierher und nicht ins Schweigen:
+        -- Wer sich wundert, warum ein Mitspieler nicht auftaucht, sieht hier
+        -- den Grund.
+        local rejected = GA.Core.Comm.rejected or {}
+        if (rejected.stranger or 0) > 0 or (rejected.unknown or 0) > 0 then
+            Debug:Info(L.SLASH_SYNC_REJECTED,
+                rejected.stranger or 0, rejected.unknown or 0)
+        end
     elseif command == "export" then
         if rest == "show" then GA.Core.Export:ShowDialog()
         else GA.Core.Export:Refresh(true) end
@@ -192,12 +201,16 @@ SlashCmdList["GUILDARMORY"] = function(input)
             -- lernen muss.
             local text, seconds = string.match(rest, "^(.-)%s+(%d+)$")
             text = text or rest
-            local parsed = text ~= "" and GA.Core.Compat.ParseItemInput(text) or nil
+            -- ParseItemInput liefert ZWEI WERTE (ID und Art), keine Tabelle.
+            -- Name und Link kommen aus dem Itemverzeichnis, nicht vom Parser
+            -- — der sieht nur die Eingabe.
+            local itemID = text ~= "" and GA.Core.Compat.ParseItemInput(text) or nil
+            local info = itemID and GA.Core.Compat.GetItemInfo(itemID)
 
             local ok, result = Rolls:Open({
-                itemID = parsed and parsed.itemID,
-                itemName = parsed and parsed.name or (text ~= "" and text or nil),
-                itemLink = parsed and parsed.link,
+                itemID = itemID,
+                itemName = (info and info.name) or (text ~= "" and text or nil),
+                itemLink = info and info.link,
                 seconds = tonumber(seconds),
             })
             if not ok then
@@ -224,11 +237,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
             -- liegt beim Lootmeister, also geht das ueber eine Nachricht und
             -- kommt als Antwort zurueck.
             local text = string.match(rest, "^add%s+(.+)$")
-            local parsed = text and GA.Core.Compat.ParseItemInput(text)
-            if not parsed or not parsed.itemID then
+            local itemID = text and GA.Core.Compat.ParseItemInput(text)
+            if not itemID then
                 Debug:Info(L.SLASH_NO_ITEM, tostring(text))
             else
-                local ok, grund = SoftRes:Claim(parsed.itemID)
+                local ok, grund = SoftRes:Claim(itemID)
                 if not ok then
                     Debug:Info("%s", L["SOFTRES_ERR_" .. string.upper(tostring(grund)) .. "2"]
                         or tostring(grund))
@@ -236,8 +249,7 @@ SlashCmdList["GUILDARMORY"] = function(input)
             end
         elseif string.sub(rest, 1, 3) == "del" then
             local text = string.match(rest, "^del%s+(.+)$")
-            local parsed = text and GA.Core.Compat.ParseItemInput(text)
-            SoftRes:Unclaim(parsed and parsed.itemID)
+            SoftRes:Unclaim(text and GA.Core.Compat.ParseItemInput(text))
         elseif rest == "mine" then
             local mine = SoftRes:Of(identity.name)
             if #mine == 0 then
@@ -315,15 +327,15 @@ SlashCmdList["GUILDARMORY"] = function(input)
         elseif rest == "" then
             Debug:Info("%s", L.TEST_USAGE)
         else
-            local parsed = GA.Core.Compat.ParseItemInput(rest)
-            if not parsed or not parsed.itemID then
+            local itemID = GA.Core.Compat.ParseItemInput(rest)
+            if not itemID then
                 Debug:Info("%s", L.WISH_NO_ITEM)
             else
-                local info = GA.Core.Compat.GetItemInfo(parsed.itemID)
+                local info = GA.Core.Compat.GetItemInfo(itemID)
                 local award = Awards:Create({
-                    itemID = parsed.itemID,
-                    name = (info and info.name) or parsed.name
-                        or string.format(L.SLASH_ITEM_FALLBACK, parsed.itemID),
+                    itemID = itemID,
+                    name = (info and info.name)
+                        or string.format(L.SLASH_ITEM_FALLBACK, itemID),
                     link = info and info.link,
                     quality = info and info.quality or 4,
                 }, { reason = L.TEST_REASON, sourceName = L.TEST_SOURCE })
@@ -343,6 +355,113 @@ SlashCmdList["GUILDARMORY"] = function(input)
             local ok, grund = Atlas:Harvest()
             if not ok then Debug:Info(L.SLASH_ATLAS_ERROR, tostring(grund)) end
         end
+    elseif command == "trade" or command == "tausch" then
+        local Tradables = GA.Modules.Tradables
+
+        if rest == "test" then
+            Tradables.testMode = not Tradables.testMode
+            Tradables:Refresh()
+            Debug:Info(L.TRADE_TEST, Tradables.testMode and L.SLASH_ON or L.SLASH_OFF)
+        elseif string.sub(rest, 1, 3) == "add" or string.sub(rest, 1, 6) == "remove" then
+            -- DER WEG, DER IMMER FUNKTIONIERT. Der Alt-Klick im Beutel haengt
+            -- an einer Blizzard-Funktion, die es geben kann oder nicht.
+            local wantOn = string.sub(rest, 1, 3) == "add"
+            local text = string.match(rest, "^%a+%s+(.+)$")
+            local itemID = text and GA.Core.Compat.ParseItemInput(text)
+
+            if not itemID then
+                Debug:Info(L.SLASH_NO_ITEM, tostring(text))
+            elseif not Tradables:IsCandidate(itemID) then
+                Debug:Info("%s", L.TRADE_NOT_CANDIDATE)
+            else
+                Tradables:SetOffered(itemID, wantOn)
+                local info = GA.Core.Compat.GetItemInfo(itemID)
+                Debug:Info(wantOn and L.TRADE_NOW_OFFERED or L.TRADE_NO_LONGER,
+                    tostring((info and info.name) or itemID))
+            end
+        end
+
+        local candidates, sure = Tradables:Scan()
+        local mine = Tradables:Offered()
+
+        if rest == "post" or rest == "chat" then
+            -- IN DEN GILDENCHAT SCHREIBEN IST EIN AUSDRUECKLICHER BEFEHL,
+            -- kein Nebeneffekt. Ein Addon, das ungefragt postet, fliegt zu
+            -- Recht raus — dieselbe Regel wie bei Announce.
+            if #mine == 0 then
+                Debug:Info("%s", L.TRADE_NONE_OWN)
+            else
+                local names = {}
+                for _, item in ipairs(mine) do
+                    -- DER EIGENE LINK ZUERST: Er traegt den Zufallssuffix.
+                    -- Ein aus der ID nachgeschlagener Link postet
+                    -- "Nomad Tunic" in den Gildenchat, und wer darauf klickt,
+                    -- sieht andere Werte als die, die du anbietest.
+                    local info = GA.Core.Compat.GetItemInfo(item.link or item.itemID)
+                    local text = item.link or (info and info.link) or (info and info.name)
+                        or string.format(L.SLASH_ITEM_FALLBACK, item.itemID)
+                    names[#names + 1] = text .. (item.count > 1 and (" x" .. item.count) or "")
+                end
+                GA.Core.Compat.SendChatMessage(
+                    string.format(L.TRADE_ANNOUNCE, table.concat(names, ", ")), "GUILD")
+            end
+        end
+
+        -- Beide Zahlen: Was in Frage kaeme, und was du tatsaechlich
+        -- anbietest. Nur die zweite zu zeigen liesse offen, ob nichts da ist
+        -- oder nur nichts gewaehlt wurde.
+        Debug:Info(L.TRADE_OWN, #mine, #candidates,
+            sure and "" or (" — " .. L.TRADE_UNSURE))
+        if Tradables.testMode then Debug:Warn("%s", L.TRADE_TEST_ON) end
+
+        -- OB DER ALT-KLICK HAENGT, GEHOERT SICHTBAR HIERHER. Er haengt an
+        -- einer Blizzard-Funktion, die es je nach Client gibt oder nicht;
+        -- ohne diese Zeile sieht ein nicht eingehaengter Klick genauso aus
+        -- wie einer, der einfach nichts getroffen hat.
+        if Tradables.hookPath then
+            Debug:Info(L.TRADE_HOOK_ON, tostring(Tradables.hookPath))
+        else
+            Debug:Warn("%s", L.TRADE_HOOK_OFF)
+        end
+        for _, entry in ipairs(Tradables:All()) do
+            Debug:Info("  %-16s %d", tostring(entry.name), #entry.items)
+        end
+    elseif command == "combatlog" then
+        -- EIN KURZER WEG ZU EINER EINSTELLUNG, DIE JEDE SITZUNG NEU GESETZT
+        -- WERDEN MUSS.
+        --
+        -- Gemessen 20.09.2026: Dieser Client SCHREIBT die SavedVariables
+        -- korrekt, liest sie beim Start aber nie ein. Jede Sitzung faengt
+        -- damit bei den Voreinstellungen an — und autoCombatLog ist aus.
+        --
+        -- Das Haekchen in den Einstellungen tut dasselbe. Es ist nur drei
+        -- Klicks weit weg, und das hier ist eine Zeile.
+        local on
+        if rest == "on" or rest == "an" then on = true
+        elseif rest == "off" or rest == "aus" then on = false end
+
+        if on ~= nil then
+            GA.Core.Config:Set("autoCombatLog", on)
+            -- Sofort anwenden statt bis zum naechsten Takt zu warten: Wer
+            -- das im Raid tippt, meint jetzt.
+            if GA.Modules.CombatLog and GA.Modules.Attendance then
+                GA.Modules.CombatLog:Apply((GA.Modules.Attendance:InRaid()))
+            end
+        end
+
+        local running = GA.Core.Compat.IsCombatLogging()
+        Debug:Info(L.SLASH_COMBATLOG,
+            GA.Core.Config:Get("autoCombatLog") and L.SLASH_ON or L.SLASH_OFF,
+            running == nil and L.UNKNOWN or (running and L.SLASH_ON or L.SLASH_OFF))
+    elseif command == "probe" then
+        -- WAS GIBT DIESER CLIENT FUER DIE OFFENEN ERFOLGE HER?
+        --
+        -- Von aussen nicht zu beantworten: Forever traegt die komplette
+        -- Retail-API mit sich, auch fuer Dinge, die es im Spiel nicht gibt.
+        -- Gemessen wird deshalb der Rueckgabewert, nicht die Existenz.
+        local text, counts = GA.Core.Probe:Report()
+        Debug:Info(L.PROBE_RESULT, counts.ja or 0, counts.leer or 0, counts.nein or 0)
+        GA.UI.Widgets.CopyDialog(L.PROBE_TITLE, text)
     elseif command == "icons" then
         -- WELCHE SYMBOLE KENNT DIESER CLIENT NICHT?
         --

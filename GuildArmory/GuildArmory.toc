@@ -16,6 +16,7 @@
 # --- Kern: Reihenfolge ist bindend -------------------------------------------
 Core\Init.lua
 Compatibility\Compatibility.lua
+Compatibility\Probe.lua
 Core\Util.lua
 Core\Callbacks.lua
 Localization\Locale.lua
@@ -46,7 +47,11 @@ Armory\GuildHistory.lua
 LootHistory\Awards.lua
 LootHistory\LootTracker.lua
 LootHistory\Handover.lua
+Data\RaidHistory.lua
 Raids\Attendance.lua
+Raids\History.lua
+Raids\CombatLog.lua
+Armory\Tradables.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
 LootCouncil\Rolls.lua

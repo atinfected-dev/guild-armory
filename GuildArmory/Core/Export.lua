@@ -177,6 +177,47 @@ local function exportItems(db, itemIDs)
     return out
 end
 
+--- Tauschbare Gegenstaende: seltene Beutelstuecke, die beim Anlegen binden.
+---
+--- WOHER SIE KOMMEN, SPIELT KEINE ROLLE. Gescannt wird der Beutel, nicht die
+--- Herkunft — Weltloot, Dungeonfund und Raidbeute stehen gleichberechtigt
+--- darin. Der Erfassung ist es egal, ob etwas aus Ulduar oder von einem
+--- Wolf im Wald stammt.
+---
+--- Die Item-IDs wandern in itemIDs, damit exportItems auch ihre Namen
+--- mitliefert: Die Webapp soll keine Zahlen anzeigen muessen.
+local function exportTradables(db, itemIDs)
+    local out = {}
+
+    for guid, entry in pairs(db.tradables or {}) do
+        if entry.items and #entry.items > 0 then
+            local items = {}
+            for _, item in ipairs(entry.items) do
+                -- "s" ist der Itemstring. Ohne ihn kann die Armory zwei
+                -- Stuecke mit verschiedenem Zufallssuffix nicht
+                -- unterscheiden — sie haben dieselbe Item-ID und voellig
+                -- verschiedene Werte.
+                items[#items + 1] = {
+                    i = item.itemID, c = item.count or 1, s = item.itemString,
+                }
+                itemIDs[item.itemID] = true
+            end
+            out[#out + 1] = {
+                guid = guid,
+                n = entry.name,
+                ts = entry.ts,
+                -- 0 heisst: Der Bindungszustand liess sich auf dem meldenden
+                -- Client nicht pruefen. Eins davon kann laengst gebunden sein.
+                sure = entry.sure ~= false and 1 or 0,
+                items = items,
+            }
+        end
+    end
+
+    table.sort(out, function(x, y) return (x.n or "") < (y.n or "") end)
+    return out
+end
+
 --- Erfolge und Hall of Fame.
 ---
 --- WARUM DAS EXPORTIERT WIRD, OBWOHL ES IM ADDON STEHT:
@@ -258,6 +299,9 @@ function Export:Build()
     payload.achievements = achievements
     payload.hallOfFame = hall
     payload.achievementsSince = db.achievementsSince
+
+    -- Ebenfalls additiv, siehe oben: version bleibt 1.
+    payload.tradables = exportTradables(db, itemIDs)
 
     payload.items = exportItems(db, itemIDs)
     return payload

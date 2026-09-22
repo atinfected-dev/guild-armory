@@ -16,11 +16,16 @@ local L = GA.L
 Settings.titleKey = "NAV_SETTINGS"
 
 
---- Abstand zwischen zwei Bloecken und Hoehe des Loot-Blocks. Beides fest,
---- weil der Inhalt fest ist; was trotzdem nicht hineinpasst, faengt der
---- Bildlauf auf.
+--- Abstand zwischen zwei Bloecken.
 local PANEL_GAP = 8
-local LOOT_PANEL_HEIGHT = 300
+
+--- Startwert fuer den Loot-Block, bis er sich selbst gemessen hat.
+---
+--- Er stand frueher fest auf 450 und war damit rund 90 Pixel zu klein —
+--- was nicht hineinpasste, lief in das naechste Kaestchen. Jetzt rechnet
+--- RelayoutLoot die Hoehe aus dem Inhalt aus; diese Zahl gilt nur fuer die
+--- Augenblicke davor, in denen die Breite noch nicht feststeht.
+local LOOT_PANEL_HEIGHT = 450
 local LANGUAGE_PANEL_HEIGHT = 116
 
 --- Die Auswahl, in der Reihenfolge der Knoepfe. "auto" steht hinten: Es ist
@@ -185,52 +190,55 @@ function Settings:Create(parent)
     self.stats = Theme.Label(publish.content, "", fonts.small, Theme.color.textFaint)
     self.stats:SetPoint("BOTTOMLEFT", publish.content, "BOTTOMLEFT", 0, 0)
 
+    -- Die linke Spalte ist eine Kette fester Bloecke; die rechte traegt
+    -- ihre Hoehe selbst ein, sobald sie gemessen hat (RelayoutLoot).
+    self.columnHeights = {
+        language:GetHeight() + gap + left:GetHeight() + gap + publish:GetHeight(),
+        LOOT_PANEL_HEIGHT,
+    }
+
     -- Loot-Erfassung
-    -- Feste Hoehe statt "bis zum Fensterboden": Der Inhalt ist eine Kette von
-    -- acht Elementen mit bekannter Hoehe. Sie an den Boden zu heften hiesse,
-    -- sie auf so viel Platz zu zwingen, wie zufaellig uebrig ist — und genau
-    -- daran ist sie herausgelaufen.
+    --
+    -- DIE HOEHEN WERDEN GEMESSEN, NICHT GESETZT.
+    --
+    -- Vorher hing hier eine Kette: jedes Kaestchen unter der Erklaerung des
+    -- vorigen, und zwei dieser Erklaerungen hatten eine feste Hoehe
+    -- (SetHeight(44) und SetHeight(28)). Das haelt genau so lange, wie der
+    -- Text in die geratene Hoehe passt. Er passte nicht: Auf Englisch
+    -- braucht die Combat-Log-Erklaerung fuenf Zeilen statt der
+    -- eingeplanten drei, und die restlichen 16 Pixel landeten im naechsten
+    -- Kaestchen.
+    --
+    -- Eine feste Hoehe fuer umbrechenden Text ist immer eine Wette auf
+    -- Sprache, Schriftgroesse und Fensterbreite — drei Dinge, die sich alle
+    -- aendern koennen. Deshalb sagt jetzt jede Erklaerung selbst, wie hoch
+    -- sie ist (GetStringHeight), und der naechste Eintrag setzt darunter
+    -- auf. Die Panelhoehe faellt hinten heraus, statt vorne geraten zu
+    -- werden.
     local loot = Widgets.Panel(columnB, L.SET_LOOT)
     loot:SetPoint("TOPLEFT", columnB, "TOPLEFT", 0, 0)
     loot:SetPoint("RIGHT", columnB, "RIGHT", 0, 0)
     loot:SetHeight(LOOT_PANEL_HEIGHT)
-
-    -- Die hoehere der beiden Spalten bestimmt, wie weit der Bildlauf geht.
-    self.columnHeights = {
-        language:GetHeight() + gap + left:GetHeight() + gap + publish:GetHeight(),
-        loot:GetHeight(),
-    }
+    self.lootPanel = loot
 
     self.thresholdLabel = Theme.Label(loot.content, "", fonts.row, Theme.color.text)
-    self.thresholdLabel:SetPoint("TOPLEFT", loot.content, "TOPLEFT", 0, -2)
 
     self.thresholdButtons = {}
-    local previousQuality
     for _, quality in ipairs({ 2, 3, 4 }) do
         local button = Widgets.Button(loot.content, L["QUALITY_" .. quality], function()
             GA.Core.Config:Set("lootThresholdQuality", quality)
             Settings:Refresh()
         end)
         button:SetHeight(20)
-        if previousQuality then
-            button:SetPoint("LEFT", previousQuality, "RIGHT", 4, 0)
-        else
-            button:SetPoint("TOPLEFT", loot.content, "TOPLEFT", 0, -22)
-        end
         button.quality = quality
         self.thresholdButtons[#self.thresholdButtons + 1] = button
-        previousQuality = button
     end
 
     self.soloBox = Widgets.CheckBox(loot.content, L.SET_LOOT_SOLO, function(checked)
         GA.Core.Config:Set("trackOutsideGroup", checked)
     end)
-    self.soloBox:SetPoint("TOPLEFT", loot.content, "TOPLEFT", -4, -46)
-
-    local soloHint = Theme.Label(loot.content, L.SET_LOOT_SOLO_HINT, fonts.small, Theme.color.textDim)
-    soloHint:SetPoint("TOPLEFT", self.soloBox, "BOTTOMLEFT", 4, -4)
-    soloHint:SetPoint("RIGHT", loot.content, "RIGHT", 0, 0)
-    soloHint:SetJustifyH("LEFT")
+    self.soloHint = Theme.Label(loot.content, L.SET_LOOT_SOLO_HINT, fonts.small,
+        Theme.color.textDim)
 
     -- Ankuendigung im Gildenchat. Der einzige Weg, auf dem ein Addon etwas
     -- nach draussen bringt — und damit auch nach Discord, wenn die Gilde eine
@@ -238,30 +246,41 @@ function Settings:Create(parent)
     self.announceBox = Widgets.CheckBox(loot.content, L.SET_ANNOUNCE, function(checked)
         GA.Core.Config:Set("announceLoot", checked)
     end)
-    self.announceBox:SetPoint("TOPLEFT", soloHint, "BOTTOMLEFT", -8, -8)
-
-    local announceHint = Theme.Label(loot.content, L.SET_ANNOUNCE_HINT, fonts.small, Theme.color.textDim)
-    announceHint:SetPoint("TOPLEFT", self.announceBox, "BOTTOMLEFT", 4, -4)
-    announceHint:SetPoint("RIGHT", loot.content, "RIGHT", 0, 0)
-    announceHint:SetJustifyH("LEFT")
+    self.announceHint = Theme.Label(loot.content, L.SET_ANNOUNCE_HINT, fonts.small,
+        Theme.color.textDim)
 
     -- Sammlerbetrieb. Steht bewusst hier unten und nicht prominent: Es ist
     -- eine Einstellung fuer genau einen Client, nicht fuer jeden Spieler.
     self.collectorBox = Widgets.CheckBox(loot.content, L.SET_COLLECTOR, function(checked)
         GA.Core.Config:Set("collectorMode", checked)
     end)
-    self.collectorBox:SetPoint("TOPLEFT", announceHint, "BOTTOMLEFT", -8, -8)
-
     self.collectorHint = Theme.Label(loot.content, "", fonts.small, Theme.color.textDim)
-    self.collectorHint:SetPoint("TOPLEFT", self.collectorBox, "BOTTOMLEFT", 4, -4)
-    self.collectorHint:SetPoint("RIGHT", loot.content, "RIGHT", 0, 0)
-    self.collectorHint:SetJustifyH("LEFT")
+
+    -- Combat Log. Steht hier unten bei den Dingen, die etwas AUSSERHALB des
+    -- Spiels anlegen — und wie der Sammlerbetrieb ist es aus, bis jemand es
+    -- einschaltet.
+    self.combatLogBox = Widgets.CheckBox(loot.content, L.SET_COMBATLOG, function(checked)
+        GA.Core.Config:Set("autoCombatLog", checked)
+        Settings:Refresh()
+    end)
+    self.combatLogHint = Theme.Label(loot.content, L.SET_COMBATLOG_HINT,
+        fonts.small, Theme.color.textDim)
+
+    self.offerBox = Widgets.CheckBox(loot.content, L.SET_OFFER_NEW, function(checked)
+        GA.Core.Config:Set("offerNewFinds", checked)
+        if GA.Modules.Tradables then GA.Modules.Tradables:Refresh() end
+    end)
+    self.offerHint = Theme.Label(loot.content, L.SET_OFFER_NEW_HINT,
+        fonts.small, Theme.color.textDim)
 
     -- Was dieser Client wirklich gesehen hat — nicht, was die API verspricht.
     self.measured = Theme.Label(loot.content, "", fonts.small, Theme.color.textFaint)
-    self.measured:SetPoint("BOTTOMLEFT", loot.content, "BOTTOMLEFT", 0, 0)
-    self.measured:SetPoint("RIGHT", loot.content, "RIGHT", 0, 0)
-    self.measured:SetJustifyH("LEFT")
+
+    -- Neu messen, sobald die Breite steht: Vorher ist GetStringHeight
+    -- wertlos, weil der Umbruch noch gar nicht feststeht.
+    loot.content:SetScript("OnSizeChanged", function() Settings:RelayoutLoot() end)
+    self:RelayoutLoot()
+
 
 
     -- Kein eigenes layout() mehr: Die Breiten kamen frueher aus einer
@@ -273,6 +292,103 @@ function Settings:Create(parent)
     self.frame = frame
     return frame
 end
+
+--- Setzt die rechte Spalte neu und misst dabei jede Erklaerung.
+---
+--- LAEUFT MEHRMALS UND MUSS DAS AUSHALTEN. Aufgerufen wird sie beim Bauen
+--- (da ist die Breite oft noch 0), sobald die Breite steht, und nach jedem
+--- Refresh — denn zwei der Texte aendern sich zur Laufzeit.
+---
+--- Ohne bekannte Breite wird NICHTS gesetzt: Ein Umbruch, der auf Breite 0
+--- gerechnet wurde, ergibt eine sinnlose Hoehe, und die stuende dann fest,
+--- bis jemand das Fenster in der Groesse aendert.
+-- LAYOUT ANFANG (herausgeschnitten von tools/test/settingslayout.test.js)
+function Settings:RelayoutLoot()
+    local panel = self.lootPanel
+    if not panel then return false end
+
+    local content = panel.content
+    local width = content:GetWidth() or 0
+    if width <= 1 then return false end
+
+    local y = 0
+
+    --- Setzt eine Erklaerung auf volle Breite und gibt ihre Hoehe zurueck.
+    local function hint(label, indent)
+        label:SetWidth(width - indent)
+        label:SetJustifyH("LEFT")
+        label:ClearAllPoints()
+        label:SetPoint("TOPLEFT", content, "TOPLEFT", indent, y)
+        -- GetStringHeight ist die Hoehe des UMGEBROCHENEN Textes, also das,
+        -- was wirklich Platz braucht. GetHeight waere die gesetzte Hoehe —
+        -- und die zu lesen, nachdem man sie selbst gesetzt hat, beweist
+        -- nichts.
+        local height = label:GetStringHeight() or 0
+        if height <= 0 then height = 12 end
+        label:SetHeight(height)
+        y = y - height
+    end
+
+    --- Setzt ein Kaestchen und rueckt um SEINE Hoehe weiter, nicht um eine
+    --- angenommene. Ein Kaestchen ist heute 26 Pixel hoch; das ist eine
+    --- Zahl aus Widgets.CheckBox und keine, die hier noch einmal geraten
+    --- werden sollte.
+    local function box(check, gapAbove)
+        y = y - (gapAbove or 8)
+        check:ClearAllPoints()
+        check:SetPoint("TOPLEFT", content, "TOPLEFT", -4, y)
+        y = y - (check:GetHeight() or 26)
+    end
+
+    -- Schwelle: Beschriftung, darunter die drei Knoepfe nebeneinander.
+    self.thresholdLabel:ClearAllPoints()
+    self.thresholdLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    y = y - (self.thresholdLabel:GetStringHeight() or 14) - 6
+
+    local previous
+    for _, button in ipairs(self.thresholdButtons) do
+        button:ClearAllPoints()
+        if previous then
+            button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+        else
+            button:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        end
+        previous = button
+    end
+    y = y - (self.thresholdButtons[1] and self.thresholdButtons[1]:GetHeight() or 20)
+
+    box(self.soloBox, 10)
+    hint(self.soloHint, 4)
+
+    box(self.announceBox)
+    hint(self.announceHint, 4)
+
+    box(self.collectorBox)
+    hint(self.collectorHint, 4)
+
+    box(self.combatLogBox)
+    hint(self.combatLogHint, 4)
+
+    box(self.offerBox)
+    hint(self.offerHint, 4)
+
+    y = y - 10
+    hint(self.measured, 0)
+
+    -- Die Panelhoehe faellt aus dem Inhalt heraus. Der Kopf und die
+    -- Innenraender des Panels kommen dazu: content ist um 8 Pixel je Seite
+    -- eingerueckt und sitzt unter einer 24 Pixel hohen Kopfleiste.
+    local needed = -y + 24 + 16
+    if math.abs((panel:GetHeight() or 0) - needed) > 0.5 then
+        panel:SetHeight(needed)
+    end
+
+    self.columnHeights = self.columnHeights or {}
+    self.columnHeights[2] = needed
+    self:UpdateColumnHeight()
+    return true
+end
+-- LAYOUT ENDE
 
 --- Hoehe des Bildlaufinhalts nachfuehren.
 ---
@@ -348,6 +464,20 @@ function Settings:Refresh()
     self.soloBox:SetChecked(GA.Core.Config:Get("trackOutsideGroup") and true or false)
     self.announceBox:SetChecked(GA.Core.Config:Get("announceLoot") and true or false)
     self.collectorBox:SetChecked(GA.Core.Config:Get("collectorMode") and true or false)
+
+    -- DER HINWEIS SAGT DIE WAHRHEIT UEBER DIESEN CLIENT, nicht ueber die
+    -- Absicht: Ist die Einstellung an und der Client kann es nicht, steht
+    -- das da — statt ein Haekchen zu zeigen, hinter dem nichts passiert.
+    local an = GA.Core.Config:Get("autoCombatLog") and true or false
+    self.combatLogBox:SetChecked(an)
+    self.offerBox:SetChecked(GA.Core.Config:Get("offerNewFinds") and true or false)
+    if an and GA.Modules.CombatLog and GA.Modules.CombatLog:Available() == false then
+        self.combatLogHint:SetText(L.COMBATLOG_UNAVAILABLE)
+        self.combatLogHint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+    else
+        self.combatLogHint:SetText(L.SET_COMBATLOG_HINT)
+        self.combatLogHint:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+    end
     self.collectorHint:SetText(string.format(L.SET_COLLECTOR_HINT,
         tonumber(GA.Core.Config:Get("collectorMinutes")) or 60))
 
@@ -364,8 +494,14 @@ function Settings:Refresh()
         .. "\n"
         .. string.format(L.SET_ITEMINDEX, GA.Modules.ItemIndex:Count()))
 
-    -- Erst nach dem Setzen aller Texte: Die Hoehe der Hinweiszeilen steht
-    -- vorher nicht fest, und der Bildlauf soll nicht raten.
+    -- ERST NACH DEM SETZEN ALLER TEXTE NEU MESSEN.
+    --
+    -- Zwei Erklaerungen aendern sich hier oben: die des Combat Logs (sie
+    -- wird zur Warnung, wenn das Mitschreiben nicht geht) und die des
+    -- Sammlerbetriebs (sie traegt die eingestellten Minuten). Beide koennen
+    -- dabei laenger oder kuerzer werden — wer vorher misst, misst den alten
+    -- Text.
+    self:RelayoutLoot()
     self:UpdateColumnHeight()
 
     GA.UI.MainFrame:SetContext("v" .. GA.version)
