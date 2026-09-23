@@ -445,6 +445,29 @@ SlashCmdList["GUILDARMORY"] = function(input)
         for _, entry in ipairs(Tradables:All()) do
             Debug:Info("  %-16s %d", tostring(entry.name), #entry.items)
         end
+    elseif command == "camp" or command == "lager" then
+        local Camp = GA.Modules.Camp
+        local CampFrame = GA.UI.CampFrame
+
+        if rest == "why" or rest == "warum" then
+            -- Der Katalog ist abgeschriebene Beobachtung, kein gemessener
+            -- Befund. Diese Ausgabe sagt, was dieser Client daraus macht —
+            -- statt "geht nicht" zu sein.
+            for _, zeile in ipairs(Camp:Explain()) do Debug:Info("%s", zeile) end
+        elseif rest == "on" or rest == "an" then
+            GA.Core.Config:Set("campEnabled", true)
+            CampFrame:Show()
+            Debug:Info(L.SLASH_CAMP, L.SLASH_ON)
+        elseif rest == "off" or rest == "aus" then
+            -- AUS HEISST AUS: Das Fenster verschwindet, und Camp:Enabled
+            -- schliesst ab jetzt jeden Versand und jeden Empfang aus.
+            GA.Core.Config:Set("campEnabled", false)
+            CampFrame:Hide()
+            Debug:Info(L.SLASH_CAMP, L.SLASH_OFF)
+        else
+            local sichtbar = CampFrame:Toggle()
+            Debug:Info(L.SLASH_CAMP, sichtbar and L.SLASH_ON or L.SLASH_OFF)
+        end
     elseif command == "sim" or command == "probe" then
         -- PROBEBETRIEB. Ein ganzer Raidabend ohne Raid: Gegenstaende, die
         -- fallen, Leute, die bieten, ein Council, das abstimmt.

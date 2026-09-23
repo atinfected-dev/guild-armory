@@ -74,6 +74,13 @@ local SETTLE = 10
 --- ein Beutel voller blauer Gegenstaende nicht die Leitung belegt.
 local MAX_ITEMS = 40
 
+--- Wie lange nach einer Anfrage dieselbe nicht noch einmal geht.
+---
+--- Eine Minute: lang genug, dass Ungeduld nicht zur Belaestigung wird,
+--- kurz genug, dass eine wirklich vergessene Anfrage nachgeholt werden
+--- kann.
+local ASK_COOLDOWN = 60
+
 local pending = false
 
 local function store()
@@ -480,6 +487,47 @@ function Tradables:Refresh()
         pending = false
         Tradables:Publish()
     end)
+end
+
+--- Fragt den Besitzer nach einem Gegenstand.
+---
+--- EIN KNOPF, DER EINE NACHRICHT SCHICKT, MUSS SAGEN, WAS ER SCHICKT.
+--- Deshalb steht die Zeile danach im eigenen Chat — wie jedes Fluestern,
+--- das man selbst tippt. Wer nicht sieht, was in seinem Namen hinausging,
+--- kann es auch nicht geradestellen.
+---
+--- MIT DEM ITEMLINK, nicht mit dem Namen: "Nomad Tunic" gibt es an einem
+--- Abend dreimal mit verschiedenen Werten. Der Link sagt, welches gemeint
+--- ist, und der Empfaenger kann ihn anklicken.
+---
+--- @return boolean gesendet, string|nil grund
+function Tradables:Ask(itemID, owner, link)
+    if not owner or owner == "" then return false, "noowner" end
+
+    local Comm = GA.Core.Comm
+    if Comm and Comm:IsSelf(owner) then return false, "self" end
+
+    -- NICHT ZWEIMAL DASSELBE. Ein Knopf, der bei jedem Druecken eine
+    -- weitere Zeile schickt, macht aus Ungeduld eine Belaestigung — und
+    -- der Empfaenger sieht nicht, dass es dieselbe Person war.
+    self.asked = self.asked or {}
+    local key = Util.ShortName(owner) .. "/" .. tostring(itemID)
+    local zuletzt = self.asked[key]
+    if zuletzt and Compat.Now() - zuletzt < ASK_COOLDOWN then
+        return false, "recent"
+    end
+
+    local info = Compat.GetItemInfo(link or itemID)
+    local was = link or (info and info.link) or (info and info.name)
+        or string.format(GA.L.SLASH_ITEM_FALLBACK, tostring(itemID))
+
+    local ok = Compat.SendChatMessage(string.format(GA.L.TRADE_ASK, was),
+        "WHISPER", Util.ShortName(owner))
+    if not ok then return false, "chat" end
+
+    self.asked[key] = Compat.Now()
+    Debug:Info(GA.L.TRADE_ASKED, tostring(was), Util.ShortName(owner))
+    return true
 end
 
 --- Schreibt die eigenen Angebote in den Gildenchat.

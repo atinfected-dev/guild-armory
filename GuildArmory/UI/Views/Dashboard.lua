@@ -175,15 +175,31 @@ function Dashboard:Create(parent)
             local fonts = Theme.Fonts()
             row.itemText = Theme.Label(row, "", fonts.row, Theme.color.text)
             row.itemText:SetPoint("LEFT", row, "LEFT", 6, 0)
-            row.itemText:SetPoint("RIGHT", row, "RIGHT", -120, 0)
+            row.itemText:SetPoint("RIGHT", row, "RIGHT", -170, 0)
             row.itemText:SetJustifyH("LEFT")
             if row.itemText.SetWordWrap then
                 pcall(row.itemText.SetWordWrap, row.itemText, false)
             end
 
+            -- DER KNOPF GANZ RECHTS, der Name davor: Gelesen wird von
+            -- links nach rechts, und was man anklickt, gehoert ans Ende.
+            row.ask = Widgets.Button(row, L.TRADE_ASK_BUTTON, function()
+                local entry = row.item
+                if not entry then return end
+                local ok, grund = GA.Modules.Tradables:Ask(
+                    entry.itemID, entry.ownerFull or entry.owner, entry.link)
+                if not ok then
+                    GA.Core.Debug:Info("%s",
+                        L["TRADE_ASK_ERR_" .. tostring(grund)] or tostring(grund))
+                end
+            end)
+            row.ask:SetHeight(16)
+            row.ask:SetWidth(52)
+            row.ask:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+
             row.ownerText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-            row.ownerText:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-            row.ownerText:SetWidth(112)
+            row.ownerText:SetPoint("RIGHT", row.ask, "LEFT", -6, 0)
+            row.ownerText:SetWidth(100)
             row.ownerText:SetJustifyH("RIGHT")
         end,
         updateRow = function(row, entry)
@@ -196,6 +212,14 @@ function Dashboard:Create(parent)
             -- Warnfarbe statt so auszusehen wie ein geprueftes Angebot.
             local ownerColor = entry.sure and Theme.color.textDim or Theme.color.warn
             row.ownerText:SetTextColor(ownerColor[1], ownerColor[2], ownerColor[3])
+
+            -- BEIM EIGENEN ANGEBOT KEIN KNOPF. Sich selbst anzufluestern
+            -- ist kein Fehler, der abgefangen werden muesste — er soll
+            -- gar nicht erst anklickbar sein.
+            local Comm = GA.Core.Comm
+            local eigenes = Comm and entry.ownerFull
+                and Comm:IsSelf(entry.ownerFull)
+            if eigenes then row.ask:Hide() else row.ask:Show() end
         end,
         onEnterRow = function(row, entry)
             if not entry or not entry.itemID then return end
@@ -361,6 +385,9 @@ function Dashboard:RefreshTradables()
                 label = label,
                 quality = info and info.quality,
                 owner = GA.Core.Util.ShortName(entry.name or "?"),
+                -- Der ungekuerzte Name fuers Fluestern: Die Anzeige
+                -- kuerzt, das Ziel darf es nicht.
+                ownerFull = entry.name,
                 sure = entry.sure,
                 -- Fuer den Tooltip. DIE ID IST DAS EINZIGE, WAS SICHER DA
                 -- IST: Bei fremden Angeboten kommt nur sie ueber die

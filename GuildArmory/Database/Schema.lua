@@ -164,6 +164,22 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Was das Fenster ohnehin zeigt, muss den Chat nicht zuschuetten.
         quietRolls = true,
 
+        -- ---------------------------------------------------- Lager -------
+        -- Die Lagerleiste mitfuehren.
+        --
+        -- STANDARD AN, und das ist eine Entscheidung mit einem Preis: Dieser
+        -- Client meldet der Gilde dann von allein Zone, Berufe und die
+        -- Lagerausbauten im Beutel. Aus gegeben werden waere sauberer — und
+        -- die Leiste bliebe fuer immer leer, weil niemand einen Schalter
+        -- umlegt fuer etwas, das er noch nie gesehen hat.
+        --
+        -- Der Ausgleich steht in Camp:NoticeOnce: Beim ersten Versand sagt
+        -- das Addon EINMAL im Chat, was hinausgeht und wie man es abstellt.
+        campEnabled = true,
+
+        -- Ob dieser Hinweis schon kam.
+        campNoticeSeen = false,
+
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die
         -- Voreinstellung ist Ruhe.
@@ -258,6 +274,12 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Minimap-Knopf: Position als WINKEL, nicht als x/y — sonst wandert er,
         -- sobald jemand die Minimapgroesse aendert.
         minimap = { angle = 200, hidden = false },
+        -- Lagerleiste: freischwebend, deshalb Punkt und Versatz wie beim
+        -- Hauptfenster. `collapsed` ist die zugeklappte Kopfzeile, `hidden`
+        -- der ausdrueckliche Wunsch, sie gar nicht zu sehen — zwei
+        -- verschiedene Dinge, die sich sonst gegenseitig ueberschreiben.
+        camp = { point = "CENTER", x = -320, y = 220,
+                 hidden = false, collapsed = false },
     },
 
     --- [guid] = Charakterdatensatz
@@ -417,6 +439,17 @@ Schema.ACCOUNT_DEFAULTS = {
 
 Schema.CHARACTER_DEFAULTS = {
     debug = false,
+
+    --- Lager: die eigene Sperrzeit als SERVERZEIT.
+    ---
+    --- Sie steht hier und nicht im Arbeitsspeicher, weil sie eine Stunde
+    --- laeuft und ein /reload mitten hinein faellt. Danach behauptete die
+    --- Leiste sonst, man duerfe wieder — und der Spielserver saehe das
+    --- anders.
+    ---
+    --- PRO CHARAKTER, weil die Sperre am Charakter haengt und nicht am
+    --- Konto. Ein Twink hat seine eigene.
+    camp = { cdExpires = 0 },
 }
 
 Schema.JOURNAL_LIMIT = 500

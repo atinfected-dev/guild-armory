@@ -1,5 +1,95 @@
 # Changelog
 
+## 0.1.4
+
+Two things you can now ask for without typing: an item somebody is offering,
+and who around you can help build a camp.
+
+### Camp
+
+Forever lets a guild build a camp together — somebody lights a campfire,
+everybody else puts their profession's upgrade on it, and the camp gives a
+buff for an hour. The hard part is not the building. It is finding out,
+while you are standing in the Barrens, who near you happens to be carrying
+an anvil.
+
+A small bar answers that, on screen and separate from the main window: one
+line per guild member **in your zone**, with the campfire they carry and
+four profession slots — your two primaries, First Aid, Fishing. A bright
+icon means they carry an upgrade they may actually place, a dim one means
+they have the profession but nothing to put down. Hovering says which
+pieces exactly, and whether their skill is high enough for each.
+
+Drag it by the header, click the header to fold it away, right-click to
+hide it. `/ga camp` brings it back.
+
+**A question mark is not a no.** Somebody without the addon shows as
+unknown, never as somebody carrying nothing. That distinction is the point
+of the whole bar: an empty slot would send you walking past the one person
+who has the anvil.
+
+### Somebody placed a campfire
+
+When a guild member lights one in your zone, a notice names them, says
+which campfire and where, and offers a **map pin** plus **Share**, which
+puts the waypoint into party or raid chat. It goes away by itself after
+fifteen seconds.
+
+Both buttons say in advance whether they can do anything. Map pins come
+from a later expansion than the content this client runs; where they do
+nothing, the button is greyed out with the reason on it, rather than
+admitting it after you have pressed.
+
+A notice older than a minute is dropped. Not as a safeguard — the sender's
+name comes from the server and cannot be forged — but because a pin on a
+campfire from ten minutes ago sends somebody to a place where nothing is
+standing any more.
+
+### What that tells the guild about you
+
+While the bar is on, this client reports your zone, your professions and
+which camp upgrades are in your bags. Your position goes out **only** in
+the moment you place a campfire — the one moment it is public anyway,
+because there is now a campfire standing there.
+
+It is on by default, and that is a decision with a price. Off would be the
+cleaner default, and the bar would then stay empty forever, because nobody
+switches on something they have never seen. What makes up for it: the first
+time this client sends, it says once in chat what goes out and how to stop
+it. And off means off — it then neither sends nor receives.
+
+None of it reaches the database. Other people's states live in memory and
+are gone when you log out. No sync, no export, nothing in the guild file.
+Where somebody stood two weeks ago is none of the addon's business.
+
+### Asking for a tradable item
+
+Every line in the **Tradable items** panel now has an **Ask** button. One
+click whispers the owner: *Could I have [Nomad Tunic of the Boar]?*
+
+With the item link, not the name. "Nomad Tunic" turns up three times an
+evening with different stats; the link says which one is meant, and the
+other side can click it. Afterwards that item stays quiet towards that
+person for a minute — a button that sends another line every time it is
+pressed turns impatience into pestering, and the recipient cannot even tell
+it was the same person twice. A *different* item from the same owner goes
+out immediately: somebody who wants two things should not have to wait.
+
+Your own offers have no button at all. Whispering yourself is not an error
+worth catching; it should not be clickable in the first place.
+
+### The one thing the addon cannot check
+
+The item numbers behind the camp belong to a server feature that exists
+nowhere else. There is no documentation to verify them against, and no run
+of `/ga probe` has ever seen them — they are copied observation, not
+measurement.
+
+So `/ga camp why` prints what this client actually makes of every one of
+them: which names loaded, which use spells resolved, whether map pins work
+at all, what arrived and was rejected and for which reason. A wrong number
+shows up there as a line, instead of disguising itself as "doesn't work".
+
 ## 0.1.3
 
 Loot distribution, reworked. The page is called **Loot Session** now,

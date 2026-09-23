@@ -2,7 +2,7 @@
 ## Title: Guild Armory |cffe5cc80Forever Edition|r
 ## Notes: Gilden-Armory, LootCouncil, Loot-Historie, Wunschlisten und Gear-Tracking.
 ## Author: Is Not Alone
-## Version: 0.1.3
+## Version: 0.1.4
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled
@@ -52,6 +52,9 @@ Raids\Attendance.lua
 Raids\History.lua
 Raids\CombatLog.lua
 Armory\Tradables.lua
+# Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
+Camp\Catalog.lua
+Camp\Camp.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -75,6 +78,7 @@ UI\Widgets\Dropdown.lua
 UI\MainFrame.lua
 UI\MinimapButton.lua
 UI\BidFrame.lua
+UI\CampFrame.lua
 UI\Tooltips.lua
 UI\ImportDialog.lua
 UI\GrantDialog.lua

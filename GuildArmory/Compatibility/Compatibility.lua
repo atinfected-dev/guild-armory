@@ -1462,3 +1462,262 @@ function Compat.GetGroupMembers()
 
     return out
 end
+
+-- ================================================================== Lager -----
+--
+-- Was das Lagerfeuer-System braucht. Alles hier ist NEU AUF FOREVER und in
+-- keinem Probelauf bestaetigt: Die Gegenstaende (Katalog in Camp/Catalog.lua)
+-- gehoeren zu einem Server-Inhalt, den es auf keinem anderen Client gibt, und
+-- die Wegpunkt-Schnittstelle stammt aus einer spaeteren Ausbaustufe des Spiels
+-- als der Inhalt, auf dem dieser Client laeuft.
+--
+-- Deshalb gilt hier besonders streng, was ueberall gilt: Geprueft wird der
+-- RUECKGABEWERT, nicht der Name. `/ga camp why` nennt fuer jede dieser
+-- Funktionen, was sie auf diesem Client tatsaechlich geliefert hat.
+
+--- Alle Berufe dieses Charakters — Haupt- UND Nebenberufe.
+---
+--- NICHT Compat.GetProfessions. Die liefert absichtlich nur Hauptberufe und
+--- ohne Kennung, weil der Erfolgskatalog nur danach fragt. Das Lager braucht
+--- es andersherum: Erste Hilfe und Angeln gehoeren dazu, und zugeordnet wird
+--- ueber die KENNUNG der Fertigkeitslinie, nicht ueber den Namen — ein Name
+--- ist uebersetzt, eine Kennung nicht.
+---
+--- GetProfessionInfo liefert an siebter Stelle die Fertigkeitslinie.
+---
+--- @return table|nil { { line, name, rank } } — nil = nicht messbar
+function Compat.GetProfessionLines()
+    if not isFunction(_G.GetProfessions) or not isFunction(_G.GetProfessionInfo) then
+        return nil
+    end
+
+    local ok, first, second, archaeology, fishing, cooking, firstAid = pcall(GetProfessions)
+    if not ok then return nil end
+
+    local indices = { first, second, archaeology, fishing, cooking, firstAid }
+    local out, gesehen = {}, false
+
+    for _, index in ipairs(indices) do
+        if type(index) == "number" then
+            gesehen = true
+            local okInfo, name, _, rank, _, _, _, line = pcall(GetProfessionInfo, index)
+            if okInfo and type(line) == "number" and line > 0 then
+                out[#out + 1] = {
+                    line = line,
+                    name = type(name) == "string" and name or nil,
+                    rank = tonumber(rank) or 0,
+                }
+            end
+        end
+    end
+
+    -- LEER IST NICHT NULL. Hat GetProfessions ueberhaupt keinen Index
+    -- geliefert, kann das heissen: keine Berufe gelernt — oder die Funktion
+    -- ist auf diesem Client nicht gefuellt. Von aussen nicht zu
+    -- unterscheiden, also nil statt einer leeren Liste.
+    if not gesehen then return nil end
+    return out
+end
+
+--- Wie viele Stueck dieses Gegenstands traegt dieser Charakter?
+--- @return number|nil  nil = der Client beantwortet die Frage nicht
+function Compat.GetItemCountByID(itemID)
+    itemID = tonumber(itemID)
+    if not itemID then return nil end
+
+    local item = _G.C_Item
+    local count = (isTable(item) and isFunction(item.GetItemCount) and item.GetItemCount)
+        or _G.GetItemCount
+    if not isFunction(count) then return nil end
+
+    local ok, anzahl = pcall(count, itemID)
+    if not ok or type(anzahl) ~= "number" then return nil end
+    return anzahl
+end
+
+--- Welchen Zauber wirkt "Benutzen" auf diesem Gegenstand?
+---
+--- Der Weg von einem aufgestellten Lagerfeuer zurueck zum Gegenstand:
+--- UNIT_SPELLCAST_SUCCEEDED nennt nur die Zauberkennung.
+--- @return number|nil
+function Compat.GetItemSpell(itemID)
+    itemID = tonumber(itemID)
+    if not itemID then return nil end
+
+    local item = _G.C_Item
+    local spell = (isTable(item) and isFunction(item.GetItemSpell) and item.GetItemSpell)
+        or _G.GetItemSpell
+    if not isFunction(spell) then return nil end
+
+    local ok, _, spellID = pcall(spell, itemID)
+    if not ok then return nil end
+    spellID = tonumber(spellID)
+    if not spellID or spellID <= 0 then return nil end
+    return spellID
+end
+
+--- Das Symbol eines Gegenstands, ohne dass sein Name geladen sein muss.
+--- @return number|string|nil
+function Compat.GetItemIcon(itemID)
+    itemID = tonumber(itemID)
+    if not itemID then return nil end
+
+    local item = _G.C_Item
+    local icon = (isTable(item) and isFunction(item.GetItemIconByID) and item.GetItemIconByID)
+        or _G.GetItemIcon
+    if not isFunction(icon) then return nil end
+
+    local ok, texture = pcall(icon, itemID)
+    if not ok or texture == nil then return nil end
+    if not Compat.IsReadable(texture) then return nil end
+    return texture
+end
+
+--- Laeuft dieser Buff gerade auf dem eigenen Charakter?
+---
+--- DIE ABLAUFZEIT KOMMT IN SERVERZEIT ZURUECK, nicht in der Laufzeit dieses
+--- Clients. GetTime() zaehlt seit dem Start DIESES Spiels — zwei Clients
+--- haben da nie dieselbe Zahl. Verschickt wird die Zeit aber, und am anderen
+--- Ende muss sie etwas bedeuten.
+---
+--- @return table|nil { duration, expires }  expires = Serverzeit
+function Compat.GetPlayerBuff(spellID)
+    spellID = tonumber(spellID)
+    if not spellID then return nil end
+
+    local auras = _G.C_UnitAuras
+    if not isTable(auras) or not isFunction(auras.GetPlayerAuraBySpellID) then return nil end
+
+    -- Der Client kann Auren verschleiern. Fragt man trotzdem, kommen Werte
+    -- heraus, die wie Zahlen aussehen und bei der ersten Rechnung werfen.
+    local secrets = _G.C_Secrets
+    if isTable(secrets) and isFunction(secrets.ShouldAurasBeSecret) then
+        local okSecret, geheim = pcall(secrets.ShouldAurasBeSecret)
+        if okSecret and geheim then return nil end
+    end
+
+    local ok, data = pcall(auras.GetPlayerAuraBySpellID, spellID)
+    if not ok or not isTable(data) then return nil end
+
+    local duration, expires = data.duration, data.expirationTime
+    if type(duration) ~= "number" or type(expires) ~= "number" then return nil end
+    if duration <= 0 or expires <= 0 then return nil end
+
+    local okNow, jetzt = pcall(_G.GetTime)
+    if not okNow or type(jetzt) ~= "number" then return nil end
+
+    -- math.max, weil eine gerade abgelaufene Aura eine negative Restzeit
+    -- liefern kann.
+    return {
+        duration = math.floor(duration + 0.5),
+        expires = Compat.Now() + math.floor(math.max(0, expires - jetzt) + 0.5),
+    }
+end
+
+--- In welcher Zone steht dieser Charakter?
+--- @return string|nil
+function Compat.GetZone()
+    if not isFunction(_G.GetRealZoneText) then return nil end
+    local ok, zone = pcall(GetRealZoneText)
+    if not ok or type(zone) ~= "string" or zone == "" then return nil end
+    return zone
+end
+
+--- Wo auf der Karte steht dieser Charakter?
+--- @return number|nil mapID, number|nil x, number|nil y  (x, y in 0..1)
+function Compat.GetMapPosition()
+    local map = _G.C_Map
+    if not isTable(map) or not isFunction(map.GetBestMapForUnit)
+        or not isFunction(map.GetPlayerMapPosition) then
+        return nil
+    end
+
+    local okMap, mapID = pcall(map.GetBestMapForUnit, "player")
+    if not okMap then return nil end
+    mapID = tonumber(mapID)
+    if not mapID or mapID <= 0 then return nil end
+
+    local okPos, position = pcall(map.GetPlayerMapPosition, mapID, "player")
+    if not okPos or not position or not isFunction(position.GetXY) then return nil end
+
+    local okXY, x, y = pcall(position.GetXY, position)
+    if not okXY or type(x) ~= "number" or type(y) ~= "number" then return nil end
+    if x < 0 or x > 1 or y < 0 or y > 1 then return nil end
+
+    return mapID, x, y
+end
+
+--- Gibt es diese Karte ueberhaupt?
+--- @return boolean
+function Compat.MapExists(mapID)
+    mapID = tonumber(mapID)
+    if not mapID then return false end
+
+    local map = _G.C_Map
+    if not isTable(map) or not isFunction(map.GetMapInfo) then return false end
+
+    local ok, info = pcall(map.GetMapInfo, mapID)
+    return (ok and isTable(info)) and true or false
+end
+
+--- Laesst sich auf dieser Karte ein Wegpunkt setzen?
+---
+--- Die Wegpunkte stammen aus einer spaeteren Ausbaustufe des Spiels als der
+--- Inhalt, auf dem dieser Client laeuft. Dass es die Funktionen gibt, heisst
+--- hier ausdruecklich NICHT, dass sie etwas tun.
+--- @return boolean
+function Compat.CanSetWaypoint(mapID)
+    mapID = tonumber(mapID)
+    if not mapID then return false end
+
+    local map = _G.C_Map
+    if not isTable(map) or not isFunction(map.SetUserWaypoint)
+        or not isFunction(map.CanSetUserWaypointOnMap)
+        or not isFunction(_G.CreateVector2D) then
+        return false
+    end
+
+    local ok, erlaubt = pcall(map.CanSetUserWaypointOnMap, mapID)
+    return (ok and erlaubt) and true or false
+end
+
+--- Setzt den Wegpunkt des Spielers.
+--- @return boolean gesetzt
+function Compat.SetWaypoint(mapID, x, y)
+    if not Compat.CanSetWaypoint(mapID) then return false end
+    x, y = tonumber(x), tonumber(y)
+    if not x or not y or x < 0 or x > 1 or y < 0 or y > 1 then return false end
+
+    local okVector, vector = pcall(_G.CreateVector2D, x, y)
+    if not okVector or not vector then return false end
+
+    local ok, gesetzt = pcall(_G.C_Map.SetUserWaypoint,
+        { uiMapID = tonumber(mapID), position = vector })
+    -- SetUserWaypoint gibt auf manchen Fassungen gar nichts zurueck. Dann
+    -- gilt der Aufruf als gelungen, solange er nicht geworfen hat — mehr ist
+    -- von dieser Seite nicht zu erfahren.
+    if not ok then return false end
+    if gesetzt == false then return false end
+    return true
+end
+
+--- Verfolgt den gesetzten Wegpunkt im Navigationspfeil.
+--- @return boolean
+function Compat.TrackWaypoint()
+    local track = _G.C_SuperTrack
+    if not isTable(track) or not isFunction(track.SetSuperTrackedUserWaypoint) then
+        return false
+    end
+    return pcall(track.SetSuperTrackedUserWaypoint, true) and true or false
+end
+
+--- Der Verweis auf den gesetzten Wegpunkt, wie er in den Chat passt.
+--- @return string|nil
+function Compat.GetWaypointLink()
+    local map = _G.C_Map
+    if not isTable(map) or not isFunction(map.GetUserWaypointHyperlink) then return nil end
+
+    local ok, link = pcall(map.GetUserWaypointHyperlink)
+    if not ok or type(link) ~= "string" or link == "" then return nil end
+    return link
+end

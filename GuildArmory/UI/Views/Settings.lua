@@ -193,12 +193,37 @@ function Settings:Create(parent)
     self.stats = Theme.Label(publish.content, "", fonts.small, Theme.color.textFaint)
     self.stats:SetPoint("BOTTOMLEFT", publish.content, "BOTTOMLEFT", 0, 0)
 
-    -- Die linke Spalte ist eine Kette fester Bloecke; die rechte traegt
-    -- ihre Hoehe selbst ein, sobald sie gemessen hat (RelayoutLoot).
+    -- Lager
+    --
+    -- EIGENES PANEL STATT EINER ZEILE WEITER OBEN. Die Erklaerung ist lang,
+    -- weil sie sagen muss, was dieser Client ueber einen verschickt — und die
+    -- Bloecke darueber haben feste Hoehen. Ein umbrechender Text in einem
+    -- Block fester Hoehe ist genau die Wette, die in dieser Datei schon
+    -- zweimal verloren gegangen ist. Hier misst er sich selbst.
+    local camp = Widgets.Panel(columnA, L.SET_CAMP)
+    camp:SetPoint("TOPLEFT", publish, "BOTTOMLEFT", 0, -gap)
+    camp:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
+    camp:SetHeight(72)
+    self.campPanel = camp
+
+    self.campBox = Widgets.CheckBox(camp.content, L.SET_CAMP, function(checked)
+        GA.Core.Config:Set("campEnabled", checked)
+        if checked then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
+    end)
+
+    self.campHint = Theme.Label(camp.content, L.SET_CAMP_HINT, fonts.small, Theme.color.textDim)
+
+    camp.content:SetScript("OnSizeChanged", function() Settings:RelayoutCamp() end)
+
+    -- Die linke Spalte ist eine Kette fester Bloecke; das Lagerpanel und die
+    -- rechte Spalte tragen ihre Hoehe selbst ein, sobald sie gemessen haben.
+    self.columnAFixed = language:GetHeight() + gap + left:GetHeight()
+        + gap + publish:GetHeight() + gap
     self.columnHeights = {
-        language:GetHeight() + gap + left:GetHeight() + gap + publish:GetHeight(),
+        self.columnAFixed + camp:GetHeight(),
         LOOT_PANEL_HEIGHT,
     }
+    self:RelayoutCamp()
 
     -- Loot-Erfassung
     --
@@ -391,6 +416,44 @@ function Settings:RelayoutLoot()
     self:UpdateColumnHeight()
     return true
 end
+
+--- Dasselbe fuer das Lagerpanel: Kaestchen, darunter die gemessene
+--- Erklaerung, und die Panelhoehe faellt hinten heraus.
+---
+--- Die Erklaerung ist die laengste im ganzen Fenster — sie muss sagen, was
+--- dieser Client ueber einen verschickt. Genau deshalb darf ihre Hoehe
+--- nirgends geraten werden.
+function Settings:RelayoutCamp()
+    local panel = self.campPanel
+    if not panel then return false end
+
+    local content = panel.content
+    local width = content:GetWidth() or 0
+    if width <= 1 then return false end
+
+    self.campBox:ClearAllPoints()
+    self.campBox:SetPoint("TOPLEFT", content, "TOPLEFT", -4, 0)
+    local y = -(self.campBox:GetHeight() or 26)
+
+    self.campHint:SetWidth(width - 4)
+    self.campHint:SetJustifyH("LEFT")
+    self.campHint:ClearAllPoints()
+    self.campHint:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
+    local height = self.campHint:GetStringHeight() or 0
+    if height <= 0 then height = 12 end
+    self.campHint:SetHeight(height)
+    y = y - height
+
+    local needed = -y + 24 + 16
+    if math.abs((panel:GetHeight() or 0) - needed) > 0.5 then
+        panel:SetHeight(needed)
+    end
+
+    self.columnHeights = self.columnHeights or {}
+    self.columnHeights[1] = (self.columnAFixed or 0) + needed
+    self:UpdateColumnHeight()
+    return true
+end
 -- LAYOUT ENDE
 
 --- Hoehe des Bildlaufinhalts nachfuehren.
@@ -484,6 +547,12 @@ function Settings:Refresh()
     self.collectorHint:SetText(string.format(L.SET_COLLECTOR_HINT,
         tonumber(GA.Core.Config:Get("collectorMinutes")) or 60))
 
+    -- ~= false, nicht "and true or false": Die Voreinstellung ist AN, und ein
+    -- noch nie gesetzter Wert ist nil. Wer hier auf Wahrheit prueft, zeigt
+    -- beim ersten Oeffnen ein leeres Kaestchen fuer etwas, das laeuft.
+    self.campBox:SetChecked(GA.Core.Config:Get("campEnabled") ~= false)
+    self.campHint:SetText(L.SET_CAMP_HINT)
+
     local seen = {}
     local measured = GA.Core.Database.account.measured
     for method in pairs((measured and measured.lootMethods) or {}) do
@@ -505,6 +574,7 @@ function Settings:Refresh()
     -- dabei laenger oder kuerzer werden — wer vorher misst, misst den alten
     -- Text.
     self:RelayoutLoot()
+    self:RelayoutCamp()
     self:UpdateColumnHeight()
 
     GA.UI.MainFrame:SetContext("v" .. GA.version)
