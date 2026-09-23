@@ -228,10 +228,14 @@ function Armory:ShowSlotTooltip(button)
     if own then
         ok = pcall(GameTooltip.SetInventoryItem, GameTooltip, "player", button.slotID)
     end
-    if not ok then
-        ok = pcall(GameTooltip.SetHyperlink, GameTooltip, item.link)
+    if ok then
+        GameTooltip:Show()
+        return
     end
-    if ok then GameTooltip:Show() end
+
+    -- Sonst der gemeinsame Weg: Er kommt auch ohne Link aus, und bei
+    -- fremden Charakteren aus dem Abgleich ist oft nur die ID da.
+    GA.UI.Widgets.ShowItemTooltip(button, item.itemID, item.link)
 end
 
 -- ================================================================== Refresh ---

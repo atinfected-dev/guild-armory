@@ -144,7 +144,36 @@ bootstrap:SetScript("OnEvent", function(self, event, arg1)
         -- -> Module. Die Messung braucht einen eingeloggten Charakter.
         GA.Core.Locale:Apply()
         GA.Core.Compat.Measure()
-        GA.Core.Database:EnsureBootstrapAdmin(UnitGUID("player"))
+        -- UEBER DENSELBEN WEG WIE DIE PRUEFUNG, nicht ueber UnitGUID.
+        --
+        -- Hier stand UnitGUID("player") roh. Ist die eigene GUID ein
+        -- verschleierter Wert, schrieb das einen solchen als
+        -- TABELLENSCHLUESSEL in die Datenbank — genau das, was
+        -- Compat.GetUnitIdentity an der Grenze abfaengt. Gefragt wird
+        -- spaeter aber mit identity.guid, und das ist dann nil: Die Rolle
+        -- lag unter einem Schluessel, nach dem nie jemand sucht, und man
+        -- war auf dem eigenen Client nicht einmal Plündermeister.
+        --
+        -- Beide Enden muessen denselben Wert benutzen. Taugt er nicht,
+        -- soll das auffallen und nicht still danebengehen.
+        local eigen = GA.Core.Compat.GetPlayerIdentity()
+        if eigen.guid then
+            -- DEN EIGENEN CHARAKTER KENNT DAS ADDON AB JETZT.
+            --
+            -- Vorher entstand sein Datensatz erst als Nebenwirkung der
+            -- ersten Ausruestungserfassung. Bis dahin fand
+            -- FindCharacterByName den eigenen Namen nicht — und wer
+            -- "/ga dkp add 20 Horst Hodenhagen" tippte, bekam zu hoeren,
+            -- diesen Charakter kenne man nicht. Den eigenen.
+            --
+            -- Er kostet nichts: Der Datensatz entsteht ohnehin, nur eben
+            -- frueher und aus einem ersichtlichen Grund.
+            GA.Core.Database:GetCharacter(eigen.guid, eigen)
+
+            GA.Core.Database:EnsureBootstrapAdmin(eigen.guid)
+        else
+            GA.Core.Debug:Warn("%s", GA.L.ROLE_NO_GUID)
+        end
         -- Die Nachrichtenschicht vor den Modulen: Module haengen sich beim
         -- Starten an Nachrichtentypen, und dafuer muss Comm schon stehen.
         if GA.Core.Comm then GA.Core.Comm:OnEnable() end

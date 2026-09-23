@@ -149,7 +149,11 @@ function GrantDialog:Create()
     hint:SetPoint("TOPLEFT", right.content, "TOPLEFT", 0, 0)
     hint:SetPoint("RIGHT", right.content, "RIGHT", 0, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetHeight(40)
+    -- KEINE FESTE HOEHE. Eine FontString mit linker und rechter
+    -- Verankerung waechst von selbst auf die Hoehe ihres umgebrochenen
+    -- Textes, und das Feld darunter haengt an ihrer Unterkante — es rueckt
+    -- also mit. Mit SetHeight(40) haette ein laengerer Text darunter
+    -- gelegen, statt zu schieben.
 
     local box = CreateFrame("Frame", nil, right.content)
     box:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -6)

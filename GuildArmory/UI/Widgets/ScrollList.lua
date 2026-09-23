@@ -305,6 +305,16 @@ function Widgets.BuildCells(row, columns, fontObject)
         local cell = Theme.Label(row, "", fontObject or fonts.row, Theme.color.text)
         cell:SetPoint("LEFT", row, "LEFT", x, 0)
 
+        -- WO DIESE ZELLE ANFAENGT, ZUM NACHSCHLAGEN.
+        --
+        -- Eine Ansicht, die vor den Text noch ein Symbol setzen will,
+        -- braucht diesen Abstand. Ohne ihn haengt sie das Symbol an die
+        -- Zelle und die Zelle an das Symbol — ein Ring, den WoW mit
+        -- "Cannot anchor to a region dependent on it" ablehnt. Genau so
+        -- ist die Loot-Historie gestolpert.
+        cell.leftInset = x
+        cell.fills = not column.width
+
         if column.width then
             cell:SetWidth(column.width)
             cell:SetJustifyH(column.justify or "LEFT")

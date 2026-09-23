@@ -108,7 +108,10 @@ function LootHistory:Create(parent)
             row.icon = row:CreateTexture(nil, "ARTWORK")
             row.icon:SetWidth(14) row.icon:SetHeight(14)
             row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-            row.icon:SetPoint("LEFT", row.cells.item, "LEFT", 0, 0)
+            -- AN DIE ZEILE, NICHT AN DIE ZELLE. Die Zelle rueckt beim
+            -- Auffrischen nach rechts, wenn ein Symbol da ist — haengt das
+            -- Symbol an ihr, haengen beide aneinander.
+            row.icon:SetPoint("LEFT", row, "LEFT", row.cells.item.leftInset or 8, 0)
         end,
         updateRow = function(row, award) self:UpdateRow(row, award) end,
         onClickRow = function(award)
@@ -116,13 +119,9 @@ function LootHistory:Create(parent)
             self:Refresh()
         end,
         onEnterRow = function(row, award)
-            if award.itemLink then
-                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-                if pcall(GameTooltip.SetHyperlink, GameTooltip, award.itemLink) then
-                    GameTooltip:Show()
-                end
-            end
+            Widgets.ShowItemTooltip(row, award.itemID, award.itemLink)
         end,
+        onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
     self.list:SetAllPoints(listPanel.content)
 
@@ -168,13 +167,21 @@ function LootHistory:UpdateRow(row, award)
 
     -- Gegenstand: Icon plus Name in Qualitaetsfarbe.
     local info = award.itemID and Compat.GetItemInfo(award.itemLink or award.itemID)
+    -- ERST LOESEN, DANN SETZEN. SetPoint fuegt einen Anker HINZU, es
+    -- ersetzt keinen — ohne ClearAllPoints sammelt die Zelle bei jedem
+    -- Auffrischen einen weiteren an.
+    local einzug = cells.item.leftInset or 8
+    cells.item:ClearAllPoints()
+
     if info and info.icon then
         row.icon:SetTexture(info.icon)
         row.icon:Show()
-        cells.item:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+        cells.item:SetPoint("LEFT", row, "LEFT", einzug + 18, 0)
     else
         row.icon:Hide()
+        cells.item:SetPoint("LEFT", row, "LEFT", einzug, 0)
     end
+    if cells.item.fills then cells.item:SetPoint("RIGHT", row, "RIGHT", -8, 0) end
     cells.item:SetText(award.itemName or (info and info.name) or ("#" .. tostring(award.itemID)))
     local quality = Theme.QualityColor(award.quality or (info and info.quality))
     cells.item:SetTextColor(quality[1], quality[2], quality[3])

@@ -463,3 +463,142 @@ function Widgets.ScrollArea(parent)
 
     return scroll
 end
+
+-- ------------------------------------------------------- Gegenstands-Tooltip -
+
+--- Zeigt den Tooltip eines Gegenstands an einem Rahmen.
+---
+--- DIE ID GENUEGT, DER LINK IST DIE KUER.
+---
+--- Dasselbe stand vorher an fuenf Stellen, und alle fuenf haengten am
+--- LINK: "if award.itemLink then ...". Den gibt es aber nur, wenn dieser
+--- Client den Gegenstand schon einmal gesehen hat. Bei einem fremden
+--- Angebot, einer alten Vergabe aus dem Abgleich oder einem Probelauf ist
+--- er nicht da — und dann erschien gar kein Tooltip, was wie ein defektes
+--- Fenster aussieht.
+---
+--- Drei Wege, in dieser Reihenfolge:
+---
+---   1. Der LINK, wenn es ihn gibt. Nur er traegt Zufallssuffix und
+---      Verzauberung, also das, was dieses eine Stueck ausmacht.
+---   2. SetItemByID. Braucht nur die Zahl und stoesst beim Server die
+---      Abfrage an; solange die laeuft, steht "Retrieving item
+---      information" da. Das ist richtig so und besser als nichts.
+---   3. "item:<id>" als Kurzform, falls es SetItemByID nicht gibt.
+---
+--- @return boolean ob etwas angezeigt wird
+function Widgets.ShowItemTooltip(owner, itemID, link)
+    if not owner or not _G.GameTooltip then return false end
+    if not itemID and not link then return false end
+
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+
+    if link and pcall(GameTooltip.SetHyperlink, GameTooltip, link) then
+        GameTooltip:Show()
+        return true
+    end
+
+    if itemID and type(GameTooltip.SetItemByID) == "function"
+        and pcall(GameTooltip.SetItemByID, GameTooltip, itemID)
+    then
+        GameTooltip:Show()
+        return true
+    end
+
+    if itemID and pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. itemID) then
+        GameTooltip:Show()
+        return true
+    end
+
+    -- Nichts anzuzeigen heisst: nichts stehen lassen. Ein Tooltip, der vom
+    -- vorigen Eintrag uebrig ist, gehoert zum falschen Gegenstand.
+    GameTooltip:Hide()
+    return false
+end
+
+--- Blendet den Gegenstands-Tooltip wieder aus.
+function Widgets.HideItemTooltip()
+    if _G.GameTooltip then GameTooltip:Hide() end
+end
+
+-- ------------------------------------------------------------ Messende Spalte -
+
+--- Stapelt Elemente untereinander und MISST dabei jede Hoehe.
+---
+--- WARUM GEMESSEN UND NICHT GESETZT.
+---
+--- Eine feste Hoehe fuer umbrechenden Text ist immer eine Wette auf
+--- Sprache, Schriftgroesse und Fensterbreite. In den Einstellungen ist
+--- diese Wette verloren gegangen: Die englische Combat-Log-Erklaerung
+--- brauchte fuenf Zeilen statt der eingeplanten drei, und der Rest landete
+--- im Kaestchen darunter.
+---
+--- Jede Erklaerung sagt ueber GetStringHeight selbst, wie hoch sie ist.
+--- Was nicht hineinpasst, schiebt den Rest nach unten, statt ihn zu
+--- ueberdecken.
+---
+--- OHNE BEKANNTE BREITE WIRD NICHTS GESETZT: Ein auf Breite 0 gerechneter
+--- Umbruch ergibt eine sinnlose Hoehe, und die stuende dann fest.
+--- @return table|nil stapel
+function Widgets.Stack(content, options)
+    options = options or {}
+    local breite = content and content:GetWidth() or 0
+    if breite <= 1 then return nil end
+
+    local stapel = { y = 0, breite = breite, content = content }
+
+    --- Ein Element mit eigener Hoehe: Kaestchen, Knopf, Zeile.
+    function stapel:Add(frame, einzug, abstand)
+        self.y = self.y - (abstand or 0)
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", self.content, "TOPLEFT", einzug or 0, self.y)
+        self.y = self.y - (frame:GetHeight() or 0)
+        return frame
+    end
+
+    --- Eine Beschriftung, die umbrechen darf.
+    function stapel:Text(label, einzug, abstand)
+        einzug = einzug or 0
+        self.y = self.y - (abstand or 0)
+        label:SetWidth(self.breite - einzug)
+        label:SetJustifyH("LEFT")
+        label:ClearAllPoints()
+        label:SetPoint("TOPLEFT", self.content, "TOPLEFT", einzug, self.y)
+
+        -- GetStringHeight ist die Hoehe des UMGEBROCHENEN Textes. GetHeight
+        -- waere die gesetzte — und die zu lesen, nachdem man sie selbst
+        -- gesetzt hat, beweist nichts.
+        local hoehe = label:GetStringHeight() or 0
+        if hoehe <= 0 then hoehe = 12 end
+        label:SetHeight(hoehe)
+        self.y = self.y - hoehe
+        return label
+    end
+
+    --- Mehrere Elemente nebeneinander, gleichmaessig verteilt.
+    function stapel:Row(frames, einzug, abstand)
+        einzug = einzug or 0
+        self.y = self.y - (abstand or 0)
+        local luecke = 4
+        local anzahl = #frames
+        if anzahl == 0 then return end
+
+        local je = math.floor((self.breite - einzug - (anzahl - 1) * luecke) / anzahl)
+        local hoehe = 0
+        for index, frame in ipairs(frames) do
+            frame:ClearAllPoints()
+            frame:SetPoint("TOPLEFT", self.content, "TOPLEFT",
+                einzug + (index - 1) * (je + luecke), self.y)
+            if frame.SetWidth then frame:SetWidth(je) end
+            hoehe = math.max(hoehe, frame:GetHeight() or 0)
+        end
+        self.y = self.y - hoehe
+    end
+
+    --- Wie hoch der Inhalt geworden ist.
+    function stapel:Height()
+        return -self.y
+    end
+
+    return stapel
+end

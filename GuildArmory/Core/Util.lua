@@ -203,3 +203,13 @@ function Util.SortBy(list, keys)
     end)
     return list
 end
+
+--- Schneidet Leerraum an beiden Enden ab.
+---
+--- Fuer Eingabefelder: Ein Grund, der nur aus Leerzeichen besteht, ist
+--- keiner — aber er ist nicht leer, und ohne diese Funktion kaeme er
+--- durch jede Pruefung auf "" hindurch.
+function Util.Trim(text)
+    if type(text) ~= "string" then return "" end
+    return (string.match(text, "^%s*(.-)%s*$")) or ""
+end

@@ -2,7 +2,7 @@
 ## Title: Guild Armory |cffe5cc80Forever Edition|r
 ## Notes: Gilden-Armory, LootCouncil, Loot-Historie, Wunschlisten und Gear-Tracking.
 ## Author: Is Not Alone
-## Version: 0.1.2
+## Version: 0.1.3
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled
@@ -52,6 +52,7 @@ Raids\Attendance.lua
 Raids\History.lua
 Raids\CombatLog.lua
 Armory\Tradables.lua
+LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
 LootCouncil\Rolls.lua
@@ -86,7 +87,12 @@ UI\Views\LootHistory.lua
 UI\Views\Wishlist.lua
 UI\Views\Achievements.lua
 UI\Views\Analytics.lua
+UI\DkpFrame.lua
+UI\Views\LootRules.lua
 UI\Views\Settings.lua
+
+# --- Probebetrieb: braucht alle Module, die es ansteuert ----------------------
+Testing\Sandbox.lua
 
 # --- Zuletzt ------------------------------------------------------------------
 Core\Slash.lua

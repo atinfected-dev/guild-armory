@@ -28,7 +28,9 @@ local VIEWS = {
     dashboard = "dashboard", armory = "armory", chars = "characters",
     characters = "characters", loot = "lootcouncil", council = "lootcouncil",
     history = "loothistory", wishlist = "wishlist", gear = "gear",
+    session = "lootcouncil", sitzung = "lootcouncil",
     analytics = "analytics", settings = "settings",
+    lootrules = "lootrules", rules = "lootrules", regeln = "lootrules",
 }
 
 local pendingReset
@@ -118,6 +120,23 @@ SlashCmdList["GUILDARMORY"] = function(input)
                 tostring(L["CAP_" .. key]),
                 tostring(value and L["CAP_" .. key .. "_GOOD"] or L["CAP_" .. key .. "_BAD"]))
         end
+        -- WER BIN ICH HIER, UND WAS DARF ICH?
+        --
+        -- "Ich kann keine Sitzung oeffnen" ist sonst nicht aufzuklaeren:
+        -- Die Rolle haengt an der eigenen GUID, und die kann auf diesem
+        -- Client ein verschleierter Wert sein. Dann steht hier "GUID nicht
+        -- lesbar", und das ist die Antwort.
+        local eigen = GA.Core.Compat.GetPlayerIdentity()
+        local Database = GA.Core.Database
+        if not eigen.guid then
+            Debug:Warn("%s", L.ROLE_NO_GUID)
+        else
+            local rolle = Database:GetRole(eigen.guid)
+            Debug:Info(L.SLASH_STATUS_ROLE, tostring(rolle),
+                tostring(Database:HasAtLeast(eigen.guid, GA.const.ROLE_LOOTMASTER)),
+                tostring(Database:HasAtLeast(eigen.guid, GA.const.ROLE_COUNCIL)))
+        end
+
         Debug:Info(L.SLASH_STATUS_TEMPLATES, GA.UI.Theme.DescribeNative())
     elseif command == "capture" then
         GA.Modules.Equipment:Capture(L.SLASH_SOURCE_COMMAND)
@@ -425,6 +444,178 @@ SlashCmdList["GUILDARMORY"] = function(input)
         end
         for _, entry in ipairs(Tradables:All()) do
             Debug:Info("  %-16s %d", tostring(entry.name), #entry.items)
+        end
+    elseif command == "sim" or command == "probe" then
+        -- PROBEBETRIEB. Ein ganzer Raidabend ohne Raid: Gegenstaende, die
+        -- fallen, Leute, die bieten, ein Council, das abstimmt.
+        --
+        -- Solange er laeuft, verlaesst nichts diesen Client — weder eine
+        -- Chatzeile noch eine Addon-Nachricht. Und jeder erfundene
+        -- Datensatz traegt ein Merkmal, an dem "sim clear" ihn wieder
+        -- findet und der Abgleich sich weigert, ihn weiterzugeben.
+        local Sandbox = GA.Modules.Sandbox
+        local wort, zahl = string.match(rest, "^(%a*)%s*(%d*)$")
+        zahl = tonumber(zahl)
+
+        if wort == "on" or wort == "an" then
+            Sandbox:SetActive(true)
+            Debug:Warn("%s", L.SIM_ON)
+        elseif wort == "off" or wort == "aus" then
+            Sandbox:SetActive(false)
+            Debug:Info(L.SIM_OFF, Sandbox.blocked.chat, Sandbox.blocked.comm)
+        elseif wort == "clear" or wort == "weg" then
+            local weg = Sandbox:Clear()
+            Sandbox:SetActive(false)
+            Debug:Info(L.SIM_CLEARED, weg.awards, weg.characters, weg.profile,
+                weg.sessions, weg.reserves)
+        elseif wort == "raid" then
+            Sandbox:SetActive(true)
+            Debug:Info(L.SIM_ROSTER, Sandbox:Roster(zahl))
+        elseif wort == "drop" then
+            Sandbox:SetActive(true)
+            Debug:Info(L.SIM_DROPPED, #Sandbox:Drop(zahl))
+        elseif wort == "sr" or wort == "reserve" then
+            Sandbox:SetActive(true)
+            Sandbox:Roster()
+            Debug:Info(L.SIM_RESERVED, Sandbox:Reserves())
+        elseif wort == "award" or wort == "vergeben" then
+            -- Der Durchlauf vergibt NICHT mehr selbst; das ist der Schritt,
+            -- den man pruefen will. Wer ihn trotzdem automatisch braucht —
+            -- etwa um die Historie zu fuellen — sagt es hier.
+            local session = GA.Modules.Session:Current()
+            if not session then
+                Debug:Info("%s", L.COUNCIL_REOPEN_NONE)
+            else
+                local vergeben, leer = Sandbox:Award(session.id)
+                Debug:Info(L.SIM_AWARDED, vergeben, leer)
+            end
+        elseif wort == "bid" or wort == "gebot" then
+            -- Das Gebotsfenster noch einmal zeigen.
+            local session = GA.Modules.Session:Current()
+            if session then Sandbox:ShowBidFrame(session)
+            else Debug:Info("%s", L.COUNCIL_REOPEN_NONE) end
+        elseif wort == "seed" then
+            Debug:Info(L.SIM_SEED, Sandbox:Seed(zahl))
+        elseif wort == "run" or wort == "" then
+            local bericht = Sandbox:Run(zahl)
+            if bericht.fehler then
+                Debug:Warn(L.SIM_FAILED, tostring(bericht.fehler))
+            else
+                Debug:Info(L.SIM_RAN, bericht.spieler, #bericht.gefallen,
+                    bericht.gebote, bericht.stimmen)
+                Debug:Info("%s", L.SIM_LOOK)
+            end
+        else
+            Debug:Info("%s", L.SIM_USAGE)
+        end
+
+        local zahlen = Sandbox:Count()
+        Debug:Info(L.SIM_STATE, tostring(Sandbox.active),
+            zahlen.awards, zahlen.characters, zahlen.sessions)
+    elseif command == "dkp" then
+        -- PUNKTE VON HAND BUCHEN UND NACHSEHEN.
+        --
+        -- Das Addon bucht nichts von allein: Es kann einen verpassten Boss
+        -- nicht von einem nicht stattgefundenen unterscheiden, und eine
+        -- erfundene Buchung waere schlimmer als gar keine.
+        local Dkp = GA.Modules.Dkp
+        local wort, rest2 = string.match(rest, "^(%a*)%s*(.*)$")
+
+        if wort == "add" or wort == "give" then
+            local punkte, name = string.match(rest2, "^(-?%d+)%s+(.+)$")
+            local character = name and GA.Core.Database:FindCharacterByName(name)
+
+            -- JEDER FEHLSCHLAG SAGT SEINEN EIGENEN GRUND.
+            --
+            -- Hier stand fuer beide Faelle die Hilfe. Wer einen Namen
+            -- eintippt, den das Addon nicht kennt, bekam damit eine Liste
+            -- von Befehlen zurueck — und liest daraus, der Befehl sei
+            -- falsch gewesen. Er war richtig; der Name war unbekannt.
+            if not punkte then
+                Debug:Info("%s", L.DKP_USAGE)
+            elseif not character then
+                -- NICHT NUR "KENNE ICH NICHT", SONDERN WARUM.
+                --
+                -- Es gibt drei verschiedene Lagen, und sie brauchen
+                -- verschiedene Antworten: Die Datenbank ist leer, der
+                -- eigene Charakter fehlt (dann ist die GUID nicht lesbar),
+                -- oder der Name ist wirklich unbekannt. "Kenne ich nicht"
+                -- fuer alle drei schickt den Fragenden in die falsche
+                -- Richtung.
+                local namen, anzahl = {}, 0
+                for _, eintrag in pairs(GA.Core.Database.account.characters or {}) do
+                    anzahl = anzahl + 1
+                    if #namen < 6 and eintrag.name then
+                        namen[#namen + 1] = eintrag.name
+                    end
+                end
+
+                local eigen = GA.Core.Compat.GetPlayerIdentity()
+                Debug:Warn(L.DKP_NO_CHARACTER, tostring(name))
+                Debug:Info(L.DKP_NO_CHARACTER_WHY, anzahl,
+                    tostring(eigen.name), tostring(eigen.guid ~= nil))
+
+                -- DIE NAMEN SELBST. Genau hier liegt der Unterschied, wenn
+                -- es einen gibt: Was das Spiel als Namen herausgibt, muss
+                -- nicht sein, was ein Mensch eintippt.
+                if anzahl > 0 then
+                    Debug:Info(L.DKP_KNOWN_NAMES, table.concat(namen, ", "))
+                end
+            else
+                local eintrag, grund = Dkp:Post(character.guid, character.name,
+                    tonumber(punkte), Dkp.KIND.ADJUST, L.DKP_BY_HAND)
+                if eintrag then
+                    Debug:Info(L.DKP_POSTED, tonumber(punkte), character.name,
+                        Dkp:Balance(character.guid))
+                else
+                    Debug:Info("%s", tostring(grund))
+                end
+            end
+        elseif wort == "log" then
+            local name = rest2 ~= "" and rest2 or nil
+            local character = name and GA.Core.Database:FindCharacterByName(name)
+
+            if name and not character then
+                Debug:Warn(L.DKP_NO_CHARACTER, tostring(name))
+            else
+                local guid = character and character.guid
+                    or GA.Core.Compat.GetPlayerIdentity().guid
+                local eintraege = Dkp:History(guid, 15)
+
+                -- EIN LEERES KONTOBUCH IST EINE ANTWORT, KEIN SCHWEIGEN.
+                if #eintraege == 0 then
+                    Debug:Info(L.DKP_NO_ENTRIES, tostring(character and character.name
+                        or GA.Core.Compat.GetPlayerIdentity().name))
+                else
+                    Debug:Info(L.DKP_LOG_HEAD,
+                        tostring(character and character.name
+                            or GA.Core.Compat.GetPlayerIdentity().name),
+                        Dkp:Balance(guid))
+                    for _, eintrag in ipairs(eintraege) do
+                        Debug:Info("  %s  %+d  %s", GA.Core.Util.TimeAgo(eintrag.ts),
+                            eintrag.points, tostring(eintrag.reason))
+                    end
+                end
+            end
+        else
+            -- Die Rangliste. Sie steht hier und nicht in einem eigenen
+            -- Fenster, weil sie meistens nur kurz gebraucht wird.
+            local liste = Dkp:List()
+
+            -- AUCH HIER: LEER IST EINE ANTWORT. Vorher kam nur die Hilfe,
+            -- und das sieht aus, als haette der Befehl nicht funktioniert.
+            if #liste == 0 then
+                Debug:Info("%s", L.DKP_EMPTY)
+            else
+                Debug:Info(L.DKP_LIST_HEAD, #liste)
+                for index, stand in ipairs(liste) do
+                    if index > 20 then break end
+                    Debug:Info("  %-22s %5d   (%d %s, %d %s)", tostring(stand.name),
+                        stand.total, stand.earned, L.DKP_WORD_EARNED,
+                        stand.spent, L.DKP_WORD_SPENT)
+                end
+            end
+            Debug:Info("%s", L.DKP_USAGE)
         end
     elseif command == "combatlog" then
         -- EIN KURZER WEG ZU EINER EINSTELLUNG, DIE JEDE SITZUNG NEU GESETZT

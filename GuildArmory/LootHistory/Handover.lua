@@ -172,6 +172,59 @@ end
 
 -- ================================================================== Start ------
 
+-- ============================================================ Handelsfenster --
+
+--- Wie viele Plaetze ein Handelsfenster hat, ohne den letzten.
+---
+--- Platz 7 ist "wird nicht gehandelt" — dort liegt, was der Partner sehen,
+--- aber nicht bekommen soll. Da hinein etwas zu legen, waere das Gegenteil
+--- einer Uebergabe.
+local TRADE_SLOTS = 6
+
+--- Legt beim Oeffnen eines Handels das hinein, was diesem Partner gehoert.
+---
+--- WAS DAS TUT UND WAS NICHT.
+---
+--- Es fuellt das Fenster. Es handelt NICHT: Beide Seiten muessen weiterhin
+--- selbst bestaetigen, und bis dahin ist jeder Schritt zuruecknehmbar. Und
+--- es markiert nichts als uebergeben — ein Gegenstand im Handelsfenster ist
+--- immer noch kein Beweis, sondern eine Absicht. Bestaetigt wird, wie seit
+--- jeher, ueber TRADE_ACCEPT_UPDATE im LootTracker.
+---
+--- WER GENAU. Nur Vergaben an DIESEN Partner, Name auf Name. Ein Abgleich
+--- ueber die GUID waere schoener, aber das Handelsfenster gibt nur den
+--- Namen her — und ein falsch zugeordneter Gegenstand wandert hier nicht
+--- in eine Liste, sondern in fremde Taschen.
+---
+--- @return number gelegt, string|nil grund
+function Handover:FillTrade()
+    if GA.Core.Config:Get("autoTrade") == false then return 0, "aus" end
+
+    local partner = Compat.GetTradePartner()
+    if not partner or partner == "" then return 0, "kein Partner" end
+
+    -- Auf denselben Stand kuerzen wie die Vergaben: Dort stehen die Namen
+    -- ohne Realm.
+    local kurz = Util.ShortName(partner)
+
+    local carrying = self:Pending()
+    local gelegt = 0
+
+    for _, entry in ipairs(carrying) do
+        if gelegt >= TRADE_SLOTS then break end
+        if entry.to and Util.ShortName(entry.to) == kurz then
+            if Compat.PlaceInTrade(entry.bag, entry.slot, gelegt + 1) then
+                gelegt = gelegt + 1
+            end
+        end
+    end
+
+    if gelegt > 0 then
+        Debug:Info(GA.L.HANDOVER_FILLED, gelegt, kurz)
+    end
+    return gelegt
+end
+
 function Handover:OnEnable()
     -- Beim Wechsel des Taschenbestands neu rechnen — aber gedrosselt, denn
     -- BAG_UPDATE_DELAYED feuert beim Plündern im Sekundentakt.
@@ -192,6 +245,16 @@ function Handover:OnEnable()
     -- ungemessen. GROUP_ROSTER_UPDATE ist gemessen (Communication/Sync nutzt
     -- es seit Phase 7), und der Uebergang von "in einer Gruppe" zu "nicht
     -- mehr" ist daraus ablesbar.
+    -- Handelsfenster: Was diesem Partner gehoert, gleich hineinlegen.
+    --
+    -- Mit kurzer Verzoegerung: TRADE_SHOW feuert, waehrend das Fenster noch
+    -- aufgebaut wird, und ein ClickTradeButton auf einen Platz, den es noch
+    -- nicht gibt, geht ins Leere. Eine Zehntelsekunde reicht und ist nicht
+    -- zu merken.
+    GA.Core.Events:Register("TRADE_SHOW", function()
+        Compat.After(0.1, function() Handover:FillTrade() end)
+    end, "Handover")
+
     Handover.wasInGroup = Compat.IsInGroup()
     GA.Core.Events:Register("GROUP_ROSTER_UPDATE", function()
         local inGroup = Compat.IsInGroup()

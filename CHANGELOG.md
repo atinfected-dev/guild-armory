@@ -1,5 +1,134 @@
 # Changelog
 
+## 0.1.3
+
+Loot distribution, reworked. The page is called **Loot Session** now,
+because it no longer covers only the council: one session handles whichever
+way your guild hands loot out.
+
+### Four ways to distribute
+
+A new **Loot rules** page, next to Settings, picks one:
+
+* **Council** — people bid, the council votes, the loot master awards.
+* **Soft reserve** — a reservation decides. Anything nobody reserved is
+  rolled for.
+* **Roll** — everything is rolled for: 100 main-spec, 50 off-spec, 25
+  transmog.
+* **DKP** — people bid points, the highest bid wins, and only the winner
+  pays.
+
+In all four the loot master awards, out of the same candidate list. That is
+not a coincidence — it is why one session can do all of them. A roll is a
+bid with a number; a DKP bid is a bid with a number. Neither needed a second
+procedure beside the first.
+
+**The rules belong to the session, not to your settings.** They are fixed
+when it opens and travel with the announcement, so a raid member whose own
+page says something else still sees what the loot master actually chose.
+Changing a setting mid-evening does not retroactively change what is
+running.
+
+The page also says, in one sentence, what applies tonight — and warns about
+combinations that contradict each other, like rotating council seats while
+nobody may vote.
+
+### Rolling
+
+A low roll in the larger range beats a high one in the smaller: 3 on 100
+beats 49 on 50. That is the point of the ranges — whoever claims more rolls
+higher up. Sorting by the raw number gives a procedure that decides wrongly
+a few times an evening and looks entirely plausible doing it.
+
+**Who rolls is a choice.** By default the loot master's client draws the
+number: no chat lines at all, and a bidder cannot influence their own
+number because their client does not draw it. The trade is real and worth
+stating — the raid cannot check the number either. The alternative is
+everyone rolling with `/roll`, where the server draws and the whole raid
+reads it; with 20 people and 10 items that is 200 lines for everybody,
+including people without the addon.
+
+### DKP
+
+**A balance is not a number, it is a sum.** Every posting stands in the
+ledger on its own — when, how much, what for, by whom — and the balance is
+computed from it on every read. It cannot contradict the ledger, because it
+is nothing but the ledger, added up. Somebody asking "why do I only have 40
+points" gets a list, not a claim.
+
+* **Bids are sealed.** No message and no chat line ever carries an amount;
+  only the loot master sees them. Whoever knows the top bid simply bids one
+  more, and the auction turns into a race for the last second.
+* **Open bids reserve points.** With 500, after bidding 100 on one item you
+  can still bid 400 across the rest. Otherwise somebody bids 500 on five
+  items and can pay for one.
+* **Bids can be changed and withdrawn** while bidding is open. Nothing is
+  charged until the award, and only the winner pays.
+* **Being outbid whispers you** — without the new amount. Optional.
+* A **Points and ledger** window from the Loot rules page: standings on the
+  left, the selected player's ledger on the right, and posting at the
+  bottom — to one player or to everyone in the raid. Nothing is posted
+  without a reason.
+
+### A clock for bidding
+
+Bidding can stay open for 60, 120 or 180 seconds, or until you close it
+yourself. The bid window counts down; when the time is up, no bid can be
+placed, changed **or withdrawn** any more. That last one is what makes the
+clock worth anything: somebody who can step out once they see the situation
+has exactly the second move the clock is there to prevent.
+
+The loot master's clock decides. The countdown everyone else sees only says
+where they stand — two clients never have quite the same time, and the last
+second is the one people argue about.
+
+### Who takes part
+
+A session is announced over the raid or party channel, never to the guild,
+and only guild members are accepted — checked on both sides. Somebody from
+outside sees no bid window and their bids would not arrive either.
+
+That can now be widened to everyone in your raid, for guilds that pug.
+**It applies to the session only**: characters, wishlists and confirmed
+awards stay between guild members either way.
+
+### Testing without a raid
+
+`/ga sim` plays a raid evening through on one client: made-up raid members
+with roles and points, items dropping, bids, votes. Awarding is left to
+you — that is the part worth testing.
+
+Two promises hold it together. **Nothing leaves the client** while it runs:
+chat and addon messages are both blocked, at one place each. And **every
+made-up record is marked**, so `/ga sim clear` removes exactly those, and
+the guild sync refuses to pass them on even after you switch the test mode
+off.
+
+### Fixes
+
+* Item tooltips now work from the item ID alone. They used to depend on a
+  link, which only exists once this client has seen the item — so awards
+  from the sync, other people's trade offers and anything in a test run
+  showed no tooltip at all. Five places did the same thing; there is one
+  now.
+* The loot history threw an error on any row with an item icon: the icon
+  was anchored to the label and the label to the icon. `SetPoint` adds an
+  anchor rather than replacing one, so they also stacked up on every
+  refresh.
+* Bidding as the loot master failed with "no channel". The bid went over
+  the group channel — to yourself. A session that lives on this client is
+  now recorded directly.
+* The settings window could not be configured by role at all; the loot
+  rules now are. The bootstrap administrator is the guild leader rather
+  than whoever started the addon first.
+* Your own character was only registered once equipment was first captured,
+  so looking it up by name failed — including in `/ga dkp add <your name>`.
+  It is registered at login now, and name lookup falls back to a scan when
+  the index is incomplete.
+* Explanatory text with a fixed height ran into the control below it in
+  three places. Heights are measured now, and a test looks for the pattern
+  across the whole interface.
+
 ## 0.1.2
 
 All of this came out of one report: *"I can't offer blue items any more."*

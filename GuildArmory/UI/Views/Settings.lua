@@ -89,7 +89,10 @@ function Settings:Create(parent)
     languageHint:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -28)
     languageHint:SetPoint("RIGHT", language.content, "RIGHT", 0, 0)
     languageHint:SetJustifyH("LEFT")
-    languageHint:SetHeight(28)
+    -- Keine feste Hoehe: siehe tools/test/fixedheights.test.js. Der Text
+    -- ist auf Deutsch laenger als auf Englisch, und die Wette darauf, dass
+    -- zwei Zeilen reichen, ist genau die, die hier schon einmal verloren
+    -- ging.
 
     -- DER HINWEIS STEHT ERST DA, WENN ER STIMMT.
     --

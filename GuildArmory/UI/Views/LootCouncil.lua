@@ -74,6 +74,17 @@ function LootCouncil:Create(parent)
     end)
     self.rotateButton:SetPoint("RIGHT", self.openButton, "LEFT", -6, 0)
 
+    -- DAS GEBOTSFENSTER WIEDER AUFMACHEN.
+    --
+    -- Es geht von selbst auf, wenn eine Sitzung angekuendigt wird — und es
+    -- hat ein Schliesskreuz. Wer darauf drueckt, kam bisher nicht mehr
+    -- hin: Die Ankuendigung kommt kein zweites Mal. Ein Fenster, das man
+    -- schliessen, aber nicht wieder oeffnen kann, ist eine Falle.
+    self.bidButton = Widgets.Button(bar, L.COUNCIL_REOPEN_BID, function()
+        self:ReopenBidFrame()
+    end)
+    self.bidButton:SetPoint("RIGHT", self.rotateButton, "LEFT", -6, 0)
+
     -- Der Stand der Rotation gehoert neben den Knopf und nicht in ein
     -- Untermenue: Wer nicht sieht, wer gerade mitstimmt, kann die Abstimmung
     -- nicht einordnen.
@@ -117,13 +128,9 @@ function LootCouncil:Create(parent)
             self:Refresh()
         end,
         onEnterRow = function(row, award)
-            if award.itemLink then
-                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-                if pcall(GameTooltip.SetHyperlink, GameTooltip, award.itemLink) then
-                    GameTooltip:Show()
-                end
-            end
+            Widgets.ShowItemTooltip(row, award.itemID, award.itemLink)
         end,
+        onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
     self.items:SetAllPoints(itemPanel.content)
 
@@ -242,7 +249,46 @@ function LootCouncil:UpdateCandidateRow(row, candidate)
     row.name:SetTextColor(r, g, b)
 
     local response = GA.Modules.Session:ResponseByKey(candidate.response)
-    row.response:SetText(response and response.label or candidate.response or "?")
+
+    -- IM WURFMODUS IST DIE ZAHL DIE ANTWORT. Sie gehoert deshalb an
+    -- dieselbe Stelle und nicht in eine zusaetzliche Spalte, die bei den
+    -- anderen beiden Verteilarten leer bliebe.
+    -- DIE GEBOTE SIEHT NUR DER PLUENDERMEISTER.
+    --
+    -- Sie verlassen seinen Client ohnehin nicht — kein SOPEN, kein AWARD
+    -- traegt einen Betrag. Diese Zeile ist die zweite Sperre: Wuerde
+    -- spaeter jemand Sitzungen abgleichen, stuenden die Zahlen sonst
+    -- ploetzlich bei allen. Ein verdecktes Gebot, das einer sieht, ist
+    -- keins mehr.
+    local session = GA.Modules.Session:Current()
+    local eigeneGuid = Compat.GetPlayerIdentity().guid
+
+    -- NIL IST KEINE UEBEREINSTIMMUNG.
+    --
+    -- "session.openedBy == identity.guid" allein waere wahr, wenn BEIDE
+    -- nil sind — und auf diesem Client kann die eigene Kennung
+    -- unlesbar sein. Dann stuenden die verdeckten Gebote ploetzlich offen
+    -- da, ausgerechnet dort, wo ohnehin schon etwas nicht stimmt.
+    local darfSehen = session ~= nil
+        and eigeneGuid ~= nil
+        and session.openedBy == eigeneGuid
+
+    if candidate.dkp and not darfSehen then
+        row.response:SetText(L.COUNCIL_SEALED)
+        local grau = Theme.color.textDim
+        row.response:SetTextColor(grau[1], grau[2], grau[3])
+    elseif candidate.dkp then
+        row.response:SetText(string.format(L.COUNCIL_DKP, candidate.dkp))
+        local gold = Theme.color.gold
+        row.response:SetTextColor(gold[1], gold[2], gold[3])
+    elseif candidate.roll then
+        row.response:SetText(string.format(L.COUNCIL_ROLLED,
+            candidate.roll, candidate.rollMax or "?",
+            response and response.label or candidate.response or "?"))
+    else
+        row.response:SetText(response and response.label or candidate.response or "?")
+    end
+
     local color = response and response.color or Theme.color.textDim
     row.response:SetTextColor(color[1], color[2], color[3])
 
@@ -316,6 +362,59 @@ end
 -- ================================================================== Aktionen --
 
 --- Oeffnet eine Session aus allen frisch erkannten Gegenstaenden.
+--- Macht das Gebotsfenster wieder auf.
+---
+--- ZWEI HERKUENFTE, EINE ANZEIGE.
+---
+--- Als Raidmitglied liegt die Ankuendigung in Session.incoming — dann wird
+--- genau die wieder gezeigt. Als Plündermeister gibt es die gar nicht: Die
+--- Sitzung liegt hier, und die Ankuendigung wurde nur verschickt. Dann
+--- wird sie aus der eigenen Sitzung gebaut.
+---
+--- Ohne das kaeme der Plündermeister nie an sein eigenes Gebotsfenster,
+--- obwohl er der Einzige ist, der es sicher oeffnen kann.
+function LootCouncil:ReopenBidFrame()
+    local Session = GA.Modules.Session
+    if not GA.UI.BidFrame then return false end
+
+    if Session.incoming and #Session.incoming.items > 0 then
+        GA.UI.BidFrame:Show(Session.incoming)
+        return true
+    end
+
+    local session = Session:Current()
+    if not session then
+        GA.Core.Debug:Info("%s", L.COUNCIL_REOPEN_NONE)
+        return false
+    end
+
+    local items = {}
+    for _, awardId in ipairs(session.awardIds) do
+        local award = GA.Modules.Awards:Get(awardId)
+        -- Nur, worauf noch geboten werden kann. Ein vergebener Gegenstand
+        -- im Gebotsfenster waere eine Einladung zu einem Gebot, das
+        -- niemand mehr annehmen kann.
+        if award and award.itemID
+            and award.status == GA.Data.Schema.LootStatus.SESSION_OPEN
+        then
+            items[#items + 1] = { awardId = awardId, itemID = award.itemID }
+        end
+    end
+
+    if #items == 0 then
+        GA.Core.Debug:Info("%s", L.COUNCIL_REOPEN_NONE)
+        return false
+    end
+
+    Session.incoming = {
+        id = session.id,
+        host = session.openedByName,
+        items = items,
+    }
+    GA.UI.BidFrame:Show(Session.incoming)
+    return true
+end
+
 function LootCouncil:OpenSession()
     local detected = GA.Modules.Awards:List({ status = Status.DETECTED })
     local ids = {}

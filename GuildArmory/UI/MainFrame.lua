@@ -42,6 +42,11 @@ local VIEW_ORDER = {
     { key = "wishlist",    label = "NAV_WISHLIST" },
     { key = "achievements", label = "NAV_ACHIEVEMENTS" },
     { key = "analytics",   label = "NAV_ANALYTICS" },
+    -- Die Lootregeln stehen bei den Einstellungen, nicht bei den
+    -- Loot-Ansichten: Man verstellt sie einmal und sieht sie danach selten
+    -- wieder. Zwischen Historie und Wunschliste waeren sie ein Fremdkoerper
+    -- in einer Reihe von Ansichten, die man im Raid benutzt.
+    { key = "lootrules",   label = "NAV_LOOTRULES" },
     { key = "settings",    label = "NAV_SETTINGS" },
 }
 

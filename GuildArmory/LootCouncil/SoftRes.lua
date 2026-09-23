@@ -81,7 +81,14 @@ end
 function SoftRes:Open(options)
     options = options or {}
     local identity = Compat.GetPlayerIdentity()
-    if not GA.Core.Database:HasAtLeast(identity.guid, GA.const.ROLE_LOOTMASTER) then
+
+    -- force: wie bei Session:Open. Diese Pruefung ist eine OERTLICHE
+    -- Absperrung — sie haelt davon ab, hier versehentlich eine Runde zu
+    -- eroeffnen. Was ueber die Leitung hereinkommt, prueft OnClaim
+    -- getrennt, und daran aendert sich nichts.
+    if not options.force
+        and not GA.Core.Database:HasAtLeast(identity.guid, GA.const.ROLE_LOOTMASTER)
+    then
         return false, "notallowed"
     end
 

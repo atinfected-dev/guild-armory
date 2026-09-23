@@ -193,6 +193,16 @@ end
 --- vergessen. Also steht es jetzt an der Stelle, durch die beide Wege
 --- muessen.
 local function enqueue(payload, channel, target, bulk)
+    -- IM PROBEBETRIEB GEHT KEINE ADDON-NACHRICHT HINAUS. Dieselbe Regel wie
+    -- bei Compat.SendChatMessage, und aus demselben Grund: Gebote und
+    -- Vergaben aus einem erfundenen Durchlauf wuerden bei den anderen als
+    -- echt ankommen. Send UND SendBlob laufen hier durch.
+    local Sandbox = GA.Modules and GA.Modules.Sandbox
+    if Sandbox and Sandbox.active then
+        Sandbox.blocked.comm = Sandbox.blocked.comm + 1
+        return
+    end
+
     if channel == "WHISPER" and target then
         target = Comm:WhisperTarget(target)
     end
@@ -388,7 +398,20 @@ Comm.rejected = { stranger = 0, unknown = 0 }
 --- darauf baut die Pruefung.
 ---
 --- @return boolean darf, string|nil grund
-function Comm:MayAccept(sender, channel)
+--- Nachrichten einer laufenden Lootsitzung.
+---
+--- NUR DIESE duerfen aus der Gruppe statt aus der Gilde kommen, und auch
+--- das nur, wenn es jemand ausdruecklich einstellt. Sie schreiben keine
+--- dauerhaften Daten: Eine Bewerbung gilt fuer diese eine Sitzung, eine
+--- Stimme fuer diesen einen Gegenstand. Alles, was in die Datenbank geht —
+--- Charaktere, Wunschlisten, bestaetigte Vergaben — bleibt unter
+--- Gildenmitgliedern.
+local SESSION_TYPES = {
+    SOPEN = true, SITEM = true, SCLOSE = true,
+    BID = true, VOTE = true, RDECL = true, RROLL = true, DBID = true, DACK = true,
+}
+
+function Comm:MayAccept(sender, channel, messageType)
     -- Der GUILD-Kanal traegt die Antwort in sich: Der Server stellt ihn nur
     -- Gildenmitgliedern zu.
     if channel == "GUILD" then return true end
@@ -401,7 +424,21 @@ function Comm:MayAccept(sender, channel)
 
     local member = Guild:IsMember(sender)
     if member == true then return true end
-    if member == false then return false, "stranger" end
+
+    if member == false then
+        -- Kein Gildenmitglied. Fuer eine Lootsitzung kann das trotzdem in
+        -- Ordnung sein — wenn die Gilde das so eingestellt hat und die
+        -- Person wirklich im eigenen Raid steht. Beides muss stimmen: Die
+        -- Einstellung allein wuerde die Tuer fuer jeden oeffnen, der sich
+        -- auf den RAID-Kanal legen kann.
+        if SESSION_TYPES[messageType]
+            and GA.Core.Config:Get("sessionScope") == "RAID"
+            and Compat.IsInMyGroup(sender)
+        then
+            return true
+        end
+        return false, "stranger"
+    end
 
     -- WEISS NICHT — das Roster ist noch nicht da (kurz nach dem Einloggen)
     -- oder unvollstaendig. Abgewiesen wird trotzdem: Eine fremde Nachricht
@@ -415,17 +452,26 @@ end
 function Comm:OnMessage(prefix, payload, channel, sender)
     if prefix ~= GA.const.COMM_PREFIX then return end
 
-    local allowed, reason = self:MayAccept(sender, channel)
-    if not allowed then
-        self.rejected[reason] = (self.rejected[reason] or 0) + 1
-        Debug:Print("comm", "Nachricht von %s ueber %s verworfen (%s)",
-            tostring(sender), tostring(channel), tostring(reason))
-        return
-    end
-
+    -- ENTSCHLUESSELN VOR DEM PRUEFEN.
+    --
+    -- Der Nachrichtentyp entscheidet mit: Was Daten in die Datenbank
+    -- schreibt, bleibt in der Gilde. Was zu einer laufenden Lootsitzung
+    -- gehoert, darf auf Wunsch auch von Leuten kommen, die nur fuer heute
+    -- Abend im Raid sind. Ohne den Typ waere das nicht zu trennen.
+    --
+    -- Entschluesseln ist reines Lesen und hat keine Nebenwirkung — es
+    -- vorzuziehen kostet nichts.
     local messageType, fields = self:Decode(payload)
     if not messageType then
         Debug:Print("comm", "Unlesbare Nachricht von %s verworfen", tostring(sender))
+        return
+    end
+
+    local allowed, reason = self:MayAccept(sender, channel, messageType)
+    if not allowed then
+        self.rejected[reason] = (self.rejected[reason] or 0) + 1
+        Debug:Print("comm", "Nachricht %s von %s ueber %s verworfen (%s)",
+            tostring(messageType), tostring(sender), tostring(channel), tostring(reason))
         return
     end
 

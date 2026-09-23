@@ -21,46 +21,6 @@ Dashboard.titleKey = "NAV_DASHBOARD"
 local CARD_HEIGHT = 92
 local ROW_HEIGHT = 90
 
---- Fuellt den GameTooltip mit einem Gegenstand und sagt, ob es geklappt hat.
----
---- DREI WEGE, WEIL EIN FREMDES ANGEBOT NUR EINE ZAHL IST.
----
---- Wer in der Gilde einen Gegenstand anbietet, schickt seine ID — mehr
---- passt nicht sinnvoll in eine Comm-Nachricht. Ein Itemlink liegt beim
---- Empfaenger nur vor, wenn dieser Client den Gegenstand schon einmal
---- gesehen hat. Bei genau dem Stueck, das man noch nicht hat, ist das
---- typischerweise nicht der Fall — also darf der Tooltip nicht davon
---- abhaengen.
----
---- SetItemByID kommt deshalb zuerst: Es braucht nur die Zahl und stoesst
---- beim Server die Abfrage an. Solange die laeuft, steht im Tooltip
---- "Retrieving item information" — das ist richtig so und besser als gar
---- kein Tooltip, und beim naechsten Ueberfahren steht der Gegenstand da.
-local function showItemTooltip(itemID, link)
-    if not itemID and not link then return false end
-
-    -- DER LINK ZUERST, NICHT DIE ID.
-    --
-    -- Die ID allein sagt "irgendeine Nomadentunika". Werte aus einem
-    -- Zufallssuffix, der richtige Name, Haltbarkeit und Stufenanforderung
-    -- haengen am vollstaendigen Itemstring — und genau der kommt jetzt mit
-    -- der Meldung mit. SetItemByID bleibt als Rueckfall fuer alte
-    -- Meldungen, die noch keine Kennung tragen.
-    if link and pcall(GameTooltip.SetHyperlink, GameTooltip, link) then
-        return true
-    end
-
-    if itemID and type(GameTooltip.SetItemByID) == "function"
-        and pcall(GameTooltip.SetItemByID, GameTooltip, itemID)
-    then
-        return true
-    end
-
-    -- Letzter Weg: eine Kurzform des Links aus der blossen ID bauen.
-    return itemID
-        and pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. itemID)
-        and true or false
-end
 
 function Dashboard:Create(parent)
     local fonts = Theme.Fonts()
@@ -239,14 +199,9 @@ function Dashboard:Create(parent)
         end,
         onEnterRow = function(row, entry)
             if not entry or not entry.itemID then return end
-            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-            if showItemTooltip(entry.itemID, entry.link) then
-                GameTooltip:Show()
-            else
-                GameTooltip:Hide()
-            end
+            Widgets.ShowItemTooltip(row, entry.itemID, entry.link)
         end,
-        onLeaveRow = function() GameTooltip:Hide() end,
+        onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
     self.tradables:SetAllPoints(tradables.content)
 

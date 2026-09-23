@@ -115,13 +115,9 @@ function WishlistView:Create(parent)
             self:Refresh()
         end,
         onEnterRow = function(row, entry)
-            if row.itemLink then
-                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-                if pcall(GameTooltip.SetHyperlink, GameTooltip, row.itemLink) then
-                    GameTooltip:Show()
-                end
-            end
+            Widgets.ShowItemTooltip(row, entry and entry.itemID, row.itemLink)
         end,
+        onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
     self.mine:SetAllPoints(mine.content)
 
@@ -204,12 +200,10 @@ function WishlistView:Create(parent)
             if entry.itemID then WishlistView:PickSearchResult(entry) end
         end,
         onEnterRow = function(row, entry)
-            if not entry.itemID then return end
-            local info = Compat.GetItemInfo(entry.itemID)
-            if not info or not info.link then return end
-            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-            if pcall(GameTooltip.SetHyperlink, GameTooltip, info.link) then GameTooltip:Show() end
+            local info = entry.itemID and Compat.GetItemInfo(entry.itemID)
+            Widgets.ShowItemTooltip(row, entry.itemID, info and info.link)
         end,
+        onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
     self.others:SetAllPoints(others.content)
 

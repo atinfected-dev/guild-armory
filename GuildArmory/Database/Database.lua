@@ -185,8 +185,64 @@ function DB:GetCharacter(guid, seed)
 end
 
 function DB:FindCharacterByName(name, realm)
-    local guid = self.account.nameIndex[Util.NormalizeName(name, realm)]
-    return guid and self.account.characters[guid] or nil, guid
+    local wanted = Util.NormalizeName(name, realm)
+    local guid = wanted and self.account.nameIndex[wanted]
+    local character = guid and self.account.characters[guid]
+    if character then return character, guid end
+
+    -- DER INDEX IST EINE ABKUERZUNG, KEINE WAHRHEIT.
+    --
+    -- Er wird nur nebenbei gepflegt: beim Anlegen eines Charakters ueber
+    -- GetCharacter. Wer einen Datensatz direkt in die Tabelle schreibt —
+    -- und das kam vor —, steht in der Liste, ist aber ueber seinen Namen
+    -- nicht auffindbar. Genau daran ist "/ga dkp add 20 Horst Hodenhagen"
+    -- gescheitert, mit dem eigenen Charakter.
+    --
+    -- Deshalb hier die lange Suche als Rueckfall. Sie kostet einen
+    -- Durchlauf ueber ein paar hundert Eintraege und laeuft nur, wenn die
+    -- kurze nichts gefunden hat.
+    if not wanted then return nil end
+
+    for eigen, eintrag in pairs(self.account.characters) do
+        if eintrag.name and Util.NormalizeName(eintrag.name, eintrag.realm) == wanted then
+            -- Gefunden heisst: Der Index war unvollstaendig. Ihn hier zu
+            -- ergaenzen kostet nichts und erspart die naechste lange Suche.
+            self.account.nameIndex[wanted] = eigen
+            return eintrag, eigen
+        end
+    end
+
+    -- NACHSICHTIG, ABER NUR SOLANGE ES EINDEUTIG BLEIBT.
+    --
+    -- Auf diesem Server heissen Charaktere "Vorname Nachname". Was das
+    -- Spiel als Namen herausgibt, muss nicht dasselbe sein, was ein Mensch
+    -- eintippt: mal mit, mal ohne Nachnamen, mal anders gross geschrieben.
+    --
+    -- Deshalb ein zweiter Durchlauf, der Gross- und Kleinschreibung
+    -- ignoriert und auch dann greift, wenn das eine der Anfang des anderen
+    -- ist. ABER: Passen zwei Charaktere, wird KEINER genommen. Punkte auf
+    -- den falschen Horst zu buchen waere schlimmer als sie gar nicht zu
+    -- buchen — das eine faellt sofort auf, das andere nie.
+    local gesucht = string.lower(Util.ShortName(name or ""))
+    if gesucht == "" then return nil end
+
+    local treffer, trefferGuid, mehrdeutig = nil, nil, false
+    for eigen, eintrag in pairs(self.account.characters) do
+        local kandidat = string.lower(Util.ShortName(eintrag.name or ""))
+        if kandidat ~= "" then
+            local passt = kandidat == gesucht
+                or string.sub(kandidat, 1, #gesucht) == gesucht
+                or string.sub(gesucht, 1, #kandidat) == kandidat
+            if passt then
+                if treffer then mehrdeutig = true break end
+                treffer, trefferGuid = eintrag, eigen
+            end
+        end
+    end
+
+    if mehrdeutig then return nil, nil, "ambiguous" end
+    if treffer then return treffer, trefferGuid end
+    return nil
 end
 
 --- Alle Charaktere als Liste, optional gefiltert.
@@ -226,6 +282,32 @@ function DB:EnsureBootstrapAdmin(ownGuid)
     for _, role in pairs(self.account.roles) do
         if role == GA.const.ROLE_ADMIN then return end
     end
+
+    -- ADMINISTRATOR WIRD DER GILDENMEISTER, NICHT WER ZUERST DA WAR.
+    --
+    -- Frueher machte sich jeder Client beim ersten Start selbst zum
+    -- Administrator. Auf einem eigenen Rechner ist das harmlos, denn die
+    -- Rollen liegen oertlich. Sichtbar falsch wird es in einer Gilde: Wer
+    -- einem Raid beitritt, saehe sich als Administrator und koennte die
+    -- Lootregeln verstellen — nicht fuer die anderen, aber fuer sich, und
+    -- damit widerspricht seine Anzeige dem, was gilt.
+    --
+    -- WEISS NICHT IST NICHT NEIN. Kann dieser Client die Gildenfuehrung
+    -- nicht feststellen (nil), bleibt es beim alten Verhalten: Sonst waere
+    -- das Addon auf einem Client, der GetGuildInfo nicht hergibt, gar
+    -- nicht mehr einzustellen. Gesagt wird es trotzdem.
+    local leader = GA.Core.Compat.IsGuildLeader()
+
+    if leader == false then
+        self:Journal("ROLE_BOOTSTRAP_SKIPPED", ownGuid, nil, "notguildleader", ownGuid)
+        return
+    end
+
+    if leader == nil then
+        GA.Core.Debug:Print("db",
+            "Gildenfuehrung nicht feststellbar — Administrator wie bisher gesetzt.")
+    end
+
     self.account.roles[ownGuid] = GA.const.ROLE_ADMIN
     self:Journal("ROLE_BOOTSTRAP", ownGuid, nil, GA.const.ROLE_ADMIN, ownGuid)
 end

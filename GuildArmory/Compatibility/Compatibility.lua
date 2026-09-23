@@ -1193,6 +1193,19 @@ function Compat.SendChatMessage(text, channel, target)
     if not isFunction(_G.SendChatMessage) then return false end
     if type(text) ~= "string" or text == "" then return false end
 
+    -- IM PROBEBETRIEB VERLAESST NICHTS DIESEN CLIENT.
+    --
+    -- Die eine Stelle, durch die jede Zeile geht, die das Addon in einen
+    -- Chat schreibt — Ankuendigungen, Wuerfe, Rotation, Tauschangebote.
+    -- Ein erfundener Gegenstand, der im Gildenchat verkuendet wird, ist
+    -- nicht wieder einzufangen; die Gilde sieht ihn und richtet sich
+    -- danach. Deshalb sitzt der Riegel hier und nicht in acht Aufrufern.
+    local Sandbox = GA.Modules and GA.Modules.Sandbox
+    if Sandbox and Sandbox.active then
+        Sandbox.blocked.chat = Sandbox.blocked.chat + 1
+        return false, "sandbox"
+    end
+
     -- Chatnachrichten sind auf 255 Zeichen begrenzt; laengere schneidet der
     -- Client ab. Lieber selbst kuerzen und es kenntlich machen.
     if #text > 250 then text = string.sub(text, 1, 247) .. "..." end
@@ -1297,4 +1310,155 @@ function Compat.CanInspectUnit(unit)
     local ok, can = pcall(CanInspect, unit)
     if not ok or not can then return false, "range" end
     return true
+end
+
+--- Mit wem handelst du gerade?
+---
+--- Der Handelspartner ist die Einheit "NPC" — so heisst sie in WoW, auch
+--- wenn ein Spieler dahintersteht. Faellt das aus, steht der Name noch im
+--- Handelsfenster selbst.
+--- @return string|nil
+function Compat.GetTradePartner()
+    local ok, name = pcall(_G.UnitName, "NPC")
+    if ok and type(name) == "string" and name ~= "" then return name end
+
+    local label = _G.TradeFrameRecipientNameText
+    if label and label.GetText then
+        local ok2, text = pcall(label.GetText, label)
+        if ok2 and type(text) == "string" and text ~= "" then return text end
+    end
+
+    return nil
+end
+
+--- Steht das Handelsfenster offen?
+function Compat.IsTradeOpen()
+    local frame = _G.TradeFrame
+    if not frame or not frame.IsShown then return false end
+    local ok, shown = pcall(frame.IsShown, frame)
+    return ok and shown and true or false
+end
+
+--- Legt einen Gegenstand aus der Tasche in einen Handelsplatz.
+---
+--- AUFHEBEN UND ABLEGEN, NICHT "BENUTZEN".
+---
+--- C_Container.UseContainerItem legt einen Gegenstand in den Handel, wenn
+--- das Fenster offen ist — und LEGT IHN AN oder VERBRAUCHT IHN, wenn nicht.
+--- Der Unterschied haengt an einem Fensterzustand, den diese Funktion nicht
+--- selbst herstellt. Bei einem Trank waere der Irrtum folgenlos, bei einer
+--- Waffe nicht.
+---
+--- PickupContainerItem und ClickTradeButton sagen dagegen genau, was sie
+--- tun. Steht das Fenster nicht offen, passiert nichts weiter, als dass ein
+--- Gegenstand am Mauszeiger haengt — und den legt ClearCursor zurueck.
+--- @return boolean
+function Compat.PlaceInTrade(bag, slot, tradeSlot)
+    if not Compat.IsTradeOpen() then return false end
+
+    local container = _G.C_Container
+    local pickup = (isTable(container) and container.PickupContainerItem)
+        or _G.PickupContainerItem
+    if not isFunction(pickup) or not isFunction(_G.ClickTradeButton) then return false end
+
+    local ok = pcall(pickup, bag, slot)
+    if not ok then return false end
+
+    local placed = pcall(_G.ClickTradeButton, tradeSlot)
+    if not placed and isFunction(_G.ClearCursor) then pcall(_G.ClearCursor) end
+    return placed and true or false
+end
+
+--- Wuerfelt sichtbar im Chat.
+---
+--- RandomRoll ist dasselbe wie /roll: Der SERVER wuerfelt, und das Ergebnis
+--- steht als Systemzeile im Chat, die jeder im Raid mitliest. Ein vom Addon
+--- gezogener Zufall waere bequemer und wertlos — niemand koennte ihn
+--- nachrechnen, und bei Lootstreit ist genau das der Punkt.
+--- @return boolean
+function Compat.RandomRoll(min, max)
+    if not isFunction(_G.RandomRoll) then return false end
+    return pcall(_G.RandomRoll, tonumber(min) or 1, tonumber(max) or 100) and true or false
+end
+
+--- Steht diese Person in MEINER Gruppe oder meinem Schlachtzug?
+---
+--- GEFRAGT WIRD DAS SPIEL, NICHT EINE EIGENE LISTE. UnitInRaid und
+--- UnitInParty gehen ueber den Namen als Einheiten-Token; wer nicht dabei
+--- ist, hat keinen. Eine selbst gefuehrte Mitgliederliste koennte
+--- veralten — diese Auskunft nicht.
+--- @return boolean
+function Compat.IsInMyGroup(name)
+    if type(name) ~= "string" or name == "" then return false end
+
+    -- Ohne Realm: So heissen die Einheiten-Token.
+    local kurz = string.match(name, "^([^%-]+)") or name
+
+    if isFunction(_G.UnitInRaid) then
+        local ok, index = pcall(_G.UnitInRaid, kurz)
+        if ok and index then return true end
+    end
+
+    if isFunction(_G.UnitInParty) then
+        local ok, drin = pcall(_G.UnitInParty, kurz)
+        if ok and drin then return true end
+    end
+
+    return false
+end
+
+--- Fuehrst DU diese Gilde?
+---
+--- DREI ANTWORTEN, WIE UEBERALL: ja, nein, weiss nicht.
+---
+--- IsGuildLeader ist der direkte Weg. Fehlt er, bleibt der Rang: Index 0
+--- ist der Gildenmeister. Sagt auch der nichts, ist die Antwort NICHT
+--- "nein", sondern nil — und der Aufrufer entscheidet, was er damit tut.
+--- Ein "nein" aus Unwissenheit wuerde hier jeden aussperren.
+--- @return boolean|nil
+function Compat.IsGuildLeader()
+    if not Compat.IsInGuild() then return false end
+
+    if isFunction(_G.IsGuildLeader) then
+        local ok, leader = pcall(_G.IsGuildLeader)
+        if ok and leader ~= nil then return leader and true or false end
+    end
+
+    local identity = Compat.GetUnitIdentity("player")
+    local index = identity and identity.guildRankIndex
+    if type(index) == "number" then return index == 0 end
+
+    return nil
+end
+
+--- Alle Anwesenden der eigenen Gruppe oder des Schlachtzugs.
+---
+--- GEFRAGT WIRD DAS SPIEL, EINHEIT FUER EINHEIT. Eine eigene Liste
+--- koennte veralten; diese Auskunft ist der Stand von jetzt.
+---
+--- DER EIGENE CHARAKTER IST DABEI. Wer selbst im Raid steht, war auch
+--- anwesend — ihn auszulassen waere eine stille Ausnahme, die bei jeder
+--- Anwesenheitsbuchung auffiele.
+--- @return table  { { name, guid, class } }
+function Compat.GetGroupMembers()
+    local out = {}
+    local gesehen = {}
+
+    for index = 1, Compat.GetNumGroupMembers() do
+        local identity = Compat.GetUnitIdentity(Compat.GetGroupUnit(index))
+        if identity and identity.name and not gesehen[identity.name] then
+            gesehen[identity.name] = true
+            out[#out + 1] = { name = identity.name, guid = identity.guid,
+                              class = identity.class }
+        end
+    end
+
+    -- In einer Gruppe (nicht im Schlachtzug) zaehlt "party1..4" den
+    -- eigenen Charakter nicht mit.
+    local eigen = Compat.GetPlayerIdentity()
+    if eigen.name and not gesehen[eigen.name] then
+        out[#out + 1] = { name = eigen.name, guid = eigen.guid, class = eigen.class }
+    end
+
+    return out
 end

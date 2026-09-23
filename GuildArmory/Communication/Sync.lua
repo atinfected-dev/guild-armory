@@ -183,6 +183,15 @@ function Sync:PublishAward(awardId, channel, target)
         return false, "notmine"
     end
 
+    -- ERFUNDENES BLEIBT HIER, AUCH WENN DER PROBEBETRIEB LAENGST AUS IST.
+    --
+    -- Der Riegel in Comm greift nur, solange er laeuft. Wer danach
+    -- ausschaltet, um sich das Ergebnis anzusehen, und dabei einen echten
+    -- Abgleich ausloest, wuerde seine Testvergaben an die ganze Gilde
+    -- schicken — und dort sind sie nicht von echten zu unterscheiden. Das
+    -- Merkmal am Datensatz gilt laenger als der Schalter.
+    if award.simulated then return false, "simulated" end
+
     local payload = Json.Encode({
         v = Sync.VERSION,
         id = award.id,

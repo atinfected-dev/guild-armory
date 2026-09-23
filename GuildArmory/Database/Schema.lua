@@ -71,6 +71,21 @@ Schema.DefaultResponses = {
     { key = "PASS",    label = "Pass",          short = "Pass",  weight = 0,   color = { 0.40, 0.40, 0.40 } },
 }
 
+--- Die Wurfstufen fuer Verteilung per Wurf.
+---
+--- WER MEHR ANSPRUCH HAT, WUERFELT IN EINER GROESSEREN SPANNE. Das ist
+--- die uebliche Abmachung: /roll 100 fuer den Hauptskillungsbedarf,
+--- /roll 50 fuer die Zweitskillung, /roll 25 fuer die Optik.
+---
+--- ENTSCHIEDEN WIRD ABER NICHT NACH DER ZAHL, sondern zuerst nach der
+--- Stufe. Eine 3 auf 100 schlaegt eine 49 auf 50 — sonst waere die
+--- groessere Spanne ein Nachteil, und genau umgekehrt ist sie gemeint.
+Schema.RollTiers = {
+    { key = "MAIN",     max = 100, label = "Main-Spec" },
+    { key = "OFFSPEC",  max = 50,  label = "Off-Spec" },
+    { key = "TRANSMOG", max = 25,  label = "Transmog" },
+}
+
 Schema.WishlistPriority = {
     { key = "BIS",      label = "Best in Slot",   weight = 4 },
     { key = "HIGH",     label = "Hoch",           weight = 3 },
@@ -90,6 +105,99 @@ Schema.ACCOUNT_DEFAULTS = {
         responses = nil,
         -- Sichtbarkeit der Council-Stimmen: "council" | "all" | "lootmaster"
         voteVisibility = "council",
+
+        -- ------------------------------------------------ Lootvergabe -----
+        -- Diese Schalter entscheiden, WIE eine Gilde verteilt. Sie stehen
+        -- beieinander, weil sie zusammen eine Regel ergeben: Wer sie
+        -- einzeln verstellt, ohne die anderen zu sehen, bekommt einen
+        -- Abend, den niemand erklaeren kann.
+
+        -- WIE VERTEILT WIRD. Drei Arten, eine Einstellung:
+        --
+        --   COUNCIL  Es wird geboten, das Council stimmt ab.
+        --   SOFTRES  Reservierungen entscheiden. Was niemand reserviert
+        --            hat, wird verrollt.
+        --   ROLL     Es wird verrollt, ohne weitere Regeln.
+        --
+        -- In ALLEN dreien vergibt am Ende der Plündermeister. Das ist die
+        -- Gemeinsamkeit, an der der ganze Aufbau haengt: Ein Wurf ist ein
+        -- Gebot mit einer Zahl, eine Reservierung ist ein Gebot mit einem
+        -- Anspruch. Der Vergabeweg bleibt derselbe.
+        lootMode = "COUNCIL",
+
+        -- Bleibt fuer den Rueckweg: Wer frueher "Council aus" gesetzt hat,
+        -- soll nicht ploetzlich wieder abstimmen. Wird beim ersten Lesen
+        -- in lootMode uebersetzt.
+        councilEnabled = true,
+
+        -- Wer abstimmen darf: "COUNCIL" | "LOOTMASTER" | "ALL".
+        -- Voreinstellung COUNCIL — Plündermeister und Admin stehen
+        -- darueber und stimmen damit ohnehin mit.
+        voteRole = "COUNCIL",
+
+        -- Soft Reserves benutzen. AUS blendet sie ueberall aus, statt eine
+        -- leere Liste zu zeigen, die nie jemand fuellt.
+        softResEnabled = true,
+
+        -- Plus Eins mitfuehren und anzeigen.
+        plusOneEnabled = true,
+
+        -- Welche Antworten den Bietern angeboten werden. nil = alle aus
+        -- Schema.DefaultResponses. Eine Gilde ohne Transmog soll den Knopf
+        -- nicht sehen muessen.
+        activeResponses = nil,
+
+        -- Wie lange eine Sitzung auf Gebote wartet, in Sekunden. 0 = ohne
+        -- Uhr; dann schliesst der Plündermeister von Hand.
+        bidSeconds = 60,
+
+        -- Beim Oeffnen eines Handels hineinlegen, was diesem Partner
+        -- vergeben wurde. STANDARD AN: Es fuellt nur das Fenster — handeln
+        -- muessen weiterhin beide Seiten selbst, und bis dahin ist jeder
+        -- Schritt zuruecknehmbar. Der Nutzen ist jedes Mal da, der Schaden
+        -- nirgends.
+        autoTrade = true,
+
+        -- Wurfzeilen einer laufenden Sitzung aus dem EIGENEN Chatfenster
+        -- heraushalten. Gewuerfelt wird trotzdem auf dem Server, und alle
+        -- anderen sehen die Zeile weiterhin — nachpruefbar bleibt der Wurf.
+        -- Was das Fenster ohnehin zeigt, muss den Chat nicht zuschuetten.
+        quietRolls = true,
+
+        -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
+        -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die
+        -- Voreinstellung ist Ruhe.
+        rollSource = "MASTER",
+
+        -- Wer an einer Lootsitzung teilnehmen darf: "GUILD" | "RAID".
+        --
+        -- GUILD ist die Voreinstellung und die engere: nur
+        -- Gildenmitglieder, die auch im Raid stehen. RAID laesst jeden im
+        -- Schlachtzug mitbieten, auch Leute von aussen — das ist eine
+        -- Entscheidung der Gilde, keine des Addons.
+        --
+        -- ES GILT NUR FUER DIE SITZUNG. Charaktere, Wunschlisten und
+        -- bestaetigte Vergaben bleiben in jedem Fall unter
+        -- Gildenmitgliedern; daran aendert diese Einstellung nichts.
+        sessionScope = "GUILD",
+
+        -- DKP. Nur wirksam, wenn lootMode auf "DKP" steht.
+        --
+        -- Das Mindestgebot verhindert Ein-Punkt-Gebote auf alles: Wer
+        -- bietet, soll etwas aufgeben. 0 laesst Nullgebote zu.
+        -- Elf, nicht eins: Ein Mindestgebot soll etwas bedeuten. Wer auf
+        -- alles den kleinsten moeglichen Betrag bietet, hat nichts
+        -- abgewogen — und genau das Abwaegen ist der Sinn von Punkten.
+        dkpMinBid = 11,
+        -- Punkte fuer einen Bosskill und fuer einen Raidabend. Gebucht
+        -- wird von Hand oder ueber die Anwesenheit — das Addon bucht
+        -- nichts von allein, weil es einen verpassten Boss nicht von einem
+        -- nicht stattgefundenen unterscheiden kann.
+        dkpPerBoss = 10,
+        dkpPerRaid = 20,
+        -- Den bisherigen Hoechstbietenden anfluestern, wenn er ueberboten
+        -- wurde. OHNE den neuen Betrag — das Gebot bleibt verdeckt.
+        dkpOutbidWhisper = true,
         -- Ab welcher Qualitaet Loot erfasst wird (2=gruen, 3=blau, 4=episch).
         lootThresholdQuality = 3,
         -- Auch ausserhalb einer Gruppe erfassen. Standard AUS: Sonst landet
@@ -200,6 +308,10 @@ Schema.ACCOUNT_DEFAULTS = {
 
     --- [sessionId] = Lootsession
     sessions = {},
+
+    --- Das DKP-Kontobuch: jede Buchung einzeln, der Stand wird gerechnet.
+    --- Siehe LootCouncil/Dkp.lua.
+    dkp = { entries = {} },
 
     --- [guid] = { { itemID, priority, note, addedTs, fulfilledByAwardId } }
     wishlists = {},
