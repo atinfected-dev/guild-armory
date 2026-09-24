@@ -31,12 +31,10 @@ It is one frame with an update handler now, which allocates nothing.
 
 Not the cause, but worth having:
 
-| | before | now |
-|---|---|---|
-| Minimum gap between position messages | 8 s | **15 s** |
-| Tick (check whether anything moved) | 2 s | **3 s** |
-| Movement threshold | 0.004 | **0.006** |
-| Heartbeat while standing still | 180 s | **300 s** |
+- Minimum gap between position messages: 8 s → **15 s**
+- Tick (check whether anything moved): 2 s → **3 s**
+- Movement threshold: 0.004 → **0.006**
+- Heartbeat while standing still: 180 s → **300 s**
 
 A pin that lags by up to fifteen seconds still says which corner of the zone
 somebody is in, which is what it was for. Half the messages is half the
