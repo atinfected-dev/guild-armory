@@ -196,6 +196,21 @@ function MapPins:Attach()
 
     local ticker = CreateFrame("Frame")
     ticker:SetScript("OnUpdate", function(_, delta)
+        -- ZUERST DIE UHR, DANN ALLES ANDERE.
+        --
+        -- Hier stand die Abfrage "ist die Karte offen" VOR der Drosselung —
+        -- also sechzigmal je Sekunde, jedes Mal mit einem pcall. Das laeuft
+        -- den ganzen Abend, auch wenn die Karte nie aufgeht.
+        --
+        -- WoWs Speicheranzeige je Addon zaehlt ALLES ANGEFORDERTE, nicht das
+        -- Belegte. Eine Schleife, die je Bild ein paar Bytes anfordert, steht
+        -- nach einer Stunde mit zweistelligen Megabyte da, ohne dass ein
+        -- einziges Byte haengengeblieben waere. Gemeldet wurden 18 MB bei
+        -- zwei Spielern — daher kam der groesste Teil.
+        MapPins.since = (MapPins.since or 0) + delta
+        if MapPins.since < TICK then return end
+        MapPins.since = 0
+
         if not Compat.IsWorldMapShown() then
             if MapPins.wasShown then
                 MapPins.wasShown = false
@@ -220,9 +235,6 @@ function MapPins:Attach()
             end
         end
 
-        MapPins.since = (MapPins.since or 0) + delta
-        if MapPins.since < TICK then return end
-        MapPins.since = 0
         MapPins:Refresh()
     end)
     self.ticker = ticker

@@ -61,15 +61,20 @@ local Util = GA.Core.Util
 local Debug = GA.Core.Debug
 
 --- Kuerzester Abstand zwischen zwei eigenen Meldungen, in Sekunden.
-local MIN_INTERVAL = 8
+---
+--- Von 8 auf 15 erhoeht. Eine Karte, auf der eine Nadel bis zu fuenfzehn
+--- Sekunden nachhinkt, ist immer noch brauchbar — sie sagt, in welcher Ecke
+--- der Zone jemand steckt, und dafuer war sie gedacht. Die Haelfte der
+--- Nachrichten dagegen ist die Haelfte.
+local MIN_INTERVAL = 15
 
 --- Ab welcher Bewegung es sich zu melden lohnt, in Kartenanteilen.
---- 0,004 sind bei einer grossen Zone gut zwanzig Schritte — nah genug, dass
+--- 0,006 sind bei einer grossen Zone gut dreissig Schritte — nah genug, dass
 --- die Nadel nicht springt, weit genug, dass Herumstehen still bleibt.
-local MIN_MOVE = 0.004
+local MIN_MOVE = 0.006
 
 --- Auch ohne Bewegung so oft ein Lebenszeichen.
-local HEARTBEAT = 180
+local HEARTBEAT = 300
 
 --- Nach so langer Stille gilt eine Position als veraltet und verschwindet.
 --- Fuenf Minuten: Eine Nadel, die eine halbe Stunde alt ist, schickt
@@ -81,6 +86,20 @@ local ANSWER_SPREAD = 6
 
 --- Kuerzester Abstand zwischen zwei eigenen Anfragen.
 local REQUEST_COOLDOWN = 30
+
+--- Wie oft der Takt nachsieht, ob sich etwas bewegt hat.
+---
+--- Von 2 auf 3 erhoeht. Publish sendet ohnehin hoechstens alle
+--- MIN_INTERVAL Sekunden — haeufiger nachzusehen heisst nur, haeufiger
+--- "nein" zu sagen.
+local TICK = 3
+
+--- Wartezeit nach dem Anmelden, bevor der Takt anlaeuft.
+local START_DELAY = 15
+
+--- So lange gilt die Namensliste aus dem Gildenroster als frisch genug.
+--- Klasse und Rang aendern sich im Monatstakt, nicht im Sekundentakt.
+local ROSTER_TTL = 30
 
 --- [kurzerName] = { mapID, x, y, ts }
 Positions.states = {}
@@ -229,6 +248,42 @@ function Positions:Prune()
     end
 end
 
+--- Klasse und Rang je Name, aus dem Gildenroster.
+---
+--- GEMERKT, NICHT BEI JEDEM ZEICHNEN NEU GEBAUT.
+---
+--- Diese beiden Tabellen entstanden frueher in jedem Aufruf von All() — und
+--- All() laeuft zweimal je Sekunde, solange die Weltkarte offen ist. Bei
+--- zweihundert Gildenmitgliedern sind das vierhundert Tabelleneintraege je
+--- Aufruf, achthundert je Sekunde, fuer Daten, die sich im Minutentakt
+--- aendern.
+---
+--- Das bleibt nicht liegen — Lua raeumt es weg —, aber WoWs Speicheranzeige
+--- je Addon zaehlt das ANGEFORDERTE. Genau so kommen 18 MB zustande, ohne
+--- dass ein Byte haengenbleibt.
+---
+--- Was der Server ohnehin liefert, muss niemand verschicken; was sich kaum
+--- aendert, muss niemand staendig neu bauen.
+function Positions:RosterLookup()
+    local jetzt = Compat.Now()
+    if self.rosterAt and (jetzt - self.rosterAt) < ROSTER_TTL then
+        return self.rosterClass, self.rosterRank
+    end
+
+    local klassen, raenge = {}, {}
+    for index = 1, Compat.GetNumGuildMembers() do
+        local member = Compat.GetGuildMember(index)
+        if member and member.name then
+            local kurz = Util.ShortName(member.name)
+            klassen[kurz] = member.class
+            raenge[kurz] = member.rankName
+        end
+    end
+
+    self.rosterClass, self.rosterRank, self.rosterAt = klassen, raenge, jetzt
+    return klassen, raenge
+end
+
 --- ALLE bekannten Positionen, ohne Rücksicht auf die Karte.
 ---
 --- Die Auswahl trifft die Anzeige, nicht dieses Modul: Sie weiss, welche
@@ -243,17 +298,7 @@ function Positions:All()
     local out = {}
     if not self:Enabled() then return out end
 
-    -- Klasse und Rang kommen aus dem Gildenroster, nicht aus der Nachricht:
-    -- Was der Server ohnehin liefert, muss niemand verschicken.
-    local klassen, raenge = {}, {}
-    for index = 1, Compat.GetNumGuildMembers() do
-        local member = Compat.GetGuildMember(index)
-        if member and member.name then
-            local kurz = Util.ShortName(member.name)
-            klassen[kurz] = member.class
-            raenge[kurz] = member.rankName
-        end
-    end
+    local klassen, raenge = self:RosterLookup()
 
     for name, state in pairs(self.states) do
         out[#out + 1] = {
@@ -330,14 +375,31 @@ function Positions:OnEnable()
     end
 
     -- EIN TAKT, NICHT EIN EREIGNIS JE SCHRITT. Es gibt kein Ereignis fuer
-    -- "der Spieler hat sich bewegt"; ein OnUpdate waere ein Aufruf je Bild.
-    -- Alle zwei Sekunden nachsehen genuegt: Publish entscheidet dann selbst,
-    -- ob es ueberhaupt etwas zu senden gibt.
-    local function takt()
+    -- "der Spieler hat sich bewegt". Nachgesehen wird in Abstaenden; Publish
+    -- entscheidet dann selbst, ob es etwas zu senden gibt.
+    --
+    -- EIN RAHMEN, KEINE KETTE VON ZEITGEBERN.
+    --
+    -- Hier stand `Compat.After(2, takt)` und darin wieder dasselbe — eine
+    -- Kette, die alle zwei Sekunden einen neuen Zeitgeber samt Abschluss
+    -- anlegt, den ganzen Abend. Nichts davon bleibt liegen, aber WoWs
+    -- Speicheranzeige je Addon zaehlt das ANGEFORDERTE, und so kommen
+    -- zweistellige Megabyte zustande, ohne dass ein Byte haengenbleibt.
+    --
+    -- Ein Rahmen mit OnUpdate legt nichts an: Er zaehlt nur die Zeit
+    -- zusammen und ruft alle TICK Sekunden einmal.
+    local takt = CreateFrame("Frame")
+    local seit, gestartet = 0, 0
+    takt:SetScript("OnUpdate", function(_, delta)
+        -- Die ersten Sekunden nach dem Anmelden stehen Beutel, Karte und
+        -- Roster noch nicht.
+        if gestartet < START_DELAY then gestartet = gestartet + delta return end
+
+        seit = seit + delta
+        if seit < TICK then return end
+        seit = 0
         Positions:Publish()
-        Compat.After(2, takt)
-    end
-    Compat.After(15, takt)
+    end)
 
     GA.Core.Events:Register("ZONE_CHANGED_NEW_AREA", function()
         Positions:Publish(true)

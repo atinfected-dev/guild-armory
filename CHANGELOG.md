@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.1.9
+
+### 18 MB of addon memory for two players
+
+Reported from a live client, and it cannot be the data: two positions are a
+few dozen bytes. WoW's per-addon memory figure counts everything
+**requested**, not what is held. A high number there almost always means too
+much garbage per second — none of it stays, but the figure adds it all up.
+
+Three places were producing it.
+
+**The check "is the map open" ran before the throttle** — sixty times a
+second, each with its own protected call, all evening, whether or not the map
+was ever opened. It now counts the clock first and asks afterwards: from
+sixty calls a second to two.
+
+**The roster name lookup was rebuilt on every read.** Class and rank are taken
+from the guild roster rather than sent over the wire, which is right — but the
+two lookup tables were built fresh each time the pin list was assembled, and
+that happens twice a second while the map is open. With two hundred guild
+members that is eight hundred table entries a second for data that changes
+monthly. It is kept for thirty seconds now.
+
+**The position tick re-armed itself.** A timer whose callback started another
+timer, every two seconds, all evening — a fresh timer and closure each round.
+It is one frame with an update handler now, which allocates nothing.
+
+### Longer intervals
+
+Not the cause, but worth having:
+
+| | before | now |
+|---|---|---|
+| Minimum gap between position messages | 8 s | **15 s** |
+| Tick (check whether anything moved) | 2 s | **3 s** |
+| Movement threshold | 0.004 | **0.006** |
+| Heartbeat while standing still | 180 s | **300 s** |
+
+A pin that lags by up to fifteen seconds still says which corner of the zone
+somebody is in, which is what it was for. Half the messages is half the
+messages.
+
 ## 0.1.8
 
 Three reports, all about pictures that were not there.
