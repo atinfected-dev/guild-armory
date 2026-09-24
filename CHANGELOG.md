@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.1.8
+
+Three reports, all about pictures that were not there.
+
+### Guild pins on the map
+
+**Nothing on the continent map.** Positions are stored against the *zone* map,
+and pins were only drawn where the map ID matched exactly — Durotar is not
+Kalimdor, so the continent stayed empty although every position was known.
+They are translated now, by way of the world coordinate. Anything that lands
+outside the target map's edges is dropped rather than pinned to the border; a
+pin at the edge would be a claim about a place that is somewhere else.
+
+**In the zone, only while the quest log was collapsed.** This was the
+instructive one. `ScrollContainer` is the *viewport*; `ScrollContainer.Child`
+is the map scaled inside it. Map coordinates refer to the child — computed
+against the viewport they are right only for as long as the two happen to be
+the same size, which is exactly as long as the quest log is shut.
+
+The fallback to the viewport is gone. A wrong frame is worse than none,
+because pins in the wrong place look like information.
+
+Two neighbours of the same bug: the canvas was resolved once and kept, though
+the map is rebuilt whenever the quest log opens; and the pins gave up if the
+canvas was missing at login. `Blizzard_MapCanvas` loads on demand, so anybody
+who opened the map later never got pins at all — and a warning that had
+nothing to do with the real problem.
+
+**A crash, twelve times in one session.** `GetMapPosFromWorldPos` returns
+*two* values, the map ID first and the point second. One was assumed, and the
+code went on to index a number. Rather than now assuming the other order, the
+point is looked for: of the two returns it is the one that *is* a point. How
+many values there are, and in which order, is in no documentation that applies
+to this client.
+
+### Other people's items had no tooltips
+
+The guard bailed out when there was no item link — and a character from the
+guild sync never has one, because only item ID, item level and enchant ID are
+transmitted. Three lines further down sat the correct path, with a comment
+saying it works without a link. The guard never let it run.
+
+### The portrait ring
+
+The class crest introduced in 0.1.7 is a square tile; the portrait ring is a
+circle, so the corners stuck out. `UI-Classes-Circles` is the same information
+in round, and the crops come from the game rather than from nine pairs of
+numbers kept by hand.
+
 ## 0.1.7
 
 ### Other people's characters were shown empty

@@ -1917,23 +1917,101 @@ end
 --- auf Forever nicht gemessen ist. Geprueft wird, ob das Ergebnis ein Frame
 --- MIT GROESSE ist — ein vorhandenes Feld allein sagt nichts.
 --- @return table|nil
+--- NUR DAS KIND, NIEMALS DER BEHAELTER.
+---
+--- ScrollContainer ist das SICHTFENSTER, ScrollContainer.Child die darin
+--- skalierte und verschobene Karte. Kartenanteile beziehen sich auf das
+--- Kind; wer sie auf das Sichtfenster rechnet, trifft nur solange, wie
+--- beide zufaellig gleich gross sind.
+---
+--- Gemeldet am 24.09.2026: Die Nadeln sassen richtig, solange das Questlog
+--- ZUGEKLAPPT war, und sprangen weg, sobald es aufging. Genau dann wird die
+--- Karte enger skaliert — das Sichtfenster bleibt, das Kind schrumpft.
+---
+--- Faellt das Kind aus, kommt nichts zurueck. Ein falscher Rahmen ist
+--- schlimmer als keiner: Nadeln an der falschen Stelle sehen aus wie
+--- Auskunft.
+--- @return table|nil
 function Compat.GetMapCanvas()
     local map = _G.WorldMapFrame
     if not isTable(map) then return nil end
 
-    local kandidaten = {
-        map.ScrollContainer and map.ScrollContainer.Child,
-        map.ScrollContainer,
-        map,
-    }
+    local child = isTable(map.ScrollContainer) and map.ScrollContainer.Child
+    if not isTable(child) or not isFunction(child.GetWidth) then return nil end
 
-    for _, frame in ipairs(kandidaten) do
-        if isTable(frame) and isFunction(frame.GetWidth) then
-            local ok, breite = pcall(frame.GetWidth, frame)
-            if ok and type(breite) == "number" and breite > 1 then return frame end
-        end
+    local ok, breite = pcall(child.GetWidth, child)
+    if not ok or type(breite) ~= "number" or breite <= 1 then return nil end
+    return child
+end
+
+--- Rechnet eine Position von einer Karte auf eine andere um.
+---
+--- WOZU: Gespeichert wird die Position auf der ZONENKARTE — Durotar, das
+--- Brachland. Wer die Kontinentkarte aufzieht, sieht Kalimdor, und dort ist
+--- "0,46 / 0,50 in Durotar" keine Aussage. Ohne Umrechnung bleibt die
+--- Kontinentkarte leer, obwohl alle Daten da sind.
+---
+--- Der Weg fuehrt ueber die Weltkoordinate: Zonenkarte -> Welt -> Zielkarte.
+--- Beide Richtungen kann nur das Spiel, und beide koennen fehlschlagen —
+--- etwa fuer Instanzen, die auf keiner Aussenkarte liegen.
+---
+--- @return number|nil x, number|nil y  auf der Zielkarte, 0..1
+function Compat.TranslateMapPosition(fromMapID, x, y, toMapID)
+    fromMapID, toMapID = tonumber(fromMapID), tonumber(toMapID)
+    x, y = tonumber(x), tonumber(y)
+    if not fromMapID or not toMapID or not x or not y then return nil end
+    if fromMapID == toMapID then return x, y end
+
+    local map = _G.C_Map
+    if not isTable(map) or not isFunction(map.GetWorldPosFromMapPos)
+        or not isFunction(map.GetMapPosFromWorldPos)
+        or not isFunction(_G.CreateVector2D) then
+        return nil
     end
-    return nil
+
+    local okVector, quelle = pcall(_G.CreateVector2D, x, y)
+    if not okVector or not quelle then return nil end
+
+    -- DIE RUECKGABEN WERDEN GESUCHT, NICHT GEZAEHLT.
+    --
+    -- Gemeldet am 24.09.2026, zwoelfmal in einer Sitzung:
+    --
+    --   attempt to index local 'zielPunkt' (a number value)
+    --   zielPunkt=1456
+    --   (*temporary)={ x=5.127027, y=-1.732718 }
+    --
+    -- GetMapPosFromWorldPos liefert ZWEI Werte, die Kartenkennung zuerst und
+    -- den Punkt danach. Ich hatte einen angenommen und bin auf einer Zahl
+    -- gelandet. Wie viele es sind und in welcher Reihenfolge, steht in keiner
+    -- Dokumentation, die fuer diesen Client gilt — also wird nicht gezaehlt,
+    -- sondern der erste Wert genommen, der aussieht wie ein Punkt.
+    --- Welcher der beiden Rueckgabewerte ist der Punkt? Der, der einer ist.
+    local function punkt(a, b)
+        if isTable(a) and isFunction(a.GetXY) then return a end
+        if isTable(b) and isFunction(b.GetXY) then return b end
+        return nil
+    end
+
+    local okWorld, w1, w2 = pcall(map.GetWorldPosFromMapPos, fromMapID, quelle)
+    if not okWorld then return nil end
+    local weltPunkt = punkt(w1, w2)
+    -- Die Kennung ist der jeweils andere Wert.
+    local continent = (weltPunkt == w1) and w2 or w1
+    if not weltPunkt or type(continent) ~= "number" then return nil end
+
+    local okZiel, z1, z2 = pcall(map.GetMapPosFromWorldPos, continent, weltPunkt, toMapID)
+    if not okZiel then return nil end
+    local zielPunkt = punkt(z1, z2)
+    if not zielPunkt then return nil end
+
+    local okXY, zx, zy = pcall(zielPunkt.GetXY, zielPunkt)
+    if not okXY or type(zx) ~= "number" or type(zy) ~= "number" then return nil end
+
+    -- AUSSERHALB IST KEIN TREFFER. Die Umrechnung liefert auch Werte jenseits
+    -- der Kartenraender, wenn der Ort gar nicht darauf liegt — eine Nadel am
+    -- Rand waere dann eine Behauptung ueber einen Ort, der woanders ist.
+    if zx < 0 or zx > 1 or zy < 0 or zy > 1 then return nil end
+    return zx, zy
 end
 
 --- Welche Karte zeigt das Fenster gerade?

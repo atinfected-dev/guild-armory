@@ -931,6 +931,7 @@ GA.Core.Locale:Register("deDE", {
     CRAFT_OPEN_NOLINK  = "Noch kein Berufe-Link — diese Person hat ihr Berufsfenster nicht geoeffnet, seit das Addon laeuft.",
     CRAFT_OPEN_OFFLINE = "Offline. Der Berufe-Link fragt beim Server nach den Daten dieses Charakters, und da ist niemand zu fragen.",
     CRAFT_OPEN_FAILED  = "Das Berufsfenster liess sich nicht oeffnen. Der Link ist womoeglich abgelaufen; er gilt nur fuer diese Anmeldung.",
+
 })
 
 -- Sprache JETZT anwenden, nicht erst bei PLAYER_LOGIN: Alle folgenden Dateien

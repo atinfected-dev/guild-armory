@@ -217,7 +217,16 @@ end
 
 function Armory:ShowSlotTooltip(button)
     local item = button.item
-    if not item or not item.link then return end
+
+    -- DIE KENNUNG GENUEGT, DER LINK IST DIE KUER.
+    --
+    -- Hier stand `if not item.link then return end` — und drei Zeilen
+    -- weiter unten der Kommentar, der Weg komme auch ohne Link aus. Die
+    -- Wache hat ihn nie erreichen lassen: Ein Charakter aus dem
+    -- Gildenabgleich hat NIE einen Link, weil nur itemID, itemLevel und
+    -- enchantID uebertragen werden. Damit blieb jeder fremde Gegenstand
+    -- ohne Tooltip, waehrend sein Symbol daneben stand.
+    if not item or not (item.link or item.itemID) then return end
 
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
 
@@ -291,7 +300,7 @@ function Armory:RefreshDoll()
     self.portrait:SetTexCoord(0, 1, 0, 1)
     local gesetzt = false
     if own then gesetzt = Theme.SetPortrait(self.portrait, "player") end
-    if not gesetzt then gesetzt = Theme.SetClassIcon(self.portrait, character.class) end
+    if not gesetzt then gesetzt = Theme.SetClassPortrait(self.portrait, character.class) end
     if not gesetzt then Theme.Paint(self.portrait, Theme.color.rowAltBg) end
 
     if not Theme.SetClassIcon(self.classIcon, character.class) then

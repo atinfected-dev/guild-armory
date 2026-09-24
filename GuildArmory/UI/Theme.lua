@@ -556,6 +556,37 @@ function Theme.SetClassIcon(texture, classFile)
     return ok and texture:GetAtlas() ~= nil
 end
 
+--- Dasselbe, aber RUND — fuer den Portraitkreis.
+---
+--- EIN ECKIGES SYMBOL IN EINEM RUNDEN RAHMEN SIEHT FALSCH AUS, und genau so
+--- sah es aus: Der Klassenatlas ist eine quadratische Kachel, der Ring
+--- darum ist ein Kreis. Die Ecken standen ueber.
+---
+--- UI-Classes-Circles ist dieselbe Information in rund — die Kacheln haben
+--- durchsichtige Ecken und sitzen deshalb sauber im Ring. Die Zuschnitte
+--- liefert das Spiel in CLASS_ICON_TCOORDS; sie selbst zu schreiben hiesse,
+--- neun Zahlenpaare zu pflegen, die es schon gibt.
+--- @return boolean
+function Theme.SetClassPortrait(texture, classFile)
+    if not classFile then return false end
+
+    local coords = _G.CLASS_ICON_TCOORDS
+    local box = type(coords) == "table" and coords[string.upper(classFile)]
+    local path = [[Interface\TargetingFrame\UI-Classes-Circles]]
+
+    if box and Theme.TextureExists(path) then
+        if pcall(texture.SetTexture, texture, path) then
+            pcall(texture.SetTexCoord, texture, box[1], box[2], box[3], box[4])
+            return true
+        end
+    end
+
+    -- Rueckfall: das eckige Symbol. Es sieht im Ring nicht gut aus, sagt
+    -- aber immer noch die Klasse — und das ist mehr als ein leerer Kreis.
+    pcall(texture.SetTexCoord, texture, 0, 1, 0, 1)
+    return Theme.SetClassIcon(texture, classFile)
+end
+
 --- Charakterportrait. SetPortraitTexture ist gemessen vorhanden.
 function Theme.SetPortrait(texture, unit)
     if type(_G.SetPortraitTexture) ~= "function" then return false end

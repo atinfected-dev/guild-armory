@@ -229,16 +229,19 @@ function Positions:Prune()
     end
 end
 
---- Alle bekannten Positionen auf DIESER Karte.
+--- ALLE bekannten Positionen, ohne Rücksicht auf die Karte.
 ---
---- @param mapID number  die angezeigte Karte, nicht die eigene
---- @return table { { name, class, x, y, ts, own } }
-function Positions:OnMap(mapID)
+--- Die Auswahl trifft die Anzeige, nicht dieses Modul: Sie weiss, welche
+--- Karte gerade offen ist, und kann eine Zonenposition auf die
+--- Kontinentkarte umrechnen. Wer hier filtert, nimmt ihr die Moeglichkeit —
+--- und genau daran lag es, dass die Kontinentkarte leer blieb.
+---
+--- @return table { { name, class, rank, mapID, x, y, ts, own } }
+function Positions:All()
     self:Prune()
 
-    mapID = tonumber(mapID)
     local out = {}
-    if not mapID or not self:Enabled() then return out end
+    if not self:Enabled() then return out end
 
     -- Klasse und Rang kommen aus dem Gildenroster, nicht aus der Nachricht:
     -- Was der Server ohnehin liefert, muss niemand verschicken.
@@ -253,19 +256,31 @@ function Positions:OnMap(mapID)
     end
 
     for name, state in pairs(self.states) do
-        if state.mapID == mapID then
-            out[#out + 1] = {
-                name = name,
-                class = klassen[name],
-                rank = raenge[name],
-                x = state.x, y = state.y,
-                ts = state.ts,
-                own = state.own or false,
-            }
-        end
+        out[#out + 1] = {
+            name = name,
+            class = klassen[name],
+            rank = raenge[name],
+            mapID = state.mapID,
+            x = state.x, y = state.y,
+            ts = state.ts,
+            own = state.own or false,
+        }
     end
 
     table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+--- Nur die auf DIESER Karte. Fuer `/ga map` und die Tests.
+--- @return table
+function Positions:OnMap(mapID)
+    mapID = tonumber(mapID)
+    local out = {}
+    if not mapID then return out end
+
+    for _, entry in ipairs(self:All()) do
+        if entry.mapID == mapID then out[#out + 1] = entry end
+    end
     return out
 end
 

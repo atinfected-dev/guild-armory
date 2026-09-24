@@ -938,4 +938,5 @@ GA.Core.Locale:Register("enUS", {
     CRAFT_OPEN_NOLINK  = "No profession link yet — that person has not opened their profession window since the addon has been running.",
     CRAFT_OPEN_OFFLINE = "Offline. The profession link asks the server for that character's data, and there is nobody to ask.",
     CRAFT_OPEN_FAILED  = "The profession window could not be opened. The link may have expired; it is only valid for that login session.",
+
 })

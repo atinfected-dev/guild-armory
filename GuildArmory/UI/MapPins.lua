@@ -32,6 +32,10 @@
 
     Blizzard zeichnet den eigenen Pfeil schon. Eine zweite Markierung an
     derselben Stelle waere nur im Weg.
+
+    Sie war einmal kurz drin, mit dem Argument, ohne sich selbst fehle der
+    Massstab. Das Argument traegt nicht: Wer wissen will, wie weit jemand
+    weg ist, sieht den Pfeil des Spiels ohnehin.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -106,14 +110,22 @@ end
 -- ================================================================ Zeichnen ---
 
 function MapPins:Refresh()
-    if not self.canvas then return end
-
     local Positions = GA.Modules.Positions
     if not Positions then return end
 
+    -- DIE FLAECHE BEI JEDEM ZEICHNEN NEU HOLEN, nicht einmal gemerkt.
+    --
+    -- Blizzard baut die Karte um, wenn das Questlog auf- oder zugeht, und
+    -- eine beim Anhaengen gemerkte Flaeche ist danach die falsche. Der
+    -- Aufruf kostet nichts; ein Nadelfeld, das sich auf einen alten Rahmen
+    -- bezieht, kostet Vertrauen.
+    local canvas = Compat.GetMapCanvas()
+    self.canvas = canvas
+    if not canvas then self:HideAll() return end
+
     local mapID = Compat.GetDisplayedMapID()
-    local breite = self.canvas:GetWidth() or 0
-    local hoehe = self.canvas:GetHeight() or 0
+    local breite = canvas:GetWidth() or 0
+    local hoehe = canvas:GetHeight() or 0
 
     -- OHNE BEKANNTE GROESSE WIRD NICHTS GESETZT. Ein auf Breite 0 gerechneter
     -- Punkt landet in der Ecke, und dort saehe er aus wie eine Aussage.
@@ -123,8 +135,20 @@ function MapPins:Refresh()
     end
 
     local sichtbar = 0
-    for _, entry in ipairs(Positions:OnMap(mapID)) do
-        if not entry.own then
+    for _, entry in ipairs(Positions:All()) do
+      -- DIE EIGENE NADEL BLEIBT DRAUSSEN. Siehe Dateikopf: Blizzard zeichnet
+      -- den Pfeil, und zwei Markierungen an derselben Stelle sind eine zu
+      -- viel.
+      if not entry.own then
+        -- AUF DIE ANGEZEIGTE KARTE UMRECHNEN. Gespeichert ist die Position
+        -- auf der Zonenkarte; wer die Kontinentkarte aufzieht, saehe sonst
+        -- gar nichts, obwohl alle Daten da sind.
+        local x, y = entry.x, entry.y
+        if entry.mapID ~= mapID then
+            x, y = Compat.TranslateMapPosition(entry.mapID, entry.x, entry.y, mapID)
+        end
+
+        if x then
             sichtbar = sichtbar + 1
             local pin = self:Pin(sichtbar)
             pin.entry = entry
@@ -132,11 +156,14 @@ function MapPins:Refresh()
             local r, g, b = Util.ClassColor(entry.class)
             Theme.Paint(pin.fill, { r, g, b, 1 })
 
+            -- ERST UMHAENGEN, DANN SETZEN. Ein Anker auf einen Rahmen,
+            -- der gleich ausgetauscht wird, ist einer zu viel.
+            pin:SetParent(canvas)
             pin:ClearAllPoints()
-            pin:SetPoint("CENTER", self.canvas, "TOPLEFT",
-                entry.x * breite, -(entry.y * hoehe))
+            pin:SetPoint("CENTER", canvas, "TOPLEFT", x * breite, -(y * hoehe))
             pin:Show()
         end
+      end
     end
 
     for index = sichtbar + 1, #(self.pins or {}) do
@@ -152,20 +179,20 @@ end
 
 -- ================================================================== Anhaken --
 
---- Haengt sich an die Weltkarte.
---- @return boolean ob die Flaeche gefunden wurde
+--- Haengt den Takt an die Weltkarte.
+---
+--- NICHT BEIM ANHAENGEN NACH DER FLAECHE SUCHEN.
+---
+--- Blizzard_MapCanvas wird bei Bedarf nachgeladen — vor dem ersten Oeffnen
+--- der Weltkarte gibt es die Flaeche gar nicht. Die erste Fassung suchte
+--- einmal, meldete "keine Kartenflaeche" und sah nie wieder nach: Wer die
+--- Karte erst nach dem Anmelden aufzog, bekam nie Nadeln.
+---
+--- Angehaengt wird deshalb nur der Takt. Die Flaeche holt sich jedes
+--- Zeichnen selbst, und gemeldet wird erst, wenn die Karte OFFEN ist und
+--- trotzdem keine da war — dann ist es wirklich eine Auskunft.
 function MapPins:Attach()
-    if self.canvas then return true end
-
-    local canvas = Compat.GetMapCanvas()
-    if not canvas then
-        -- SICHTBAR MELDEN, nicht im Debugkanal. Die Nadeln sind eine
-        -- zugesagte Funktion; faellt die Flaeche aus, muss das jemand
-        -- erfahren, der den Debugkanal nie einschaltet.
-        GA.Core.Debug:Warn("%s", L.MAP_NO_CANVAS)
-        return false
-    end
-    self.canvas = canvas
+    if self.ticker then return true end
 
     local ticker = CreateFrame("Frame")
     ticker:SetScript("OnUpdate", function(_, delta)
@@ -182,6 +209,15 @@ function MapPins:Attach()
             -- Beim Aufziehen einmal fragen: frische Daten genau dann, wenn
             -- jemand hinsieht.
             if GA.Modules.Positions then GA.Modules.Positions:Request() end
+
+            -- ERST JETZT MELDEN, WENN ES NICHTS GIBT. Die Karte ist offen,
+            -- die Flaeche muesste also da sein — vorher waere dieselbe
+            -- Meldung nur die Auskunft, dass noch niemand die Karte
+            -- aufgezogen hat. EINMAL je Sitzung, nicht bei jedem Oeffnen.
+            if not Compat.GetMapCanvas() and not MapPins.warned then
+                MapPins.warned = true
+                GA.Core.Debug:Warn("%s", L.MAP_NO_CANVAS)
+            end
         end
 
         MapPins.since = (MapPins.since or 0) + delta
@@ -199,7 +235,8 @@ function MapPins:Attach()
 end
 
 GA.Core.Callbacks:On("ADDON_READY", function()
-    -- Erst nach ADDON_READY, und auch dann verzoegert: Blizzard_MapCanvas
-    -- wird bei Bedarf nachgeladen, und vorher gibt es die Flaeche nicht.
-    Compat.After(5, function() MapPins:Attach() end)
+    -- Der Takt kann sofort laufen: Er tut nichts, solange die Karte zu ist,
+    -- und holt sich die Flaeche beim Zeichnen selbst. Auf Blizzard_MapCanvas
+    -- zu warten hiesse zu raten, wann es nachgeladen wird.
+    MapPins:Attach()
 end, "MapPins")
