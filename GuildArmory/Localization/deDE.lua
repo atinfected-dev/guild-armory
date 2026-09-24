@@ -718,7 +718,7 @@ GA.Core.Locale:Register("deDE", {
     TRADE_UNSURE       = "dieser Client kann nicht sagen, ob sie schon gebunden sind",
     TRADE_ANNOUNCE     = "Zu vergeben: %s",
     SLASH_COMBATLOG    = "Combat Log automatisch: %s   ·   zeichnet gerade auf: %s",
-    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · test · version · handover · reset",
+    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · test · version · handover · reset",
     SLASH_RESET_WARN   = "Zuruecksetzen von \"%s\" — loescht %d Charaktere und %d Vergaben.",
     SLASH_RESET_CONFIRM = "Zum Bestaetigen noch einmal: /ga reset %s",
     SLASH_RESET_EXPIRED = "Abgelaufen, nichts geaendert.",
@@ -862,6 +862,46 @@ GA.Core.Locale:Register("deDE", {
     SET_CAMP           = "Lagerleiste",
     SET_CAMP_HINT      = "Eine kleine Leiste mit allen aus der Gilde, die in deiner Zone stehen: welche Berufe sie haben und welche Lagerausbauten sie dabeihaben — dazu eine Meldung, wenn jemand ein Lagerfeuer aufstellt. Solange sie an ist, meldet dieser Client dasselbe ueber dich an die Gilde; deine Position nur in dem Augenblick, in dem du selbst ein Lagerfeuer aufstellst. Aus heisst: dieser Client sendet nichts und empfaengt nichts.",
     SLASH_CAMP         = "Lagerleiste: %s",
+
+    -- Berufe
+    NAV_CRAFTING       = "Berufe",
+    CRAFT_PROFESSIONS  = "Berufe",
+    CRAFT_WHO          = "Wer kann das herstellen",
+    CRAFT_SEARCH       = "Gegenstandsname, Link oder Kennung",
+    CRAFT_CONTEXT      = "%d Berufe",
+    CRAFT_FOUND        = "%d koennen %s herstellen",
+    CRAFT_NOBODY       = "Niemand Bekanntes kann %s herstellen — was auch bloss heissen kann, dass noch niemand das Berufsfenster geoeffnet hat.",
+    CRAFT_NO_ITEM      = "Kein Gegenstand zu \"%s\" gefunden.",
+    CRAFT_KNOWN        = "%d Charaktere, %d Rezepte bekannt.",
+    CRAFT_EMPTY        = "Noch nichts bekannt. Oeffne jedes deiner Berufsfenster einmal, und frag die Gilde mit /ga craft sync.",
+    CRAFT_STATS        = "Berufe: %d Charaktere, %d Berufe, %d Rezepte.",
+    CRAFT_HOWTO        = "Rezepte lassen sich nur bei geoeffnetem Berufsfenster lesen. Oeffne jedes deiner Fenster einmal; /ga craft scan liest das offene erneut.",
+    CRAFT_SCAN_LINE    = "%s gelesen: %d Rezepte, Fertigkeit %d.",
+    CRAFT_SCAN_SAME    = "%s unveraendert: %d Rezepte.",
+    CRAFT_SYNCED       = "Die Gilde gefragt und die eigenen Berufe geschickt.",
+    CRAFT_ERR_nowindow = "Kein Berufsfenster offen.",
+    CRAFT_ERR_notready = "Das Berufsfenster hat seine Rezepte noch nicht geschickt — gleich noch einmal versuchen.",
+    CRAFT_ERR_noguid   = "Die eigene Charakterkennung ist auf diesem Client nicht lesbar.",
+
+    CRAFT_ASK_BUTTON   = "Fragen",
+    CRAFT_ASK          = "Koenntest du mir %s herstellen?",
+    CRAFT_ASKED        = "%s bei %s angefragt.",
+    CRAFT_ASK_ERR_noitem = "Kein Gegenstand gewaehlt.",
+    CRAFT_ASK_ERR_noname = "Kein Empfaenger.",
+    CRAFT_ASK_ERR_self = "Das bist du selbst.",
+    CRAFT_ASK_ERR_recent = "Danach hast du in der letzten Minute schon gefragt.",
+    CRAFT_ASK_ERR_chat = "Die Fluesternachricht ging nicht hinaus.",
+
+    TIP_CRAFTED_BY     = "Herstellbar von",
+
+    -- Bereiche der zweistufigen Navigation
+    NAV_OVERVIEW       = "Uebersicht",
+    NAV_GUILD          = "Gilde",
+    NAV_LOOT           = "Loot",
+    NAV_PROFESSIONS    = "Berufe",
+    NAV_EQUIPMENT      = "Ausruestung",
+    NAV_SESSION        = "Sitzung",
+    NAV_RULES          = "Regeln",
 })
 
 -- Sprache JETZT anwenden, nicht erst bei PLAYER_LOGIN: Alle folgenden Dateien

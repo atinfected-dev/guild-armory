@@ -30,25 +30,74 @@ local FRAME_NAME = "GuildArmoryMainFrame"
 local TOOLBAR_HEIGHT = 32
 local PORTRAIT_CLEARANCE = 56
 
---- Reihenfolge der Reiter. `phase` markiert, was es noch nicht gibt.
---- "gear" ist kein Reiter mehr: die Ausruestungskurve wandert in die Armory,
---- bleibt aber ueber /ga gear erreichbar.
-local VIEW_ORDER = {
-    { key = "dashboard",   label = "NAV_DASHBOARD" },
-    { key = "armory",      label = "NAV_ARMORY" },
-    { key = "characters",  label = "NAV_CHARACTERS" },
-    { key = "lootcouncil", label = "NAV_LOOTCOUNCIL" },
-    { key = "loothistory", label = "NAV_LOOTHISTORY" },
-    { key = "wishlist",    label = "NAV_WISHLIST" },
-    { key = "achievements", label = "NAV_ACHIEVEMENTS" },
-    { key = "analytics",   label = "NAV_ANALYTICS" },
-    -- Die Lootregeln stehen bei den Einstellungen, nicht bei den
-    -- Loot-Ansichten: Man verstellt sie einmal und sieht sie danach selten
-    -- wieder. Zwischen Historie und Wunschliste waeren sie ein Fremdkoerper
-    -- in einer Reihe von Ansichten, die man im Raid benutzt.
-    { key = "lootrules",   label = "NAV_LOOTRULES" },
-    { key = "settings",    label = "NAV_SETTINGS" },
+--- Hoehe der Unterreiterzeile. 0, solange ein Bereich nur eine Ansicht hat.
+local SUBBAR_HEIGHT = 22
+
+--- ZWEI EBENEN STATT ELF REITER.
+---
+--- Bis 24.09.2026 hingen alle Ansichten als gleichrangige Reiter am unteren
+--- Rand. Mit der elften war die Fensterbreite erreicht, und vor allem: Die
+--- Reihe log. Sie stellte Dinge nebeneinander, die nicht nebeneinander
+--- gehoeren.
+---
+---   * ZWEI WAREN EINSTELLUNGEN. Lootregeln und Einstellungen verstellt man
+---     einmal im Quartal und suchte sie trotzdem jedes Mal in derselben
+---     Reihe wie die laufende Sitzung.
+---   * ZWEI STELLTEN DIESELBE FRAGE. Armory ("was traegt der") und
+---     Charaktere ("wer ist das, welche Twinks, welche Rolle") fangen beide
+---     damit an, dass man eine Person auswaehlt.
+---   * VIER GEHOEREN ZUSAMMEN. Sitzung, Historie, Wunschliste und Regeln
+---     sind ein Raidabend.
+---
+--- Unten stehen jetzt die BEREICHE, oben im Inhalt die Ansichten darin — wie
+--- im Berufsfenster des Spiels. Wer ein Ziel sucht, liest fuenf Zeilen statt
+--- elf.
+---
+--- WAS ES KOSTET, und das ist keine Kleinigkeit: ein Klick mehr zur Historie
+--- und zur Wunschliste. Dafuer bleiben alle Slash-Kurzwege, wie sie waren —
+--- `/ga history` springt weiterhin direkt dorthin, samt Bereichswechsel.
+---
+--- `settings` steht in KEINEM Bereich. Es haengt am Zahnrad in der
+--- Werkzeugzeile, weil es keine Arbeitsansicht ist.
+local SECTIONS = {
+    { key = "overview", label = "NAV_OVERVIEW", views = {
+        { key = "dashboard", label = "NAV_DASHBOARD" },
+    } },
+
+    { key = "guild", label = "NAV_GUILD", views = {
+        { key = "armory",       label = "NAV_EQUIPMENT" },
+        { key = "characters",   label = "NAV_CHARACTERS" },
+        { key = "achievements", label = "NAV_ACHIEVEMENTS" },
+    } },
+
+    { key = "loot", label = "NAV_LOOT", views = {
+        { key = "lootcouncil", label = "NAV_SESSION" },
+        { key = "loothistory", label = "NAV_LOOTHISTORY" },
+        { key = "wishlist",    label = "NAV_WISHLIST" },
+        { key = "lootrules",   label = "NAV_RULES" },
+    } },
+
+    { key = "professions", label = "NAV_PROFESSIONS", views = {
+        { key = "crafting", label = "NAV_CRAFTING" },
+    } },
+
+    { key = "analytics", label = "NAV_ANALYTICS", views = {
+        { key = "analytics", label = "NAV_ANALYTICS" },
+    } },
 }
+
+--- [Ansichtsschluessel] = Bereichsindex. Aus SECTIONS gerechnet, nicht
+--- daneben gepflegt: Eine zweite Liste waere genau bis zur naechsten
+--- Ansicht richtig.
+local SECTION_OF = {}
+--- [Ansichtsschluessel] = Beschriftung des Unterreiters.
+local LABEL_OF = {}
+for index, section in ipairs(SECTIONS) do
+    for _, view in ipairs(section.views) do
+        SECTION_OF[view.key] = index
+        LABEL_OF[view.key] = view.label
+    end
+end
 
 local PLACEHOLDER = {
     gear        = "TODO_GEAR",
@@ -56,8 +105,13 @@ local PLACEHOLDER = {
 
 MainFrame.views = {}
 MainFrame.tabs = {}
-MainFrame.tabIndex = {}
+MainFrame.subTabs = {}
 MainFrame.current = nil
+
+--- Wo man in einem Bereich zuletzt war. Nur im Arbeitsspeicher: Nach einem
+--- /reload beim ersten Unterreiter anzufangen ist kein Verlust, und eine
+--- weitere Zeile in den SavedVariables dafuer waere es nicht wert.
+MainFrame.lastInSection = {}
 
 function MainFrame:RegisterView(key, view)
     self.views[key] = view
@@ -125,12 +179,22 @@ function MainFrame:Create()
 
     self:BuildToolbar()
 
+    -- Zeile fuer die Unterreiter. Liegt zwischen Werkzeugzeile und Inhalt und
+    -- bleibt leer, solange ein Bereich nur eine Ansicht hat.
+    local subBar = CreateFrame("Frame", nil, content)
+    subBar:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -TOOLBAR_HEIGHT)
+    subBar:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -TOOLBAR_HEIGHT)
+    subBar:SetHeight(SUBBAR_HEIGHT)
+    subBar:Hide()
+    self.subBar = subBar
+
     local body = CreateFrame("Frame", nil, content)
-    body:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -TOOLBAR_HEIGHT)
-    body:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0)
     self.body = body
+    self.bodyBottom = 0
+    self:LayoutBody(false)
 
     self:BuildTabs()
+    self:BuildSubTabs()
     self:BuildResizeGrip()
 
     if type(_G.UISpecialFrames) == "table" then
@@ -225,18 +289,79 @@ function MainFrame:BuildToolbar()
     end, "primary")
     refresh:SetPoint("RIGHT", bar, "RIGHT", -2, 2)
     self.refreshButton = refresh
+
+    self.settingsButton = self:BuildSettingsButton(bar)
+    self.settingsButton:SetPoint("RIGHT", refresh, "LEFT", -4, 0)
 end
 
---- Reiter am unteren Rand.
+--- Das Zahnrad. Einstellungen sind keine Arbeitsansicht — sie standen nur
+--- deshalb in der Reiterreihe, weil es dort Platz gab.
+---
+--- ZUERST DAS SYMBOL, DANN DAS WORT. Ein Zahnrad ist ohne Uebersetzung
+--- verstaendlich und kostet 22 Pixel statt der Breite von
+--- "Einstellungen"/"Settings". Laedt die Textur nicht, steht das Wort da —
+--- ein leerer Knopf waere schlimmer als ein breiter.
+function MainFrame:BuildSettingsButton(bar)
+    local PATH = "Interface\\Buttons\\UI-OptionsButton"
+
+    if Theme.TextureExists(PATH) then
+        local button = CreateFrame("Button", nil, bar)
+        button:SetWidth(22) button:SetHeight(22)
+
+        local icon = button:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(button)
+        icon:SetTexture(PATH)
+        icon:SetVertexColor(Theme.color.goldMid[1], Theme.color.goldMid[2],
+            Theme.color.goldMid[3])
+
+        button:SetScript("OnEnter", function(self)
+            icon:SetVertexColor(Theme.color.goldBright[1], Theme.color.goldBright[2],
+                Theme.color.goldBright[3])
+            if _G.GameTooltip then
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetText(L.NAV_SETTINGS, 1, 1, 1)
+                GameTooltip:Show()
+            end
+        end)
+        button:SetScript("OnLeave", function()
+            icon:SetVertexColor(Theme.color.goldMid[1], Theme.color.goldMid[2],
+                Theme.color.goldMid[3])
+            if _G.GameTooltip then GameTooltip:Hide() end
+        end)
+        button:SetScript("OnClick", function() MainFrame:ShowView("settings") end)
+        return button
+    end
+
+    return Widgets.Button(bar, L.NAV_SETTINGS, function()
+        MainFrame:ShowView("settings")
+    end)
+end
+
+--- Setzt den Inhaltsbereich unter Werkzeugzeile und (falls sichtbar)
+--- Unterreiterzeile.
+---
+--- ClearAllPoints ZUERST. SetPoint fuegt einen Anker HINZU, es ersetzt
+--- keinen — wer das vergisst, sammelt bei jedem Ansichtswechsel einen
+--- weiteren an, und irgendwann widersprechen sie sich. Genau daran ist die
+--- Loot-Historie einmal gescheitert.
+function MainFrame:LayoutBody(withSubBar)
+    if not self.body then return end
+    self.body:ClearAllPoints()
+    self.body:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0,
+        -(TOOLBAR_HEIGHT + (withSubBar and SUBBAR_HEIGHT or 0)))
+    self.body:SetPoint("BOTTOMRIGHT", self.content, "BOTTOMRIGHT", 0, self.bodyBottom or 0)
+end
+
+--- Reiter am unteren Rand — ein BEREICH je Reiter.
 function MainFrame:BuildTabs()
     local frame = self.frame
     local previous
 
-    for index, entry in ipairs(VIEW_ORDER) do
+    for index, entry in ipairs(SECTIONS) do
         local tab = Widgets.Tab(frame, index, L[entry.label], function()
-            MainFrame:ShowView(entry.key)
+            MainFrame:ShowSection(index)
         end)
-        tab.viewKey = entry.key
+        tab.sectionKey = entry.key
 
         if tab.native then
             -- Wie CharacterFrame.xml: erster Reiter unter der linken Ecke,
@@ -253,14 +378,81 @@ function MainFrame:BuildTabs()
                 tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
             else
                 tab:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
-                self.body:SetPoint("BOTTOMRIGHT", self.content, "BOTTOMRIGHT", 0, 30)
+                -- Der Inhalt endet oberhalb der gezeichneten Reiter. Gemerkt
+                -- statt gesetzt: LayoutBody setzt beide Anker gemeinsam neu,
+                -- sooft die Unterreiterzeile kommt oder geht.
+                self.bodyBottom = 30
+                self:LayoutBody(false)
             end
         end
 
         self.tabs[index] = tab
-        self.tabIndex[entry.key] = index
         previous = tab
     end
+end
+
+--- Unterreiter je Bereich. ALLE EINMAL GEBAUT, danach nur ein- und
+--- ausgeblendet.
+---
+--- Bei jedem Ansichtswechsel neue Frames zu erzeugen waere dieselbe Falle wie
+--- in ScrollList: WoW gibt Frames nie wieder frei, und ein Abend mit viel
+--- Hin und Her legt hunderte an, die nie wieder jemand anfasst.
+function MainFrame:BuildSubTabs()
+    for index, section in ipairs(SECTIONS) do
+        self.subTabs[index] = {}
+
+        -- EIN EINZELNER UNTERREITER IST KEINER. Wo ein Bereich nur eine
+        -- Ansicht hat, bleibt die Zeile weg und der Inhalt rueckt hoch —
+        -- ein Reiter, der nichts zur Wahl stellt, kostet nur Platz.
+        if #section.views > 1 then
+            local previous
+            for _, view in ipairs(section.views) do
+                local chip = Widgets.Chip(self.subBar, L[view.label])
+                chip.viewKey = view.key
+                -- Chip schaltet sich von Haus aus selbst um. Hier ist die
+                -- Wahl aber eine unter mehreren, keine an/aus — deshalb
+                -- entscheidet ShowView, wer gedrueckt aussieht.
+                chip:SetScript("OnClick", function(self)
+                    MainFrame:ShowView(self.viewKey)
+                end)
+                if previous then
+                    chip:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+                else
+                    chip:SetPoint("LEFT", self.subBar, "LEFT",
+                        self.native and PORTRAIT_CLEARANCE or 4, 0)
+                end
+                chip:Hide()
+                self.subTabs[index][#self.subTabs[index] + 1] = chip
+                previous = chip
+            end
+        end
+    end
+end
+
+--- Zeigt die Unterreiterzeile des Bereichs und hebt die laufende Ansicht hervor.
+function MainFrame:UpdateSubTabs(sectionIndex, viewKey)
+    local any = false
+    for index, chips in pairs(self.subTabs) do
+        for _, chip in ipairs(chips) do
+            if index == sectionIndex then
+                chip:SetPressed(chip.viewKey == viewKey)
+                chip:Show()
+                any = true
+            else
+                chip:Hide()
+            end
+        end
+    end
+
+    if any then self.subBar:Show() else self.subBar:Hide() end
+    self:LayoutBody(any)
+end
+
+--- Oeffnet einen Bereich — dort, wo man zuletzt war.
+function MainFrame:ShowSection(index)
+    local section = SECTIONS[index]
+    if not section then return end
+    self:ShowView(self.lastInSection[section.key] or section.views[1].key)
 end
 
 function MainFrame:BuildResizeGrip()
@@ -284,11 +476,25 @@ end
 
 -- ================================================================== Ansichten -
 
+--- Zeigt eine Ansicht — und zwar ueber JEDEN Blattschluessel.
+---
+--- Die Slash-Kurzwege nennen weiterhin Ansichten, keine Bereiche: `/ga
+--- history` muss den Loot-Bereich waehlen UND die Historie darin. Wer hier
+--- nur Bereiche annaehme, haette mit dem Umbau die halbe Bedienung
+--- weggeraeumt.
 function MainFrame:ShowView(key)
     local view = self.views[key]
+    local sectionIndex = SECTION_OF[key]
 
-    local index = self.tabIndex[key]
-    if index then Widgets.SelectTab(self.frame, self.tabs, index) end
+    -- 0 statt nil: Es waehlt nachweislich KEINEN Reiter aus. nil laesst bei
+    -- Blizzards Reitern den alten stehen, und dann leuchtet "Loot", waehrend
+    -- die Einstellungen offen sind.
+    Widgets.SelectTab(self.frame, self.tabs, sectionIndex or 0)
+
+    if sectionIndex then
+        self.lastInSection[SECTIONS[sectionIndex].key] = key
+    end
+    self:UpdateSubTabs(sectionIndex, key)
 
     if self.current and self.views[self.current] and self.views[self.current].frame then
         self.views[self.current].frame:Hide()
@@ -299,12 +505,8 @@ function MainFrame:ShowView(key)
     Config:GetUI("main").lastView = key
 
     if not view then
-        local entry
-        for _, candidate in ipairs(VIEW_ORDER) do
-            if candidate.key == key then entry = candidate break end
-        end
-        local label = entry and L[entry.label] or L["NAV_" .. string.upper(key)] or key
-        local phase = entry and entry.phase and string.format(L.PHASE_LABEL, entry.phase) or ""
+        local label = L[LABEL_OF[key] or ("NAV_" .. string.upper(key))] or key
+        local phase = ""
         self.placeholder = Widgets.Placeholder(self.body, phase, label, L[PLACEHOLDER[key] or "TODO_TITLE"])
         self.placeholder:Show()
         self:SetTitle(label, nil)

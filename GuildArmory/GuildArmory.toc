@@ -1,8 +1,9 @@
 ## Interface: 16001
 ## Title: Guild Armory |cffe5cc80Forever Edition|r
-## Notes: Gilden-Armory, LootCouncil, Loot-Historie, Wunschlisten und Gear-Tracking.
+## Notes: Guild gear database, roster history, professions, tradable items, camp bar and loot sessions.
+## Notes-deDE: Gilden-Ausruestung, Rosterverlauf, Berufe, tauschbare Gegenstaende, Lagerleiste und Lootsitzungen.
 ## Author: Is Not Alone
-## Version: 0.1.4
+## Version: 0.1.5
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled
@@ -55,6 +56,7 @@ Armory\Tradables.lua
 # Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
 Camp\Catalog.lua
 Camp\Camp.lua
+Professions\Crafting.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -89,6 +91,7 @@ UI\Views\Characters.lua
 UI\Views\LootCouncil.lua
 UI\Views\LootHistory.lua
 UI\Views\Wishlist.lua
+UI\Views\Crafting.lua
 UI\Views\Achievements.lua
 UI\Views\Analytics.lua
 UI\DkpFrame.lua

@@ -1,5 +1,94 @@
 # Changelog
 
+## 0.1.5
+
+One question the guild asks constantly — *who can make this?* — and one the
+addon had started asking back: *where did I put that page again?*
+
+### Who can make this
+
+Alt-click a pattern and somebody has it. Ask in guild chat and two people
+answer who cannot, and the one who can is offline. A new **Professions**
+page answers it directly: type an item name, paste a link, or drop an ID,
+and you get everybody in the guild who can craft it, with their profession,
+their skill, and how old that information is.
+
+The same line appears in the item tooltip, so most of the time you never
+open the page at all. Each row has an **Ask** button that whispers the
+crafter the item link — once per minute per item and person.
+
+**Recipes can only be read while a profession window is open.** That is a
+property of the game, not of the addon: `C_TradeSkillUI` describes the
+window that is open, not your professions. So open each of yours once,
+`/ga craft sync` asks the guild for theirs, and `/ga craft` says exactly
+that instead of pretending you have not learned anything.
+
+Opening a profession window now reports one line — *"Alchemy read: 7
+recipes, skill 31"* — and only when something actually changed. The window
+announces itself more than once while it loads; reporting every time would
+print the same line twice, then again on your next look.
+
+### What it costs to store and send
+
+A maxed profession has around three hundred recipes. As a Lua table in the
+saved variables that is tens of thousands of entries for a guild; as plain
+text over a line that carries 240 characters per message, it is dozens of
+pieces.
+
+Both are solved the same way: sort ascending, store the **differences**,
+write them in base 36. Three hundred six-digit numbers become about five
+hundred characters. Storage and transport use the identical format, so
+there is one encoder, one decoder, and what arrives can be filed without
+conversion.
+
+**Enchanting recipes produce no item.** They are kept in a second list,
+because anything that only collects item IDs loses that profession
+completely.
+
+**An empty scan never overwrites a filled one.** A window that has not
+answered yet looks exactly like a profession with no recipes. Read that
+wrong once and every character you have ever seen loses their recipes at
+the next login.
+
+**Only the sender decides whose recipes these are.** The message carries no
+character ID at all — the sender name comes from the server and cannot be
+forged, and a second, weaker source for the same fact would only raise the
+question of which to believe.
+
+### Five tabs instead of eleven
+
+The row along the bottom had reached the width of the window, and worse, it
+was lying. It put things side by side that do not belong side by side: two
+of them were settings, two asked the same question, four were one raid
+evening.
+
+Sections now sit along the bottom, and the views inside them along the top
+of the content — the arrangement the game uses in its own profession
+window:
+
+* **Overview**
+* **Guild** — equipment, characters, achievements
+* **Loot** — session, history, wishlist, rules
+* **Professions**
+* **Analytics**
+
+Settings moved to a **gear** in the toolbar. They were never a working
+view; they stood in the tab row because there was room.
+
+Where a section holds a single view, the second row stays away and the
+content moves up. A tab that offers no choice only costs space.
+
+**Every slash shortcut still works.** `/ga history` selects the Loot
+section and the history within it. That was the condition for doing this at
+all — five tabs that take away half the navigation would be a poor trade.
+
+### Fixes
+
+* `craft` and `camp` were never registered as debug channels, and unknown
+  channels are deliberately silent. Every diagnostic line both modules
+  produced had been going nowhere since they were written — including with
+  debug switched on.
+
 ## 0.1.4
 
 Two things you can now ask for without typing: an item somebody is offering,

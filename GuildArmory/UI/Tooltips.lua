@@ -75,6 +75,29 @@ function Tooltips:OnItem(tooltip, itemID)
             0.5, 0.5, 0.5)
     end
 
+    -- Wer kann das herstellen?
+    --
+    -- Die Zeile steht nur, wenn es wirklich jemanden gibt. "Niemand kann
+    -- das herstellen" waere eine Behauptung ueber alle, die noch nie ihr
+    -- Berufsfenster geoeffnet haben — und das sind am Anfang alle.
+    local Crafting = GA.Modules.Crafting
+    if Crafting then
+        local crafters = Crafting:Crafters(itemID)
+        if #crafters > 0 then
+            tooltip:AddLine(PREFIX .. L.TIP_CRAFTED_BY, 0.37, 0.79, 0.63)
+            for index = 1, math.min(#crafters, 5) do
+                local crafter = crafters[index]
+                tooltip:AddLine(string.format("  %s (%s %d)", crafter.name,
+                    crafter.lineName or tostring(crafter.line), crafter.rank or 0),
+                    1, 1, 1)
+            end
+            if #crafters > 5 then
+                tooltip:AddLine(string.format("  " .. L.TIP_AND_MORE, #crafters - 5),
+                    0.5, 0.5, 0.5)
+            end
+        end
+    end
+
     -- Wurde er schon einmal vergeben?
     local awards = GA.Modules.Awards:List({ itemID = itemID })
     local last

@@ -1721,3 +1721,173 @@ function Compat.GetWaypointLink()
     if not ok or type(link) ~= "string" or link == "" then return nil end
     return link
 end
+
+-- ================================================================== Berufe ---
+--
+-- Rezepte lesen. DAS GEHT NUR BEI GEOEFFNETEM BERUFSFENSTER — C_TradeSkillUI
+-- beschreibt nicht "meine Berufe", sondern "das Fenster, das gerade offen
+-- ist". Ist keines offen, liefert GetAllRecipeIDs eine leere Liste, und die
+-- ist nicht von "dieser Beruf kann nichts" zu unterscheiden.
+--
+-- Deshalb gibt jede Funktion hier nil zurueck, wenn das Fenster nicht bereit
+-- ist, und niemals eine leere Liste. Wer den Unterschied verschluckt,
+-- loescht beim naechsten Einloggen die Rezepte aller Charaktere.
+
+--- Ist das Berufsfenster bereit, Auskunft zu geben?
+---
+--- Zwei Fragen, nicht eine: Das Fenster kann offen sein und die Liste noch
+--- nicht geladen. Fehlt IsTradeSkillReady, gilt das Vorhandensein einer
+--- Fertigkeitslinie als Ersatz — mehr ist dann nicht zu erfahren.
+--- @return boolean
+function Compat.IsTradeSkillReady()
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) then return false end
+
+    if isFunction(api.IsTradeSkillReady) then
+        local ok, bereit = pcall(api.IsTradeSkillReady)
+        if ok and bereit == false then return false end
+        if ok and bereit == true then return true end
+    end
+
+    return Compat.GetOpenTradeSkill() ~= nil
+end
+
+--- Welcher Beruf steht gerade im Fenster?
+---
+--- @return table|nil { line, name, rank, maxRank }
+function Compat.GetOpenTradeSkill()
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) then return nil end
+
+    -- Der moderne Weg. Liefert Kennung, Anzeigename, Rang und Hoechstrang.
+    if isFunction(api.GetTradeSkillLine) then
+        local ok, line, name, rank, maxRank = pcall(api.GetTradeSkillLine)
+        if ok and type(line) == "number" and line > 0 then
+            return {
+                line = line,
+                name = type(name) == "string" and name or nil,
+                rank = tonumber(rank) or 0,
+                maxRank = tonumber(maxRank) or 0,
+            }
+        end
+    end
+
+    -- Rueckfall: der Grundberuf, ohne Rangangabe.
+    if isFunction(api.GetBaseProfessionInfo) then
+        local ok, info = pcall(api.GetBaseProfessionInfo)
+        if ok and isTable(info) then
+            local line = tonumber(info.professionID or info.parentProfessionID)
+            if line and line > 0 then
+                return {
+                    line = line,
+                    name = type(info.professionName) == "string" and info.professionName or nil,
+                    rank = tonumber(info.skillLevel) or 0,
+                    maxRank = tonumber(info.maxSkillLevel) or 0,
+                }
+            end
+        end
+    end
+
+    return nil
+end
+
+--- Was stellt dieses Rezept her?
+---
+--- ZWEI ARTEN VON REZEPT, und sie muessen auseinandergehalten werden:
+--- Die meisten ergeben einen GEGENSTAND. Verzauberungen ergeben keinen —
+--- dort ist das Rezept selbst das Ergebnis. Wer nur nach Gegenstaenden
+--- sucht, verliert die Verzauberkunst vollstaendig.
+---
+--- @return number|nil itemID  nil = dieses Rezept stellt keinen Gegenstand her
+function Compat.GetRecipeItem(recipeID)
+    recipeID = tonumber(recipeID)
+    if not recipeID then return nil end
+
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) then return nil end
+
+    if isFunction(api.GetRecipeOutputItemData) then
+        local ok, data = pcall(api.GetRecipeOutputItemData, recipeID)
+        if ok and isTable(data) then
+            local itemID = tonumber(data.itemID)
+            if itemID and itemID > 0 then return itemID end
+            -- Manche Fassungen fuellen nur den Verweis.
+            if type(data.hyperlink) == "string" then
+                local parsed = Compat.ParseItemLink(data.hyperlink)
+                if parsed and parsed.itemID then return parsed.itemID end
+            end
+        end
+    end
+
+    if isFunction(api.GetRecipeItemLink) then
+        local ok, link = pcall(api.GetRecipeItemLink, recipeID)
+        if ok and type(link) == "string" then
+            local parsed = Compat.ParseItemLink(link)
+            if parsed and parsed.itemID then return parsed.itemID end
+        end
+    end
+
+    return nil
+end
+
+--- Alle GELERNTEN Rezepte des offenen Berufsfensters.
+---
+--- @return table|nil { { recipe, item } }  nil = Fenster nicht bereit
+function Compat.GetLearnedRecipes()
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) or not isFunction(api.GetAllRecipeIDs) then return nil end
+    if not Compat.IsTradeSkillReady() then return nil end
+
+    local ok, ids = pcall(api.GetAllRecipeIDs)
+    if not ok or not isTable(ids) then return nil end
+
+    -- LEER IST HIER NICHT NULL. Ein gerade geoeffnetes Fenster liefert
+    -- kurzzeitig eine leere Liste, bevor der Server geantwortet hat. Diese
+    -- leere Liste als "keine Rezepte" zu speichern, loescht den Beruf.
+    if #ids == 0 then return nil end
+
+    local out = {}
+    for _, recipeID in ipairs(ids) do
+        recipeID = tonumber(recipeID)
+        if recipeID then
+            local gelernt = true
+            if isFunction(api.GetRecipeInfo) then
+                local okInfo, info = pcall(api.GetRecipeInfo, recipeID)
+                -- NUR EIN AUSDRUECKLICHES false SCHLIESST AUS. Fehlt das
+                -- Feld, ist das keine Auskunft — und ein Rezept, das im
+                -- eigenen Fenster steht, ist im Zweifel gelernt.
+                if okInfo and isTable(info) and info.learned == false then
+                    gelernt = false
+                end
+            end
+            if gelernt then
+                out[#out + 1] = { recipe = recipeID, item = Compat.GetRecipeItem(recipeID) }
+            end
+        end
+    end
+
+    if #out == 0 then return nil end
+    return out
+end
+
+--- Der Name eines Zaubers — fuer Rezepte ohne Gegenstand.
+--- @return string|nil
+function Compat.GetSpellName(spellID)
+    spellID = tonumber(spellID)
+    if not spellID then return nil end
+
+    local spell = _G.C_Spell
+    if isTable(spell) and isFunction(spell.GetSpellInfo) then
+        local ok, info = pcall(spell.GetSpellInfo, spellID)
+        if ok and isTable(info) and type(info.name) == "string" and info.name ~= "" then
+            return info.name
+        end
+    end
+
+    if isFunction(_G.GetSpellInfo) then
+        local ok, name = pcall(_G.GetSpellInfo, spellID)
+        if ok and type(name) == "string" and name ~= "" then return name end
+    end
+
+    return nil
+end

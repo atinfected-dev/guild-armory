@@ -424,6 +424,23 @@ Schema.ACCOUNT_DEFAULTS = {
     --- wird der Beutel. Siehe Armory/Tradables.lua.
     tradables = {},
 
+    --- Berufe und Rezepte je Charakter:
+    ---   [guid] = { name, ts, lines = { [skillLineID] = {
+    ---                name, rank, maxRank, items, spells, ts } } }
+    ---
+    --- `items` und `spells` sind KEINE Tabellen, sondern Zeichenketten:
+    --- aufsteigend sortiert, als Differenzen, zur Basis 36. Ein
+    --- Hoechstberuf hat gut 300 Rezepte; als Lua-Tabelle waeren das fuer
+    --- eine Gilde Zehntausende Eintraege in den SavedVariables, als Text
+    --- sind es etwa 500 Zeichen je Beruf. Dieselbe Darstellung geht ueber
+    --- die Leitung — es gibt genau einen Kodierer (Professions/Crafting).
+    ---
+    --- Zwei Listen, weil es zwei Arten Rezept gibt: `items` sind die, die
+    --- einen Gegenstand ergeben, `spells` die, die keinen ergeben
+    --- (Verzauberungen). Wer nur die erste fuehrt, verliert die
+    --- Verzauberkunst vollstaendig.
+    crafting = {},
+
     --- Gegenstandsverzeichnis: [itemID] = { name, icon, quality, equipLoc, level, ts }
     --- Gefuellt aus allem, was der Client aufloest (siehe Database/ItemIndex.lua).
     --- Traegt die Namenssuche — ein Addon kann Wowhead nicht abfragen.

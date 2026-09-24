@@ -27,6 +27,8 @@ Debug.channels = {
     comm       = "Addon-Nachrichten (gespraechig)",
     ui         = "Ansichten, Neuzeichnen",
     callbacks  = "Fehler in Empfaengern",
+    craft      = "Berufe und Rezepte",
+    camp       = "Lagerleiste und Aufstellungen",
 }
 
 local enabled = {}

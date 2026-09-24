@@ -31,6 +31,13 @@ local VIEWS = {
     session = "lootcouncil", sitzung = "lootcouncil",
     analytics = "analytics", settings = "settings",
     lootrules = "lootrules", rules = "lootrules", regeln = "lootrules",
+    crafting = "crafting", berufe = "crafting", professions = "crafting",
+    -- Bereichswoerter zeigen auf die ERSTE Ansicht des Bereichs. Der Reiter
+    -- wird dabei mitgewaehlt, und wer dort zuletzt woanders war, landet
+    -- ueber den Reiter selbst wieder dort — hier zaehlt der geradeste Weg.
+    overview = "dashboard", uebersicht = "dashboard",
+    guild = "armory", gilde = "armory",
+    equipment = "armory", ausruestung = "armory",
 }
 
 local pendingReset
@@ -467,6 +474,53 @@ SlashCmdList["GUILDARMORY"] = function(input)
         else
             local sichtbar = CampFrame:Toggle()
             Debug:Info(L.SLASH_CAMP, sichtbar and L.SLASH_ON or L.SLASH_OFF)
+        end
+    elseif command == "craft" or command == "beruf" then
+        local Crafting = GA.Modules.Crafting
+
+        if rest == "scan" then
+            -- DER EINE BEFEHL, DER DIE ZUMUTUNG ABKUERZT: Wer sein
+            -- Berufsfenster offen hat und trotzdem nichts sieht, braucht
+            -- einen Weg, es von Hand auszuloesen — und eine Begruendung,
+            -- wenn es wieder nichts wird.
+            -- LAUT: Wer tippt, hat gefragt. ScanOpen meldet sonst nur echte
+            -- Aenderungen, damit das Berufsfenster nicht bei jedem Oeffnen
+            -- zweimal dasselbe in den Chat schreibt.
+            local line, grund = Crafting:ScanOpen(true)
+            if not line then
+                Debug:Info("%s", L["CRAFT_ERR_" .. tostring(grund)])
+            end
+        elseif rest == "sync" then
+            Crafting:Request()
+            Crafting:Publish()
+            Debug:Info("%s", L.CRAFT_SYNCED)
+        elseif rest ~= "" then
+            local itemID = GA.Core.Compat.ParseItemInput(rest)
+            if not itemID then
+                Debug:Info(L.SLASH_NO_ITEM, tostring(rest))
+            else
+                local crafters = Crafting:Crafters(itemID)
+                local info = GA.Core.Compat.GetItemInfo(itemID)
+                local was = (info and info.name)
+                    or string.format(L.SLASH_ITEM_FALLBACK, tostring(itemID))
+                if #crafters == 0 then
+                    Debug:Info(L.CRAFT_NOBODY, was)
+                else
+                    Debug:Info(L.CRAFT_FOUND, #crafters, was)
+                    for _, crafter in ipairs(crafters) do
+                        Debug:Info("  %-16s %s %d  (%s)", tostring(crafter.name),
+                            tostring(crafter.lineName or crafter.line), crafter.rank or 0,
+                            GA.Core.Util.TimeAgo(crafter.ts))
+                    end
+                end
+            end
+        else
+            local charaktere, berufe, rezepte = Crafting:Stats()
+            Debug:Info(L.CRAFT_STATS, charaktere, berufe, rezepte)
+            -- OHNE DIESEN SATZ SIEHT EIN LEERES VERZEICHNIS AUS WIE EIN
+            -- FEHLER. Es ist keiner: Rezepte gibt es nur bei geoeffnetem
+            -- Berufsfenster zu lesen, und das hat noch niemand getan.
+            Debug:Info("%s", L.CRAFT_HOWTO)
         end
     elseif command == "sim" or command == "probe" then
         -- PROBEBETRIEB. Ein ganzer Raidabend ohne Raid: Gegenstaende, die
