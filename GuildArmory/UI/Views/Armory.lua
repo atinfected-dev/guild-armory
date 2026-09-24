@@ -278,14 +278,21 @@ function Armory:RefreshDoll()
     if character.guildRank then pieces[#pieces + 1] = character.guildRank end
     self.meta:SetText(table.concat(pieces, "  ·  "))
 
-    if own then
-        if not Theme.SetPortrait(self.portrait, "player") then
-            Theme.Paint(self.portrait, Theme.color.rowAltBg)
-        end
-    else
-        -- Kein Portrait fuer Fremde: Es gaebe nur ein falsches.
-        Theme.Paint(self.portrait, Theme.color.rowAltBg)
-    end
+    -- DAS KLASSENWAPPEN IST KEINE ERFINDUNG, EIN RASSENBILD WAERE EINE.
+    --
+    -- Hier stand "kein Portrait fuer Fremde: es gaebe nur ein falsches", und
+    -- das stimmt fuer ein Rassenportrait: Blizzards Vorlagen brauchen Rasse
+    -- UND Geschlecht, und das Geschlecht wird nicht uebertragen. Wer es
+    -- raet, zeigt jedem zweiten Charakter das falsche Gesicht.
+    --
+    -- Die Klasse dagegen steht im Gildenroster, ist also bekannt. Ein leerer
+    -- goldener Ring war deshalb zu viel Zurueckhaltung: Er sagt nichts,
+    -- obwohl etwas zu sagen waere.
+    self.portrait:SetTexCoord(0, 1, 0, 1)
+    local gesetzt = false
+    if own then gesetzt = Theme.SetPortrait(self.portrait, "player") end
+    if not gesetzt then gesetzt = Theme.SetClassIcon(self.portrait, character.class) end
+    if not gesetzt then Theme.Paint(self.portrait, Theme.color.rowAltBg) end
 
     if not Theme.SetClassIcon(self.classIcon, character.class) then
         self.classIcon:Hide()
@@ -368,6 +375,27 @@ function Armory:Refresh()
     self:RefreshDoll()
     self:RefreshInspect()
 end
+
+-- NACHGELIEFERTE ITEMS ZEICHNEN NACH.
+--
+-- Bei einem Charakter aus dem Gildenabgleich kennt dieser Client die
+-- Gegenstaende oft noch gar nicht: Er bekommt nur Kennungen und muss sie beim
+-- Server nachladen. Ohne diese Zeile blieben die Plaetze leer, bis jemand die
+-- Ansicht wechselt und zurueckkommt — und es saehe aus, als fehlten die Daten.
+--
+-- GEBUENDELT, NICHT JE GEGENSTAND. Beim Oeffnen eines Charakters kommen
+-- siebzehn Antworten kurz hintereinander; siebzehnmal die Papierpuppe neu zu
+-- bauen waere sichtbares Ruckeln fuer nichts.
+local nachzeichnen = false
+GA.Core.Events:Register("GET_ITEM_INFO_RECEIVED", function()
+    if nachzeichnen then return end
+    if not (Armory.frame and Armory.frame:IsVisible()) then return end
+    nachzeichnen = true
+    GA.Core.Compat.After(0.4, function()
+        nachzeichnen = false
+        if Armory.frame and Armory.frame:IsVisible() then Armory:RefreshDoll() end
+    end)
+end, "ArmoryView")
 
 -- Zielwechsel betrifft nur den Inspect-Knopf. Die teuren Listen bleiben stehen.
 GA.Core.Callbacks:On("TARGET_CHANGED", function()

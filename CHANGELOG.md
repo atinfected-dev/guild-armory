@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.1.7
+
+### Other people's characters were shown empty
+
+The armory said "8 of 17 slots equipped" and item level 6, and next to it
+stood seventeen empty silhouettes with a blank portrait ring. The data was
+there; only the pictures were missing.
+
+The guild sync sends **only** an item ID, an item level and an enchant ID per
+slot. No icon path, no name, no quality — and that is right: a channel that
+carries 240 characters per message has no business carrying texture paths.
+The receiving client has the ID, and with it everything it needs.
+
+The paper doll was reading a stored icon field instead. On your own character
+that field is filled, on everybody else's it never is. Icon and quality are
+looked up from the item ID now, anything this client has not seen yet is
+requested, and the view redraws once it arrives — batched, because opening a
+character brings seventeen answers in a row.
+
+**Strangers get their class crest** where an empty gold ring used to be. A
+race portrait would have been a guess: Blizzard's templates need race *and*
+gender, and gender is not transmitted, so half of them would show the wrong
+face. The class is in the guild roster, so it is a fact rather than a guess.
+
+Enchants and gems still travel as IDs only, so an enchanter's name or the
+stones in an item are not shown. An item the server will not hand to this
+client stays an empty slot — with its item level beside it, because that
+does travel.
+
 ## 0.1.6
 
 Guild members on the world map, your guildmates' recipe lists, and a

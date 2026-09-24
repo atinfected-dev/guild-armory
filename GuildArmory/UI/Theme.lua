@@ -501,13 +501,42 @@ function Theme.ItemSlot(parent, slotID, size)
     --- Befuellt den Slot. `item` = Eintrag aus character.equipment oder nil.
     function button:SetItem(item)
         self.item = item
-        if item and item.icon then
-            self.icon:SetTexture(item.icon)
+
+        -- DAS SYMBOL DARF AUS DER KENNUNG KOMMEN — bei fremden Charakteren
+        -- MUSS es das.
+        --
+        -- Der Gildenabgleich schickt je Platz nur itemID, itemLevel und
+        -- enchantID. Kein Symbolpfad, kein Name, keine Qualitaet — und das
+        -- ist richtig so: Ueber einen Kanal, der 240 Zeichen fasst, gehoeren
+        -- keine Texturpfade. Der Empfaenger hat die Kennung, und damit hat
+        -- er alles, was er braucht.
+        --
+        -- Vorher stand hier nur `item.icon`. Ergebnis: Bei jedem Charakter
+        -- aus dem Abgleich blieb die Papierpuppe leer, waehrend daneben
+        -- "8 von 17 Plaetzen belegt" stand. Dieselbe Falle wie bei den
+        -- Tooltips, die einmal am Itemlink hingen.
+        local Compat = GA.Core.Compat
+        local icon = item and item.icon
+        local quality = item and item.quality
+
+        if item and item.itemID and Compat then
+            if not icon then icon = Compat.GetItemIcon(item.itemID) end
+            if not quality then
+                local info = Compat.GetItemInfo(item.itemID)
+                quality = info and info.quality
+            end
+            -- Noch nicht im Client? Anstossen. GET_ITEM_INFO_RECEIVED
+            -- bringt die Ansicht danach von selbst zum Nachzeichnen.
+            if not icon then Compat.RequestItemData(item.itemID) end
+        end
+
+        if item and icon then
+            self.icon:SetTexture(icon)
             self.icon:Show()
-            local color = Theme.QualityColor(item.quality)
+            local color = Theme.QualityColor(quality)
             self.border:SetVertexColor(color[1], color[2], color[3])
             -- Weiss und Grau bekommen keinen Rahmen — wie bei Blizzard.
-            if item.quality and item.quality >= 2 then self.border:Show() else self.border:Hide() end
+            if quality and quality >= 2 then self.border:Show() else self.border:Hide() end
             self.level:SetText(item.itemLevel and tostring(item.itemLevel) or "")
         else
             self.icon:Hide()
