@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.1.6
+
+Guild members on the world map, your guildmates' recipe lists, and a
+profession scan that had been quietly filing recipes under the wrong
+profession.
+
+### The guild map
+
+Guild members appear as class-coloured pins on the world map, with their
+name, rank and **how old that position is** in the tooltip. A pin always
+looks equally fresh; whether it is ten seconds or four minutes old decides
+whether you walk there.
+
+Pins are drawn for the map you are *looking at*, not the one you are
+standing on — page across to Kalimdor and you do not get pins from your own valley. Blizzard already draws your own arrow, so there is no second marker
+on top of it.
+
+**This is the furthest-reaching switch in the addon.** While it is on, your
+map and your coordinates go to the guild for as long as you are online.
+Anyone in the guild can find you at any time. Your zone was already in the
+guild roster; the coordinates are what is new. It says so once in chat the
+first time it sends, and off means this client neither sends nor receives —
+a map on which you stay invisible while watching everybody else is exactly
+the habit nobody should be asked to accept.
+
+**"Continuously" does not mean "constantly".** Fifty people each sending
+every ten seconds is five messages a second on the channel that also carries
+the sync, the loot session and the camp bar. So: standing still sends
+nothing at all, a message goes out when you have actually moved and at most
+once every eight seconds, there is a heartbeat every three minutes, and one
+answer when somebody opens their map. Positions older than five minutes
+disappear on their own.
+
+### Recipes, per person
+
+Click somebody in the **Professions** page and you see their recipes — with
+icons, quality colours and the game's own tooltips. Clicking a recipe turns
+the question around and shows everybody who can make *that*, which is the
+loop you think in anyway.
+
+**Or let the game do it properly:** an *Open profession* button uses WoW's
+own profession link, which opens Blizzard's window with categories and
+reagents. It is greyed out with the reason when the person is offline —
+the link asks the server for that character's data, and there is nobody to
+ask. The addon's own list stays next to it, because that one works at three
+in the morning.
+
+### The scan was filing recipes under the wrong profession
+
+Measured from a live client:
+
+```
+Alchemy read: 1 recipes    →  Alchemy read: 7 recipes
+Herbalism read: 7 recipes  →  Herbalism read: 1 recipes
+Cooking read: 1 recipes    →  Cooking read: 5 recipes
+```
+
+Every profession got the *previous* one's recipes on the first read.
+Herbalism inherited Alchemy's seven, Cooking inherited Herbalism's one. The
+window reports the new profession before the server has sent the new recipe
+list — and the interface's own "is it ready" call says yes throughout.
+
+That is where records came from in which a Linen Bandage sat under
+Enchanting. There is no signal on this client for "the list belongs to this
+profession now", so the scan now waits until nothing more arrives: every
+further window event resets the clock, and it reads once when things go
+quiet. That fixes the wrong data and the duplicated chat line at the same
+time.
+
+**Records written before this are still wrong.** Open each profession window
+once and they are replaced.
+
+### The camp bar takes a size
+
+Drag the bottom-right corner. The name column takes whatever the icons and
+the clock leave over, so widening it actually helps — before, the extra
+space landed as a gap in the middle while long names stayed cut off.
+
+The dragged height is an **upper limit**, not a fixed height: how many rows
+there are is decided by the zone, not by you. Fewer people and the bar
+shrinks to fit; more and it scrolls with the mouse wheel. Position and size
+survive a reload.
+
+### Measured, not assumed
+
+* **This client hands out no readable health values.** Both `UnitHealth` and
+  Blizzard's own player bar throw on arithmetic *and* on comparison. A health
+  bar under the minimap was built, measured, and removed again — a switch
+  that provably cannot do anything only makes the list longer. `/ga probe`
+  keeps both lines, so if that ever changes it shows up there.
+* Secret values are not only strings. The guard for numbers now tries
+  arithmetic **and** comparison, the same lesson the string guard learned in
+  September.
+
+### Fixes
+
+* **`/ga probe` was dead.** An earlier branch answered `sim` *and* `probe`,
+  and in a chain of `elseif` the first match wins — so the API report three
+  hundred lines below was unreachable. `/ga sim` is the test mode now,
+  `/ga probe` is the report. A test fails if any command word is ever
+  shadowed again.
+* The probe reported "Profession window API: 0 entries" when the honest
+  answer was "no profession window open". Empty is not none, and "not asked"
+  is not "nothing there".
+* `craft` and `camp` were never registered as debug channels, and unknown
+  channels are deliberately silent — every diagnostic line those two modules
+  wrote had been going nowhere.
+
 ## 0.1.5
 
 One question the guild asks constantly — *who can make this?* — and one the

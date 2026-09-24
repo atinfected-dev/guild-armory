@@ -3,7 +3,7 @@
 ## Notes: Guild gear database, roster history, professions, tradable items, camp bar and loot sessions.
 ## Notes-deDE: Gilden-Ausruestung, Rosterverlauf, Berufe, tauschbare Gegenstaende, Lagerleiste und Lootsitzungen.
 ## Author: Is Not Alone
-## Version: 0.1.5
+## Version: 0.1.6
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled
@@ -57,6 +57,7 @@ Armory\Tradables.lua
 Camp\Catalog.lua
 Camp\Camp.lua
 Professions\Crafting.lua
+Map\Positions.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -79,6 +80,7 @@ UI\Widgets\ScrollList.lua
 UI\Widgets\Dropdown.lua
 UI\MainFrame.lua
 UI\MinimapButton.lua
+UI\MapPins.lua
 UI\BidFrame.lua
 UI\CampFrame.lua
 UI\Tooltips.lua

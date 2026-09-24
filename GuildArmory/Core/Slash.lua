@@ -522,7 +522,34 @@ SlashCmdList["GUILDARMORY"] = function(input)
             -- Berufsfenster zu lesen, und das hat noch niemand getan.
             Debug:Info("%s", L.CRAFT_HOWTO)
         end
-    elseif command == "sim" or command == "probe" then
+    elseif command == "map" or command == "karte" then
+        local Positions = GA.Modules.Positions
+
+        if rest == "why" or rest == "warum" then
+            for _, zeile in ipairs(Positions:Explain()) do Debug:Info("%s", zeile) end
+        elseif rest == "on" or rest == "an" then
+            GA.Core.Config:Set("mapShare", true)
+            Positions:Publish(true)
+            Debug:Info(L.MAP_SHARING, L.SLASH_ON)
+        elseif rest == "off" or rest == "aus" then
+            -- AUS HEISST AUS, in beide Richtungen: Positions:Enabled
+            -- schliesst ab jetzt jeden Versand UND jeden Empfang aus, und
+            -- OnMap gibt nichts mehr heraus.
+            GA.Core.Config:Set("mapShare", false)
+            wipe(Positions.states)
+            if GA.UI.MapPins then GA.UI.MapPins:HideAll() end
+            Debug:Info(L.MAP_SHARING, L.SLASH_OFF)
+        else
+            local anzahl, karten = Positions:Stats()
+            Debug:Info(L.MAP_STATS, anzahl, karten)
+            Debug:Info(L.MAP_SHARING,
+                Positions:Enabled() and L.SLASH_ON or L.SLASH_OFF)
+        end
+    -- NUR "sim". Hier stand einmal `command == "sim" or command == "probe"`,
+    -- und damit war der API-Bericht weiter unten unerreichbar: Die erste
+    -- passende Bedingung gewinnt, und der Zweig darunter sah aus, als gaebe
+    -- es ihn. Ein zweiter Name fuer den Probebetrieb ist es nicht wert.
+    elseif command == "sim" then
         -- PROBEBETRIEB. Ein ganzer Raidabend ohne Raid: Gegenstaende, die
         -- fallen, Leute, die bieten, ein Council, das abstimmt.
         --

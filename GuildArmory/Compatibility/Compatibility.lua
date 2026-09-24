@@ -77,6 +77,17 @@ local function isTable(value) return type(value) == "table" end
 local function concatProbe(value) return value .. "" end
 local function compareProbe(a, b) return a == b end
 
+--- Dasselbe fuer Zahlen: rechnen UND vergleichen.
+---
+--- Verschleierte Werte gibt es nicht nur als Zeichenkette. Gemessen am
+--- 24.09.2026 an UnitHealth: type() sagt "number", und die erste Rechnung
+--- wirft "a secret number value". Wer nur rechnet, laesst den Vergleich
+--- durch — und umgekehrt.
+local function numberProbe(a, b)
+    local sum = a + b
+    return sum > 0 and a <= b
+end
+
 --- Laesst sich dieser Wert ueberhaupt lesen?
 ---
 --- EIN "SECRET VALUE" SIEHT AUS WIE EIN STRING UND IST KEINER.
@@ -1890,4 +1901,183 @@ function Compat.GetSpellName(spellID)
     end
 
     return nil
+end
+
+-- ================================================================== Karte ----
+--
+-- Blizzards Weltkarte ist kein Frame, auf den man einfach etwas legt. Was
+-- gebraucht wird, sind zwei Dinge: die Flaeche, auf der die Karte gezeichnet
+-- ist (dort haengen die Nadeln), und die Kennung der Karte, die GERADE
+-- angezeigt wird — nicht die, auf der der Spieler steht. Wer beides
+-- verwechselt, setzt Nadeln von Sturmwind in die Brachlandkarte.
+
+--- Die Flaeche, auf der die Weltkarte gezeichnet wird.
+---
+--- Mehrere Wege, weil der Aufbau sich zwischen den Linien unterscheidet und
+--- auf Forever nicht gemessen ist. Geprueft wird, ob das Ergebnis ein Frame
+--- MIT GROESSE ist — ein vorhandenes Feld allein sagt nichts.
+--- @return table|nil
+function Compat.GetMapCanvas()
+    local map = _G.WorldMapFrame
+    if not isTable(map) then return nil end
+
+    local kandidaten = {
+        map.ScrollContainer and map.ScrollContainer.Child,
+        map.ScrollContainer,
+        map,
+    }
+
+    for _, frame in ipairs(kandidaten) do
+        if isTable(frame) and isFunction(frame.GetWidth) then
+            local ok, breite = pcall(frame.GetWidth, frame)
+            if ok and type(breite) == "number" and breite > 1 then return frame end
+        end
+    end
+    return nil
+end
+
+--- Welche Karte zeigt das Fenster gerade?
+---
+--- NICHT die Karte, auf der der Spieler steht. Wer die Weltkarte aufzieht und
+--- nach Kalimdor blaettert, soll dort keine Nadeln aus dem eigenen Tal sehen.
+--- @return number|nil
+function Compat.GetDisplayedMapID()
+    local map = _G.WorldMapFrame
+    if not isTable(map) or not isFunction(map.GetMapID) then return nil end
+
+    local ok, mapID = pcall(map.GetMapID, map)
+    if not ok then return nil end
+    mapID = tonumber(mapID)
+    if not mapID or mapID <= 0 then return nil end
+    return mapID
+end
+
+--- Ist die Weltkarte offen?
+--- @return boolean
+function Compat.IsWorldMapShown()
+    local map = _G.WorldMapFrame
+    if not isTable(map) or not isFunction(map.IsShown) then return false end
+    local ok, shown = pcall(map.IsShown, map)
+    return (ok and shown) and true or false
+end
+
+-- ================================================================ Gesundheit -
+
+--- Leben einer Einheit.
+---
+--- AUF FOREVER LIEFERT DAS NICHTS, und das ist gemessen, nicht vermutet
+--- (24.09.2026, ueber beide Wege):
+---
+---   Lebenswerte lesbar:                 rechnen WIRFT, vergleichen WIRFT
+---   Leben ueber Blizzards eigene Leiste: PlayerFrame.healthbar, ebenso
+---
+--- Der Lebensbalken, fuer den diese Funktion gebaut wurde, ist deshalb wieder
+--- ausgebaut. SIE BLEIBT TROTZDEM STEHEN, und zwar aus einem Grund:
+---
+--- Sie ist der einzige richtige Weg an Lebenswerte, und secrets.test.js
+--- erzwingt, dass niemand daran vorbeigeht. Wer spaeter eine Raidanzeige
+--- baut, laeuft hier hinein statt in 324 Fehlermeldungen je Sitzung. Faellt
+--- die Funktion weg, faellt der Waechter mit ihr.
+---
+--- @return number|nil aktuell, number|nil maximal  nil = auf diesem Client immer
+function Compat.GetUnitHealth(unit)
+    unit = unit or "player"
+    if not isFunction(_G.UnitHealth) or not isFunction(_G.UnitHealthMax) then
+        return nil
+    end
+
+    local okCur, current = pcall(_G.UnitHealth, unit)
+    local okMax, maximum = pcall(_G.UnitHealthMax, unit)
+    if not okCur or not okMax then return nil end
+
+    -- type() HILFT HIER NICHT. Gemessen am 24.09.2026 an einem fremden
+    -- Addon, das genau daran 324-mal in einer Sitzung gescheitert ist:
+    --
+    --   attempt to perform arithmetic on local 'currentHealth'
+    --   (a secret number value)
+    --
+    -- Der Wert IST eine Zahl, type() sagt "number", und trotzdem wirft die
+    -- erste Rechnung. Die Typpruefung faengt nur Tabellen und nil ab; den
+    -- eigentlichen Fall faengt allein die Probe darunter.
+    if type(current) ~= "number" or type(maximum) ~= "number" then return nil end
+
+    -- ZWEI OPERATIONEN, NICHT EINE.
+    --
+    -- Dieselbe Lehre wie bei Compat.IsReadable fuer Zeichenketten: Dort kam
+    -- erst "attempt to perform string conversion", eine Stunde spaeter
+    -- "attempt to compare a secret string value". Eine Probe, die nur das
+    -- eine versucht, taeuscht Sicherheit vor.
+    --
+    -- Hier stand zuerst nur die Rechnung — und direkt danach drei
+    -- Vergleiche ausserhalb jedes Schutzes. Waere der Vergleich getrennt
+    -- eingeschraenkt, haette der Balken genau dort geworfen, bei jedem
+    -- Treffer neu.
+    if not pcall(numberProbe, current, maximum) then return nil end
+
+    if maximum <= 0 then return nil end
+    if current < 0 then current = 0 end
+    if current > maximum then current = maximum end
+    return current, maximum
+end
+
+
+
+-- ============================================================== Berufe-Link --
+--
+-- Das Spiel kann das, was dieses Addon sonst nachbauen muesste: Ein
+-- Berufe-Link oeffnet beim Empfaenger Blizzards eigenes Berufsfenster, mit
+-- Kategorien, Symbolen und Reagenzien. Nichts davon muss nachgezeichnet
+-- werden, und nichts davon kann veralten.
+--
+-- WAS ER NICHT KANN: offline. Der Link ist eine Abfrage beim Server nach den
+-- Daten dieses Charakters — ist die Person weg, kommt nichts. Deshalb bleibt
+-- die selbst gefuehrte Rezeptliste daneben stehen, statt ersetzt zu werden.
+
+--- Der Berufe-Link des offenen Berufsfensters.
+---
+--- @return string|nil  der vollstaendige Link, samt Farbe und Klammern
+function Compat.GetTradeSkillLink()
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) or not isFunction(api.GetTradeSkillListLink) then return nil end
+    if not Compat.IsTradeSkillReady() then return nil end
+
+    local ok, link = pcall(api.GetTradeSkillListLink)
+    if not ok or type(link) ~= "string" or link == "" then return nil end
+    if not string.find(link, "Htrade:", 1, true) then return nil end
+    return link
+end
+
+--- Ist das ueberhaupt ein Berufe-Link?
+---
+--- GEPRUEFT WIRD DER INHALT, NICHT DIE HERKUNFT. Er kommt aus einer
+--- Addon-Nachricht, also von einem anderen Client — was dort steht, hat
+--- jemand anderes geschrieben. Ein Verweis, der nicht wie ein Berufe-Link
+--- aussieht, wird verworfen, statt ihn dem Spiel zum Oeffnen vorzuwerfen.
+--- @return boolean
+function Compat.IsTradeSkillLink(link)
+    if type(link) ~= "string" then return false end
+    if #link < 12 or #link > 400 then return false end
+    -- Trennzeichen des eigenen Nachrichtenformats haben darin nichts zu
+    -- suchen; kaeme eines vor, waere die Nachricht ohnehin schon zerlegt.
+    if string.find(link, "[~;]") then return false end
+    if not string.find(link, "|Htrade:", 1, true) then return false end
+    return string.find(link, "|h", 1, true) ~= nil
+end
+
+--- Oeffnet einen Berufe-Link.
+---
+--- SetItemRef will den KERN des Verweises, nicht die sichtbare Form: also
+--- `trade:...` ohne Farbe, ohne |H und ohne Klammertext. Wer den ganzen Link
+--- hineingibt, bekommt nichts und keine Meldung.
+--- @return boolean geoeffnet
+function Compat.OpenTradeSkillLink(link)
+    if not Compat.IsTradeSkillLink(link) then return false end
+    if not isFunction(_G.SetItemRef) then return false end
+
+    local kern = string.match(link, "|H(trade:[^|]+)|h")
+    if not kern then return false end
+
+    -- Der dritte Parameter ist die Maustaste; SetItemRef erwartet sie, und
+    -- ohne sie werfen manche Fassungen.
+    return pcall(_G.SetItemRef, kern, link, "LeftButton") and true or false
 end

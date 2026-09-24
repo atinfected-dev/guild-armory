@@ -68,6 +68,29 @@ local STALE_DAYS = 60
 --- Sammelfenster nach einem Scan, bevor gesendet wird.
 local SETTLE = 8
 
+--- Wartezeit nach dem letzten Berufsfenster-Ereignis, bevor gelesen wird.
+---
+--- DIE ERSTE LISTE GEHOERT NOCH DEM VORIGEN BERUF. Gemessen am 24.09.2026:
+---
+---   Alchemy read: 1 recipes    ->  Alchemy read: 7 recipes
+---   Herbalism read: 7 recipes  ->  Herbalism read: 1 recipes
+---   Cooking read: 1 recipes    ->  Cooking read: 5 recipes
+---
+--- Jeder Beruf bekam beim ersten Lesen die Rezepte des vorigen: Kraeuterkunde
+--- erbte Alchemies sieben, Kochkunst erbte Kraeuterkundes eine. Das Fenster
+--- meldet die neue Fertigkeitslinie, bevor der Server die neue Rezeptliste
+--- geschickt hat — und IsTradeSkillReady sagt dabei "bereit".
+---
+--- Daher kamen die Datensaetze, in denen unter "Verzauberkunst" ein Verband
+--- stand. Und daher kam die doppelte Meldung: Der zweite Lesevorgang war
+--- gegenueber dem ersten eine echte Aenderung.
+---
+--- Es gibt auf diesem Client kein Signal, das sagt "die Liste gehoert jetzt
+--- zu diesem Beruf". Was bleibt, ist zu warten, bis nichts mehr nachkommt:
+--- Jedes weitere Ereignis stellt die Uhr zurueck, gelesen wird einmal, wenn
+--- Ruhe ist.
+local SCAN_SETTLE = 1.5
+
 local DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 local pending = false
@@ -184,6 +207,7 @@ function Crafting:ScanOpen(laut)
         maxRank = beruf.maxRank,
         items = Crafting.Encode(items),
         spells = Crafting.Encode(spells),
+        link = Compat.GetTradeSkillLink(),
     })
 
     local wie = tostring(beruf.name or beruf.line)
@@ -198,6 +222,23 @@ function Crafting:ScanOpen(laut)
         wie, #items, #spells, tostring(geaendert))
 
     return beruf.line
+end
+
+--- Meldet einen Lesevorgang an — und schiebt ihn auf, sooft noch etwas
+--- nachkommt.
+---
+--- Siehe SCAN_SETTLE: Das erste, was nach dem Oeffnen kommt, ist die Liste
+--- des vorigen Berufs. Wer sie liest, schreibt Verbaende unter
+--- Verzauberkunst.
+function Crafting:ScheduleScan()
+    self.scanToken = (self.scanToken or 0) + 1
+    local token = self.scanToken
+
+    Compat.After(SCAN_SETTLE, function()
+        -- Kam seither ein weiteres Ereignis, ist dieser Auftrag ueberholt.
+        if Crafting.scanToken ~= token then return end
+        Crafting:ScanOpen()
+    end)
 end
 
 --- Legt einen Beruf ab — den eigenen oder einen fremden.
@@ -244,9 +285,18 @@ function Crafting:Remember(name, lineID, data)
         maxRank = tonumber(data.maxRank) or 0,
         items = data.items or "",
         spells = data.spells or "",
+        -- Der Berufe-Link oeffnet Blizzards eigenes Fenster. Er verfaellt,
+        -- sobald die Person offline geht — aufgehoben wird er trotzdem,
+        -- weil man das vorher nicht weiss und ein alter Link nur nichts
+        -- tut, statt etwas Falsches zu tun.
+        link = Compat.IsTradeSkillLink(data.link) and data.link or nil,
         ts = Util.Now(),
     }
 
+    -- DER LINK ZAEHLT NICHT ALS AENDERUNG. Er enthaelt eine Sitzungs-
+    -- kennung und ist nach jedem Anmelden ein anderer; wer ihn mitzaehlt,
+    -- meldet bei jedem Einloggen "Alchimie gelesen", ohne dass sich ein
+    -- einziges Rezept geaendert haette.
     local geaendert = not alt
         or alt.items ~= neu.items
         or alt.spells ~= neu.spells
@@ -475,6 +525,7 @@ function Crafting:Payload()
         teile[#teile + 1] = table.concat({
             lineID, line.rank or 0, line.maxRank or 0,
             safeName(line.name), line.items or "", line.spells or "",
+            line.link or "",
         }, ":")
     end
     if #teile == 0 then return nil end
@@ -520,8 +571,15 @@ function Crafting:OnCraft(sender, text)
 
     local gelesen = 0
     for teil in string.gmatch(text, "[^~]+") do
-        local lineID, rank, maxRank, lineName, items, spells =
-            string.match(teil, "^(%d+):(%d+):(%d+):([^:]*):([^:]*):([^:]*)$")
+        -- DER LINK IST DAS LETZTE FELD UND DARF DOPPELPUNKTE ENTHALTEN —
+        -- er steckt voller davon. Deshalb faengt ihn ein `.*` am Ende ein,
+        -- waehrend alle Felder davor an Doppelpunkten enden.
+        --
+        -- `:?` macht ihn OPTIONAL: Eine Nachricht aus einer Fassung ohne
+        -- Link hat sechs Felder, und die soll weiter ankommen statt still
+        -- zu verschwinden.
+        local lineID, rank, maxRank, lineName, items, spells, link =
+            string.match(teil, "^(%d+):(%d+):(%d+):([^:]*):([^:]*):([^:]*):?(.*)$")
         lineID, rank, maxRank = tonumber(lineID), tonumber(rank), tonumber(maxRank)
 
         if lineID and rank and maxRank and rank <= 1000 and maxRank <= 1000 then
@@ -535,6 +593,8 @@ function Crafting:OnCraft(sender, text)
                     name = lineName ~= "" and lineName or nil,
                     rank = rank, maxRank = maxRank,
                     items = items, spells = spells,
+                    -- Remember prueft ihn; hier wird er nur durchgereicht.
+                    link = link ~= "" and link or nil,
                 })
                 gelesen = gelesen + 1
             end
@@ -573,12 +633,9 @@ function Crafting:OnEnable()
     -- Das Berufsfenster meldet sich selbst, wenn es bereit ist. Beide
     -- Ereignisse: Das erste kommt beim Oeffnen, das zweite, wenn der Server
     -- die Liste nachgeliefert hat — und erst dann steht etwas darin.
-    local function scan()
-        local line, grund = Crafting:ScanOpen()
-        if not line and grund ~= "notready" and grund ~= "nowindow" then
-            Debug:Print("craft", "Scan fehlgeschlagen: %s", tostring(grund))
-        end
-    end
+    -- ANGEMELDET, NICHT SOFORT GELESEN. Jedes dieser drei Ereignisse stellt
+    -- die Uhr zurueck; gelesen wird, wenn eine Weile nichts mehr kommt.
+    local function scan() Crafting:ScheduleScan() end
     GA.Core.Events:Register("TRADE_SKILL_SHOW", scan, "Crafting")
     GA.Core.Events:Register("TRADE_SKILL_LIST_UPDATE", scan, "Crafting")
     GA.Core.Events:Register("TRADE_SKILL_DATA_SOURCE_CHANGED", scan, "Crafting")

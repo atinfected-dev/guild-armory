@@ -52,7 +52,11 @@ local WIDTH = 248
 local HEADER = 20
 local ROW = 19
 local ICON = 15
-local NAME_WIDTH = 104
+local TIMER_WIDTH = 42
+
+--- Kleinste und groesste Breite. Unter MIN_WIDTH passen Name und Symbole
+--- nicht mehr nebeneinander; ueber MAX_WIDTH ist es keine Leiste mehr.
+local MIN_WIDTH, MAX_WIDTH = 190, 640
 
 --- So lange bleibt eine Aufstell-Meldung stehen.
 local POPUP_SECONDS = 15
@@ -125,7 +129,15 @@ local function makeSlot(row, index)
     end)
     button:SetScript("OnLeave", Widgets.HideItemTooltip)
 
-    button:SetPoint("LEFT", row, "LEFT", NAME_WIDTH + ICON + 6 + (index - 1) * (ICON + 2), 0)
+    -- VON RECHTS GEHAENGT, NICHT VON LINKS.
+    --
+    -- Frueher sassen die Symbole auf festen Abstaenden vom linken Rand, und
+    -- der Name hatte 104 Pixel — egal wie breit das Fenster war. Ziehen
+    -- brachte damit nichts: Der gewonnene Platz landete als Luecke in der
+    -- Mitte, waehrend "Guenther Gammelbein" weiter abgeschnitten war.
+    --
+    -- Jetzt haengt alles Feste rechts, und der Name nimmt, was uebrig ist.
+    button:SetPoint("RIGHT", row, "RIGHT", -(TIMER_WIDTH + (4 - index) * (ICON + 2)), 0)
     return button
 end
 
@@ -143,7 +155,6 @@ local function makeRow(parent, index)
 
     row.name = Theme.Label(row, "", Theme.Fonts().row, Theme.color.text)
     row.name:SetPoint("LEFT", row, "LEFT", 4, 0)
-    row.name:SetWidth(NAME_WIDTH - 6)
     row.name:SetJustifyH("LEFT")
     if row.name.SetWordWrap then row.name:SetWordWrap(false) end
 
@@ -152,7 +163,7 @@ local function makeRow(parent, index)
     row.fire = CreateFrame("Button", nil, row)
     row.fire:SetWidth(ICON)
     row.fire:SetHeight(ICON)
-    row.fire:SetPoint("LEFT", row, "LEFT", NAME_WIDTH, 0)
+    row.fire:SetPoint("RIGHT", row, "RIGHT", -(TIMER_WIDTH + 4 * (ICON + 2) + 4), 0)
     row.fireIcon = row.fire:CreateTexture(nil, "ARTWORK")
     row.fireIcon:SetAllPoints(row.fire)
     row.fireIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -162,6 +173,9 @@ local function makeRow(parent, index)
         end
     end)
     row.fire:SetScript("OnLeave", Widgets.HideItemTooltip)
+
+    -- Der Name endet am Lagerfeuer. Deshalb erst hier, nachdem es steht.
+    row.name:SetPoint("RIGHT", row.fire, "LEFT", -4, 0)
 
     row.slots = {}
     for slot = 1, 4 do row.slots[slot] = makeSlot(row, slot) end
@@ -179,12 +193,27 @@ function CampFrame:Create()
     local fonts = Theme.Fonts()
 
     local frame = CreateFrame("Frame", "GuildArmoryCampFrame", UIParent)
-    frame:SetWidth(WIDTH)
+    frame:SetWidth(math.min(MAX_WIDTH, math.max(MIN_WIDTH, saved.width or WIDTH)))
     frame:SetHeight(HEADER)
+    frame:SetResizable(true)
+    -- Die Untergrenze in der Hoehe ist eine Zeile plus Kopf: Kleiner waere
+    -- ein Fenster, das nichts mehr zeigt und trotzdem im Weg steht.
+    if not pcall(frame.SetResizeBounds, frame, MIN_WIDTH, HEADER + ROW + 6,
+        MAX_WIDTH, 800) then
+        pcall(frame.SetMinResize, frame, MIN_WIDTH, HEADER + ROW + 6)
+        pcall(frame.SetMaxResize, frame, MAX_WIDTH, 800)
+    end
     frame:SetFrameStrata("MEDIUM")
     frame:SetClampedToScreen(true)
-    frame:SetPoint(saved.point or "CENTER", UIParent, saved.point or "CENTER",
-        saved.x or -320, saved.y or 220)
+    -- TOPLEFT ist die normierte Form aus SavePlacement und haengt an
+    -- UIParent BOTTOMLEFT; alles andere ist die alte Form (oder die
+    -- Vorgabe) und haengt an sich selbst.
+    if saved.point == "TOPLEFT" then
+        frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", saved.x or 0, saved.y or 0)
+    else
+        frame:SetPoint(saved.point or "CENTER", UIParent, saved.point or "CENTER",
+            saved.x or -320, saved.y or 220)
+    end
     frame:Hide()
     self.frame = frame
 
@@ -204,11 +233,7 @@ function CampFrame:Create()
     header:SetScript("OnDragStart", function() frame:StartMoving() end)
     header:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
-        local point, _, _, x, y = frame:GetPoint()
-        local store = Config:GetUI("camp")
-        if store then
-            store.point, store.x, store.y = point, math.floor(x), math.floor(y)
-        end
+        CampFrame:SavePlacement()
     end)
     header:SetScript("OnClick", function(_, button)
         if button == "RightButton" then CampFrame:Hide() return end
@@ -240,6 +265,57 @@ function CampFrame:Create()
     self.empty:SetPoint("TOPLEFT", body, "TOPLEFT", 6, -5)
 
     self.rows = {}
+    self.offset = 0
+
+    -- ---------------------------------------------------------- Ziehen -----
+    --
+    -- DIE GEZOGENE HOEHE IST EINE OBERGRENZE, KEINE FESTE HOEHE.
+    --
+    -- Wie viele Zeilen es gibt, entscheidet die Zone, nicht der Spieler.
+    -- Eine feste Hoehe hiesse entweder tote Flaeche, wenn zwei Leute
+    -- dastehen, oder abgeschnittene Zeilen, wenn zwanzig kommen. Gezogen
+    -- wird deshalb "so hoch hoechstens" — darunter schrumpft die Leiste auf
+    -- ihren Inhalt, darueber laesst sie sich scrollen.
+    local grip = CreateFrame("Button", nil, body)
+    grip:SetWidth(14)
+    grip:SetHeight(14)
+    grip:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", -1, 1)
+    grip:SetFrameLevel(body:GetFrameLevel() + 5)
+    for line = 1, 3 do
+        local strich = grip:CreateTexture(nil, "OVERLAY")
+        Theme.Paint(strich, Theme.color.goldDim)
+        strich:SetWidth(11 - line * 3)
+        strich:SetHeight(1)
+        strich:SetPoint("BOTTOMRIGHT", grip, "BOTTOMRIGHT", -2, line * 3)
+    end
+    grip:SetScript("OnMouseDown", function()
+        if CampFrame:Collapsed() then return end
+        frame:StartSizing("BOTTOMRIGHT")
+    end)
+    grip:SetScript("OnMouseUp", function()
+        frame:StopMovingOrSizing()
+        local store = Config:GetUI("camp")
+        if store then
+            -- Die gezogene Hoehe ist die OBERGRENZE, nicht die Hoehe.
+            store.height = math.floor(math.max(ROW + 6, (frame:GetHeight() or 0) - HEADER))
+        end
+        -- Lage und Breite ueber denselben Weg wie beim Verschieben: Beim
+        -- Ziehen an BOTTOMRIGHT wandert die obere linke Ecke nicht, aber
+        -- der Anker tut es.
+        CampFrame:SavePlacement()
+        CampFrame:Refresh()
+    end)
+    self.grip = grip
+
+    -- Scrollen, wenn mehr Leute dastehen, als in die gezogene Hoehe passen.
+    body:EnableMouseWheel(true)
+    body:SetScript("OnMouseWheel", function(_, richtung)
+        local gesamt = CampFrame.current and #CampFrame.current or 0
+        if gesamt <= (CampFrame.fitting or 0) then return end
+        CampFrame.offset = math.max(0,
+            math.min(gesamt - CampFrame.fitting, (CampFrame.offset or 0) - richtung))
+        CampFrame:Refresh()
+    end)
 
     -- Uhren laufen weiter, auch wenn sich sonst nichts aendert.
     frame:SetScript("OnUpdate", function(_, delta)
@@ -257,6 +333,30 @@ function CampFrame:Create()
     end, "CampFrame")
 
     return frame
+end
+
+--- Merkt sich Lage und Groesse.
+---
+--- IMMER AUF TOPLEFT NORMIERT. Nach StartMoving oder StartSizing steht der
+--- Anker irgendwo — und von welchem Punkt aus ein Fenster verankert ist,
+--- entscheidet, wohin es waechst. An CENTER gehaengt wuerde die Leiste beim
+--- Dazukommen einer Zeile nach oben UND unten wachsen, an BOTTOM nur nach
+--- oben. Gemeint ist: Die obere linke Ecke bleibt, wo sie ist, und die Liste
+--- waechst nach unten.
+function CampFrame:SavePlacement()
+    local frame = self.frame
+    if not frame then return end
+
+    local links, oben = frame:GetLeft(), frame:GetTop()
+    if not links or not oben then return end
+
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", links, oben)
+
+    local store = Config:GetUI("camp")
+    if not store then return end
+    store.point, store.x, store.y = "TOPLEFT", math.floor(links), math.floor(oben)
+    store.width = math.floor(frame:GetWidth() or WIDTH)
 end
 
 --- Holt eine Zeile aus dem Vorrat oder legt eine an.
@@ -279,7 +379,22 @@ function CampFrame:Refresh()
     self.zoneLabel:SetText(summary.zone or "")
     self.count:SetText(string.format("%d/%d", summary.ready, summary.total))
 
-    for index, data in ipairs(rows) do
+    -- WIE VIELE ZEILEN PASSEN? Die gezogene Hoehe ist die Obergrenze; ohne
+    -- sie richtet sich die Leiste nach dem Inhalt.
+    local store = Config:GetUI("camp") or {}
+    local inhalt = math.max(#rows * ROW + 6, 18)
+    local hoehe = store.height and math.min(inhalt, math.max(ROW + 6, store.height))
+        or inhalt
+    local passen = math.max(1, math.floor((hoehe - 6) / ROW))
+    self.fitting = passen
+
+    -- Der Versatz darf nie hinter das Ende zeigen. Wer scrollt und dann die
+    -- Zone wechselt, saehe sonst eine leere Liste mit vollem Zaehler.
+    self.offset = math.max(0, math.min(self.offset or 0, math.max(0, #rows - passen)))
+
+    local sichtbar = math.min(passen, #rows)
+    for index = 1, sichtbar do
+        local data = rows[self.offset + index]
         local row = self:Row(index)
         local r, g, b = Util.ClassColor(data.class)
         row.name:SetText(data.name)
@@ -303,13 +418,21 @@ function CampFrame:Refresh()
         row:Show()
     end
 
-    for index = #rows + 1, #self.rows do self.rows[index]:Hide() end
+    for index = sichtbar + 1, #self.rows do self.rows[index]:Hide() end
 
-    local hoehe = math.max(#rows * ROW + 6, 18)
+    -- Der Zaehler oben nennt IMMER alle, auch die gerade nicht sichtbaren.
+    -- Sonst schrumpfte beim Kleinerziehen scheinbar die Gilde.
+    if #rows > passen then
+        self.count:SetText(string.format("%d/%d  %d\226\128\147%d",
+            summary.ready, summary.total,
+            self.offset + 1, self.offset + sichtbar))
+    end
+
     self.empty:SetShown(#rows == 0)
     self.body:SetHeight(self:Collapsed() and 1 or hoehe)
     self.frame:SetHeight(HEADER + (self:Collapsed() and 0 or hoehe))
     self.body:SetShown(not self:Collapsed())
+    self.grip:SetShown(not self:Collapsed())
 
     self:UpdateClocks()
 end
@@ -350,9 +473,13 @@ function CampFrame:UpdateClocks()
     if self:Collapsed() then return end
 
     local jetzt = Compat.Now()
-    for index, data in ipairs(self.current) do
+    -- UEBER DIE SICHTBAREN ZEILEN, NICHT UEBER ALLE DATEN. Seit die Leiste
+    -- scrollt, ist Zeile 1 nicht mehr Datensatz 1 — wer hier stur mitzaehlt,
+    -- schreibt nach dem Scrollen fremde Uhren in die Zeilen.
+    for index = 1, (self.fitting or 0) do
+        local data = self.current[(self.offset or 0) + index]
         local row = self.rows[index]
-        if row then
+        if row and data then
             if data.cdExpires > jetzt then
                 row.timer:SetText(clock(data.cdExpires - jetzt))
                 row.timer:SetTextColor(0.55, 0.52, 0.45)

@@ -180,6 +180,25 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Ob dieser Hinweis schon kam.
         campNoticeSeen = false,
 
+        -- ---------------------------------------------------- Karte -------
+        -- Die eigene Position laufend an die Gilde melden, und die der
+        -- anderen als Nadeln auf der Weltkarte zeigen.
+        --
+        -- DAS IST DER WEITGEHENDSTE SCHALTER IM GANZEN ADDON. Kartenkennung
+        -- und Koordinaten gehen hinaus, solange man online ist; wer das
+        -- anlaesst, ist fuer seine Gilde jederzeit auffindbar. Die ZONE
+        -- stand ohnehin im Gildenroster — neu sind die Koordinaten darin.
+        --
+        -- Er wirkt in BEIDE Richtungen: Wer nicht sendet, empfaengt auch
+        -- nicht. Eine Karte, auf der man selbst unsichtbar bleibt, waehrend
+        -- man alle anderen sieht, waere genau die Unsitte, die man niemandem
+        -- zumuten will.
+        mapShare = true,
+
+        -- Ob der einmalige Hinweis dazu schon kam.
+        mapNoticeSeen = false,
+
+
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die
         -- Voreinstellung ist Ruhe.
@@ -278,7 +297,14 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Hauptfenster. `collapsed` ist die zugeklappte Kopfzeile, `hidden`
         -- der ausdrueckliche Wunsch, sie gar nicht zu sehen — zwei
         -- verschiedene Dinge, die sich sonst gegenseitig ueberschreiben.
-        camp = { point = "CENTER", x = -320, y = 220,
+        --- `width` ist die gezogene Breite, `height` die gezogene OBERGRENZE
+        --- der Hoehe — nicht die Hoehe selbst. Wie viele Zeilen es gibt,
+        --- entscheidet die Zone; eine feste Hoehe waere entweder tote
+        --- Flaeche oder abgeschnittene Zeilen. `height` fehlt anfangs
+        --- absichtlich: Ohne sie richtet sich die Leiste nach ihrem Inhalt,
+        --- und das ist die richtige Vorgabe fuer jemanden, der noch nie
+        --- gezogen hat.
+        camp = { point = "CENTER", x = -320, y = 220, width = 248,
                  hidden = false, collapsed = false },
     },
 

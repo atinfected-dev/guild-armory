@@ -718,7 +718,7 @@ GA.Core.Locale:Register("deDE", {
     TRADE_UNSURE       = "dieser Client kann nicht sagen, ob sie schon gebunden sind",
     TRADE_ANNOUNCE     = "Zu vergeben: %s",
     SLASH_COMBATLOG    = "Combat Log automatisch: %s   ·   zeichnet gerade auf: %s",
-    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · test · version · handover · reset",
+    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · map · test · version · handover · reset",
     SLASH_RESET_WARN   = "Zuruecksetzen von \"%s\" — loescht %d Charaktere und %d Vergaben.",
     SLASH_RESET_CONFIRM = "Zum Bestaetigen noch einmal: /ga reset %s",
     SLASH_RESET_EXPIRED = "Abgelaufen, nichts geaendert.",
@@ -902,6 +902,35 @@ GA.Core.Locale:Register("deDE", {
     NAV_EQUIPMENT      = "Ausruestung",
     NAV_SESSION        = "Sitzung",
     NAV_RULES          = "Regeln",
+
+    -- Karte
+    MAP_WHY_SHARE      = "Position teilen: %s",
+    MAP_WHY_OWN        = "Eigene Position: %s",
+    MAP_WHY_CANVAS     = "Kartenflaeche gefunden: %s",
+    MAP_WHY_SHOWN      = "Angezeigte Karte: %s",
+    MAP_WHY_KNOWN      = "Bekannte Positionen: %d auf %d Karten",
+    MAP_WHY_REJECTED   = "Verworfen: Karte %d, Feld %d",
+    MAP_NO_CANVAS      = "Keine Kartenflaeche gefunden — die Gildennadeln fallen auf diesem Client aus. /ga map why nennt, was versucht wurde.",
+    MAP_STATS          = "Karte: %d Positionen bekannt, auf %d Karten.",
+    MAP_SHARING        = "Position teilen: %s",
+    MAP_NOTICE         = "Die Gildenkarte ist an: Solange du online bist, meldet dieser Client der Gilde, auf welcher Karte du bist und wo. Abschalten in den Einstellungen oder mit /ga map off — aus heisst, er sendet nichts und empfaengt nichts.",
+
+    SET_MAP            = "Gildenkarte",
+    SET_MAP_HINT       = "Zeigt Gildenmitglieder als Nadeln auf der Weltkarte. Solange sie an ist, meldet dieser Client deine Karte und deine Koordinaten an die Gilde, so lange du online bist — der weitgehendste Schalter in diesem Addon. Deine Zone stand ohnehin im Gildenroster; neu sind die Koordinaten. Aus heisst: Dieser Client sendet nichts und empfaengt nichts, und die Nadeln bleiben leer.",
+
+
+    SET_ONSCREEN       = "Am Bildschirm",
+
+
+    CRAFT_BACK         = "Zurueck",
+    CRAFT_RECIPES_OF   = "%s — %s %d, %d Rezepte, gelesen %s",
+    CRAFT_ENCHANT      = "kein Gegenstand",
+    CRAFT_SPELL_FALLBACK = "Rezept %s",
+
+    CRAFT_OPEN         = "Beruf oeffnen",
+    CRAFT_OPEN_NOLINK  = "Noch kein Berufe-Link — diese Person hat ihr Berufsfenster nicht geoeffnet, seit das Addon laeuft.",
+    CRAFT_OPEN_OFFLINE = "Offline. Der Berufe-Link fragt beim Server nach den Daten dieses Charakters, und da ist niemand zu fragen.",
+    CRAFT_OPEN_FAILED  = "Das Berufsfenster liess sich nicht oeffnen. Der Link ist womoeglich abgelaufen; er gilt nur fuer diese Anmeldung.",
 })
 
 -- Sprache JETZT anwenden, nicht erst bei PLAYER_LOGIN: Alle folgenden Dateien

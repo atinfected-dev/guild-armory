@@ -200,7 +200,7 @@ function Settings:Create(parent)
     -- Bloecke darueber haben feste Hoehen. Ein umbrechender Text in einem
     -- Block fester Hoehe ist genau die Wette, die in dieser Datei schon
     -- zweimal verloren gegangen ist. Hier misst er sich selbst.
-    local camp = Widgets.Panel(columnA, L.SET_CAMP)
+    local camp = Widgets.Panel(columnA, L.SET_ONSCREEN)
     camp:SetPoint("TOPLEFT", publish, "BOTTOMLEFT", 0, -gap)
     camp:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
     camp:SetHeight(72)
@@ -210,8 +210,30 @@ function Settings:Create(parent)
         GA.Core.Config:Set("campEnabled", checked)
         if checked then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
     end)
-
     self.campHint = Theme.Label(camp.content, L.SET_CAMP_HINT, fonts.small, Theme.color.textDim)
+
+    self.mapBox = Widgets.CheckBox(camp.content, L.SET_MAP, function(checked)
+        GA.Core.Config:Set("mapShare", checked)
+        local Positions = GA.Modules.Positions
+        if not Positions then return end
+        if checked then
+            Positions:Publish(true)
+        else
+            -- Aus heisst aus: auch das, was schon hereingekommen ist,
+            -- verschwindet. Sonst blieben die Nadeln stehen, bis jemand
+            -- neu einloggt.
+            wipe(Positions.states)
+            if GA.UI.MapPins then GA.UI.MapPins:HideAll() end
+        end
+    end)
+    self.mapHint = Theme.Label(camp.content, L.SET_MAP_HINT, fonts.small, Theme.color.textDim)
+
+    -- HIER STAND EIN LEBENSBALKEN. Er ist wieder heraus, weil dieser Client
+    -- keine lesbaren Lebenswerte herausgibt — gemessen am 24.09.2026 ueber
+    -- beide Wege, UnitHealth und Blizzards eigene Leiste, und beide Male
+    -- werfen Rechnen UND Vergleichen. Ein Schalter, der nachweislich nie
+    -- etwas tun kann, macht die Liste laenger und wirft bei jedem, der ihn
+    -- findet, dieselbe Frage auf. `/ga probe` zeigt die beiden Zeilen.
 
     camp.content:SetScript("OnSizeChanged", function() Settings:RelayoutCamp() end)
 
@@ -431,18 +453,34 @@ function Settings:RelayoutCamp()
     local width = content:GetWidth() or 0
     if width <= 1 then return false end
 
-    self.campBox:ClearAllPoints()
-    self.campBox:SetPoint("TOPLEFT", content, "TOPLEFT", -4, 0)
-    local y = -(self.campBox:GetHeight() or 26)
+    local y = 0
 
-    self.campHint:SetWidth(width - 4)
-    self.campHint:SetJustifyH("LEFT")
-    self.campHint:ClearAllPoints()
-    self.campHint:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
-    local height = self.campHint:GetStringHeight() or 0
-    if height <= 0 then height = 12 end
-    self.campHint:SetHeight(height)
-    y = y - height
+    -- DREI PAARE, EINE SCHLEIFE. Jede Erklaerung misst sich selbst und
+    -- schiebt das naechste Kaestchen nach unten. Die Alternative waere
+    -- dreimal derselbe Block mit drei geratenen Abstaenden — und genau so
+    -- ist diese Spalte schon einmal ineinandergelaufen.
+    local paare = {
+        { self.campBox, self.campHint },
+        { self.mapBox, self.mapHint },
+    }
+
+    for index, paar in ipairs(paare) do
+        local box, hint = paar[1], paar[2]
+        if index > 1 then y = y - 8 end
+
+        box:ClearAllPoints()
+        box:SetPoint("TOPLEFT", content, "TOPLEFT", -4, y)
+        y = y - (box:GetHeight() or 26)
+
+        hint:SetWidth(width - 4)
+        hint:SetJustifyH("LEFT")
+        hint:ClearAllPoints()
+        hint:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
+        local height = hint:GetStringHeight() or 0
+        if height <= 0 then height = 12 end
+        hint:SetHeight(height)
+        y = y - height
+    end
 
     local needed = -y + 24 + 16
     if math.abs((panel:GetHeight() or 0) - needed) > 0.5 then
@@ -552,6 +590,8 @@ function Settings:Refresh()
     -- beim ersten Oeffnen ein leeres Kaestchen fuer etwas, das laeuft.
     self.campBox:SetChecked(GA.Core.Config:Get("campEnabled") ~= false)
     self.campHint:SetText(L.SET_CAMP_HINT)
+    self.mapBox:SetChecked(GA.Core.Config:Get("mapShare") ~= false)
+    self.mapHint:SetText(L.SET_MAP_HINT)
 
     local seen = {}
     local measured = GA.Core.Database.account.measured

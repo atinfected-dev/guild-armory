@@ -725,7 +725,7 @@ GA.Core.Locale:Register("enUS", {
     TRADE_UNSURE       = "this client cannot tell whether they are already soulbound",
     TRADE_ANNOUNCE     = "Up for trade: %s",
     SLASH_COMBATLOG    = "Auto combat logging: %s   ·   recording right now: %s",
-    SLASH_HELP         = "Commands: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · test · version · handover · reset",
+    SLASH_HELP         = "Commands: /ga · armory · scale · debug · language · status · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · map · test · version · handover · reset",
     SLASH_RESET_WARN   = "Resetting \"%s\" deletes %d characters and %d awards.",
     SLASH_RESET_CONFIRM = "To confirm, repeat: /ga reset %s",
     SLASH_RESET_EXPIRED = "Expired, nothing changed.",
@@ -909,4 +909,33 @@ GA.Core.Locale:Register("enUS", {
     NAV_EQUIPMENT      = "Equipment",
     NAV_SESSION        = "Session",
     NAV_RULES          = "Rules",
+
+    -- Karte
+    MAP_WHY_SHARE      = "Sharing position: %s",
+    MAP_WHY_OWN        = "Your position: %s",
+    MAP_WHY_CANVAS     = "World map surface found: %s",
+    MAP_WHY_SHOWN      = "Map on screen: %s",
+    MAP_WHY_KNOWN      = "Known positions: %d on %d maps",
+    MAP_WHY_REJECTED   = "Rejected: map %d, field %d",
+    MAP_NO_CANVAS      = "No world map surface found — guild pins are off on this client. /ga map why says what was tried.",
+    MAP_STATS          = "Map: %d positions known, on %d maps.",
+    MAP_SHARING        = "Sharing position: %s",
+    MAP_NOTICE         = "The guild map is on: while you are online, this client tells the guild which map you are on and where. Switch it off in the settings or with /ga map off — off means it neither sends nor receives.",
+
+    SET_MAP            = "Guild map",
+    SET_MAP_HINT       = "Shows guild members as pins on the world map. While it is on, this client reports your map and your coordinates to the guild for as long as you are online — the furthest-reaching switch in this addon. Your zone was already in the guild roster; the coordinates are what is new. Off means this client neither sends nor receives, and the pins stay empty.",
+
+
+    SET_ONSCREEN       = "On screen",
+
+
+    CRAFT_BACK         = "Back",
+    CRAFT_RECIPES_OF   = "%s — %s %d, %d recipes, read %s",
+    CRAFT_ENCHANT      = "no item",
+    CRAFT_SPELL_FALLBACK = "Recipe %s",
+
+    CRAFT_OPEN         = "Open profession",
+    CRAFT_OPEN_NOLINK  = "No profession link yet — that person has not opened their profession window since the addon has been running.",
+    CRAFT_OPEN_OFFLINE = "Offline. The profession link asks the server for that character's data, and there is nobody to ask.",
+    CRAFT_OPEN_FAILED  = "The profession window could not be opened. The link may have expired; it is only valid for that login session.",
 })

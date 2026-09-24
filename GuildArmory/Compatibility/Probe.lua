@@ -109,6 +109,114 @@ Probe.CHECKS = {
           return Probe.YES, dead and "gerade tot" or "gerade lebendig"
       end },
 
+    { key = "health", was = "Lebenswerte lesbar",
+      fuer = "kuenftige Raidanzeigen — der Lebensbalken ist daran gescheitert",
+      run = function()
+          if not isFunction(_G.UnitHealth) or not isFunction(_G.UnitHealthMax) then
+              return Probe.NO, "UnitHealth fehlt"
+          end
+
+          local okCur, current = pcall(_G.UnitHealth, "player")
+          local okMax, maximum = pcall(_G.UnitHealthMax, "player")
+          if not okCur or not okMax then return Probe.NO, "Aufruf wirft" end
+          if type(current) ~= "number" or type(maximum) ~= "number" then
+              return Probe.NO, "kein Zahlwert: " .. type(current)
+          end
+
+          -- ZWEI OPERATIONEN, EINZELN GEMESSEN — genau darum geht es hier.
+          --
+          -- Gemeldet wurde am 24.09.2026 (aus einem fremden Addon) nur das
+          -- RECHNEN: "attempt to perform arithmetic on a secret number
+          -- value". Ob der Vergleich getrennt eingeschraenkt ist, weiss
+          -- niemand; bei Zeichenketten war er es. Diese Zeile beantwortet
+          -- es, statt es weiter zu vermuten.
+          local kannRechnen = pcall(function() return current + maximum end)
+          local kannVergleichen = pcall(function() return current <= maximum end)
+
+          local wie = string.format("rechnen %s, vergleichen %s",
+              kannRechnen and "ja" or "WIRFT",
+              kannVergleichen and "ja" or "WIRFT")
+
+          if not kannRechnen or not kannVergleichen then
+              return Probe.NO, wie .. " — verschleierter Zahlwert"
+          end
+          return Probe.YES, string.format("%s, %d/%d", wie, current, maximum)
+      end },
+
+    { key = "healthWidget", was = "Leben ueber Blizzards eigene Leiste",
+      fuer = "der zweite Weg, falls UnitHealth verschleiert ist — auch zu",
+      run = function()
+          -- DER ZWEITE WEG — UND ER IST INZWISCHEN BEANTWORTET.
+          --
+          -- UnitHealth ist auf Forever verschleiert. Blizzards eigene
+          -- Spielerleiste zeigt das Leben aber an: Der Client KANN es
+          -- darstellen, nur Addons duerfen den Rohwert nicht anfassen. Ob
+          -- der Wert aus der Leiste lesbar ist, war damit eine andere Frage.
+          --
+          -- Gemessen am 24.09.2026: PlayerFrame.healthbar wird gefunden, und
+          -- ihr Wert wirft bei Rechnen UND Vergleichen genauso. Beide Wege
+          -- sind zu; der Lebensbalken ist daraufhin wieder ausgebaut worden.
+          --
+          -- Die Zeile bleibt stehen, weil sie die Messung festhaelt: Aendert
+          -- Forever das je, faellt es hier auf, statt dass jemand es noch
+          -- einmal von vorn herausfinden muss.
+          --
+          -- MEHRERE NAMEN, WEIL DIE LEISTE MEHRFACH UMGEZOGEN IST.
+          --
+          -- Die erste Fassung fragte nur nach _G.PlayerFrameHealthBar und
+          -- meldete "fehlt". Das war zu wenig geprueft: Auf den neueren
+          -- Linien liegt sie unter PlayerFrame.HealthBarsContainer, auf den
+          -- aelteren als PlayerFrame.healthbar. Ein fehlender Name ist kein
+          -- fehlendes Merkmal.
+          local wege = {
+            { "PlayerFrameHealthBar", function() return _G.PlayerFrameHealthBar end },
+            { "PlayerFrame.healthbar", function()
+                return isTable(_G.PlayerFrame) and _G.PlayerFrame.healthbar end },
+            { "PlayerFrame.HealthBarsContainer.HealthBar", function()
+                local pf = _G.PlayerFrame
+                local box = isTable(pf) and pf.HealthBarsContainer
+                return isTable(box) and box.HealthBar end },
+            { "PlayerFrame.HealthBar", function()
+                return isTable(_G.PlayerFrame) and _G.PlayerFrame.HealthBar end },
+          }
+
+          local bar, woher, versucht = nil, nil, {}
+          for _, weg in ipairs(wege) do
+              versucht[#versucht + 1] = weg[1]
+              local ok, kandidat = pcall(weg[2])
+              if ok and isTable(kandidat) and isFunction(kandidat.GetValue) then
+                  bar, woher = kandidat, weg[1]
+                  break
+              end
+          end
+
+          if not bar then
+              return Probe.NO, "keine Leiste gefunden: " .. table.concat(versucht, ", ")
+          end
+
+          local okValue, value = pcall(bar.GetValue, bar)
+          if not okValue then return Probe.NO, woher .. ": GetValue wirft" end
+          if type(value) ~= "number" then
+              return Probe.NO, woher .. ": kein Zahlwert (" .. type(value) .. ")"
+          end
+
+          local okMath = pcall(function() return value + 0 end)
+          local okCompare = pcall(function() return value >= 0 end)
+          if not okMath or not okCompare then
+              return Probe.NO, string.format("%s: rechnen %s, vergleichen %s — auch hier verschleiert",
+                  woher, okMath and "ja" or "WIRFT", okCompare and "ja" or "WIRFT")
+          end
+
+          local max = ""
+          if isFunction(bar.GetMinMaxValues) then
+              local okMax, _, hoechst = pcall(bar.GetMinMaxValues, bar)
+              if okMax and type(hoechst) == "number" then
+                  max = string.format(" von %d", hoechst)
+              end
+          end
+          return Probe.YES, string.format("%s: %d%s lesbar", woher, value, max)
+      end },
+
     { key = "groupDeaths", was = "Tod anderer Gruppenmitglieder",
       fuer = "GA-106..111 Wipes, GA-101 Makelloser Sieg, GA-104 Letzter Mann",
       run = function()
@@ -300,15 +408,44 @@ Probe.CHECKS = {
       end },
 
     { key = "tradeSkill", was = "Berufsfenster-API",
-      fuer = "GA-166, GA-167 Rezepte zaehlen",
+      fuer = "Berufeseite, GA-166, GA-167 Rezepte zaehlen",
       run = function()
-          if isTable(_G.C_TradeSkillUI) then
-              if isFunction(_G.C_TradeSkillUI.GetAllRecipeIDs) then
-                  return list(_G.C_TradeSkillUI.GetAllRecipeIDs)
-              end
+          if not isTable(_G.C_TradeSkillUI) then
+              return Probe.NO, "C_TradeSkillUI fehlt"
+          end
+          if not isFunction(_G.C_TradeSkillUI.GetAllRecipeIDs) then
               return Probe.EMPTY, "C_TradeSkillUI ohne GetAllRecipeIDs"
           end
-          return Probe.NO, "C_TradeSkillUI fehlt"
+
+          -- "0 EINTRAEGE" WAR EINE LUEGE.
+          --
+          -- Diese Zeile meldete frueher schlicht die Laenge der Liste. Ohne
+          -- offenes Berufsfenster ist die IMMER leer — C_TradeSkillUI
+          -- beschreibt das Fenster, nicht die eigenen Berufe. Im Bericht
+          -- stand dann "leer: 0 Eintraege", und das liest sich wie "dieser
+          -- Client gibt nichts her", obwohl niemand gefragt hatte.
+          --
+          -- Genau der Fehler, den dieses Addon sonst ueberall vermeidet:
+          -- Leer ist nicht Null, und "nicht gefragt" ist nicht "nichts da".
+          local beruf = GA.Core.Compat.GetOpenTradeSkill()
+          if not beruf then
+              return Probe.EMPTY,
+                  "kein Berufsfenster offen — mit geoeffnetem Beruf erneut pruefen"
+          end
+
+          local rezepte = GA.Core.Compat.GetLearnedRecipes()
+          if not rezepte then
+              return Probe.EMPTY, string.format(
+                  "%s offen, aber noch keine Liste — gleich erneut pruefen",
+                  tostring(beruf.name or beruf.line))
+          end
+
+          local mitGegenstand = 0
+          for _, entry in ipairs(rezepte) do
+              if entry.item then mitGegenstand = mitGegenstand + 1 end
+          end
+          return Probe.YES, string.format("%s: %d Rezepte, davon %d mit Gegenstand",
+              tostring(beruf.name or beruf.line), #rezepte, mitGegenstand)
       end },
 
     -- -------------------------------------------------------- Wirtschaft ---
