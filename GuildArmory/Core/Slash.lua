@@ -616,6 +616,41 @@ SlashCmdList["GUILDARMORY"] = function(input)
             Crafting:Request()
             Crafting:Publish()
             Debug:Info("%s", L.CRAFT_SYNCED)
+        elseif rest == "link" or rest == "links" then
+            -- WARUM ES DIESEN BEFEHL GIBT
+            --
+            -- "Der Beruf-oeffnen-Knopf funktioniert noch nicht" ist von
+            -- aussen nicht aufzuklaeren: Der Link entsteht auf einem Client,
+            -- faehrt durch zwei Kodierungen und wird auf einem anderen
+            -- wieder zusammengesetzt. Wo er kaputtgeht, sagt nur er selbst.
+            --
+            -- Hier steht er im Klartext — der eigene und jeder empfangene —,
+            -- mit dem Urteil daneben, das der Knopf faellen wuerde.
+            local b = bericht()
+            b.sag("%s", L.CRAFT_LINKS_TITLE)
+
+            local eigen = GA.Core.Compat.GetTradeSkillLink()
+            b.sag(L.CRAFT_LINKS_OWN, eigen and ("\n" .. eigen) or "—")
+
+            local account = GA.Core.Database.account
+            for name, eintrag in pairs(account.crafting or {}) do
+                for lineID, line in pairs(eintrag.lines or {}) do
+                    local urteil
+                    if not line.link then
+                        urteil = "—"
+                    else
+                        -- NICHT OEFFNEN, NUR PRUEFEN: Ein Bericht ueber
+                        -- zwanzig Links duerfte sonst zwanzig Fenster
+                        -- aufreissen.
+                        local ok, grund = GA.Core.Compat.CheckTradeSkillLink(line.link)
+                        urteil = ok and "ok" or tostring(grund)
+                    end
+                    b.sag("%s / %s (%s)", tostring(name),
+                        tostring(line.name or lineID), urteil)
+                    if line.link then b.sag("  %s", line.link) end
+                end
+            end
+            b.zeigen(L.CRAFT_LINKS_TITLE)
         elseif rest ~= "" then
             local itemID = GA.Core.Compat.ParseItemInput(rest)
             if not itemID then

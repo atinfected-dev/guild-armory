@@ -2188,17 +2188,49 @@ end
 --- SetItemRef will den KERN des Verweises, nicht die sichtbare Form: also
 --- `trade:...` ohne Farbe, ohne |H und ohne Klammertext. Wer den ganzen Link
 --- hineingibt, bekommt nichts und keine Meldung.
---- @return boolean geoeffnet
+--- JEDER AUSGANG NENNT SEINEN GRUND.
+---
+--- "Der Knopf funktioniert nicht" (gemeldet 25.09.2026) ist von aussen nicht
+--- aufzuklaeren: Er kann an vier verschiedenen Stellen aufhoeren, und alle
+--- vier sahen gleich aus — es passierte nichts. Ein Grund macht aus
+--- Herumprobieren eine Messung, und er kostet nichts, wenn alles geht.
+---
+--- PRUEFEN, OHNE ZU OEFFNEN.
+---
+--- Getrennt, weil ein Bericht ueber zwanzig Links sonst zwanzig Fenster
+--- aufreisst. Es ist dieselbe Kette von Bedingungen, nur ohne den letzten
+--- Schritt.
+--- @return boolean brauchbar, string|nil grund
+function Compat.CheckTradeSkillLink(link)
+    if type(link) ~= "string" or link == "" then return false, "kein Link gespeichert" end
+    if not Compat.IsTradeSkillLink(link) then
+        return false, string.format("kein Berufe-Link (%d Zeichen): %s",
+            #link, string.sub(link, 1, 40))
+    end
+    if not isFunction(_G.SetItemRef) then return false, "SetItemRef fehlt" end
+    if not string.match(link, "|H(trade:[^|]+)|h") then
+        return false, "kein |Htrade:...|h im Link"
+    end
+    return true
+end
+
+--- @return boolean geoeffnet, string|nil grund
 function Compat.OpenTradeSkillLink(link)
-    if not Compat.IsTradeSkillLink(link) then return false end
-    if not isFunction(_G.SetItemRef) then return false end
+    local brauchbar, grund = Compat.CheckTradeSkillLink(link)
+    if not brauchbar then return false, grund end
 
     local kern = string.match(link, "|H(trade:[^|]+)|h")
-    if not kern then return false end
 
     -- Der dritte Parameter ist die Maustaste; SetItemRef erwartet sie, und
     -- ohne sie werfen manche Fassungen.
-    return pcall(_G.SetItemRef, kern, link, "LeftButton") and true or false
+    local ok, err = pcall(_G.SetItemRef, kern, link, "LeftButton")
+    if not ok then return false, "SetItemRef wirft: " .. tostring(err):sub(1, 60) end
+
+    -- WAHR HEISST HIER "ABGESCHICKT", NICHT "OFFEN". Ob das Fenster aufgeht,
+    -- entscheidet der Server: Er muss die Daten des anderen Charakters
+    -- herausgeben, und das tut er nur, solange der angemeldet ist. Diese
+    -- Funktion kann das nicht wissen und behauptet es deshalb nicht.
+    return true
 end
 
 -- ================================================================ Speicher ---

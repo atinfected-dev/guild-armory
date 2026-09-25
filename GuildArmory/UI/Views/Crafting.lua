@@ -105,8 +105,12 @@ function CraftingView:Create(parent)
     self.openButton = Widgets.Button(result.content, L.CRAFT_OPEN, function()
         local detail = self.detail
         if not detail or not detail.link then return end
-        if not Compat.OpenTradeSkillLink(detail.link) then
-            GA.Core.Debug:Info("%s", L.CRAFT_OPEN_FAILED)
+        -- DER GRUND GEHOERT IN DEN CHAT, nicht ins Schweigen. Ein Knopf, der
+        -- nichts tut und nichts sagt, ist von aussen nicht aufzuklaeren —
+        -- genau so war er gemeldet.
+        local ok, grund = Compat.OpenTradeSkillLink(detail.link)
+        if not ok then
+            GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(grund))
         end
     end, "primary")
     self.openButton:SetPoint("LEFT", self.backButton, "RIGHT", 6, 0)
