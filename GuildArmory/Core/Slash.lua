@@ -56,6 +56,32 @@ local CAPABILITIES = {
     "itemLevelApi", "tooltipProcessor", "chatInfo", "multipleSpecs",
 }
 
+--- Ein Bericht, der im Chat steht UND sich herausholen laesst.
+---
+--- "ich kann nicht aus dem chat kopieren" — gemeldet 25.09.2026, und es
+--- stimmt: WoWs Chatfenster gibt seinen Text nicht her. Ein Diagnosebericht,
+--- den niemand verschicken kann, ist als Diagnose wertlos; genau deshalb
+--- hat /ga probe schon immer ein Fenster zum Kopieren.
+---
+--- Die Zeilen gehen trotzdem AUCH in den Chat: Wer nur kurz nachsieht, will
+--- kein Fenster wegklicken.
+local function bericht()
+    local zeilen = {}
+    return {
+        sag = function(format, ...)
+            local ok, text = pcall(string.format, format, ...)
+            if not ok then text = tostring(format) end
+            zeilen[#zeilen + 1] = text
+            Debug:Info("%s", text)
+        end,
+        zeigen = function(titel)
+            if GA.UI and GA.UI.Widgets and GA.UI.Widgets.CopyDialog then
+                GA.UI.Widgets.CopyDialog(titel, table.concat(zeilen, "\n"))
+            end
+        end,
+    }
+end
+
 local function handleReset(scope)
     scope = scope or "all"
     if pendingReset ~= scope then
@@ -137,12 +163,13 @@ SlashCmdList["GUILDARMORY"] = function(input)
             return string.format("%.2f MB", kb / 1024)
         end
 
-        Debug:Info("%s", L.SLASH_MEM_TITLE)
+        local b = bericht()
+        b.sag("%s", L.SLASH_MEM_TITLE)
         if not vorherAddon and not vorherLua then
-            Debug:Info("%s", L.SLASH_MEM_NOAPI)
+            b.sag("%s", L.SLASH_MEM_NOAPI)
         else
-            Debug:Info(L.SLASH_MEM_BEFORE, mb(vorherAddon), mb(vorherLua))
-            Debug:Info(L.SLASH_MEM_AFTER, mb(nachherAddon), mb(nachherLua))
+            b.sag(L.SLASH_MEM_BEFORE, mb(vorherAddon), mb(vorherLua))
+            b.sag(L.SLASH_MEM_AFTER, mb(nachherAddon), mb(nachherLua))
 
             -- DIE AUSSAGE STEHT AUF DER LUA-ZAHL, nicht auf der je Addon.
             -- Die Addon-Zahl ist eine Zuschreibung; collectgarbage("count")
@@ -153,9 +180,9 @@ SlashCmdList["GUILDARMORY"] = function(input)
             if basis and rest then
                 local weg = basis - rest
                 if weg > basis * 0.2 then
-                    Debug:Info(L.SLASH_MEM_GARBAGE, mb(weg))
+                    b.sag(L.SLASH_MEM_GARBAGE, mb(weg))
                 else
-                    Debug:Info("%s", L.SLASH_MEM_HELD)
+                    b.sag("%s", L.SLASH_MEM_HELD)
                 end
             end
         end
@@ -164,7 +191,7 @@ SlashCmdList["GUILDARMORY"] = function(input)
         -- Eine Tabelle, die staendig waechst, faellt hier sofort auf, und
         -- eine, die klein bleibt, ist entlastet.
         local account = GA.Core.Database.account
-        Debug:Info("%s", L.SLASH_MEM_TABLES)
+        b.sag("%s", L.SLASH_MEM_TABLES)
         for _, eintrag in ipairs({
             { "characters", account.characters },
             { "awards", account.awards },
@@ -177,21 +204,25 @@ SlashCmdList["GUILDARMORY"] = function(input)
         }) do
             local zahl = 0
             for _ in pairs(eintrag[2] or {}) do zahl = zahl + 1 end
-            Debug:Info(L.SLASH_MEM_ROW, eintrag[1], zahl)
+            b.sag(L.SLASH_MEM_ROW, eintrag[1], zahl)
         end
+        b.zeigen(L.SLASH_MEM_TITLE)
 
     elseif command == "status" then
+        -- AUCH ZUM KOPIEREN. Das ist der Bericht, um den ich am haeufigsten
+        -- bitte, und aus dem Chatfenster ist er nicht herauszubekommen.
+        local b = bericht()
         local stats = GA.Core.Database:Stats()
-        Debug:Info(L.SLASH_STATUS_VERSION, GA.version, tostring(stats.schemaVersion),
+        b.sag(L.SLASH_STATUS_VERSION, GA.version, tostring(stats.schemaVersion),
             tostring(GA.Core.Locale.active), tostring(GA.Core.Locale.reason))
         local storage = GA.Core.Database.storage or {}
-        Debug:Info(L.SLASH_STATUS_STORAGE, tostring(storage.source),
+        b.sag(L.SLASH_STATUS_STORAGE, tostring(storage.source),
             storage.accountLoaded and "" or ("  " .. L.SLASH_STATUS_MIRROR))
-        Debug:Info(L.SLASH_STATUS_COUNTS,
+        b.sag(L.SLASH_STATUS_COUNTS,
             stats.characters, stats.awards, stats.sessions, stats.journal)
         for _, key in ipairs(CAPABILITIES) do
             local value = GA.has[key]
-            Debug:Info("  %s %-22s %s", value and "+" or "-",
+            b.sag("  %s %-22s %s", value and "+" or "-",
                 tostring(L["CAP_" .. key]),
                 tostring(value and L["CAP_" .. key .. "_GOOD"] or L["CAP_" .. key .. "_BAD"]))
         end
@@ -205,14 +236,16 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local Database = GA.Core.Database
         if not eigen.guid then
             Debug:Warn("%s", L.ROLE_NO_GUID)
+            b.sag("%s", L.ROLE_NO_GUID)
         else
             local rolle = Database:GetRole(eigen.guid)
-            Debug:Info(L.SLASH_STATUS_ROLE, tostring(rolle),
+            b.sag(L.SLASH_STATUS_ROLE, tostring(rolle),
                 tostring(Database:HasAtLeast(eigen.guid, GA.const.ROLE_LOOTMASTER)),
                 tostring(Database:HasAtLeast(eigen.guid, GA.const.ROLE_COUNCIL)))
         end
 
-        Debug:Info(L.SLASH_STATUS_TEMPLATES, GA.UI.Theme.DescribeNative())
+        b.sag(L.SLASH_STATUS_TEMPLATES, GA.UI.Theme.DescribeNative())
+        b.zeigen(L.SLASH_STATUS_TITLE)
     elseif command == "capture" then
         GA.Modules.Equipment:Capture(L.SLASH_SOURCE_COMMAND)
         Debug:Info("%s", L.SLASH_CAPTURED)

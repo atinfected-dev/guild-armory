@@ -738,6 +738,7 @@ GA.Core.Locale:Register("enUS", {
     SLASH_STATUS_MIRROR = "(the account-wide file never arrived — mirror in the character file)",
     SLASH_STATUS_COUNTS = "%d characters, %d awards, %d sessions, %d journal entries",
     SLASH_STATUS_TEMPLATES = "Frame templates: %s",
+    SLASH_STATUS_TITLE = "Status — to copy",
     SLASH_MEM_TITLE    = "Memory — what is held and what was only garbage",
     SLASH_MEM_BEFORE   = "Before: addon %s, Lua total %s",
     SLASH_MEM_AFTER    = "After:  addon %s, Lua total %s",

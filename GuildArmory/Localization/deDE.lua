@@ -731,6 +731,7 @@ GA.Core.Locale:Register("deDE", {
     SLASH_STATUS_MIRROR = "(die kontoweite Datei kam nicht an — Spiegel in der Charakterdatei)",
     SLASH_STATUS_COUNTS = "%d Charaktere, %d Vergaben, %d Sessions, %d Journaleintraege",
     SLASH_STATUS_TEMPLATES = "Fenstervorlagen: %s",
+    SLASH_STATUS_TITLE = "Status — zum Kopieren",
     SLASH_MEM_TITLE    = "Speicher — was belegt ist und was nur Muell war",
     SLASH_MEM_BEFORE   = "Vorher:  Addon %s, Lua gesamt %s",
     SLASH_MEM_AFTER    = "Nachher: Addon %s, Lua gesamt %s",

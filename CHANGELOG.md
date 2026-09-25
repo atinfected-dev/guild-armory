@@ -24,6 +24,11 @@ table is holding it.
 The verdict is read off `collectgarbage("count")`, not off the per-addon
 figure — the first is measured, the second is an attribution.
 
+Both `/ga mem` and `/ga status` now also open a window the text can be copied
+out of. WoW's chat frame does not hand its text over, and a diagnostic report
+nobody can send on is useless as a diagnostic. `/ga probe` has had that window
+for a while; the two reports I ask for most often did not.
+
 Two allocations of my own from earlier today are gone with it: both new name
 helpers were written as local functions *inside* the routines that use them,
 which makes a fresh closure on every incoming addon message and every
