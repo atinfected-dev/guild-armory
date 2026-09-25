@@ -9,7 +9,7 @@ all of them.
 
 The addon's own dashboard gave it away:
 
-*Total — Level 20 Windshaper Skyborne Shaman — &lt;Is Not Alone&gt; Guild Master · Tumult*
+*Total — Level 20 Windshaper Skyborne Shaman — <Is Not Alone> Guild Master · Tumult*
 
 That last field is the realm. The realm is called "Classic Beta PvE 2".
 "Tumult" is the second half of the name "Total Tumult": `UnitName` splits the
