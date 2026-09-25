@@ -95,6 +95,24 @@ function Util.ShortName(fullName)
     return (string.match(fullName, "^([^%-]+)") or fullName)
 end
 
+--- Von zwei Schreibweisen DESSELBEN Charakters die vollstaendigere.
+---
+--- WOZU: UnitName("player") gibt auf diesem Realm nur den ersten Teil eines
+--- zweiteiligen Namens her ("Total" statt "Total Tumult"). Im
+--- Charakterdatensatz steht dank des Gildenrosters die ganze Schreibweise.
+--- Wo beides vorliegt, soll die vollstaendige angezeigt werden — gemeldet
+--- am 25.09.2026 fuer Ausruestung, Charaktere und das Dashboard.
+---
+--- Es wird NUR ergaenzt, nie ersetzt: Sind es zwei verschiedene Charaktere,
+--- gewinnt der erste. Sonst wuerde ein fremder Name schon dadurch gewinnen,
+--- dass er laenger ist.
+function Util.FullestName(name, andere)
+    if not name or name == "" then return andere end
+    if not andere or andere == "" then return name end
+    if #andere > #name and Util.SameCharacter(name, andere) then return andere end
+    return name
+end
+
 --- Beschreiben zwei Namen denselben Charakter?
 ---
 --- WARUM NICHT EINFACH ==

@@ -110,6 +110,8 @@ function Guild:Rebuild()
         Debug:Print("guild", "Roster unvollstaendig: %d von %d gelesen", read, total)
     end
 
+    self:AdoptFullNames(db)
+
     local guildName = Compat.GetOwnGuildInfo()
     db.name = guildName or db.name
     db.updatedTs = Util.Now()
@@ -118,6 +120,66 @@ function Guild:Rebuild()
 
     Debug:Print("guild", "Roster: %d Mitglieder, %d online", total, online)
     GA.Core.Callbacks:Fire("GUILD_UPDATED", db.partial and true or false)
+end
+
+--- Zieht volle Namen aus dem Roster in die Charakterdatensaetze nach.
+---
+--- GEMELDET 25.09.2026: "Ich werde weiterhin als nur Total angezeigt — in
+--- equipment, in characters."
+---
+--- Namen auf diesem Realm haben zwei Teile ("Horst Hodenhagen"), aber
+--- UnitName("player") gibt nur den ersten her — daran ist schon das
+--- Veroeffentlichen gescheitert (siehe Util.SameCharacter). Der eigene
+--- Datensatz entsteht aus genau dieser Quelle und heisst deshalb "Total",
+--- waehrend die Gilde einen "Total Tumult" kennt.
+---
+--- DAS ROSTER IST DIE BESSERE QUELLE. GetGuildRosterInfo nennt den Namen so,
+--- wie der Server ihn fuehrt — dieselbe Schreibweise, die auch im
+--- Absenderfeld einer Addon-Nachricht steht.
+---
+--- EINMAL DURCH JEDE LISTE, nicht Namen gegen Namen. Bei 200 Mitgliedern und
+--- ein paar Dutzend Datensaetzen waere der paarweise Vergleich ein paar
+--- tausend Zeichenkettenoperationen je Rosteraktualisierung — und die laeuft
+--- beim Anmelden mehrfach. Was dabei herauskommt, hat schon einmal 18 MB
+--- gekostet.
+---
+--- BEI ZWEI PASSENDEN WIRD KEINER GENOMMEN. Gibt es "Total Tumult" und
+--- "Total Terror", ist "Total" nicht aufloesbar — dann lieber der kurze Name
+--- als der falsche lange. Dieselbe Regel wie bei DB:FindCharacterByName.
+function Guild:AdoptFullNames(db)
+    local kurzform = {}
+    for _, member in pairs(db.members) do
+        local voll = member.name
+        local erstes = voll and string.match(voll, "^(%S+)%s")
+        if erstes then
+            local key = string.lower(erstes)
+            if kurzform[key] == nil then
+                kurzform[key] = voll
+            elseif kurzform[key] ~= voll then
+                kurzform[key] = false  -- mehrdeutig
+            end
+        end
+    end
+    if next(kurzform) == nil then return end
+
+    local geaendert = false
+    for _, character in pairs(GA.Core.Database.account.characters) do
+        local name = character.name
+        -- Nur kurze Namen ueberhaupt ansehen: Wer schon zwei Teile hat,
+        -- braucht nichts, und die Suche kostet dann auch nichts.
+        if name and name ~= "" and not string.find(name, " ", 1, true) then
+            local voll = kurzform[string.lower(name)]
+            if voll then
+                character.name = voll
+                geaendert = true
+            end
+        end
+    end
+
+    -- Der Namensindex zeigt sonst weiter auf die alte Schreibweise. Er wird
+    -- ohnehin nur nebenbei gepflegt; hier ist der Moment, in dem er falsch
+    -- wird, also wird er hier neu gebaut.
+    if geaendert then GA.Core.Database:RebuildNameIndex() end
 end
 
 function Guild:RequestRebuild(delay)

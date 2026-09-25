@@ -32,6 +32,25 @@ Which of the two sources shortens the name is still open — that can only be
 measured in the game. `/ga probe` has a new entry for it ("names") which puts
 every name source side by side, including the spelling the server uses.
 
+### Only half a name on screen
+
+The same cause, one layer up: equipment, characters and the dashboard showed
+"Total" where the guild knows a "Total Tumult". The record is built from what
+the client hands out, and that is the source that shortens.
+
+The guild roster is the better source — it spells names the way the server
+does, the same spelling that appears in the sender field of an addon message.
+Full names are now carried over from there into the character records
+whenever the roster is read, and the dashboard prefers the fuller of the two
+spellings it has.
+
+If two guild members share a first name, nothing is carried over for that
+name: the right short name beats a wrong long one, which is the same rule
+the name search already follows. It is one pass through each list rather than
+name against name — with 200 members and a roster update arriving several
+times per login, the pairwise version is how you end up with the memory
+figure that 0.1.9 had to fix.
+
 ### An inspected stranger stood among the guild
 
 Pressing "inspect target" on somebody outside the guild creates a character

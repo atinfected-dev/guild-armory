@@ -253,7 +253,10 @@ function Dashboard:Refresh()
         Theme.Paint(self.portrait, Theme.color.rowAltBg)
     end
     local r, g, b = Util.ClassColor(identity.class)
-    self.charName:SetText(identity.name or "?")
+    -- DER GESPEICHERTE NAME KANN VOLLSTAENDIGER SEIN als der, den der Client
+    -- gerade herausgibt: Im Datensatz steht die Schreibweise aus dem
+    -- Gildenroster, UnitName kuerzt auf dem Realm den zweiten Teil weg.
+    self.charName:SetText(Util.FullestName(identity.name, character and character.name) or "?")
     self.charName:SetTextColor(r, g, b)
     self.charMeta:SetText(string.format(L.LEVEL_FMT, tostring(identity.level or "?")) .. "  " ..
         (identity.raceName or "") .. " " .. (identity.className or ""))
