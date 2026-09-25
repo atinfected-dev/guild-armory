@@ -742,7 +742,7 @@ GA.Core.Locale:Register("enUS", {
     SLASH_MEM_TITLE    = "Memory — what is held and what was only garbage",
     SLASH_MEM_BEFORE   = "Before: addon %s, Lua total %s",
     SLASH_MEM_AFTER    = "After:  addon %s, Lua total %s",
-    SLASH_MEM_GARBAGE  = "%s of that was garbage. What stands now is what is held — a rising figure is throughput, not a leak.",
+    SLASH_MEM_GARBAGE  = "%s of that was garbage (%.0f %%). What stays held is %s — a rising figure is throughput, not a leak.",
     SLASH_MEM_HELD     = "Hardly anything could be collected. This is REALLY held — the numbers below say by what.",
     SLASH_MEM_NOAPI    = "This client does not hand out the addon memory figure.",
     SLASH_MEM_TABLES   = "Entries in the big tables:",

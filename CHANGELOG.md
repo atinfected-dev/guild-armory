@@ -21,8 +21,24 @@ again. If most of it goes, it was garbage and the number that remains is what
 is actually held. If it stays, the entry counts printed underneath say which
 table is holding it.
 
-The verdict is read off `collectgarbage("count")`, not off the per-addon
-figure — the first is measured, the second is an attribution.
+The first real measurement settled it:
+
+*Before: addon 19.39 MB, Lua total 282.30 MB — After: addon 3.00 MB, Lua
+total 249.67 MB*
+
+The addon gave up 84% of what it was holding. Three megabytes remain, for six
+characters, 181 known items and 23 guild members — which is the code, the
+frames and the tables themselves, not a leak.
+
+It also caught the command's own verdict being wrong. It first read off the
+total Lua figure, on the reasoning that this one is measured while the
+per-addon number is only an attribution. True, and still the wrong number:
+the total is the **whole client**, every addon plus Blizzard's own interface,
+and it barely moves no matter what this addon does. It fell 12% and the
+command announced "this is REALLY held" — the opposite of the truth, stated
+with emphasis. The question is what *this* addon holds, so it now reads the
+number that is about this addon, and the total stays above as evidence that a
+collection happened at all.
 
 Both `/ga mem` and `/ga status` now also open a window the text can be copied
 out of. WoW's chat frame does not hand its text over, and a diagnostic report

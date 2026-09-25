@@ -171,16 +171,37 @@ SlashCmdList["GUILDARMORY"] = function(input)
             b.sag(L.SLASH_MEM_BEFORE, mb(vorherAddon), mb(vorherLua))
             b.sag(L.SLASH_MEM_AFTER, mb(nachherAddon), mb(nachherLua))
 
-            -- DIE AUSSAGE STEHT AUF DER LUA-ZAHL, nicht auf der je Addon.
-            -- Die Addon-Zahl ist eine Zuschreibung; collectgarbage("count")
-            -- ist gemessen. Wer nur die erste ansieht, deutet eine
-            -- Schaetzung.
-            local basis = vorherLua or vorherAddon
-            local rest = nachherLua or nachherAddon
-            if basis and rest then
+            -- DIE AUSSAGE STEHT AUF DER ADDON-ZAHL.
+            --
+            -- Hier stand zuerst die Lua-Gesamtzahl, mit der Begruendung, sie
+            -- sei gemessen und die Zahl je Addon nur eine Zuschreibung. Das
+            -- war richtig und trotzdem die falsche Zahl: Die Gesamtzahl ist
+            -- der GANZE Client — alle Addons und Blizzards Oberflaeche.
+            -- Natuerlich faellt die kaum, egal was dieses Addon tut.
+            --
+            -- Erste echte Messung, 25.09.2026:
+            --
+            --     Vorher:  Addon 19.39 MB, Lua gesamt 282.30 MB
+            --     Nachher: Addon  3.00 MB, Lua gesamt 249.67 MB
+            --
+            -- Das Addon gab 84 % ab, der Client 12 %. Auf der Gesamtzahl
+            -- gelesen kam "das ist WIRKLICH belegt" heraus — das Gegenteil
+            -- der Wahrheit, mit allem Nachdruck vorgetragen.
+            --
+            -- Gefragt ist, was DIESES Addon haelt. Also wird die Zahl
+            -- genommen, die davon handelt; die Gesamtzahl steht weiter oben
+            -- und zeigt, dass ueberhaupt gesammelt wurde.
+            local basis, rest
+            if vorherAddon and nachherAddon then
+                basis, rest = vorherAddon, nachherAddon
+            elseif vorherLua and nachherLua then
+                basis, rest = vorherLua, nachherLua
+            end
+
+            if basis and rest and basis > 0 then
                 local weg = basis - rest
                 if weg > basis * 0.2 then
-                    b.sag(L.SLASH_MEM_GARBAGE, mb(weg))
+                    b.sag(L.SLASH_MEM_GARBAGE, mb(weg), (weg / basis) * 100, mb(rest))
                 else
                     b.sag("%s", L.SLASH_MEM_HELD)
                 end

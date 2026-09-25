@@ -735,7 +735,7 @@ GA.Core.Locale:Register("deDE", {
     SLASH_MEM_TITLE    = "Speicher — was belegt ist und was nur Muell war",
     SLASH_MEM_BEFORE   = "Vorher:  Addon %s, Lua gesamt %s",
     SLASH_MEM_AFTER    = "Nachher: Addon %s, Lua gesamt %s",
-    SLASH_MEM_GARBAGE  = "Davon waren %s Muell. Was jetzt dasteht, ist das Belegte — eine steigende Zahl ist Durchsatz, kein Leck.",
+    SLASH_MEM_GARBAGE  = "Davon waren %s Muell (%.0f %%). Belegt bleiben %s — eine steigende Zahl ist Durchsatz, kein Leck.",
     SLASH_MEM_HELD     = "Kaum etwas liess sich sammeln. Das ist WIRKLICH belegt — die Zahlen unten sagen, wovon.",
     SLASH_MEM_NOAPI    = "Dieser Client gibt den Addon-Speicher nicht heraus.",
     SLASH_MEM_TABLES   = "Eintraege in den grossen Tabellen:",
