@@ -1271,12 +1271,45 @@ function Compat.GetUnitIdentity(unit)
     unit = unit or "player"
     if not UnitExists(unit) then return {} end
 
-    local name, realm = UnitName(unit)
+    local name, zweiter = UnitName(unit)
     local className, classFile = UnitClass(unit)
     local raceName, raceFile = UnitRace(unit)
 
-    if not realm or realm == "" then
-        realm = (isFunction(_G.GetRealmName) and GetRealmName()) or ""
+    -- DER ZWEITE RUECKGABEWERT VON UnitName IST HIER KEIN REALM.
+    --
+    -- GEMESSEN 25.09.2026, an der eigenen Oberflaeche: Das Dashboard zeigte
+    --
+    --     Total
+    --     Level 20  Windshaper Skyborne Shaman
+    --     <Is Not Alone>  Guild Master  ·  Tumult
+    --
+    -- Die letzte Zeile ist der Realm. Der Realm heisst "Classic Beta PvE 2";
+    -- "Tumult" ist der zweite Teil des Namens "Total Tumult". UnitName
+    -- zerlegt den Namen also am Leerzeichen und legt die zweite Haelfte in
+    -- den Realmplatz — daran ist auch das Veroeffentlichen gescheitert, weil
+    -- das Paket nur "Total" trug, waehrend der Server "Total Tumult"
+    -- schickt.
+    --
+    -- WORAN ES SICH ERKENNEN LAESST: Ein Spieler ist immer auf seinem
+    -- eigenen Realm. Steht dort etwas, das nicht der eigene Realm ist,
+    -- gehoert es zum Namen.
+    --
+    -- WAS DAS KOSTET: Bei einem echten Spieler von einem FREMDEN Realm waere
+    -- der Wert ein Realmname und wuerde hier faelschlich an den Namen
+    -- gehaengt. Forever hat einen Realm ohne Verbund — dieselbe Grundlage,
+    -- auf der das Fluestern ueber Realmgrenzen schon aufgegeben wurde (siehe
+    -- Communication/Comm.lua). Taucht der Fall auf, wird er gemessen und
+    -- dann behandelt, nicht vorher geraten.
+    local eigenerRealm = (isFunction(_G.GetRealmName) and GetRealmName()) or ""
+    local realm = eigenerRealm
+
+    if zweiter and zweiter ~= "" then
+        local ohneLeer = function(text) return (string.gsub(text, "%s+", "")) end
+        if ohneLeer(zweiter) == ohneLeer(eigenerRealm) then
+            realm = eigenerRealm
+        elseif name and name ~= "" then
+            name = name .. " " .. zweiter
+        end
     end
 
     local guildName, guildRank, guildRankIndex

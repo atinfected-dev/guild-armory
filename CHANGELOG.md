@@ -2,7 +2,32 @@
 
 ## 0.1.10
 
-Two reports from the same evening, both about who counts as whom.
+Three reports from the same evening, and by the end of it one cause behind
+all of them.
+
+### The root: that second value is not a realm
+
+The addon's own dashboard gave it away:
+
+*Total — Level 20 Windshaper Skyborne Shaman — &lt;Is Not Alone&gt; Guild Master · Tumult*
+
+That last field is the realm. The realm is called "Classic Beta PvE 2".
+"Tumult" is the second half of the name "Total Tumult": `UnitName` splits the
+name at the space and hands the second half back in the realm slot, where
+every caller reasonably takes it for a realm.
+
+That is where the half names came from, why the published record carried only
+"Total" while the server wrote "Total Tumult", and why a realm nobody has ever
+heard of stood under the portrait.
+
+A player is always on their own realm, so anything else in that slot belongs
+to the name. It is put back now, and the entries below are the symptoms — all
+three fixed separately, because a wrong name must not depend on a single
+guess being right.
+
+*(If Forever ever connects realms, this needs measuring again: a genuine
+foreign realm would be indistinguishable from a second name part. That is the
+same ground on which cross-realm whispering was already given up.)*
 
 ### A name change locked the player out of his own guild
 
