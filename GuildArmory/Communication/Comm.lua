@@ -475,6 +475,14 @@ function Comm:OnMessage(prefix, payload, channel, sender)
         return
     end
 
+    -- DEN ROHEN ABSENDER MERKEN, fuer die Sonde. Es ist die einzige Stelle,
+    -- an der die Schreibweise des SERVERS zu sehen ist; jede andere
+    -- Namensquelle im Addon ist die des Clients. Genau ihr Unterschied hat
+    -- am 25.09.2026 das Veroeffentlichen blockiert, und ohne diesen Wert
+    -- laesst sich nicht sagen, welche der beiden kuerzt. Eine Zuweisung, kein
+    -- neuer Speicher.
+    self.lastSender = sender
+
     -- Der Absendername kommt als "Name-Realm". Der eigene Realm wird
     -- weggelassen — aber nicht ueberall, deshalb normalisiert weitergeben.
     local normalized = GA.Core.Util.NormalizeName(sender)
@@ -504,7 +512,12 @@ end
 --- Empfaenger wollen sie (Gleichlauf), andere nicht.
 function Comm:IsSelf(sender)
     local identity = Compat.GetPlayerIdentity()
-    return GA.Core.Util.NormalizeName(sender) == GA.Core.Util.NormalizeName(identity.name)
+    -- NICHT AUF GLEICHHEIT DER ZEICHENKETTEN. Der Absendername vom Server
+    -- und UnitName("player") sind auf diesem Realm nicht immer derselbe
+    -- Text — siehe Util.SameCharacter. Hier fiel es weniger auf als in
+    -- Sync, weil der Gildenweg danach ohnehin greift; falsch war es
+    -- trotzdem.
+    return GA.Core.Util.SameCharacter(sender, identity.name)
 end
 
 -- ================================================================== Start ------

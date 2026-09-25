@@ -246,14 +246,61 @@ function DB:FindCharacterByName(name, realm)
 end
 
 --- Alle Charaktere als Liste, optional gefiltert.
+--- Gehoert dieser Charakter nachweislich NICHT in diese Gilde?
+---
+--- GEMELDET 25.09.2026: "ich habe einen spieler inspectet der nicht in der
+--- gilde ist wird mir aber jetzt bei equipment und bei charakters angezeigt."
+--- Richtig — die Listen zeigten jeden Datensatz, den es gab, und ein Inspizieren
+--- legt einen an.
+---
+--- DREI ANTWORTEN, NICHT ZWEI:
+---
+---   ja       Beim Inspizieren gemessen, und es ist eine andere Gilde (oder
+---            gar keine). Der gehoert nicht in die Gildenliste.
+---   nein     Gemessen, und es ist diese Gilde.
+---   weiss nicht  Nie gemessen — und das ist der Normalfall fuer alles, was
+---            ueber den Abgleich hereinkommt. Wer hier "ja" sagt, blendet
+---            halbe Gilden aus.
+---
+--- Deshalb entscheidet der MERKER, nicht der leere Wert: Ohne guildKnownTs
+--- wird nichts ausgeblendet.
+---
+--- NICHT ueber das Gildenroster. Das waere naeher an der Wahrheit und
+--- trotzdem falsch: Ob abgemeldete Mitglieder im Roster stehen, haengt an
+--- einem Haken im Gildenfenster, den dieses Addon nicht kennt. Wer danach
+--- filtert, laesst die halbe Gilde verschwinden, sobald jemand ihn wegklickt.
+--- (Siehe die Begruendung an Guild:IsMember — dort gilt das Gegenteil, weil
+--- es dort um Absender geht, und wer sendet, ist angemeldet.)
+function DB:IsForeignCharacter(character)
+    if not character or not character.guildKnownTs then return false end
+
+    local own = self.account.guild and self.account.guild.name
+    if not own or own == "" then return false end
+
+    return character.guildName ~= own
+end
+
+--- @param filter table|nil  search = Textsuche, all = auch Fremde
 function DB:ListCharacters(filter)
     local list = {}
+    local suche = filter and filter.search or ""
+
     for _, character in pairs(self.account.characters) do
         local keep = true
-        if filter and filter.search and filter.search ~= "" then
+        if suche ~= "" then
             keep = string.find(string.lower(character.name or ""),
-                               string.lower(filter.search), 1, true) ~= nil
+                               string.lower(suche), 1, true) ~= nil
         end
+
+        -- EINE SUCHE FINDET AUCH FREMDE. Wer einen Namen eintippt, meint
+        -- diesen Namen; ein Suchfeld, das den gesuchten Datensatz
+        -- verschweigt, weil er nicht in die Gilde gehoert, ist kaputt. Ohne
+        -- Suche ist es die Gildenliste, und da haben sie nichts zu suchen.
+        if keep and suche == "" and not (filter and filter.all)
+            and self:IsForeignCharacter(character) then
+            keep = false
+        end
+
         if keep then list[#list + 1] = character end
     end
     Util.SortBy(list, { { field = "name" } })

@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.1.10
+
+Two reports from the same evening, both about who counts as whom.
+
+### A name change locked the player out of his own guild
+
+*Rejected: Total Tumult-ClassicBetaPvE2 wanted to publish the character
+Total.*
+
+That was the player himself. The rule behind the message is a good one — the
+sender's name comes from the server and cannot be forged, so a character
+record is only accepted from the character it describes. It is the one thing
+standing between the guild database and anybody who feels like writing into
+it.
+
+It was comparing the wrong things. Character names on this realm may contain
+a space ("Horst Hodenhagen"), and the two sources do not agree on how much of
+the name they give: the sender comes from the **server** and carries both
+parts, while `UnitName("player")` comes from the **client** and may stop after
+the first. Two names of the same person, compared as text, are not equal — so
+his equipment stopped reaching anyone in the guild.
+
+The comparison now allows the shorter name to be the beginning of the longer
+one, at a word boundary. Same realm, and "Total" matches "Total Tumult" while
+"Tot" does not. The same faulty comparison sat a second time in the message
+layer, where it was less visible because the guild check catches the case
+afterwards.
+
+Which of the two sources shortens the name is still open — that can only be
+measured in the game. `/ga probe` has a new entry for it ("names") which puts
+every name source side by side, including the spelling the server uses.
+
+### An inspected stranger stood among the guild
+
+Pressing "inspect target" on somebody outside the guild creates a character
+record, and the lists showed every record there was. He turned up under
+equipment and among the characters waiting to be assigned to a player.
+
+Now he does not — but on a narrow rule, because the wide one would have been
+far worse. Almost nothing the addon knows has a **measured** guild: anything
+arriving over the sync carries no guild name at all. Treating that empty value
+as "not in the guild" would have emptied half the roster off the screen.
+
+So what decides is whether the guild was ever actually looked up, which
+happens during an inspect, where even an empty answer is an answer. Anything
+never measured stays visible. The guild roster overrules an older measurement,
+so somebody who joins later reappears, and typing a name into the search
+finds him regardless — a search field that hides the record you searched for
+is broken.
+
 ## 0.1.9
 
 ### 18 MB of addon memory for two players

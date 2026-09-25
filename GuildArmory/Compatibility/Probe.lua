@@ -99,6 +99,56 @@ end
 -- will wissen, was er davon hat.
 
 Probe.CHECKS = {
+    -- ------------------------------------------------------------- Namen ---
+    { key = "names", was = "Welche Namensquelle nennt BEIDE Teile",
+      fuer = "das Veroeffentlichen des eigenen Charakters, 25.09.2026 blockiert",
+      run = function()
+          -- Namen auf Forever duerfen Leerzeichen enthalten ("Horst
+          -- Hodenhagen"). Nach einem Namenswechsel kam:
+          --
+          --   Verworfen: Total Tumult-ClassicBetaPvE2 wollte den Charakter
+          --   Total veroeffentlichen.
+          --
+          -- Der Absender (vom SERVER) trug beide Teile, der Name im Paket
+          -- (aus UnitName, also vom CLIENT) nur den ersten. Welche Quelle
+          -- kuerzt, ist damit die offene Frage — und sie ist nur im Spiel zu
+          -- beantworten. Solange sie offen ist, vergleicht
+          -- Util.SameCharacter nachsichtig.
+          local teile = {}
+          local function sag(wie, wert)
+              teile[#teile + 1] = wie .. "=" .. (wert and ("\"" .. tostring(wert) .. "\"") or "-")
+          end
+
+          local okName, name, realm = pcall(_G.UnitName, "player")
+          sag("UnitName", okName and name)
+          sag("UnitName#2", okName and realm)
+
+          if isFunction(_G.UnitFullName) then
+              local okFull, full = pcall(_G.UnitFullName, "player")
+              sag("UnitFullName", okFull and full)
+          end
+          if isFunction(_G.GetUnitName) then
+              local okGet, voll = pcall(_G.GetUnitName, "player", true)
+              sag("GetUnitName+realm", okGet and voll)
+          end
+          if isFunction(_G.GetRealmName) then
+              local okRealm, r = pcall(_G.GetRealmName)
+              sag("GetRealmName", okRealm and r)
+          end
+
+          -- DER WICHTIGSTE WERT: wie der Server den eigenen Namen schreibt.
+          -- Er steht erst da, wenn eine Addon-Nachricht angekommen ist —
+          -- eigene kommen zurueck, also genuegt ein "/ga sync".
+          local Comm = GA.Core and GA.Core.Comm
+          sag("letzter Absender", Comm and Comm.lastSender)
+
+          local text = table.concat(teile, ", ")
+          if not okName or not name then return Probe.NO, text end
+          if Comm and Comm.lastSender then return Probe.YES, text end
+          -- Die Hauptfrage ist unbeantwortet, solange keine Nachricht kam.
+          return Probe.EMPTY, text .. " — erst nach /ga sync vollstaendig"
+      end },
+
     -- --------------------------------------------------------- Raid, Tode ---
     { key = "playerDead", was = "Eigener Tod erkennbar",
       fuer = "GA-112..116 Raidtode, GA-102 Der Unsterbliche",

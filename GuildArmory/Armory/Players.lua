@@ -116,10 +116,19 @@ function Players:List()
 end
 
 --- Charaktere ohne Profil.
+--- Charaktere ohne Profil — die Liste, aus der man Spieler zusammensetzt.
+---
+--- FREMDE BLEIBEN DRAUSSEN. Ein einmal inspizierter Spieler aus einer anderen
+--- Gilde stand hier zwischen den eigenen Leuten und sah aus wie jemand, dem
+--- man noch ein Profil anlegen muss (gemeldet 25.09.2026). Was "fremd" heisst
+--- und warum ein fehlender Gildenname dafuer NICHT genuegt, steht an
+--- DB:IsForeignCharacter.
 function Players:Unassigned()
+    local db = GA.Core.Database
     local list = {}
     for _, character in pairs(characters()) do
-        if not character.playerId or not self:Get(character.playerId) then
+        if (not character.playerId or not self:Get(character.playerId))
+            and not db:IsForeignCharacter(character) then
             list[#list + 1] = character
         end
     end

@@ -95,6 +95,59 @@ function Util.ShortName(fullName)
     return (string.match(fullName, "^([^%-]+)") or fullName)
 end
 
+--- Beschreiben zwei Namen denselben Charakter?
+---
+--- WARUM NICHT EINFACH ==
+---
+--- Auf Forever duerfen Charakternamen LEERZEICHEN enthalten ("Larrin
+--- Lasereule", "Horst Hodenhagen") — gemessen am 20.09.2026, siehe
+--- Communication/Comm.lua. Und die Quellen sind sich ueber den vollen Namen
+--- nicht einig: Der Absendername einer Addon-Nachricht kommt vom Server und
+--- traegt beide Teile, waehrend UnitName("player") auch nur den ersten
+--- liefern kann.
+---
+--- GEMELDET 25.09.2026, nach einem Namenswechsel:
+---
+---     Verworfen: Total Tumult-ClassicBetaPvE2 wollte den Charakter Total
+---     veroeffentlichen.
+---
+--- Das war der Spieler selbst. Beide Namen sind seine, und die Pruefung, die
+--- Fremde abhalten soll, hat ihn abgehalten — sein Charakter kam bei
+--- niemandem mehr an.
+---
+--- DIE REGEL: Der Realm muss gleich sein, und der kuerzere Name muss der
+--- ANFANG des laengeren sein, an einer Wortgrenze. "Total" passt zu "Total
+--- Tumult", "Tot" nicht.
+---
+--- WAS DAS KOSTET: Wer "Total Tumult" heisst, koennte sich als "Total"
+--- ausgeben. Das ist der Preis dafuer, dass zwei Namensquellen desselben
+--- Servers verschieden lang sind, und er ist klein gegen den Fehler, den er
+--- ersetzt — eine Pruefung, die jeden zweiten Namen dieses Realms
+--- faelschlich fuer eine Faelschung haelt. Wer es enger will, muss vorher
+--- messen, WELCHE Quelle kuerzt; dafuer gibt es /ga probe (Sonde "names").
+function Util.SameCharacter(links, rechts)
+    local a = Util.NormalizeName(links)
+    local b = Util.NormalizeName(rechts)
+    if not a or not b then return false end
+    if string.lower(a) == string.lower(b) then return true end
+
+    -- Getrennt wird am BINDESTRICH, nie am Leerzeichen: Am Leerzeichen
+    -- zerlegt man hier Personen.
+    local aName, aRealm = string.match(a, "^([^%-]+)%-(.*)$")
+    local bName, bRealm = string.match(b, "^([^%-]+)%-(.*)$")
+    aName, aRealm = aName or a, aRealm or ""
+    bName, bRealm = bName or b, bRealm or ""
+    if string.lower(aRealm) ~= string.lower(bRealm) then return false end
+
+    local function faengtAnMit(lang, kurz)
+        if kurz == "" or #kurz >= #lang then return false end
+        return string.lower(string.sub(lang, 1, #kurz)) == string.lower(kurz)
+            and string.sub(lang, #kurz + 1, #kurz + 1) == " "
+    end
+
+    return faengtAnMit(aName, bName) or faengtAnMit(bName, aName)
+end
+
 -- ----------------------------------------------------------------- Farben ----
 
 --- Rueckfall, falls RAID_CLASS_COLORS fehlt oder eine Klasse nicht kennt.

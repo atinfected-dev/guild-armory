@@ -108,8 +108,20 @@ function Inspect:OnReady(guid)
     character.source = "inspect"
     character.itemLevel = { value = average, count = count, ts = Util.Now() }
     character.specID = Compat.GetSpecializationID(unit) or character.specID
+    -- HIER IST DIE GILDE WIRKLICH GEMESSEN, nicht bloss unbekannt.
+    --
+    -- Der Inspizierte steht in Reichweite und antwortet gerade; was
+    -- GetGuildInfo jetzt sagt, ist eine Auskunft — auch das leere "keine
+    -- Gilde". Ueberall sonst im Addon ist ein fehlender Gildenname nur die
+    -- Abwesenheit einer Messung.
+    --
+    -- Der Unterschied traegt die Liste: Ein Fremder, den man einmal
+    -- angesehen hat, soll nicht zwischen den Gildenmitgliedern stehen —
+    -- ein Gildenmitglied, dessen Gilde nie gemessen wurde, aber sehr wohl.
+    -- Ohne diesen Merker sind beide Faelle derselbe leere Wert.
+    character.guildKnownTs = Util.Now()
+    character.guildName = identity.guildName
     if identity.guildName then
-        character.guildName = identity.guildName
         character.guildRank = identity.guildRank
         character.guildRankIndex = identity.guildRankIndex
     end

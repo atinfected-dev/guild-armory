@@ -60,9 +60,13 @@ end
 
 --- Ist dieser Absender der Charakter, um den es im Datensatz geht?
 --- Der Absendername kommt vom Server und laesst sich nicht faelschen.
+--- Der Server sagt, wer sendet — aber nicht immer mit demselben Namen wie
+--- UnitName. Der Vergleich liegt in Util.SameCharacter und ist dort
+--- begruendet: Namen auf diesem Realm haben zwei Teile, und nicht jede
+--- Quelle nennt beide.
 local function isOwner(sender, name)
     if not sender or not name then return false end
-    return Util.NormalizeName(sender) == Util.NormalizeName(name)
+    return Util.SameCharacter(sender, name)
 end
 
 local function journalConflict(kind, target, detail)

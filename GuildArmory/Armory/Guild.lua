@@ -70,6 +70,17 @@ function Guild:Rebuild()
                 if character then
                     character.guildRank = member.rankName
                     character.guildRankIndex = member.rankIndex
+
+                    -- DAS ROSTER IST JUENGER ALS JEDE MESSUNG VON FRUEHER.
+                    --
+                    -- Wer hier steht, ist in dieser Gilde — auch wenn ein
+                    -- Inspizieren vor drei Wochen eine andere ergeben hat.
+                    -- Ohne diese Zeile bliebe ein Neuzugang, den man vorher
+                    -- einmal angesehen hat, fuer immer aus den Listen
+                    -- ausgeblendet (siehe DB:IsForeignCharacter).
+                    if db.name and db.name ~= "" then
+                        character.guildName = db.name
+                    end
                 end
             end
         end
