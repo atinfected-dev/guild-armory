@@ -112,6 +112,74 @@ SlashCmdList["GUILDARMORY"] = function(input)
         end
         Debug:Info(L.SLASH_LANGUAGE_NOW, tostring(Locale.active),
             tostring(Locale.reason))
+    elseif command == "mem" then
+        -- WARUM DIESER BEFEHL EXISTIERT
+        --
+        -- Gemeldet wurde eine steigende Zahl — 18, 19, 20 MB — und dann fiel
+        -- sie von selbst auf 5 zurueck. Das ist der Sammler. Belegtes faellt
+        -- nicht, Muell schon, und ohne diese Unterscheidung sieht beides
+        -- gleich aus: Man baut dann Dinge um, die nie das Problem waren.
+        --
+        -- Der Befehl misst beides nacheinander und sagt, was davon zu halten
+        -- ist. Er sammelt dabei ABSICHTLICH — das kostet einen kurzen
+        -- Ruckler und ist genau das Ereignis, das gemessen werden soll.
+        local Compat = GA.Core.Compat
+        local vorherAddon = Compat.GetAddonMemoryKB("GuildArmory")
+        local vorherLua = Compat.GetLuaMemoryKB()
+
+        Compat.CollectGarbage()
+
+        local nachherAddon = Compat.GetAddonMemoryKB("GuildArmory")
+        local nachherLua = Compat.GetLuaMemoryKB()
+
+        local function mb(kb)
+            if not kb then return "?" end
+            return string.format("%.2f MB", kb / 1024)
+        end
+
+        Debug:Info("%s", L.SLASH_MEM_TITLE)
+        if not vorherAddon and not vorherLua then
+            Debug:Info("%s", L.SLASH_MEM_NOAPI)
+        else
+            Debug:Info(L.SLASH_MEM_BEFORE, mb(vorherAddon), mb(vorherLua))
+            Debug:Info(L.SLASH_MEM_AFTER, mb(nachherAddon), mb(nachherLua))
+
+            -- DIE AUSSAGE STEHT AUF DER LUA-ZAHL, nicht auf der je Addon.
+            -- Die Addon-Zahl ist eine Zuschreibung; collectgarbage("count")
+            -- ist gemessen. Wer nur die erste ansieht, deutet eine
+            -- Schaetzung.
+            local basis = vorherLua or vorherAddon
+            local rest = nachherLua or nachherAddon
+            if basis and rest then
+                local weg = basis - rest
+                if weg > basis * 0.2 then
+                    Debug:Info(L.SLASH_MEM_GARBAGE, mb(weg))
+                else
+                    Debug:Info("%s", L.SLASH_MEM_HELD)
+                end
+            end
+        end
+
+        -- WOVON, FALLS ES WIRKLICH BELEGT IST. Zahlen statt Vermutungen:
+        -- Eine Tabelle, die staendig waechst, faellt hier sofort auf, und
+        -- eine, die klein bleibt, ist entlastet.
+        local account = GA.Core.Database.account
+        Debug:Info("%s", L.SLASH_MEM_TABLES)
+        for _, eintrag in ipairs({
+            { "characters", account.characters },
+            { "awards", account.awards },
+            { "journal", account.journal },
+            { "sessions", account.sessions },
+            { "wishlists", account.wishlists },
+            { "items", account.items },
+            { "players", account.players },
+            { "guild.members", account.guild and account.guild.members },
+        }) do
+            local zahl = 0
+            for _ in pairs(eintrag[2] or {}) do zahl = zahl + 1 end
+            Debug:Info(L.SLASH_MEM_ROW, eintrag[1], zahl)
+        end
+
     elseif command == "status" then
         local stats = GA.Core.Database:Stats()
         Debug:Info(L.SLASH_STATUS_VERSION, GA.version, tostring(stats.schemaVersion),

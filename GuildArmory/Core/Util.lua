@@ -95,6 +95,18 @@ function Util.ShortName(fullName)
     return (string.match(fullName, "^([^%-]+)") or fullName)
 end
 
+--- Ist `kurz` der Anfang von `lang`, an einer Wortgrenze?
+---
+--- AUF DATEIEBENE, NICHT IN DER FUNKTION. Als lokale Funktion in
+--- SameCharacter waere das eine neue Closure BEI JEDEM AUFRUF — und
+--- SameCharacter laeuft bei jeder eingehenden Addon-Nachricht. Genau diese
+--- Form, ein paar Bytes je Durchgang, hat in 0.1.9 die 18 MB gemacht.
+local function faengtAnMit(lang, kurz)
+    if kurz == "" or #kurz >= #lang then return false end
+    return string.lower(string.sub(lang, 1, #kurz)) == string.lower(kurz)
+        and string.sub(lang, #kurz + 1, #kurz + 1) == " "
+end
+
 --- Von zwei Schreibweisen DESSELBEN Charakters die vollstaendigere.
 ---
 --- WOZU: UnitName("player") gibt auf diesem Realm nur den ersten Teil eines
@@ -156,12 +168,6 @@ function Util.SameCharacter(links, rechts)
     aName, aRealm = aName or a, aRealm or ""
     bName, bRealm = bName or b, bRealm or ""
     if string.lower(aRealm) ~= string.lower(bRealm) then return false end
-
-    local function faengtAnMit(lang, kurz)
-        if kurz == "" or #kurz >= #lang then return false end
-        return string.lower(string.sub(lang, 1, #kurz)) == string.lower(kurz)
-            and string.sub(lang, #kurz + 1, #kurz + 1) == " "
-    end
 
     return faengtAnMit(aName, bName) or faengtAnMit(bName, aName)
 end

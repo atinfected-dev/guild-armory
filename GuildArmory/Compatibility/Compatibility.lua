@@ -1267,6 +1267,15 @@ end
 
 --- Dieselbe Identitaet fuer eine beliebige Einheit (Ziel, Inspect). Realm ist
 --- bei Fremden vom eigenen Server leer — dann gilt der eigene Realm.
+--- AUF DATEIEBENE, NICHT IN GetUnitIdentity. Dort waere es eine neue
+--- Closure bei jedem Aufruf, und GetUnitIdentity laeuft bei jedem
+--- Auffrischen des Dashboards, bei jedem Abgleich, bei jedem Inspizieren.
+--- Ein paar Bytes je Durchgang sind genau die Form, die in 0.1.9 zweistellige
+--- Megabyte erzeugt hat.
+local function ohneLeerzeichen(text)
+    return (string.gsub(text or "", "%s+", ""))
+end
+
 function Compat.GetUnitIdentity(unit)
     unit = unit or "player"
     if not UnitExists(unit) then return {} end
@@ -1304,8 +1313,7 @@ function Compat.GetUnitIdentity(unit)
     local realm = eigenerRealm
 
     if zweiter and zweiter ~= "" then
-        local ohneLeer = function(text) return (string.gsub(text, "%s+", "")) end
-        if ohneLeer(zweiter) == ohneLeer(eigenerRealm) then
+        if ohneLeerzeichen(zweiter) == ohneLeerzeichen(eigenerRealm) then
             realm = eigenerRealm
         elseif name and name ~= "" then
             name = name .. " " .. zweiter
@@ -2191,4 +2199,74 @@ function Compat.OpenTradeSkillLink(link)
     -- Der dritte Parameter ist die Maustaste; SetItemRef erwartet sie, und
     -- ohne sie werfen manche Fassungen.
     return pcall(_G.SetItemRef, kern, link, "LeftButton") and true or false
+end
+
+-- ================================================================ Speicher ---
+
+--- Der Speicher, den WoW diesem Addon zuschreibt, in Kilobyte.
+---
+--- WARUM DAS UEBERHAUPT GEBRAUCHT WIRD
+---
+--- Gemeldet wurde mehrfach eine steigende Zahl (18, 19, 20 MB) — und dann
+--- fiel sie von selbst auf 5 zurueck. Das ist der Sammler, und es ist der
+--- ganze Unterschied zwischen "laeuft voll" und "arbeitet": Belegtes faellt
+--- nicht. Solange niemand nachmisst, sieht beides gleich aus, und man baut
+--- Dinge um, die nie das Problem waren.
+---
+--- DREI NAMEN FUER DIESELBE FUNKTION. Auf den neueren Linien liegt sie unter
+--- C_AddOns, auf den aelteren global; und ob sie einen Namen oder nur einen
+--- Index nimmt, ist je nach Fassung verschieden. Deshalb beide Wege, und der
+--- Index wird notfalls gesucht.
+--- @return number|nil kilobyte
+function Compat.GetAddonMemoryKB(addonName)
+    local update = (isTable(_G.C_AddOns) and _G.C_AddOns.UpdateAddOnMemoryUsage)
+        or _G.UpdateAddOnMemoryUsage
+    local read = (isTable(_G.C_AddOns) and _G.C_AddOns.GetAddOnMemoryUsage)
+        or _G.GetAddOnMemoryUsage
+    if not isFunction(update) or not isFunction(read) then return nil end
+
+    -- OHNE Update ist der Wert der von irgendwann vorher. Er kostet einen
+    -- Durchlauf ueber alle Addons und gehoert deshalb in einen Befehl, nicht
+    -- in eine Schleife.
+    if not pcall(update) then return nil end
+
+    local ok, kb = pcall(read, addonName)
+    if ok and type(kb) == "number" and kb > 0 then return kb end
+
+    -- Der Index als zweiter Weg: Manche Fassungen nehmen keinen Namen.
+    local zaehlen = (isTable(_G.C_AddOns) and _G.C_AddOns.GetNumAddOns) or _G.GetNumAddOns
+    local info = (isTable(_G.C_AddOns) and _G.C_AddOns.GetAddOnInfo) or _G.GetAddOnInfo
+    if not isFunction(zaehlen) or not isFunction(info) then return nil end
+
+    local okZahl, anzahl = pcall(zaehlen)
+    if not okZahl or type(anzahl) ~= "number" then return nil end
+
+    for index = 1, anzahl do
+        local okInfo, name = pcall(info, index)
+        if okInfo and name == addonName then
+            local okKb, wert = pcall(read, index)
+            if okKb and type(wert) == "number" then return wert end
+            return nil
+        end
+    end
+    return nil
+end
+
+--- Der gesamte Lua-Speicher des Clients in Kilobyte, und das Sammeln.
+---
+--- collectgarbage("count") ist die einzige Zahl, die NICHT je Addon
+--- geschaetzt ist. Sie gilt fuer alles zusammen — aber ihr Fallen beim
+--- Sammeln beantwortet genau die Frage, um die es geht.
+--- @return number|nil kilobyte
+function Compat.GetLuaMemoryKB()
+    if not isFunction(_G.collectgarbage) then return nil end
+    local ok, kb = pcall(_G.collectgarbage, "count")
+    if not ok or type(kb) ~= "number" then return nil end
+    return kb
+end
+
+--- @return boolean gesammelt
+function Compat.CollectGarbage()
+    if not isFunction(_G.collectgarbage) then return false end
+    return pcall(_G.collectgarbage, "collect") and true or false
 end

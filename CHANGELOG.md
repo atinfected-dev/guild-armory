@@ -5,6 +5,31 @@
 Three reports from the same evening, and by the end of it one cause behind
 all of them.
 
+### The memory figure, measured instead of watched
+
+Reported during the session: 18.24 MB with three players online, then 19,
+then 20 — and then it fell back to 5 on its own.
+
+That fall is the answer. **Held memory does not fall.** The figure rises with
+every allocation and drops when the collector runs, so a climbing number is
+throughput, not a leak — which is what 0.1.9 already assumed without ever
+checking it.
+
+`/ga mem` now measures it rather than leaving it to be watched: the addon's
+figure and the client's total Lua memory, a deliberate collection, then both
+again. If most of it goes, it was garbage and the number that remains is what
+is actually held. If it stays, the entry counts printed underneath say which
+table is holding it.
+
+The verdict is read off `collectgarbage("count")`, not off the per-addon
+figure — the first is measured, the second is an attribution.
+
+Two allocations of my own from earlier today are gone with it: both new name
+helpers were written as local functions *inside* the routines that use them,
+which makes a fresh closure on every incoming addon message and every
+dashboard refresh. That is the exact shape of loop that produced the 18 MB in
+0.1.9, and I wrote two more of them while fixing it.
+
 ### The root: that second value is not a realm
 
 The addon's own dashboard gave it away:
