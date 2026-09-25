@@ -264,24 +264,31 @@ end
 ---
 --- Was der Server ohnehin liefert, muss niemand verschicken; was sich kaum
 --- aendert, muss niemand staendig neu bauen.
+--- FLACHE TABELLEN, nicht eine je Mitglied. Ein {class, rank, level} je
+--- Person waeren zweihundert kleine Tabellen; drei flache sind sechshundert
+--- Eintraege in dreien. Die Stufe kommt aus demselben Durchlauf und kostet
+--- damit nichts extra — und nichts auf der Leitung, weil sie ohnehin im
+--- Roster steht.
 function Positions:RosterLookup()
     local jetzt = Compat.Now()
     if self.rosterAt and (jetzt - self.rosterAt) < ROSTER_TTL then
-        return self.rosterClass, self.rosterRank
+        return self.rosterClass, self.rosterRank, self.rosterLevel
     end
 
-    local klassen, raenge = {}, {}
+    local klassen, raenge, stufen = {}, {}, {}
     for index = 1, Compat.GetNumGuildMembers() do
         local member = Compat.GetGuildMember(index)
         if member and member.name then
             local kurz = Util.ShortName(member.name)
             klassen[kurz] = member.class
             raenge[kurz] = member.rankName
+            stufen[kurz] = member.level
         end
     end
 
-    self.rosterClass, self.rosterRank, self.rosterAt = klassen, raenge, jetzt
-    return klassen, raenge
+    self.rosterClass, self.rosterRank, self.rosterLevel = klassen, raenge, stufen
+    self.rosterAt = jetzt
+    return klassen, raenge, stufen
 end
 
 --- ALLE bekannten Positionen, ohne Rücksicht auf die Karte.
@@ -291,20 +298,21 @@ end
 --- Kontinentkarte umrechnen. Wer hier filtert, nimmt ihr die Moeglichkeit —
 --- und genau daran lag es, dass die Kontinentkarte leer blieb.
 ---
---- @return table { { name, class, rank, mapID, x, y, ts, own } }
+--- @return table { { name, class, rank, level, mapID, x, y, ts, own } }
 function Positions:All()
     self:Prune()
 
     local out = {}
     if not self:Enabled() then return out end
 
-    local klassen, raenge = self:RosterLookup()
+    local klassen, raenge, stufen = self:RosterLookup()
 
     for name, state in pairs(self.states) do
         out[#out + 1] = {
             name = name,
             class = klassen[name],
             rank = raenge[name],
+            level = stufen[name],
             mapID = state.mapID,
             x = state.x, y = state.y,
             ts = state.ts,

@@ -5,6 +5,26 @@
 Three reports from the same evening, and by the end of it one cause behind
 all of them.
 
+### Names and levels on the map
+
+A dot answers "is somebody there". The question people actually have in front
+of a map is "who, and is it worth the walk" — and answering it meant pointing
+at every dot in turn.
+
+Each pin now carries the name in class colour with the level dimmed behind
+it, in a small outlined face. Outlined because the background of a map is
+unknown: over pale sand or dark water, plain text disappears exactly where
+somebody is looking. Same reasoning as the black ring around the dot itself.
+
+The level comes out of the guild roster, which the server sends anyway — not
+over the wire. Nothing was added to the message.
+
+**It switches off.** Twenty guild members in one zone means twenty names over
+a map somebody may be trying to read, so whoever wants only dots gets only
+dots, and the tooltip still says everything. The setting sits with the other
+map options and takes effect immediately; a player who has never touched it
+gets the labels.
+
 ### The memory figure, measured instead of watched
 
 Reported during the session: 18.24 MB with three players online, then 19,

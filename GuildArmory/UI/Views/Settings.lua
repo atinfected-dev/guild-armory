@@ -228,6 +228,16 @@ function Settings:Create(parent)
     end)
     self.mapHint = Theme.Label(camp.content, L.SET_MAP_HINT, fonts.small, Theme.color.textDim)
 
+    -- Die Beschriftung ist eine ANZEIGEFRAGE, kein Datenschalter: Sie
+    -- aendert nichts daran, was gesendet oder empfangen wird, nur was auf
+    -- der Karte steht. Deshalb wirkt sie sofort und ohne Nebenwirkung.
+    self.mapLabelBox = Widgets.CheckBox(camp.content, L.SET_MAP_LABELS, function(checked)
+        GA.Core.Config:Set("mapPinLabels", checked)
+        if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
+    end)
+    self.mapLabelHint = Theme.Label(camp.content, L.SET_MAP_LABELS_HINT,
+        fonts.small, Theme.color.textDim)
+
     -- HIER STAND EIN LEBENSBALKEN. Er ist wieder heraus, weil dieser Client
     -- keine lesbaren Lebenswerte herausgibt — gemessen am 24.09.2026 ueber
     -- beide Wege, UnitHealth und Blizzards eigene Leiste, und beide Male
@@ -455,13 +465,14 @@ function Settings:RelayoutCamp()
 
     local y = 0
 
-    -- DREI PAARE, EINE SCHLEIFE. Jede Erklaerung misst sich selbst und
+    -- DIE PAARE, EINE SCHLEIFE. Jede Erklaerung misst sich selbst und
     -- schiebt das naechste Kaestchen nach unten. Die Alternative waere
     -- dreimal derselbe Block mit drei geratenen Abstaenden — und genau so
     -- ist diese Spalte schon einmal ineinandergelaufen.
     local paare = {
         { self.campBox, self.campHint },
         { self.mapBox, self.mapHint },
+        { self.mapLabelBox, self.mapLabelHint },
     }
 
     for index, paar in ipairs(paare) do
@@ -592,6 +603,8 @@ function Settings:Refresh()
     self.campHint:SetText(L.SET_CAMP_HINT)
     self.mapBox:SetChecked(GA.Core.Config:Get("mapShare") ~= false)
     self.mapHint:SetText(L.SET_MAP_HINT)
+    self.mapLabelBox:SetChecked(GA.Core.Config:Get("mapPinLabels") ~= false)
+    self.mapLabelHint:SetText(L.SET_MAP_LABELS_HINT)
 
     local seen = {}
     local measured = GA.Core.Database.account.measured

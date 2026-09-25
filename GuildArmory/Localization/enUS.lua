@@ -933,6 +933,8 @@ GA.Core.Locale:Register("enUS", {
 
     SET_MAP            = "Guild map",
     SET_MAP_HINT       = "Shows guild members as pins on the world map. While it is on, this client reports your map and your coordinates to the guild for as long as you are online — the furthest-reaching switch in this addon. Your zone was already in the guild roster; the coordinates are what is new. Off means this client neither sends nor receives, and the pins stay empty.",
+    SET_MAP_LABELS      = "Name and level beside the pin",
+    SET_MAP_LABELS_HINT = "Shows who is standing there next to each dot, without hovering. Off leaves only the dots; the tooltip still says everything.",
 
 
     SET_ONSCREEN       = "On screen",

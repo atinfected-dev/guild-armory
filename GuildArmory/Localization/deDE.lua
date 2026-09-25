@@ -926,6 +926,8 @@ GA.Core.Locale:Register("deDE", {
 
     SET_MAP            = "Gildenkarte",
     SET_MAP_HINT       = "Zeigt Gildenmitglieder als Nadeln auf der Weltkarte. Solange sie an ist, meldet dieser Client deine Karte und deine Koordinaten an die Gilde, so lange du online bist — der weitgehendste Schalter in diesem Addon. Deine Zone stand ohnehin im Gildenroster; neu sind die Koordinaten. Aus heisst: Dieser Client sendet nichts und empfaengt nichts, und die Nadeln bleiben leer.",
+    SET_MAP_LABELS      = "Name und Stufe an der Nadel",
+    SET_MAP_LABELS_HINT = "Zeigt neben jedem Punkt, wer dort steht — ohne den Mauszeiger darueber zu halten. Aus bleiben nur die Punkte; der Tooltip sagt weiterhin alles.",
 
 
     SET_ONSCREEN       = "Am Bildschirm",

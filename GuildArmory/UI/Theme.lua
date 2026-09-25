@@ -138,6 +138,13 @@ function Theme.Fonts()
         row     = makeFont("Row",     FONT_NARROW, 13, nil, GameFontHighlightSmall),
         rowBold = makeFont("RowBold", FONT_NARROW, 13, "OUTLINE", GameFontHighlightSmall),
         small   = makeFont("Small",   FONT_NARROW, 11, nil, GameFontDisableSmall),
+
+        -- Die Beschriftung der Kartennadeln: so klein wie lesbar, und MIT
+        -- UMRISS. Auf einer Karte ist der Untergrund unbekannt — heller
+        -- Sand, dunkles Meer, Waldgruen —, und Text ohne Umriss
+        -- verschwindet genau dort, wo jemand hinsieht. Dieselbe Ueberlegung
+        -- wie der schwarze Rand um die Nadel selbst.
+        pin     = makeFont("Pin",     FONT_NARROW,  9, "OUTLINE", GameFontDisableSmall),
         number  = makeFont("Number",  FONT_NARROW, 20, nil, GameFontNormalLarge),
 
         -- WoW-nativ (19.09.2026): groessere Kapitalis fuer Charakternamen und

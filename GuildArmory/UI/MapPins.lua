@@ -85,13 +85,35 @@ function MapPins:Pin(index)
         pin.ring[#pin.ring + 1] = line
     end
 
+    -- DIE BESCHRIFTUNG STEHT IMMER DA, ohne Hover.
+    --
+    -- Eine Nadel ohne Namen beantwortet die Frage nicht, die man sich auf
+    -- der Karte stellt: nicht "ist da jemand", sondern "wer, und lohnt sich
+    -- der Weg". Dafuer muesste man jede einzeln anfahren.
+    --
+    -- Sie haengt RECHTS an der Nadel und ist nach links verankert: So
+    -- wandert der Text nach aussen, waehrend der Punkt auf seiner Stelle
+    -- bleibt. Umgekehrt verschoebe ein langer Name die Nadel optisch.
+    pin.label = pin:CreateFontString(nil, "OVERLAY")
+    pin.label:SetFontObject(Theme.Fonts().pin)
+    pin.label:SetPoint("LEFT", pin, "RIGHT", 2, 0)
+    pin.label:SetJustifyH("LEFT")
+
     pin:SetScript("OnEnter", function(self)
         if not self.entry or not _G.GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local r, g, b = Util.ClassColor(self.entry.class)
         GameTooltip:SetText(self.entry.name, r, g, b)
+        -- Stufe und Rang in einer Zeile: An der Nadel steht schon Name und
+        -- Stufe, der Tooltip ergaenzt den Rang — er zeigt, was NICHT auf
+        -- die Karte passt, statt das Danebenstehende zu wiederholen.
+        local zweite = self.entry.level
+            and string.format(L.LEVEL_FMT, tostring(self.entry.level)) or nil
         if self.entry.rank then
-            GameTooltip:AddLine(self.entry.rank, 0.66, 0.61, 0.52)
+            zweite = zweite and (zweite .. "  ·  " .. self.entry.rank) or self.entry.rank
+        end
+        if zweite then
+            GameTooltip:AddLine(zweite, 0.66, 0.61, 0.52)
         end
         -- DAS ALTER GEHOERT DAZU. Eine Nadel sieht immer gleich frisch aus;
         -- ob sie zehn Sekunden oder vier Minuten alt ist, entscheidet, ob
@@ -134,6 +156,11 @@ function MapPins:Refresh()
         return
     end
 
+    -- EINMAL JE ZEICHNEN GEFRAGT, nicht je Nadel. Der Zugriff ist billig,
+    -- aber er laeuft bei zwanzig Nadeln zwanzigmal fuer eine Antwort, die
+    -- sich waehrend eines Durchlaufs nicht aendert.
+    local beschriften = GA.Core.Config:Get("mapPinLabels") ~= false
+
     local sichtbar = 0
     for _, entry in ipairs(Positions:All()) do
       -- DIE EIGENE NADEL BLEIBT DRAUSSEN. Siehe Dateikopf: Blizzard zeichnet
@@ -155,6 +182,31 @@ function MapPins:Refresh()
 
             local r, g, b = Util.ClassColor(entry.class)
             Theme.Paint(pin.fill, { r, g, b, 1 })
+
+            -- NAME IN KLASSENFARBE, STUFE GEDAEMPFT DAHINTER.
+            --
+            -- Der Name ist die Auskunft, die Stufe der Zusatz; gleich hell
+            -- gesetzt konkurrieren sie, und auf einer Karte mit zwanzig
+            -- Nadeln gewinnt dann keiner von beiden.
+            --
+            -- Die Stufe kommt aus dem Gildenroster, nicht ueber die
+            -- Leitung — der Server liefert sie ohnehin. Fehlt sie, steht
+            -- nur der Name da: Eine erfundene Stufe waere schlimmer als
+            -- keine.
+            if beschriften then
+                local text = Util.ColorByClass(Util.ShortName(entry.name), entry.class)
+                if entry.level then
+                    text = text .. Util.Colorize(" " .. entry.level, 0.66, 0.61, 0.52)
+                end
+                pin.label:SetText(text)
+                pin.label:Show()
+            else
+                -- LEEREN UND VERSTECKEN. Nur verstecken liesse den alten Text
+                -- stehen, und er kaeme beim naechsten Einschalten fuer einen
+                -- Augenblick mit dem falschen Namen zurueck.
+                pin.label:SetText("")
+                pin.label:Hide()
+            end
 
             -- ERST UMHAENGEN, DANN SETZEN. Ein Anker auf einen Rahmen,
             -- der gleich ausgetauscht wird, ist einer zu viel.

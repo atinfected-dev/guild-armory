@@ -198,6 +198,19 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Ob der einmalige Hinweis dazu schon kam.
         mapNoticeSeen = false,
 
+        -- Name und Stufe NEBEN der Nadel, ohne Hover.
+        --
+        -- Eine Nadel allein beantwortet die Frage nicht, die man sich auf
+        -- der Karte stellt: nicht "ist da jemand", sondern "wer". Dafuer
+        -- muesste man jede einzeln anfahren.
+        --
+        -- ABSCHALTBAR, UND DAS IST KEINE HOEFLICHKEIT. Bei zwanzig Leuten in
+        -- derselben Zone stehen zwanzig Namen auf der Karte, und darunter
+        -- liegt eine Karte, die jemand vielleicht gerade lesen will. Wer nur
+        -- Punkte will, bekommt nur Punkte — der Tooltip sagt dann weiterhin
+        -- alles.
+        mapPinLabels = true,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die
