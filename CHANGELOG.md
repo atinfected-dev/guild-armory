@@ -53,9 +53,12 @@ one, at a word boundary. Same realm, and "Total" matches "Total Tumult" while
 layer, where it was less visible because the guild check catches the case
 afterwards.
 
-Which of the two sources shortens the name is still open — that can only be
-measured in the game. `/ga probe` has a new entry for it ("names") which puts
-every name source side by side, including the spelling the server uses.
+This tolerance stays even though the cause above is now known and fixed. Two
+sources disagreeing about a name is not a thing to be sure about once; it is
+a thing to survive. `/ga probe` also gained an entry for it ("names") which
+puts every name source side by side, including the spelling the server uses —
+so the next disagreement is read off a report rather than pieced together
+from a screenshot.
 
 ### Only half a name on screen
 
