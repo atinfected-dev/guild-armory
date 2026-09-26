@@ -3,7 +3,7 @@
 ## Notes: Guild gear database, roster history, professions, tradable items, camp bar and loot sessions.
 ## Notes-deDE: Gilden-Ausruestung, Rosterverlauf, Berufe, tauschbare Gegenstaende, Lagerleiste und Lootsitzungen.
 ## Author: Is Not Alone
-## Version: 0.1.11
+## Version: 0.1.13
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
 ## DefaultState: enabled

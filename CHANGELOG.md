@@ -1,19 +1,14 @@
 # Changelog
 
-## 0.1.11
+## 0.1.13
 
-Mostly one evening of raiding, spent finding out what the loot list had been
-collecting and why. It turns out it had been recording drops nobody was
-handing out, filing several of them more than once, and taking in everybody
-else's observations on top — each of those for a different reason, and the
-last one only visible because two clients speak different languages.
+One evening of raiding, spent finding out what the loot list had been
+collecting and why. It had been filing several drops more than once — for two
+unrelated reasons, hours apart — and taking in everybody else's observations
+on top, which only showed because two clients speak different languages.
 
 The list has buttons now for tidying up after all that, and one for putting
 into it what is already in your bags.
-
-Alongside: names and levels beside the map pins, the memory figure turned
-from something to watch into something to measure, and the open-profession
-button, which did nothing and said nothing about it.
 
 ### The same drop, four times over
 
@@ -154,6 +149,11 @@ touched — that is history, however much it looks like a duplicate — and
 nothing with an unknown source, because two finds of the same item from
 nowhere in particular may well be two real finds, and this one deletes.
 
+## 0.1.12
+
+Two things the guild asked for after an evening in the dungeons: stop
+recording loot nobody is handing out, and put less on the map.
+
 ### No loot recorded without a master looter either
 
 Reported from a dungeon run: it takes everything. The saved data said what
@@ -180,6 +180,24 @@ what, so whoever switches on recording outside a group keeps it.
 
 It says so once per session rather than at every corpse. A silent stop gets
 looked for in the addon.
+
+### Only the first name on the map pin
+
+The labels from 0.1.11 carried the whole name and the level. Names have two
+parts on this realm and the second is mostly width — with several pins side
+by side they run into each other, and underneath them is a map somebody wants
+to read.
+
+The pin carries the first name now. Pointing at it gives the whole name, the
+level and the rank: the map answers "who is there", hovering answers "who
+exactly, and how far along".
+
+## 0.1.11
+
+A guild rule about when a loot session is worth holding, names and levels on
+the map, and the memory figure turned from something to watch into something
+to measure. Plus the open-profession button, which did nothing and said
+nothing about it.
 
 ### No session without a master looter
 
@@ -262,16 +280,10 @@ A dot answers "is somebody there". The question people actually have in front
 of a map is "who, and is it worth the walk" — and answering it meant pointing
 at every dot in turn.
 
-Each pin now carries the first name in class colour, in a small outlined
-face. Outlined because the background of a map is unknown: over pale sand or
-dark water, plain text disappears exactly where somebody is looking. Same
-reasoning as the black ring around the dot itself.
-
-Only the first name, because names have two parts on this realm and the
-second is mostly width — with several pins side by side the labels run into
-each other, and underneath them is a map somebody wants to read. Pointing at
-a pin gives the whole name, the level and the rank. The map answers "who is
-there", hovering answers "who exactly, and how far along".
+Each pin now carries the name in class colour with the level dimmed behind
+it, in a small outlined face. Outlined because the background of a map is
+unknown: over pale sand or dark water, plain text disappears exactly where
+somebody is looking. Same reasoning as the black ring around the dot itself.
 
 The level comes out of the guild roster, which the server sends anyway — not
 over the wire. Nothing was added to the message.
