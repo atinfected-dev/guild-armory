@@ -169,6 +169,7 @@ GA.Core.Locale:Register("deDE", {
     LOOT_FROM_UNKNOWN           = "Herkunft unbekannt",
     SET_LOOT                    = "Loot-Erfassung",
     SET_LOOT_THRESHOLD          = "Ab Qualitaet: %s",
+    LOOT_NO_MASTER     = "Kein Pluendermeister (%s) — es wird kein Loot erfasst. Der Server verteilt selbst; eine Liste von Gegenstaenden, die nie zur Vergabe stehen, waere nur Arbeit.",
     SET_LOOT_SOLO               = "Auch ausserhalb der Gruppe erfassen",
     SET_LOOT_SOLO_HINT          = "Zum Testen allein. Im Betrieb aus, sonst landet jeder Questgegenstand in der Historie.",
     SET_MEASURED                = "Beobachtete Lootmethoden: %s",

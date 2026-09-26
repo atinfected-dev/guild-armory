@@ -177,6 +177,7 @@ GA.Core.Locale:Register("enUS", {
     LOOT_FROM_UNKNOWN           = "Source unknown",
     SET_LOOT                    = "Loot tracking",
     SET_LOOT_THRESHOLD          = "From quality: %s",
+    LOOT_NO_MASTER     = "No master looter (%s) — no loot is being recorded. The server hands it out itself, and a list of items that never come up for award is only work.",
     SET_LOOT_SOLO               = "Track outside a group too",
     SET_LOOT_SOLO_HINT          = "For testing alone. Off in normal use, or every quest item lands in the history.",
     SET_MEASURED                = "Observed loot methods: %s",

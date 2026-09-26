@@ -91,10 +91,56 @@ function LootTracker:ShouldTrack(item)
     local threshold = GA.Core.Config:Get("lootThresholdQuality") or 3
     if (item.quality or 0) < threshold then return false, "unter Schwelle" end
 
-    if not Compat.IsInGroup() and not GA.Core.Config:Get("trackOutsideGroup") then
-        return false, "allein (Erfassung ausserhalb der Gruppe ist aus)"
+    if not Compat.IsInGroup() then
+        if not GA.Core.Config:Get("trackOutsideGroup") then
+            return false, "allein (Erfassung ausserhalb der Gruppe ist aus)"
+        end
+        -- Allein gibt es keinen Pluendermeister und auch keine Frage, wer
+        -- etwas bekommt. Wer das ausdruecklich einschaltet, will seine
+        -- eigenen Funde mitschreiben; die Regel unten gilt fuer Gruppen.
+        return true
     end
+
+    -- IN EINER GRUPPE NUR MIT PLUENDERMEISTER (26.09.2026 auf Ansage).
+    --
+    -- "Er nimmt saemtlichen Loot aus der Ini — kannst du nur den Loot
+    -- detecten, wenn wirklich Lootmeister an ist."
+    --
+    -- Nachgesehen in den gespeicherten Daten: 15 erfasste Gegenstaende, alle
+    -- blau, und unter measured.lootMethods steht genau ein Wert — "group".
+    -- Es ist also nie ein Pluendermeister im Spiel gewesen. Der Server hat
+    -- jedes dieser Teile selbst vergeben, waehrend das Addon sie als
+    -- "erkannt" auf eine Liste gelegt hat, von der nichts mehr verteilt
+    -- wird.
+    --
+    -- HIER GILT "UNBEKANNT" ALS NEIN, anders als bei Session:Open.
+    --
+    -- Das ist kein Versehen und auch kein Widerspruch: Dort geht es um eine
+    -- Sperre — wer nichts weiss, darf niemandem den Knopf verriegeln. Hier
+    -- geht es ums Sammeln, und wer nichts weiss, sammelt besser nicht: Ein
+    -- fehlender Eintrag faellt auf und ist in zehn Sekunden nachgetragen,
+    -- eine Liste voller Gegenstaende, die nie zur Vergabe standen, muss von
+    -- Hand aussortiert werden. Auf diesem Client ist die Methode ohnehin
+    -- messbar (Rohwert 3 -> "group", gemessen am 26.09.2026).
+    local methode = Compat.GetLootMethod()
+    if methode ~= "master" then
+        self:MeldeOhnePluendermeister(methode)
+        return false, "kein Pluendermeister (" .. tostring(methode or "unbekannt") .. ")"
+    end
+
     return true
+end
+
+--- Sagt EINMAL je Sitzung, dass nichts erfasst wird.
+---
+--- Sonst waere es ein stilles Nichts: Wer die Regel nicht kennt, sucht den
+--- Fehler im Addon, und wer sie kennt, hat sie in der dritten Instanz
+--- vergessen. Einmal, nicht bei jeder Leiche — das waere dieselbe Zeile
+--- zwanzigmal je Abend.
+function LootTracker:MeldeOhnePluendermeister(methode)
+    if self.ohneMasterGemeldet then return end
+    self.ohneMasterGemeldet = true
+    Debug:Info(GA.L.LOOT_NO_MASTER, tostring(methode or GA.L.UNKNOWN))
 end
 
 function LootTracker:OnLootOpened()

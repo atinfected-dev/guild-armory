@@ -7,6 +7,33 @@ on the map, and the memory figure turned from something to watch into
 something to measure. Plus the open-profession button, which did nothing and
 said nothing about it.
 
+### No loot recorded without a master looter either
+
+Reported from a dungeon run: it takes everything. The saved data said what
+had actually happened — fifteen recorded items, every one of them blue, so
+the quality threshold was doing its job. What stood next to it was the point:
+under `measured.lootMethods` there was exactly one value, `group`. There had
+never been a master looter. The server had handed out every one of those
+items while the addon filed them as "detected" on a list nothing gets awarded
+from.
+
+So the same rule as for sessions now applies one step earlier, at the
+recording itself.
+
+With one deliberate difference: here an unknown loot method counts as no. For
+the session it does not, and that is not an inconsistency. Blocking a session
+on ignorance takes a button away from somebody who may need it; declining to
+record on ignorance costs a line that is added by hand in ten seconds, while
+a list full of items that never came up for award has to be sorted out by
+hand. (On this client the method is measurable anyway — raw value 3 maps to
+`group`.)
+
+Alone is unaffected: there is no master looter and no question of who gets
+what, so whoever switches on recording outside a group keeps it.
+
+It says so once per session rather than at every corpse. A silent stop gets
+looked for in the addon.
+
 ### No session without a master looter
 
 Said plainly by the guild: loot only needs to go into a session when there is
