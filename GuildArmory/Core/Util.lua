@@ -95,6 +95,23 @@ function Util.ShortName(fullName)
     return (string.match(fullName, "^([^%-]+)") or fullName)
 end
 
+--- Nur der erste Namensteil — fuer enge Stellen wie die Kartennadeln.
+---
+--- Namen auf diesem Realm haben zwei Teile ("Horst Hodenhagen"), und auf
+--- einer Karte mit zwanzig Nadeln ist der zweite vor allem Breite: Die
+--- Beschriftungen laufen ineinander, und darunter liegt eine Karte, die
+--- jemand lesen will. Der volle Name steht im Tooltip.
+---
+--- NICHT AM BINDESTRICH, DER IST DER REALM. Erst den abschneiden, dann das
+--- erste Wort nehmen — sonst liefert "Total-ClassicBetaPvE2" den ganzen
+--- Namen und "Total Tumult-Realm" das Richtige, also je nach Quelle etwas
+--- anderes.
+function Util.FirstName(fullName)
+    local kurz = Util.ShortName(fullName)
+    if not kurz or kurz == "" then return kurz end
+    return (string.match(kurz, "^(%S+)") or kurz)
+end
+
 --- Ist `kurz` der Anfang von `lang`, an einer Wortgrenze?
 ---
 --- AUF DATEIEBENE, NICHT IN DER FUNKTION. Als lokale Funktion in

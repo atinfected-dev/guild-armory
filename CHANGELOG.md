@@ -91,10 +91,16 @@ A dot answers "is somebody there". The question people actually have in front
 of a map is "who, and is it worth the walk" — and answering it meant pointing
 at every dot in turn.
 
-Each pin now carries the name in class colour with the level dimmed behind
-it, in a small outlined face. Outlined because the background of a map is
-unknown: over pale sand or dark water, plain text disappears exactly where
-somebody is looking. Same reasoning as the black ring around the dot itself.
+Each pin now carries the first name in class colour, in a small outlined
+face. Outlined because the background of a map is unknown: over pale sand or
+dark water, plain text disappears exactly where somebody is looking. Same
+reasoning as the black ring around the dot itself.
+
+Only the first name, because names have two parts on this realm and the
+second is mostly width — with several pins side by side the labels run into
+each other, and underneath them is a map somebody wants to read. Pointing at
+a pin gives the whole name, the level and the rank. The map answers "who is
+there", hovering answers "who exactly, and how far along".
 
 The level comes out of the guild roster, which the server sends anyway — not
 over the wire. Nothing was added to the message.

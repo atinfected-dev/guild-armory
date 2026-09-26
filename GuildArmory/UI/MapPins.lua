@@ -103,10 +103,10 @@ function MapPins:Pin(index)
         if not self.entry or not _G.GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local r, g, b = Util.ClassColor(self.entry.class)
-        GameTooltip:SetText(self.entry.name, r, g, b)
-        -- Stufe und Rang in einer Zeile: An der Nadel steht schon Name und
-        -- Stufe, der Tooltip ergaenzt den Rang — er zeigt, was NICHT auf
-        -- die Karte passt, statt das Danebenstehende zu wiederholen.
+        -- DER VOLLE NAME, ohne Realm. An der Nadel steht nur der Vorname;
+        -- hier gehoert der ganze hin, sonst waere das Zeigen umsonst.
+        GameTooltip:SetText(Util.ShortName(self.entry.name), r, g, b)
+        -- Stufe und Rang in einer Zeile.
         local zweite = self.entry.level
             and string.format(L.LEVEL_FMT, tostring(self.entry.level)) or nil
         if self.entry.rank then
@@ -183,22 +183,23 @@ function MapPins:Refresh()
             local r, g, b = Util.ClassColor(entry.class)
             Theme.Paint(pin.fill, { r, g, b, 1 })
 
-            -- NAME IN KLASSENFARBE, STUFE GEDAEMPFT DAHINTER.
+            -- NUR DER VORNAME, IN KLASSENFARBE.
             --
-            -- Der Name ist die Auskunft, die Stufe der Zusatz; gleich hell
-            -- gesetzt konkurrieren sie, und auf einer Karte mit zwanzig
-            -- Nadeln gewinnt dann keiner von beiden.
+            -- Auf Ansage (26.09.2026): "kannst du auf der map nur die
+            -- vornamen machen, beim hovern dann den vollen namen und das
+            -- level."
             --
-            -- Die Stufe kommt aus dem Gildenroster, nicht ueber die
-            -- Leitung — der Server liefert sie ohnehin. Fehlt sie, steht
-            -- nur der Name da: Eine erfundene Stufe waere schlimmer als
-            -- keine.
+            -- Namen haben hier zwei Teile, und auf einer Karte ist der
+            -- zweite vor allem Breite: Bei mehreren Nadeln nebeneinander
+            -- laufen die Beschriftungen ineinander, und darunter liegt eine
+            -- Karte, die jemand lesen will.
+            --
+            -- Die Karte beantwortet damit "wer ist da", das Zeigen
+            -- beantwortet "wer genau, und wie weit" — voller Name, Stufe und
+            -- Rang stehen im Tooltip.
             if beschriften then
-                local text = Util.ColorByClass(Util.ShortName(entry.name), entry.class)
-                if entry.level then
-                    text = text .. Util.Colorize(" " .. entry.level, 0.66, 0.61, 0.52)
-                end
-                pin.label:SetText(text)
+                pin.label:SetText(
+                    Util.ColorByClass(Util.FirstName(entry.name), entry.class))
                 pin.label:Show()
             else
                 -- LEEREN UND VERSTECKEN. Nur verstecken liesse den alten Text
