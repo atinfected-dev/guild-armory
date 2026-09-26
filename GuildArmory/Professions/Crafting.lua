@@ -402,7 +402,27 @@ function Crafting:Professions()
             if a.rank ~= b.rank then return a.rank > b.rank end
             return (a.name or "") < (b.name or "")
         end)
-        out[#out + 1] = eintrag
+
+        -- SAMMELBERUFE GEHOEREN NICHT IN EINE REZEPTLISTE (25.09.2026 auf
+        -- Ansage). Kraeuterkunde und Kuerschnerei stellen nichts her; sie
+        -- standen hier mit null Rezepten und einem Knopf, der nichts oeffnen
+        -- kann, weil es nichts zu oeffnen gibt.
+        --
+        -- ERKANNT AN DER LEERE, NICHT AN EINER LISTE VON KENNUNGEN. Welche
+        -- Zahl welcher Beruf ist, muesste geraten oder gepflegt werden — und
+        -- Namen sind je nach Sprache des Scanners verschieden. "Kein einziges
+        -- Rezept bei niemandem" ist dieselbe Aussage, ohne Pflege und in
+        -- jeder Sprache.
+        --
+        -- BEI NIEMANDEM, nicht bei einem: Wer sein Fenster nur kurz offen
+        -- hatte, meldet vielleicht null Rezepte. Das darf den Beruf nicht
+        -- fuer alle verschwinden lassen.
+        local rezepte = 0
+        for _, crafter in ipairs(eintrag.crafters) do
+            rezepte = rezepte + (crafter.recipes or 0)
+        end
+
+        if rezepte > 0 then out[#out + 1] = eintrag end
     end
     table.sort(out, function(a, b)
         return tostring(a.name or a.line) < tostring(b.name or b.line)

@@ -27,6 +27,23 @@ message says which one ran. If no window appears after that, the way was
 taken and the server handed nothing back — a different problem from a link
 that was never sent, and now distinguishable.
 
+**For your own character there is no link at all now.** It did not work there
+either — and there it cannot be the link's fault: a link is a request to the
+server for somebody else's data, and your own sits in your own client. The
+button was disabled for exactly that reason, a missing link that was never
+needed. Your own profession opens directly, and the check for "is this me"
+goes through the same name comparison as everywhere else, because the two
+name sources on this realm disagree and a plain string compare makes you a
+stranger to yourself.
+
+**Gathering professions are out of the recipe list.** Herbalism and skinning
+craft nothing; they sat there with zero recipes and a button that cannot open
+what does not exist. They are recognised by being empty rather than by name
+or id — an id list would need maintaining, and names depend on the language
+of whoever scanned. Counted across everybody, not per person: somebody whose
+window was only open briefly may report zero recipes, and that must not make
+a profession disappear for the whole guild.
+
 `/ga craft link` also prints the links in the raw. The first version rendered
 them, so the report read "[Alchemy]" — which is what a link is for, and the
 opposite of what a diagnostic is for.

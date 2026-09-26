@@ -104,7 +104,24 @@ function CraftingView:Create(parent)
     -- solange die Person online ist. Die Liste funktioniert auch nachts.
     self.openButton = Widgets.Button(result.content, L.CRAFT_OPEN, function()
         local detail = self.detail
-        if not detail or not detail.link then return end
+        if not detail then return end
+
+        -- BEI SICH SELBST GAR NICHT ERST UEBER EINEN LINK. Der ist eine
+        -- Abfrage beim Server nach fremden Daten; die eigenen liegen im
+        -- eigenen Client. Das war auch der gemeldete Fall — bei sich selbst
+        -- ging es nicht, und dort kann es gar nicht am Link liegen.
+        if self:IstEigen(detail.name) then
+            local okEigen, wegEigen =
+                Compat.OpenOwnProfession(detail.line, detail.lineName)
+            if okEigen then
+                GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(wegEigen))
+            else
+                GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(wegEigen))
+            end
+            return
+        end
+
+        if not detail.link then return end
         -- DER GRUND GEHOERT IN DEN CHAT, nicht ins Schweigen. Ein Knopf, der
         -- nichts tut und nichts sagt, ist von aussen nicht aufzuklaeren —
         -- genau so war er gemeldet.
@@ -354,11 +371,31 @@ end
 --- EIN AUSGEGRAUTER KNOPF MIT GRUND ist besser als ein fehlender: "Wo ist der
 --- Knopf?" ist eine Frage, die niemand beantworten kann; "offline" ist eine
 --- Antwort.
+--- Ist das der eigene Charakter?
+---
+--- NICHT MIT ==. Die Namensquellen dieses Realms sind sich ueber den vollen
+--- Namen nicht einig (siehe Util.SameCharacter): Was im Berufsspeicher
+--- steht, kann aus einer Nachricht stammen und beide Namensteile tragen,
+--- waehrend der Client nur den ersten hergibt.
+function CraftingView:IstEigen(name)
+    local identity = Compat.GetPlayerIdentity()
+    return name ~= nil and identity.name ~= nil
+        and Util.SameCharacter(name, identity.name)
+end
+
 function CraftingView:UpdateOpenButton()
     local detail = self.detail
     if not detail then self.openButton:Hide() return end
 
     self.openButton:Show()
+
+    -- DER EIGENE BERUF BRAUCHT KEINEN LINK und keine Rosterabfrage: Das
+    -- Fenster kommt aus dem eigenen Client. Ihn zu sperren, weil ein Link
+    -- fehlt, war die Sperre, die gemeldet wurde.
+    if self:IstEigen(detail.name) then
+        self.openButton:SetEnabledState(true)
+        return
+    end
 
     if not detail.link then
         self.openButton:SetEnabledState(false, L.CRAFT_OPEN_NOLINK)

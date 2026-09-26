@@ -2195,6 +2195,40 @@ end
 --- vier sahen gleich aus — es passierte nichts. Ein Grund macht aus
 --- Herumprobieren eine Messung, und er kostet nichts, wenn alles geht.
 ---
+--- Den EIGENEN Beruf oeffnen — ohne Link.
+---
+--- GEMELDET 25.09.2026: "ich kann selbst bei mir nicht open profession
+--- druecken." Beim eigenen Charakter ist der Umweg ueber einen Link ohnehin
+--- unsinnig: Er ist eine Abfrage beim Server nach fremden Daten, und die
+--- eigenen liegen im eigenen Client. Der Link kann auf dem Weg kaputtgehen,
+--- der Server kann schweigen — bei sich selbst gibt es nichts davon.
+---
+--- Zwei Wege, weil ungemessen ist, welcher auf dieser Linie traegt. Der
+--- Rueckgabewert nennt den gelaufenen.
+--- @return boolean abgeschickt, string|nil grundOderWeg
+function Compat.OpenOwnProfession(lineID, name)
+    local laden = (isTable(_G.C_AddOns) and _G.C_AddOns.LoadAddOn) or _G.LoadAddOn
+    if isFunction(laden) then pcall(laden, "Blizzard_TradeSkillUI") end
+
+    local api = _G.C_TradeSkillUI
+    if lineID and isTable(api) and isFunction(api.OpenTradeSkill) then
+        if pcall(api.OpenTradeSkill, lineID) then
+            return true, "C_TradeSkillUI.OpenTradeSkill(lineID)"
+        end
+    end
+
+    -- Der Berufsname ist ein Zauber; ihn zu wirken oeffnet das Fenster. Das
+    -- geht nur aus einem echten Knopfdruck heraus — von dort kommt dieser
+    -- Aufruf auch.
+    if name and name ~= "" and isFunction(_G.CastSpellByName) then
+        if pcall(_G.CastSpellByName, name) then
+            return true, "CastSpellByName"
+        end
+    end
+
+    return false, "kein Weg vorhanden"
+end
+
 --- PRUEFEN, OHNE ZU OEFFNEN.
 ---
 --- Getrennt, weil ein Bericht ueber zwanzig Links sonst zwanzig Fenster
