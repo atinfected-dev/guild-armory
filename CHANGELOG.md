@@ -10,35 +10,36 @@ on top, which only showed because two clients speak different languages.
 The list has buttons now for tidying up after all that, and one for putting
 into it what is already in your bags.
 
-### Round map pins
+### An icon in the addon list
 
-Three layers: a dark circle for the edge, the class colour on top of it, and
-a lighter arc across the upper half. The edge keeps the dot off whatever the
-map is made of — without it a dark blue shaman disappears into the sea — and
-the arc is what turns a disc into a sphere. Light comes from above, so the
-arc sits in the top half and is narrower than the dot; across the whole disc
-it would read as fog rather than curvature.
+Where the addons are switched on and off, this one showed the red question
+mark — WoW's placeholder for a missing icon. It has one now. A path to one of
+the game's own icons is enough; no file needs to go into the package for it.
 
-The dot grew from 12 to 14 pixels with it. Three layers in twelve leaves
-three pixels for the highlight, which is a smudge, not a light.
+### Round map pins, as class crests
 
-The first attempt did it with Blizzard's portrait mask over a colour fill.
-The call went through, the protected call reported success, the fallback
-never triggered — and the pins were still square. That is the most expensive
-outcome there is: no error, no "no", just a result that isn't true. A `pcall`
-that doesn't throw is no proof that anything happened.
+Each pin is the round class emblem now, over a dark copy of itself two pixels
+larger. The dark one keeps it off whatever the map is made of — a dark shaman
+disappears into the sea otherwise — and having the same silhouette rather
+than a circle behind it means no edge stands out anywhere.
 
-The mask is now used as a picture instead: it is a white disc on a
-transparent background, so tinted through vertex colour it is exactly what
-was wanted. And because `SetTexture` also says nothing about a file that
-isn't there, the path is read back afterwards — an invisible dot would be
-worse than a square one. If any of that fails, the square outline from before
-stays.
+It is also the better pin. A coloured dot states the class through a shade
+you have to have learned; the crest states it outright.
 
-One trap on the way: colouring the fill each redraw went through the helper
-that *paints* a solid colour, which would have replaced the round texture
-with a square one on the first refresh. A round pin is tinted, not painted
-over.
+**Twice guessed, twice wrong.** First Blizzard's portrait mask over a colour
+fill, then the same mask used as a picture. Both times the call went through,
+the protected call reported success, the fallback never fired — and both
+times the pins were still square. This client accepts mask calls and does
+nothing with them. It is the most expensive kind of answer: no error, no
+"no", just a result that isn't true, and a `pcall` that doesn't throw is no
+proof that anything happened.
+
+`UI-Classes-Circles` renders round here — the dashboard portrait has been
+going through it for a week and has been looked at. So the third attempt uses
+art that is known to work rather than a third guess.
+
+Without a class to draw, the coloured dot with its square outline stays. It
+says less, but it says it reliably, and a map with no dots is broken.
 
 ### The same drop, four times over
 

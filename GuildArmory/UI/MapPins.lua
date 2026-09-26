@@ -48,10 +48,10 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
--- 14 statt 12, seit die Nadel rund ist: Rand, Flaeche und Glanz sind drei
--- Lagen, und bei zwoelf Pixeln bleiben fuer den Glanz drei uebrig. Das ist
--- kein Lichtpunkt mehr, sondern ein Fleck.
-local PIN_SIZE = 14
+-- 16, seit die Nadel ein Klassenwappen traegt: Ein Wappen in zwoelf Pixeln
+-- ist ein Fleck. Groesser waere es ein Symbol, das die Karte verdeckt, die
+-- darunter liegt.
+local PIN_SIZE = 16
 local TICK = 0.5
 
 -- ================================================================== Nadeln ---
@@ -65,20 +65,26 @@ function MapPins:Pin(index)
     pin:SetHeight(PIN_SIZE)
     pin:SetFrameStrata("HIGH")
 
-    -- RUND, MIT SCHATTIERUNG — UND EINEM WEG ZURUECK.
+    -- RUND: DAS KLASSENWAPPEN, NICHT EINE EINGEFAERBTE SCHEIBE.
     --
-    -- Drei Lagen: ein dunkler Kreis als Rand, darauf die Klassenfarbe,
-    -- darauf ein heller Bogen oben. Der Rand haelt den Punkt von jedem
-    -- Kartenuntergrund ab — ohne ihn verschwindet ein dunkelblauer Schamane
-    -- im Meer. Der helle Bogen macht aus der Scheibe eine Kugel; ohne ihn
-    -- ist "rund" nur die Silhouette.
+    -- ZWEIMAL GERATEN, ZWEIMAL DANEBEN (26.09.2026, beide Male mit Bild
+    -- gemeldet). Erst eine Maske ueber einer Farbflaeche, dann die Maske
+    -- als Bild: Beide Male lief der Aufruf durch, beide Male blieb die
+    -- Nadel eckig. Diese Linie nimmt Maskenaufrufe entgegen und tut nichts
+    -- damit.
     --
-    -- EINE RUNDE TEXTUR, KEINE MASKE AUF EINER FARBFLAECHE.
+    -- UI-Classes-Circles rendert hier NACHWEISLICH rund — daran haengt das
+    -- Portrait im Dashboard, und das ist gesehen worden. Also wird diese
+    -- Kunst genommen statt einer dritten Vermutung.
     --
-    -- Der erste Versuch tat genau das — und die Nadeln blieben eckig,
-    -- gemeldet mit Bild am 26.09.2026. Der Aufruf lief durch, pcall meldete
-    -- Erfolg, der Rueckfall griff nicht. Ein pcall, der nicht wirft, ist
-    -- eben kein Beweis, dass etwas passiert ist.
+    -- Es ist dabei die bessere Nadel: Ein farbiger Punkt sagt die Klasse
+    -- ueber einen Farbton, den man gelernt haben muss; das Wappen sagt sie
+    -- direkt.
+    --
+    -- DER RAND IST DASSELBE WAPPEN IN SCHWARZ, etwas groesser. Er hat
+    -- damit genau dieselbe Silhouette — ein Kreis dahinter waere an den
+    -- Raendern zu sehen — und haelt den Punkt von jedem Kartenuntergrund
+    -- ab. Ohne ihn verschwindet ein dunkler Schamane im Meer.
     pin.rand = pin:CreateTexture(nil, "BACKGROUND")
     pin.rand:SetAllPoints(pin)
 
@@ -86,39 +92,24 @@ function MapPins:Pin(index)
     pin.fill:SetPoint("TOPLEFT", pin, "TOPLEFT", 2, -2)
     pin.fill:SetPoint("BOTTOMRIGHT", pin, "BOTTOMRIGHT", -2, 2)
 
-    -- Der Glanz sitzt in der oberen Haelfte und ist schmaler als die
-    -- Flaeche: Licht kommt von oben, und ein Glanz ueber die ganze Scheibe
-    -- waere Nebel statt Woelbung.
-    pin.glanz = pin:CreateTexture(nil, "OVERLAY")
-    pin.glanz:SetPoint("TOPLEFT", pin, "TOPLEFT", 3, -3)
-    pin.glanz:SetPoint("BOTTOMRIGHT", pin, "CENTER", -3, 0)
-
-    local rund = Theme.RoundTexture(pin.rand, { 0, 0, 0, 0.9 })
-        and Theme.RoundTexture(pin.fill)
-    pin.rund = rund
-    if rund then
-        Theme.RoundTexture(pin.glanz, { 1, 1, 1, 0.35 })
-    else
-        -- Der alte eckige Rand, Linie fuer Linie: Ein viereckiger Punkt ist
-        -- haesslich, eine Karte ohne Punkte ist kaputt.
-        pin.glanz:Hide()
-        pin.rand:Hide()
-        Theme.Paint(pin.fill, { 1, 1, 1, 1 })
-        pin.ring = {}
-        for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-            local line = pin:CreateTexture(nil, "BACKGROUND")
-            Theme.Paint(line, { 0, 0, 0, 0.9 })
-            if seite == "TOP" or seite == "BOTTOM" then
-                line:SetHeight(2)
-                line:SetPoint(seite .. "LEFT", pin, seite .. "LEFT", 0, 0)
-                line:SetPoint(seite .. "RIGHT", pin, seite .. "RIGHT", 0, 0)
-            else
-                line:SetWidth(2)
-                line:SetPoint("TOP" .. seite, pin, "TOP" .. seite, 0, 0)
-                line:SetPoint("BOTTOM" .. seite, pin, "BOTTOM" .. seite, 0, 0)
-            end
-            pin.ring[#pin.ring + 1] = line
+    -- Der eckige Rueckfall wird IMMER gebaut und nur versteckt: Ob das
+    -- Wappen sitzt, entscheidet sich erst beim Zeichnen, wenn die Klasse
+    -- bekannt ist — und ein Spieler ohne gemeldete Klasse braucht ihn dann
+    -- sofort.
+    pin.ring = {}
+    for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+        local line = pin:CreateTexture(nil, "BORDER")
+        Theme.Paint(line, { 0, 0, 0, 0.9 })
+        if seite == "TOP" or seite == "BOTTOM" then
+            line:SetHeight(2)
+            line:SetPoint(seite .. "LEFT", pin, seite .. "LEFT", 0, 0)
+            line:SetPoint(seite .. "RIGHT", pin, seite .. "RIGHT", 0, 0)
+        else
+            line:SetWidth(2)
+            line:SetPoint("TOP" .. seite, pin, "TOP" .. seite, 0, 0)
+            line:SetPoint("BOTTOM" .. seite, pin, "BOTTOM" .. seite, 0, 0)
         end
+        pin.ring[#pin.ring + 1] = line
     end
 
     -- DIE BESCHRIFTUNG STEHT IMMER DA, ohne Hover.
@@ -217,15 +208,30 @@ function MapPins:Refresh()
             pin.entry = entry
 
             local r, g, b = Util.ClassColor(entry.class)
-            -- BEI EINER RUNDEN NADEL WIRD EINGEFAERBT, NICHT UEBERMALT.
-            -- Theme.Paint setzt eine Farbflaeche — es wuerde die runde
-            -- Textur bei jedem Zeichnen wieder durch ein Quadrat ersetzen,
-            -- und zwar erst nach dem ersten Auffrischen. Genau die Sorte
-            -- Fehler, die man am Bild sucht und im Aufbau nicht findet.
-            if pin.rund then
-                pin.fill:SetVertexColor(r, g, b, 1)
+
+            -- ERST BEIM ZEICHNEN, WEIL ERST HIER DIE KLASSE BEKANNT IST.
+            --
+            -- Das Wappen traegt seine Farben selbst; eingefaerbt wird nur
+            -- der Rand dahinter — dasselbe Wappen in Schwarz, also mit
+            -- derselben Silhouette.
+            local rund = Theme.SetClassPortrait(pin.fill, entry.class)
+            pin.rund = rund
+
+            if rund then
+                pin.fill:SetVertexColor(1, 1, 1, 1)
+                if Theme.SetClassPortrait(pin.rand, entry.class) then
+                    pin.rand:SetVertexColor(0, 0, 0, 0.9)
+                    pin.rand:Show()
+                else
+                    pin.rand:Hide()
+                end
+                for _, line in ipairs(pin.ring) do line:Hide() end
             else
+                -- Ohne gemeldete Klasse bleibt der farbige Punkt. Er sagt
+                -- weniger, aber er sagt es zuverlaessig.
+                pin.rand:Hide()
                 Theme.Paint(pin.fill, { r, g, b, 1 })
+                for _, line in ipairs(pin.ring) do line:Show() end
             end
 
             -- NUR DER VORNAME, IN KLASSENFARBE.
