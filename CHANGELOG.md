@@ -52,6 +52,33 @@ things: you have none of them, or the bags could not be read at all. It now
 says how many items were read, so the zero can be told apart from the
 silence.
 
+### The other half of the duplicates came over the wire
+
+A pattern kept appearing twice even after the fix above, and a green gem sat
+in a list with a blue threshold. The saved data answered both at once: that
+gem's first entry read *"taken over from the loot master"*, and the record
+next to it was marked `source = "sync"`.
+
+Neither had come from this client's own looting. Both arrived over the sync,
+and that path had no threshold and no duplicate check at all.
+
+**Every client files its own id.** When two people loot the same corpse, each
+writes an entry with an id of its own, and when one of them syncs, nothing
+matches it to the other. Two entries, same drop. The loot master's report now
+wins: a local *detected* entry for the same item within the hour is cancelled
+in its favour — it was an observation, his is the outcome. Cancelled, not
+deleted, so the journal says what happened.
+
+Only local ones, and only ones not yet in a session. Weighing one foreign
+report against another would mean deciding between two loot masters, and an
+item in a running session that somebody else claims to have awarded is a
+contradiction rather than a duplicate — that belongs in the journal.
+
+**And the threshold applies on arrival too**, for anything not yet awarded.
+Whoever records greens on their own client was filling everybody else's
+lists. Awarded items still come through whatever their colour: who got what
+is history, and a threshold that hides it falsifies it.
+
 ### /ga dedupe — clearing up after the bug above
 
 The rule against recording a drop twice works from now on; what already

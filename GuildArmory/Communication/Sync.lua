@@ -345,6 +345,50 @@ function Sync:OnAward(sender, text)
         return
     end
 
+    -- UNTER DER SCHWELLE KOMMT NICHTS HEREIN, WAS NOCH NICHT VERGEBEN IST.
+    --
+    -- GEFUNDEN 26.09.2026 in den gespeicherten Daten: ein "Schattenedelstein"
+    -- mit quality = 2 in der Liste, bei einer Schwelle von 3. Die lokale
+    -- Erfassung hatte ihn nie gesehen — er kam ueber den Abgleich, und dort
+    -- galt keine Schwelle. Wer auf seinem Client gruen mitschreibt, fuellte
+    -- damit die Listen aller anderen.
+    --
+    -- WAS SCHON VERGEBEN IST, BLEIBT. Das ist Geschichte und gehoert in die
+    -- Historie, auch wenn es unterhalb der eigenen Schwelle liegt: Wer es
+    -- bekommen hat, hat es bekommen.
+    local Schema = GA.Data.Schema
+    local schwelle = GA.Core.Config:Get("lootThresholdQuality") or 3
+    local status = data.status or Schema.LootStatus.AWARDED
+    local nochOffen = status == Schema.LootStatus.DETECTED
+        or status == Schema.LootStatus.SESSION_OPEN
+    if nochOffen and (data.q or 0) < schwelle then
+        Debug:Print("comm", "Unter Schwelle verworfen: %s (%s)",
+            tostring(data.name), tostring(data.q))
+        return
+    end
+
+    -- DERSELBE FUND, AUF ZWEI CLIENTS ERKANNT.
+    --
+    -- GEMELDET 26.09.2026: "Muster gruene Wolltasche wird doppelt
+    -- detected." Jeder Client legt beim Pluendern seine eigene Kennung an;
+    -- kommt der Fund dann ueber den Abgleich herein, steht er zweimal da —
+    -- und keine Kennung passt zur anderen.
+    --
+    -- DIE MELDUNG DES LOOTMEISTERS GILT. Die eigene Erfassung war eine
+    -- Beobachtung, seine ist das Ergebnis. Die eigene wird deshalb
+    -- abgeraeumt — abgebrochen, nicht geloescht, damit im Journal steht, was
+    -- passiert ist.
+    --
+    -- NUR EIGENE, NOCH NICHT IN EINER SITZUNG. Steht der Gegenstand in
+    -- meiner laufenden Sitzung und jemand anders meldet ihn als vergeben,
+    -- ist das ein Widerspruch und kein Doppel — der gehoert ins Journal,
+    -- nicht stillschweigend weggeraeumt.
+    local eigenes = GA.Modules.Awards:FindLocalDetected(data.item, data.ts)
+    if eigenes then
+        GA.Modules.Awards:Cancel(eigenes.id, "durch die Meldung des Lootmeisters ersetzt")
+        Debug:Print("comm", "Eigene Erfassung ersetzt: %s", tostring(data.name))
+    end
+
     -- Neu: uebernehmen, aber als fremden Datensatz kenntlich.
     GA.Core.Database.account.awards[data.id] = {
         id = data.id,

@@ -178,6 +178,34 @@ function Awards:FindDuplicates()
     return ueberzaehlig
 end
 
+--- Eine EIGENE, noch nicht in einer Sitzung stehende Erfassung desselben
+--- Gegenstands — fuer den Fall, dass er gleich ueber den Abgleich noch
+--- einmal hereinkommt.
+---
+--- NUR EIGENE (source ~= "sync"): Zwei fremde Meldungen desselben Fundes
+--- gegeneinander aufzurechnen hiesse, zwischen zwei Lootmeistern zu
+--- entscheiden. Das ist kein Doppel, sondern ein Widerspruch.
+---
+--- IN EINEM FENSTER VON EINER STUNDE. Dasselbe Teil faellt naechste Woche
+--- wieder; ohne Zeitgrenze wuerde der alte Eintrag den neuen Fund
+--- verschlucken.
+--- @return table|nil
+function Awards:FindLocalDetected(itemID, fremdTs)
+    if not itemID then return nil end
+    local bezug = fremdTs or Util.Now()
+
+    for _, award in pairs(store()) do
+        if award.itemID == itemID
+            and award.status == Status.DETECTED
+            and award.source ~= "sync"
+            and math.abs((award.ts or 0) - bezug) <= 3600
+        then
+            return award
+        end
+    end
+    return nil
+end
+
 function Awards:Get(awardId)
     return awardId and store()[awardId] or nil
 end
