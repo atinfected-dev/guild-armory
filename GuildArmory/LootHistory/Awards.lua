@@ -92,6 +92,51 @@ function Awards:Create(item, context)
     return award
 end
 
+--- Gibt es fuer diesen Fund schon eine Vergabe?
+---
+--- GEMELDET 26.09.2026: "es wird auch 4 fach detected."
+---
+--- Der Schutz dagegen hing am SLOT und wurde bei LOOT_CLOSED geleert. Wer
+--- eine Leiche Stueck fuer Stueck ausraeumt, schliesst und oeffnet das
+--- Fenster mehrfach — und beim naechsten Oeffnen war alles wieder neu.
+--- LOOT_OPENED und LOOT_READY feuern ausserdem beide.
+---
+--- Gefragt wird deshalb die Datenbank, nicht ein Merkzettel: Sie ueberlebt
+--- das Schliessen des Fensters, einen /reload und den Abend.
+---
+--- WAS DERSELBE FUND IST: dieselbe Leiche, derselbe Platz darin, dasselbe
+--- Item. Zwei gleiche Teile aus einer Leiche liegen auf zwei Plaetzen und
+--- bleiben deshalb zwei Funde — das kommt vor, und eines davon zu
+--- verschlucken waere schlimmer als ein Eintrag zu viel.
+---
+--- OHNE HERKUNFT NUR KURZ. Ist die Leiche unbekannt, bleibt als Merkmal nur
+--- Platz und Item, und das trifft irgendwann auch eine andere Leiche.
+--- Innerhalb einer Minute ist das derselbe Fund; danach wird lieber doppelt
+--- erfasst als etwas Echtes verworfen.
+--- @return table|nil vorhandene
+function Awards:FindDuplicate(item, context)
+    if not item or not item.itemID then return nil end
+    context = context or {}
+
+    local jetzt = Util.Now()
+    local fenster = context.sourceGuid and 3600 or 60
+
+    for _, award in pairs(store()) do
+        if award.itemID == item.itemID
+            and award.status == Status.DETECTED
+            and award.slot == context.slot
+            and (jetzt - (award.ts or 0)) <= fenster
+        then
+            if context.sourceGuid and award.sourceGuid then
+                if award.sourceGuid == context.sourceGuid then return award end
+            elseif not context.sourceGuid and not award.sourceGuid then
+                return award
+            end
+        end
+    end
+    return nil
+end
+
 function Awards:Get(awardId)
     return awardId and store()[awardId] or nil
 end

@@ -85,6 +85,23 @@ function LootCouncil:Create(parent)
     end)
     self.bidButton:SetPoint("RIGHT", self.rotateButton, "LEFT", -6, 0)
 
+    -- EINEN ERKANNTEN GEGENSTAND WIEDER HERAUSNEHMEN.
+    --
+    -- Gewuenscht am 26.09.2026, zusammen mit der Meldung, dass mancher Fund
+    -- mehrfach in der Liste stand. Das ist behoben, aber der Knopf bleibt
+    -- richtig: Es wird immer etwas darauf landen, das nicht zur Vergabe
+    -- gehoert — ein Teil, das der Raid gar nicht verteilt, ein Fehlgriff,
+    -- ein Test.
+    --
+    -- GELOESCHT WIRD NICHTS. Der Eintrag geht auf CANCELLED und bleibt
+    -- damit im Journal stehen. Wer spaeter fragt, warum ein Teil nie
+    -- vergeben wurde, bekommt eine Antwort statt einer Luecke — und wer
+    -- sich verdrueckt, hat nichts unwiederbringlich zerstoert.
+    self.removeButton = Widgets.Button(bar, L.COUNCIL_REMOVE, function()
+        self:RemoveSelected()
+    end)
+    self.removeButton:SetPoint("RIGHT", self.bidButton, "LEFT", -6, 0)
+
     -- Der Stand der Rotation gehoert neben den Knopf und nicht in ein
     -- Untermenue: Wer nicht sieht, wer gerade mitstimmt, kann die Abstimmung
     -- nicht einordnen.
@@ -413,6 +430,30 @@ function LootCouncil:ReopenBidFrame()
     }
     GA.UI.BidFrame:Show(Session.incoming)
     return true
+end
+
+--- Nimmt den gewaehlten Gegenstand aus der Liste.
+---
+--- NUR WAS NOCH NICHT VERGEBEN IST. Ein vergebenes Teil aus der Liste zu
+--- nehmen hiesse, die Historie zu frisieren; dafuer gibt es die Korrektur,
+--- die den alten Stand stehen laesst.
+function LootCouncil:RemoveSelected()
+    local award = self.selectedAwardId and GA.Modules.Awards:Get(self.selectedAwardId)
+    if not award then
+        GA.Core.Debug:Info("%s", L.COUNCIL_REMOVE_NONE)
+        return
+    end
+
+    local identity = Compat.GetPlayerIdentity()
+    local ok, grund = GA.Modules.Awards:Cancel(award.id,
+        L.COUNCIL_REMOVE_REASON, identity.guid)
+    if not ok then
+        GA.Core.Debug:Info("%s", L["COUNCIL_ERR_" .. tostring(grund)] or tostring(grund))
+        return
+    end
+
+    self.selectedAwardId = nil
+    self:Refresh()
 end
 
 function LootCouncil:OpenSession()

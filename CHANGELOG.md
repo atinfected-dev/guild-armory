@@ -7,6 +7,46 @@ on the map, and the memory figure turned from something to watch into
 something to measure. Plus the open-profession button, which did nothing and
 said nothing about it.
 
+### The same drop, four times over
+
+The guard against that was a note of which slots had been seen, and it was
+wiped whenever the loot window closed. Empty a corpse item by item and the
+window opens again; `LOOT_OPENED` and `LOOT_READY` both fire anyway. Every
+reopen made everything new.
+
+The database is asked now instead of a note. It survives the window closing,
+a reload and the evening. The same drop means the same corpse, the same slot
+in it, the same item — two identical pieces from one corpse lie in two slots
+and stay two finds, because swallowing one of those would never be noticed,
+while one entry too many is obvious.
+
+With no known corpse the window shrinks to a minute: slot and item alone will
+eventually match a different corpse, and past that point recording twice
+beats discarding something real.
+
+### A remove button for detected items
+
+Something that does not belong will always end up on that list — a piece the
+raid does not hand out, a mistake, a test.
+
+Nothing is deleted. The entry goes to cancelled and stays in the journal, so
+anybody asking later why a piece was never awarded gets an answer instead of
+a gap, and a misclick destroys nothing. Only items that have not been awarded
+yet; taking an awarded one off the list would be editing history, and there
+is a correction for that which leaves the old state standing.
+
+### /ga bags — where is the loot right now
+
+After an evening with a master looter the open loot sits in *his* bags, and
+the addon's list only says what is still open, not how much of it he actually
+still has.
+
+The command matches the two against each other: what is open and in the bags,
+with bag and slot, and separately what is open and not there. That second
+list is the useful one — it is either already handed over or never arrived,
+and that is a conversation rather than a button. Copyable, like the other
+reports.
+
 ### No loot recorded without a master looter either
 
 Reported from a dungeon run: it takes everything. The saved data said what

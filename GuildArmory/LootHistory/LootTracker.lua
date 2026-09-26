@@ -161,8 +161,21 @@ function LootTracker:OnLootOpened()
             }
 
             local track, reason = self:ShouldTrack(item)
-            if track then
-                local award = GA.Modules.Awards:Create(item, buildContext(entry.slot))
+            local context = track and buildContext(entry.slot) or nil
+
+            -- DERSELBE FUND WIRD NICHT ZWEIMAL ANGELEGT (26.09.2026: "es
+            -- wird auch 4 fach detected").
+            --
+            -- Der Merkzettel oben faengt nur ein offenes Fenster ab. Wer
+            -- eine Leiche Stueck fuer Stueck ausraeumt, oeffnet sie
+            -- mehrfach, und LOOT_OPENED und LOOT_READY feuern ohnehin
+            -- beide. Die Datenbank ueberlebt beides.
+            local schon = track and GA.Modules.Awards:FindDuplicate(item, context) or nil
+            if schon then
+                detectedSlots[entry.slot] = schon.id
+                Debug:Print("loot", "Schon erfasst: %s", tostring(item.link))
+            elseif track then
+                local award = GA.Modules.Awards:Create(item, context)
                 detectedSlots[entry.slot] = award.id
                 Debug:Print("loot", "Erkannt: %s (%s)", tostring(item.link),
                     award.encounterName or award.sourceName or award.sourceNpcID and

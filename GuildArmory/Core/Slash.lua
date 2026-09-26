@@ -138,6 +138,56 @@ SlashCmdList["GUILDARMORY"] = function(input)
         end
         Debug:Info(L.SLASH_LANGUAGE_NOW, tostring(Locale.active),
             tostring(Locale.reason))
+    elseif command == "bags" or command == "taschen" then
+        -- WO LIEGT DER LOOT GERADE?
+        --
+        -- Gewuenscht am 26.09.2026: "einen Befehl, der die Items in der
+        -- Tasche des Lootmeisters sucht und auflistet."
+        --
+        -- Nach einem Abend mit Pluendermeister liegt der offene Loot in
+        -- SEINEM Beutel, und die Liste im Addon sagt nur, was noch offen
+        -- ist — nicht, was davon er ueberhaupt noch hat. Die beiden
+        -- auseinanderzuhalten ist der ganze Zweck: Was nicht mehr da ist,
+        -- ist entweder uebergeben oder nie bei ihm angekommen, und das ist
+        -- ein Gespraech, kein Knopf.
+        local b = bericht()
+        b.sag("%s", L.SLASH_BAGS_TITLE)
+
+        local taschen = {}
+        for _, eintrag in ipairs(GA.Core.Compat.GetBagItems()) do
+            taschen[eintrag.itemID] = taschen[eintrag.itemID] or eintrag
+        end
+
+        local offen = GA.Modules.Awards:List({ open = true })
+        local da, fehlt = 0, 0
+        for _, award in ipairs(offen) do
+            local treffer = award.itemID and taschen[award.itemID]
+            if treffer then
+                da = da + 1
+                b.sag(L.SLASH_BAGS_HERE,
+                    tostring(award.itemLink or award.itemName or award.itemID),
+                    treffer.bag, treffer.slot, tostring(award.status))
+            else
+                fehlt = fehlt + 1
+            end
+        end
+
+        -- DIE FEHLENDEN IN EINEM ZWEITEN BLOCK, nicht dazwischen: Wer den
+        -- Beutel abarbeitet, will erst wissen, was er verteilen kann.
+        if fehlt > 0 then
+            b.sag("%s", L.SLASH_BAGS_MISSING_TITLE)
+            for _, award in ipairs(offen) do
+                if not (award.itemID and taschen[award.itemID]) then
+                    b.sag(L.SLASH_BAGS_MISSING,
+                        tostring(award.itemLink or award.itemName or award.itemID),
+                        tostring(award.status))
+                end
+            end
+        end
+
+        b.sag(L.SLASH_BAGS_SUM, da, fehlt)
+        b.zeigen(L.SLASH_BAGS_TITLE)
+
     elseif command == "mem" then
         -- WARUM DIESER BEFEHL EXISTIERT
         --
