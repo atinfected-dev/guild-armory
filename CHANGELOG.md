@@ -2,6 +2,11 @@
 
 ## 0.1.15
 
+A congratulation in guild chat when somebody levels, and four things that
+were showing the wrong thing: professions in somebody else's language, a
+character list sorted by the wrong column, a scrollbar sitting on top of one,
+and map pins that changed size with the zoom.
+
 ### Profession names in your own language
 
 They were showing in German on an English client. The name that travels with
