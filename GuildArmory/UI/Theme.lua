@@ -159,6 +159,25 @@ end
 -- ------------------------------------------------------------- Hilfsmittel ---
 
 --- Setzt eine einfarbige Textur. SetColorTexture fehlt in sehr alten Linien.
+--- Macht eine Textur rund.
+---
+--- WIE: Blizzards Portraitmaske. Sie ist eine Alphamaske in Kreisform und in
+--- jeder Linie vorhanden, weil das Charakterfenster sie benutzt — dieselbe,
+--- ueber die auch die runden Klassenwappen laufen.
+---
+--- GEPRUEFT WIRD DER AUFRUF, NICHT DER NAME. SetMask gibt es auf dem
+--- Retail-Client, und Forever IST der Retail-Client — aber das hat hier
+--- schon oefter nichts geheissen. Wer sich darauf verlaesst und danebenliegt,
+--- bekommt einen Fehler mitten im Zeichnen der Karte.
+---
+--- @return boolean rund  false = diese Linie kann es nicht, der Aufrufer
+---                       braucht einen anderen Weg
+function Theme.MakeRound(texture)
+    if not texture or type(texture.SetMask) ~= "function" then return false end
+    return pcall(texture.SetMask, texture,
+        [[Interface\CHARACTERFRAME\TempPortraitAlphaMask]])
+end
+
 function Theme.Paint(texture, color)
     local r, g, b, a = color[1], color[2], color[3], color[4] or 1
 

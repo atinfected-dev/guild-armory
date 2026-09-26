@@ -48,7 +48,10 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local PIN_SIZE = 12
+-- 14 statt 12, seit die Nadel rund ist: Rand, Flaeche und Glanz sind drei
+-- Lagen, und bei zwoelf Pixeln bleiben fuer den Glanz drei uebrig. Das ist
+-- kein Lichtpunkt mehr, sondern ein Fleck.
+local PIN_SIZE = 14
 local TICK = 0.5
 
 -- ================================================================== Nadeln ---
@@ -62,27 +65,56 @@ function MapPins:Pin(index)
     pin:SetHeight(PIN_SIZE)
     pin:SetFrameStrata("HIGH")
 
-    -- Erst die Flaeche, dann der Rand: Die Flaeche traegt die Klassenfarbe,
-    -- der Rand haelt sie von jedem Kartenuntergrund ab. Ohne ihn verschwindet
-    -- ein dunkelblauer Schamane im Meer.
+    -- RUND, MIT SCHATTIERUNG — UND EINEM WEG ZURUECK.
+    --
+    -- Drei Lagen: ein dunkler Kreis als Rand, darauf die Klassenfarbe,
+    -- darauf ein heller Bogen oben. Der Rand haelt den Punkt von jedem
+    -- Kartenuntergrund ab — ohne ihn verschwindet ein dunkelblauer Schamane
+    -- im Meer. Der helle Bogen macht aus der Scheibe eine Kugel; ohne ihn
+    -- ist "rund" nur die Silhouette.
+    --
+    -- OB DIESE LINIE MASKEN KANN, IST NICHT VORAUSGESETZT. Theme.MakeRound
+    -- prueft den Aufruf. Geht er nicht, bleibt der eckige Rand von vorher
+    -- stehen: ein viereckiger Punkt ist haesslich, eine Karte ohne Punkte
+    -- ist kaputt.
+    pin.rand = pin:CreateTexture(nil, "BACKGROUND")
+    pin.rand:SetAllPoints(pin)
+    Theme.Paint(pin.rand, { 0, 0, 0, 0.9 })
+
     pin.fill = pin:CreateTexture(nil, "ARTWORK")
     pin.fill:SetPoint("TOPLEFT", pin, "TOPLEFT", 2, -2)
     pin.fill:SetPoint("BOTTOMRIGHT", pin, "BOTTOMRIGHT", -2, 2)
 
-    pin.ring = {}
-    for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-        local line = pin:CreateTexture(nil, "BACKGROUND")
-        Theme.Paint(line, { 0, 0, 0, 0.9 })
-        if seite == "TOP" or seite == "BOTTOM" then
-            line:SetHeight(2)
-            line:SetPoint(seite .. "LEFT", pin, seite .. "LEFT", 0, 0)
-            line:SetPoint(seite .. "RIGHT", pin, seite .. "RIGHT", 0, 0)
-        else
-            line:SetWidth(2)
-            line:SetPoint("TOP" .. seite, pin, "TOP" .. seite, 0, 0)
-            line:SetPoint("BOTTOM" .. seite, pin, "BOTTOM" .. seite, 0, 0)
+    -- Der Glanz sitzt in der oberen Haelfte und ist schmaler als die
+    -- Flaeche: Licht kommt von oben, und ein Glanz ueber die ganze Scheibe
+    -- waere Nebel statt Woelbung.
+    pin.glanz = pin:CreateTexture(nil, "OVERLAY")
+    pin.glanz:SetPoint("TOPLEFT", pin, "TOPLEFT", 3, -3)
+    pin.glanz:SetPoint("BOTTOMRIGHT", pin, "CENTER", -3, 0)
+    Theme.Paint(pin.glanz, { 1, 1, 1, 0.35 })
+
+    local rund = Theme.MakeRound(pin.rand) and Theme.MakeRound(pin.fill)
+    if rund then
+        Theme.MakeRound(pin.glanz)
+    else
+        -- Der alte eckige Rand, Linie fuer Linie.
+        pin.glanz:Hide()
+        pin.rand:Hide()
+        pin.ring = {}
+        for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+            local line = pin:CreateTexture(nil, "BACKGROUND")
+            Theme.Paint(line, { 0, 0, 0, 0.9 })
+            if seite == "TOP" or seite == "BOTTOM" then
+                line:SetHeight(2)
+                line:SetPoint(seite .. "LEFT", pin, seite .. "LEFT", 0, 0)
+                line:SetPoint(seite .. "RIGHT", pin, seite .. "RIGHT", 0, 0)
+            else
+                line:SetWidth(2)
+                line:SetPoint("TOP" .. seite, pin, "TOP" .. seite, 0, 0)
+                line:SetPoint("BOTTOM" .. seite, pin, "BOTTOM" .. seite, 0, 0)
+            end
+            pin.ring[#pin.ring + 1] = line
         end
-        pin.ring[#pin.ring + 1] = line
     end
 
     -- DIE BESCHRIFTUNG STEHT IMMER DA, ohne Hover.

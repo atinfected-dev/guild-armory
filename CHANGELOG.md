@@ -10,6 +10,22 @@ on top, which only showed because two clients speak different languages.
 The list has buttons now for tidying up after all that, and one for putting
 into it what is already in your bags.
 
+### Round map pins
+
+Three layers: a dark circle for the edge, the class colour on top of it, and
+a lighter arc across the upper half. The edge keeps the dot off whatever the
+map is made of — without it a dark blue shaman disappears into the sea — and
+the arc is what turns a disc into a sphere. Light comes from above, so the
+arc sits in the top half and is narrower than the dot; across the whole disc
+it would read as fog rather than curvature.
+
+The dot grew from 12 to 14 pixels with it. Three layers in twelve leaves
+three pixels for the highlight, which is a smudge, not a light.
+
+Whether this client can mask textures at all is not assumed — the call is
+tried, and if it fails the square outline from before stays. A square dot is
+ugly; a map without dots is broken.
+
 ### The same drop, four times over
 
 The guard against that was a note of which slots had been seen, and it was
