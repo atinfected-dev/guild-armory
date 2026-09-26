@@ -118,6 +118,16 @@ function LootCouncil:Create(parent)
     end)
     self.removeAllButton:SetPoint("RIGHT", self.removeButton, "LEFT", -6, 0)
 
+    -- AUS DEM BEUTEL AUF DIE LISTE.
+    --
+    -- Gewuenscht am 26.09.2026: Wer als Pluendermeister eingesammelt hat,
+    -- hat den Abend im Beutel und nicht in der Liste. Auch hier zwei
+    -- Druecke — der erste zeigt im Chat, WAS hereinkaeme.
+    self.addAllButton = Widgets.Button(bar, L.COUNCIL_ADD_ALL, function()
+        self:AddAllFromBags()
+    end)
+    self.addAllButton:SetPoint("RIGHT", self.removeAllButton, "LEFT", -6, 0)
+
     -- Der Stand der Rotation gehoert neben den Knopf und nicht in ein
     -- Untermenue: Wer nicht sieht, wer gerade mitstimmt, kann die Abstimmung
     -- nicht einordnen.
@@ -469,6 +479,87 @@ function LootCouncil:RemoveSelected()
     end
 
     self.selectedAwardId = nil
+    self:Refresh()
+end
+
+--- Legt alles aus dem eigenen Beutel auf die Liste, was dafuer in Frage
+--- kommt.
+---
+--- WOZU: Wer als Pluendermeister eingesammelt hat, hat den Abend im Beutel
+--- und nicht in der Liste — etwa weil das Addon zwischendurch aus war, weil
+--- jemand anders gepluendert hat, oder weil die Teile aus einem Handel
+--- kamen. Ohne diesen Knopf muesste er jedes einzeln ueber /ga test
+--- eintippen.
+---
+--- WAS IN FRAGE KOMMT: die Schwelle und sonst nichts Geratenes. Ob ein Teil
+--- "zum Verteilen" ist, weiss dieser Client nicht — es steht in keinem Feld,
+--- und eine Regel, die es zu erraten versucht, laesst genau das Teil weg, um
+--- das es geht. Deshalb wird die Liste VORHER gezeigt: Entschieden wird mit
+--- Augen, nicht mit einer Heuristik.
+---
+--- WAS SCHON DRAUFSTEHT, KOMMT NICHT ZWEIMAL. Nach dem Abend mit den
+--- Doppeln waere das die falsche Art von Hilfe.
+function LootCouncil:AddAllFromBags()
+    local Awards = GA.Modules.Awards
+    local schwelle = GA.Core.Config:Get("lootThresholdQuality") or 3
+
+    -- Was schon offen auf der Liste steht, nach Gegenstand.
+    local bekannt = {}
+    for _, award in ipairs(Awards:List({ open = true })) do
+        if award.itemID then bekannt[award.itemID] = true end
+    end
+
+    local kandidaten = {}
+    for _, eintrag in ipairs(Compat.GetBagItems()) do
+        local info = eintrag.link and Compat.GetItemInfo(eintrag.link)
+        local quality = info and info.quality
+        -- OHNE QUALITAET NICHT. Ein unbekannter Wert ist keine Erlaubnis;
+        -- der Client holt ihn nach, und beim naechsten Druck steht er da.
+        if quality and quality >= schwelle and not bekannt[eintrag.itemID] then
+            bekannt[eintrag.itemID] = true
+            kandidaten[#kandidaten + 1] = {
+                itemID = eintrag.itemID, link = eintrag.link,
+                name = info.name, quality = quality,
+            }
+        end
+    end
+
+    if #kandidaten == 0 then
+        GA.Core.Debug:Info("%s", L.COUNCIL_ADD_NONE)
+        return
+    end
+
+    if self.addAllPending ~= #kandidaten then
+        self.addAllPending = #kandidaten
+        GA.Core.Debug:Info(L.COUNCIL_ADD_FOUND, #kandidaten)
+        for _, eintrag in ipairs(kandidaten) do
+            GA.Core.Debug:Info("  %s", tostring(eintrag.link or eintrag.name))
+        end
+        self.addAllButton:SetLabel(string.format(L.COUNCIL_ADD_CONFIRM, #kandidaten))
+        Compat.After(15, function()
+            if not self.addAllButton then return end
+            self.addAllPending = nil
+            self.addAllButton:SetLabel(L.COUNCIL_ADD_ALL)
+        end)
+        return
+    end
+
+    self.addAllPending = nil
+    self.addAllButton:SetLabel(L.COUNCIL_ADD_ALL)
+
+    local identity = Compat.GetPlayerIdentity()
+    for _, eintrag in ipairs(kandidaten) do
+        -- KEINE ERFUNDENE HERKUNFT. Woher das Teil kam, weiss hier niemand
+        -- mehr; der Grund sagt ehrlich, dass es aus dem Beutel stammt.
+        Awards:Create(eintrag, {
+            by = identity.guid,
+            reason = L.COUNCIL_ADD_REASON,
+            sourceName = L.COUNCIL_ADD_SOURCE,
+            lootMethod = Compat.GetLootMethod(),
+        })
+    end
+
+    GA.Core.Debug:Info(L.COUNCIL_ADD_DONE, #kandidaten)
     self:Refresh()
 end
 

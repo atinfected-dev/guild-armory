@@ -359,8 +359,31 @@ function Sync:OnAward(sender, text)
     local Schema = GA.Data.Schema
     local schwelle = GA.Core.Config:Get("lootThresholdQuality") or 3
     local status = data.status or Schema.LootStatus.AWARDED
-    local nochOffen = status == Schema.LootStatus.DETECTED
-        or status == Schema.LootStatus.SESSION_OPEN
+
+    -- EINE BLOSSE BEOBACHTUNG WIRD NICHT UEBERNOMMEN.
+    --
+    -- AUF ANSAGE 26.09.2026: "Der Loot soll nur detected werden im
+    -- Sessionfenster, wenn ein Lootmeister ausgewaehlt ist."
+    --
+    -- Die eigene Erfassung haelt sich daran (siehe LootTracker:ShouldTrack).
+    -- Ueber den Abgleich kam sie trotzdem herein: Jeder Client schickte, was
+    -- er gesehen hatte, und was dort galt, wusste dieser hier nicht.
+    --
+    -- DETECTED heisst "hier lag etwas" und sonst nichts — keine Sitzung,
+    -- keine Entscheidung, niemand, der es verteilt. Drei Leute mit dem
+    -- Addon beobachten denselben Fund dreimal, und mit verschiedenen
+    -- Sprachen stand er dreimal verschieden da ("Kobrahns Griff",
+    -- "Cobrahn's Grasp"). Gemeldet genau so, mit Bild.
+    --
+    -- WAS WEITER HEREINKOMMT: alles, worin eine Entscheidung steckt — eine
+    -- Sitzung, eine Vergabe, eine Uebergabe. Dafuer ist der Abgleich da.
+    if status == Schema.LootStatus.DETECTED then
+        Debug:Print("comm", "Fremde Erfassung ohne Sitzung verworfen: %s",
+            tostring(data.name))
+        return
+    end
+
+    local nochOffen = status == Schema.LootStatus.SESSION_OPEN
     if nochOffen and (data.q or 0) < schwelle then
         Debug:Print("comm", "Unter Schwelle verworfen: %s (%s)",
             tostring(data.name), tostring(data.q))
@@ -383,10 +406,17 @@ function Sync:OnAward(sender, text)
     -- meiner laufenden Sitzung und jemand anders meldet ihn als vergeben,
     -- ist das ein Widerspruch und kein Doppel — der gehoert ins Journal,
     -- nicht stillschweigend weggeraeumt.
-    local eigenes = GA.Modules.Awards:FindLocalDetected(data.item, data.ts)
-    if eigenes then
-        GA.Modules.Awards:Cancel(eigenes.id, "durch die Meldung des Lootmeisters ersetzt")
-        Debug:Print("comm", "Eigene Erfassung ersetzt: %s", tostring(data.name))
+    -- DIE EIGENE BEOBACHTUNG WEICHT DER ENTSCHEIDUNG.
+    --
+    -- Was hier ankommt, traegt eine: eine Sitzung, eine Vergabe, eine
+    -- Uebergabe. Die eigene Erfassung desselben Teils war die Beobachtung
+    -- davor und stuende sonst als zweiter Eintrag daneben.
+    --
+    -- Abgebrochen, nicht geloescht — im Journal steht, was passiert ist.
+    local vorhanden = GA.Modules.Awards:FindLocalDetected(data.item, data.ts)
+    if vorhanden then
+        GA.Modules.Awards:Cancel(vorhanden.id, "durch die Meldung des Lootmeisters ersetzt")
+        Debug:Print("comm", "Erfassung ersetzt: %s", tostring(data.name))
     end
 
     -- Neu: uebernehmen, aber als fremden Datensatz kenntlich.

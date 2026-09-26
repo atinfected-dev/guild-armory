@@ -46,6 +46,19 @@ It takes everything still open, detected and in-session alike. A tidy-up
 button that clears half the list sends you back through it by hand
 afterwards.
 
+### From bags — putting collected loot on the list
+
+The other direction: whoever collected as master looter has the evening in
+their bags and not on the list — because the addon was off for a while,
+because somebody else looted, or because the pieces came out of a trade.
+
+It shows before it acts, listing in chat what would come in, and only adds on
+the second press. Whether a piece is "for handing out" is not something this
+client knows — it stands in no field, and a rule that tries to guess it
+leaves out exactly the piece you meant. So the threshold applies and nothing
+else is invented; the decision is made by eye. Nothing already on the list
+comes in a second time.
+
 ### /ga bags — where is the loot right now
 
 After an evening with a master looter the open loot sits in *his* bags, and
@@ -73,19 +86,24 @@ next to it was marked `source = "sync"`.
 Neither had come from this client's own looting. Both arrived over the sync,
 and that path had no threshold and no duplicate check at all.
 
-**Every client files its own id.** When two people loot the same corpse, each
-writes an entry with an id of its own, and when one of them syncs, nothing
-matches it to the other. Two entries, same drop. The loot master's report now
-wins: a local *detected* entry for the same item within the hour is cancelled
-in its favour — it was an observation, his is the outcome. Cancelled, not
-deleted, so the journal says what happened.
+A screenshot settled the rest of it. Two lines under each other read
+"Kobrahns Griff" and "Cobrahn's Grasp"; two more, "Lebendige Wurzel" and
+"Living Root". The same drop, in two languages, from two clients — which is
+also why no comparison by name could ever have caught it.
 
-Only local ones, and only ones not yet in a session. Weighing one foreign
-report against another would mean deciding between two loot masters, and an
-item in a running session that somebody else claims to have awarded is a
-contradiction rather than a duplicate — that belongs in the journal.
+**A bare observation is no longer taken over at all.** Detected means "there
+was something here": no session, no decision, nobody handing it out. Three
+people with the addon see the same drop three times, and the local rule that
+only records under a master looter was being undercut by everybody else's
+client, which had its own rules and its own language.
 
-**And the threshold applies on arrival too**, for anything not yet awarded.
+What still comes over the wire is everything with a decision in it — a
+session, an award, a handover. That is what the sync is for. And when one
+arrives for an item this client had observed itself, the observation gives
+way: cancelled in favour of the decision, not deleted, so the journal says
+what happened. Compared by item id, never by name.
+
+**The threshold applies on arrival too**, for anything not yet awarded.
 Whoever records greens on their own client was filling everybody else's
 lists. Awarded items still come through whatever their colour: who got what
 is history, and a threshold that hides it falsifies it.

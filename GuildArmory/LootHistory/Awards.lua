@@ -182,9 +182,22 @@ end
 --- Gegenstands — fuer den Fall, dass er gleich ueber den Abgleich noch
 --- einmal hereinkommt.
 ---
---- NUR EIGENE (source ~= "sync"): Zwei fremde Meldungen desselben Fundes
---- gegeneinander aufzurechnen hiesse, zwischen zwei Lootmeistern zu
---- entscheiden. Das ist kein Doppel, sondern ein Widerspruch.
+--- AUCH FREMDE, SOLANGE NIEMAND ETWAS ENTSCHIEDEN HAT.
+---
+--- Die erste Fassung sah nur eigene Eintraege an, mit der Begruendung, zwei
+--- fremde Meldungen gegeneinander aufzurechnen hiesse, zwischen zwei
+--- Lootmeistern zu entscheiden. Das gilt fuer VERGEBENES — dort steht eine
+--- Entscheidung drin, und zwei verschiedene gehoeren ins Journal.
+---
+--- Bei DETECTED steht keine Entscheidung drin. Es ist die Beobachtung "hier
+--- lag etwas", und drei Leute mit dem Addon beobachten dasselbe dreimal.
+---
+--- GEMELDET 26.09.2026, mit Bild: "Kobrahns Griff" und "Cobrahn's Grasp"
+--- untereinander, dazu "Lebendige Wurzel"/"Living Root" und
+--- "Muster: Lederkapuze des Grubenkaempfers"/"Pattern: Brawler's Leather
+--- Hood". Derselbe Fund, in zwei Sprachen, von zwei Clients — und genau
+--- deshalb ist der NAME als Merkmal untauglich. Verglichen wird die
+--- Gegenstandskennung.
 ---
 --- IN EINEM FENSTER VON EINER STUNDE. Dasselbe Teil faellt naechste Woche
 --- wieder; ohne Zeitgrenze wuerde der alte Eintrag den neuen Fund
@@ -197,7 +210,6 @@ function Awards:FindLocalDetected(itemID, fremdTs)
     for _, award in pairs(store()) do
         if award.itemID == itemID
             and award.status == Status.DETECTED
-            and award.source ~= "sync"
             and math.abs((award.ts or 0) - bezug) <= 3600
         then
             return award
