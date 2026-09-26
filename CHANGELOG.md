@@ -10,11 +10,28 @@ on top, which only showed because two clients speak different languages.
 The list has buttons now for tidying up after all that, and one for putting
 into it what is already in your bags.
 
-### An icon in the addon list
+### An icon in the addon list, and the addon's own logo on the minimap
 
 Where the addons are switched on and off, this one showed the red question
-mark — WoW's placeholder for a missing icon. It has one now. A path to one of
-the game's own icons is enough; no file needs to go into the package for it.
+mark — WoW's placeholder for a missing icon. It has one now.
+
+The minimap button can carry the project's own logo, and so can the addon
+list. WoW reads only `.blp` and `.tga` inside an addon, never PNG, so
+`npm run logo <picture.png>` turns one into both: the whole logo at 64 pixels
+for the list, and a crop of just the crest at 32 for the minimap button,
+where the lettering would only be a grey smear at twenty pixels.
+
+Until that file exists the minimap falls back to one of the game's own icons
+as before, because the candidate list already takes the first texture that
+really loads. The list icon is only pointed at the logo once it has actually
+been written — a path to a missing file brings back exactly the question mark
+this was meant to remove.
+
+The converter is tested against a picture it builds itself, so no image needs
+to live in the repository for the test to run. The part worth testing is the
+channel order: TGA stores blue first, PNG stores red first, and getting it
+wrong does not look like a bug. It looks like a blue logo, and then you go
+looking everywhere except at the order of three bytes.
 
 ### Round map pins, as class crests
 

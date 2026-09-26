@@ -32,6 +32,15 @@ local L = GA.L
 --- Symbolkandidaten, in dieser Reihenfolge. Der erste, der wirklich laedt,
 --- gewinnt — Icon-Pfade sind zwischen den Client-Linien nicht garantiert.
 local ICON_CANDIDATES = {
+    -- Das eigene Logo zuerst: Es ist das Zeichen, unter dem das Addon auch
+    -- auf der Seite steht. Liegt die Datei nicht im Paket, faellt die Liste
+    -- auf Blizzards Symbole zurueck — "der erste, der wirklich laedt,
+    -- gewinnt" gilt hier genauso.
+    --
+    -- Es ist der AUSSCHNITT auf das Wappen, nicht das ganze Logo: Der Knopf
+    -- ist zwanzig Pixel gross, und die Schrift darin waere ein grauer
+    -- Streifen.
+    "Interface\\AddOns\\GuildArmory\\Media\\Minimap.tga",
     "Interface\\Icons\\INV_Chest_Plate06",
     "Interface\\Icons\\INV_Shield_06",
     "Interface\\Icons\\INV_Misc_Book_09",
