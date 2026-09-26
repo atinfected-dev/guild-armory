@@ -57,7 +57,15 @@ function Widgets.ScrollList(parent, options)
         headerHeight = 19
         local header = CreateFrame("Frame", nil, list)
         header:SetPoint("TOPLEFT", list, "TOPLEFT", 0, 0)
-        header:SetPoint("TOPRIGHT", list, "TOPRIGHT", 0, 0)
+        -- DIE KOPFZEILE ENDET VOR DEM BALKEN.
+        --
+        -- Gemeldet 27.09.2026 mit Bild: "die scrollbar overlappt mit den
+        -- ilevel". Der Zeilenbereich war schon um die Balkenbreite
+        -- eingerueckt, die Kopfzeile nicht — die letzte Spaltenueberschrift
+        -- stand also genau ueber dem Balken, waehrend die Zahlen darunter
+        -- sechs Pixel weiter links sassen. Zwei Enden, die uebereinstimmen
+        -- muessen, standen an zwei Stellen.
+        header:SetPoint("TOPRIGHT", list, "TOPRIGHT", -SCROLLBAR_WIDTH, 0)
         header:SetHeight(headerHeight)
         Theme.Fill(header, Theme.color.panelBg)
         Theme.Edge(header, "BOTTOM", Theme.color.border)
@@ -89,10 +97,20 @@ function Widgets.ScrollList(parent, options)
     track:SetPoint("TOPRIGHT", list, "TOPRIGHT", 0, -headerHeight)
     track:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", 0, 0)
     track:SetWidth(SCROLLBAR_WIDTH)
-    Theme.Fill(track, Theme.color.rowAltBg)
 
+    -- DIE RINNE IST DUNKEL UND NUR DA, WENN SIE GEBRAUCHT WIRD.
+    --
+    -- Vorher lag sie in Zeilenfarbe ueber die ganze Hoehe und sah aus wie
+    -- eine angefangene Spalte — auch bei acht Eintraegen, wo es nichts zu
+    -- rollen gab. Ein Bedienelement, das nichts bedient, ist Zierrat.
+    Theme.Fill(track, Theme.color.panelBg)
+    track:Hide()
+
+    -- Der Griff sitzt einen Pixel schmaler als die Rinne: So bleibt links
+    -- und rechts eine Kante stehen, und aus einem Streifen wird ein Griff
+    -- in einer Fuehrung.
     local thumb = CreateFrame("Button", nil, track)
-    thumb:SetWidth(SCROLLBAR_WIDTH)
+    thumb:SetWidth(SCROLLBAR_WIDTH - 2)
     thumb:SetPoint("TOP", track, "TOP", 0, 0)
 
     -- Der Rueckgabewert wird GEBRAUCHT: Theme.Fill legt eine Textur AUF den
@@ -216,9 +234,14 @@ function Widgets.ScrollList(parent, options)
             thumb:SetHeight(thumbHeight)
             thumb:ClearAllPoints()
             thumb:SetPoint("TOP", track, "TOP", 0, -travel * progress)
+            track:Show()
             thumb:Show()
         else
+            -- BEIDE WEG. Nur den Griff zu verstecken liesse die Rinne
+            -- stehen, und die ist der Teil, der wie eine leere Spalte
+            -- aussieht.
             thumb:Hide()
+            track:Hide()
         end
     end
 

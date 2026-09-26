@@ -2,6 +2,29 @@
 
 ## 0.1.15
 
+### The character list: sorted by item level, and a scrollbar that behaves
+
+The list answers one question — who is how far along — and sorted by name it
+answered a different one. Highest item level first now; the search field
+above is there for looking somebody up.
+
+Anybody without a measured item level goes to the end rather than down among
+the weak. Somebody nobody has inspected is not badly geared, they are
+unknown, and putting them between the low numbers is a statement nobody
+measured. Equal levels are broken by name, so the same guild twice gives the
+same list and a change in it means something.
+
+**The scrollbar overlapped the ILVL column.** The rows were already inset by
+the width of the bar; the header was not, so the last heading sat over the
+bar while the numbers underneath sat six pixels to the left. Two ends that
+have to agree were written in two places — a test now insists they match.
+
+The groove is dark instead of row-coloured, and both it and the handle only
+appear when there is something to scroll. It used to run the full height in
+the colour of a row, which read as the start of another column even in a list
+of eight. A control that controls nothing is decoration. The handle sits a
+pixel narrower than its groove, which turns a stripe into a handle in a rail.
+
 ### A congratulation in guild chat on a level-up
 
 There is no event for somebody else levelling. What the server hands out is

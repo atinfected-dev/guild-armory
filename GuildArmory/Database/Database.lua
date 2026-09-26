@@ -303,7 +303,27 @@ function DB:ListCharacters(filter)
 
         if keep then list[#list + 1] = character end
     end
-    Util.SortBy(list, { { field = "name" } })
+
+    -- NACH ITEMLEVEL, HOECHSTES ZUERST (27.09.2026 auf Ansage).
+    --
+    -- Die Liste beantwortet eine Frage: Wer ist wie weit? Nach Namen sortiert
+    -- beantwortet sie eine andere — dafuer gibt es die Suche darueber.
+    --
+    -- OHNE GEMESSENES ITEMLEVEL NACH UNTEN. Ein Charakter, von dem niemand
+    -- die Ausruestung gesehen hat, ist nicht schlecht ausgeruestet, sondern
+    -- unbekannt; er gehoert ans Ende und nicht zwischen die Schwachen. Bei
+    -- gleichem Stand entscheidet der Name, damit dieselbe Gilde zweimal
+    -- dieselbe Liste ergibt.
+    table.sort(list, function(a, b)
+        local links = a.itemLevel and a.itemLevel.value
+        local rechts = b.itemLevel and b.itemLevel.value
+        if links ~= rechts then
+            if links == nil then return false end
+            if rechts == nil then return true end
+            return links > rechts
+        end
+        return (a.name or "") < (b.name or "")
+    end)
     return list
 end
 
