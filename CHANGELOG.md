@@ -2,6 +2,32 @@
 
 ## 0.1.15
 
+### A congratulation in guild chat on a level-up
+
+There is no event for somebody else levelling. What the server hands out is
+the current level, so the rise is the difference to the last roster read —
+and only where there *was* a last one: on the first read after login every
+level looks new, and the addon would congratulate half the guild on levels
+they have had for weeks.
+
+**Five people with the addon would mean five congratulations.** Every client
+reads the same roster and sees the same rise. So whoever sees it first claims
+it over the addon channel and waits a moment; anyone who sees a foreign claim
+for the same rise stays quiet. The wait is spread at random, because if
+everybody waited the same time everybody would claim at once and nobody would
+see anybody else — the same shape as the map positions.
+
+**It is off until somebody turns it on.** The addon writes in the player's
+name into a channel the whole guild reads, and that is not something to
+switch on for them. Not every level either: round tens and the maximum, which
+is where a guild actually says something. The maximum is asked for rather
+than written down — a 60 in the code is wrong at the next expansion, and only
+somebody standing on the old maximum would notice.
+
+And not about yourself. Whoever levels gets a fanfare from the game already;
+congratulating yourself in guild chat is a different thing from being
+congratulated.
+
 ### The map pins are bigger, white-edged, and the same size everywhere
 
 Twenty-two pixels instead of sixteen. The crest needs the room to be a

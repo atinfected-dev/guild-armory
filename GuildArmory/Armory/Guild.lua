@@ -40,6 +40,7 @@ function Guild:Rebuild()
     end
 
     local seen, read = {}, 0
+    local aufstiege = {}
     for index = 1, total do
         local member = Compat.GetGuildMember(index)
         if member and member.name then
@@ -54,6 +55,23 @@ function Guild:Rebuild()
             entry.fullName = Util.NormalizeName(member.name)
             entry.rankName = member.rankName
             entry.rankIndex = member.rankIndex
+            -- STUFENAUFSTIEG ERKENNEN: Der Vergleich ist der Rosterdurchlauf
+            -- selbst. Ein Ereignis dafuer gibt es nicht — was der Server
+            -- liefert, ist die aktuelle Stufe, und der Aufstieg ist der
+            -- Unterschied zum letzten Mal.
+            --
+            -- NUR WENN ES EIN LETZTES MAL GAB. Beim ersten Durchlauf nach
+            -- dem Anmelden ist entry.level leer; wer das als Aufstieg
+            -- nimmt, gratuliert der halben Gilde zu Stufen, die sie seit
+            -- Wochen hat.
+            local vorher = entry.level
+            if vorher and member.level and member.level > vorher then
+                aufstiege[#aufstiege + 1] = {
+                    name = entry.name, level = member.level, class = member.class,
+                    von = vorher,
+                }
+            end
+
             entry.level = member.level
             entry.class = member.class
             entry.className = member.className
@@ -120,6 +138,18 @@ function Guild:Rebuild()
 
     Debug:Print("guild", "Roster: %d Mitglieder, %d online", total, online)
     GA.Core.Callbacks:Fire("GUILD_UPDATED", db.partial and true or false)
+
+    -- ERST NACH DEM GANZEN DURCHLAUF MELDEN. Mitten in der Schleife zu
+    -- feuern hiesse, dass ein Empfaenger ein halb aufgebautes Roster sieht.
+    --
+    -- UND NICHT BEI EINEM UNVOLLSTAENDIGEN ROSTER: Dort fehlen Eintraege,
+    -- nicht Stufen — aber wer dabei gerade neu hereinkommt, hat kein
+    -- "vorher", und die Unterscheidung ist es nicht wert, sie zu riskieren.
+    if not db.partial then
+        for _, aufstieg in ipairs(aufstiege) do
+            GA.Core.Callbacks:Fire("GUILD_LEVELUP", aufstieg)
+        end
+    end
 end
 
 --- Zieht volle Namen aus dem Roster in die Charakterdatensaetze nach.

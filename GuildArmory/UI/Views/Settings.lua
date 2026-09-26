@@ -238,6 +238,15 @@ function Settings:Create(parent)
     self.mapLabelHint = Theme.Label(camp.content, L.SET_MAP_LABELS_HINT,
         fonts.small, Theme.color.textDim)
 
+    -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT. Er steht deshalb nicht
+    -- zwischen den Anzeigeoptionen, sondern traegt seinen Hinweis: Wer ihn
+    -- anstellt, soll vorher wissen, dass die Gilde es liest.
+    self.levelUpBox = Widgets.CheckBox(camp.content, L.SET_LEVELUP, function(checked)
+        GA.Core.Config:Set("levelUpAnnounce", checked)
+    end)
+    self.levelUpHint = Theme.Label(camp.content, L.SET_LEVELUP_HINT,
+        fonts.small, Theme.color.textDim)
+
     -- HIER STAND EIN LEBENSBALKEN. Er ist wieder heraus, weil dieser Client
     -- keine lesbaren Lebenswerte herausgibt — gemessen am 24.09.2026 ueber
     -- beide Wege, UnitHealth und Blizzards eigene Leiste, und beide Male
@@ -473,6 +482,7 @@ function Settings:RelayoutCamp()
         { self.campBox, self.campHint },
         { self.mapBox, self.mapHint },
         { self.mapLabelBox, self.mapLabelHint },
+        { self.levelUpBox, self.levelUpHint },
     }
 
     for index, paar in ipairs(paare) do
@@ -605,6 +615,8 @@ function Settings:Refresh()
     self.mapHint:SetText(L.SET_MAP_HINT)
     self.mapLabelBox:SetChecked(GA.Core.Config:Get("mapPinLabels") ~= false)
     self.mapLabelHint:SetText(L.SET_MAP_LABELS_HINT)
+    self.levelUpBox:SetChecked(GA.Core.Config:Get("levelUpAnnounce") and true or false)
+    self.levelUpHint:SetText(L.SET_LEVELUP_HINT)
 
     local seen = {}
     local measured = GA.Core.Database.account.measured

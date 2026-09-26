@@ -2369,3 +2369,24 @@ function Compat.CollectGarbage()
     if not isFunction(_G.collectgarbage) then return false end
     return pcall(_G.collectgarbage, "collect") and true or false
 end
+
+--- Die Hoechststufe dieser Spiellinie.
+---
+--- NICHT FEST VERDRAHTET. Forever hat 60, und genau deshalb steht die Zahl
+--- nicht im Code: Sie waere bei der naechsten Erweiterung falsch, und der
+--- Fehler faellt nur jemandem auf, der zufaellig auf der alten Hoechststufe
+--- steht.
+---
+--- Zwei Wege, weil GetMaxPlayerLevel die neuere Auskunft ist und
+--- MAX_PLAYER_LEVEL die aeltere Konstante. Geprueft wird das Ergebnis.
+--- @return number|nil
+function Compat.GetMaxPlayerLevel()
+    if isFunction(_G.GetMaxPlayerLevel) then
+        local ok, stufe = pcall(_G.GetMaxPlayerLevel)
+        if ok and type(stufe) == "number" and stufe > 0 then return stufe end
+    end
+    if type(_G.MAX_PLAYER_LEVEL) == "number" and _G.MAX_PLAYER_LEVEL > 0 then
+        return _G.MAX_PLAYER_LEVEL
+    end
+    return nil
+end

@@ -211,6 +211,22 @@ Schema.ACCOUNT_DEFAULTS = {
         -- alles.
         mapPinLabels = true,
 
+        -- GLUECKWUNSCH IM GILDENCHAT BEI EINEM STUFENAUFSTIEG.
+        --
+        -- AUS, BIS JEMAND ES EINSCHALTET. Das Addon schreibt damit im
+        -- Namen des Spielers in einen Chat, den die ganze Gilde liest —
+        -- das stellt man nicht fuer jemanden an.
+        levelUpAnnounce = false,
+
+        -- Ab welcher Stufe ueberhaupt. Darunter sagt in einer Gilde
+        -- niemand etwas, und ein Addon, das es doch tut, wird
+        -- abgeschaltet.
+        levelUpMinLevel = 10,
+
+        -- Sonst nur runde Zehner und die Hoechststufe. Wer wirklich jede
+        -- Stufe will, setzt das hier.
+        levelUpEveryLevel = false,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die
