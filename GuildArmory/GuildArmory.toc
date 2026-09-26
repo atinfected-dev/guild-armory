@@ -6,7 +6,7 @@
 ## Version: 0.1.13
 ## SavedVariables: GuildArmoryDB
 ## SavedVariablesPerCharacter: GuildArmoryCharDB
-## IconTexture: Interface\Icons\INV_Misc_Book_09
+## IconTexture: Interface\AddOns\GuildArmory\Media\Logo.tga
 ## DefaultState: enabled
 ## X-Category: Guild
 ## X-Website: https://isnotalone.de
