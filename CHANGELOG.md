@@ -10,30 +10,41 @@ on top, which only showed because two clients speak different languages.
 The list has buttons now for tidying up after all that, and one for putting
 into it what is already in your bags.
 
-### An icon in the addon list, and the addon's own logo on the minimap
+### The addon's own logo, in the list and on the minimap
 
 Where the addons are switched on and off, this one showed the red question
-mark — WoW's placeholder for a missing icon. It has one now.
+mark — WoW's placeholder for a missing icon. It carries the project's logo
+now, and so does the minimap button.
 
-The minimap button can carry the project's own logo, and so can the addon
-list. WoW reads only `.blp` and `.tga` inside an addon, never PNG, so
-`npm run logo <picture.png>` turns one into both: the whole logo at 64 pixels
-for the list, and a crop of just the crest at 32 for the minimap button,
-where the lettering would only be a grey smear at twenty pixels.
+WoW reads only `.blp` and `.tga` inside an addon, never PNG, so
+`npm run logo <picture.png>` makes both: the whole logo at 64 pixels for the
+list, and a crop at 32 for the minimap button, where the lettering would be a
+grey smear at twenty pixels. The list icon is pointed at the file only after
+it has been written — a path to something missing brings back exactly the
+question mark this removes — and a test holds that.
 
-Until that file exists the minimap falls back to one of the game's own icons
-as before, because the candidate list already takes the first texture that
-really loads. The list icon is only pointed at the logo once it has actually
-been written — a path to a missing file brings back exactly the question mark
-this was meant to remove.
+**The crop was picked by looking, after three tries of picking by feel.**
+`npm run logo:preview` lays candidates side by side and writes a picture:
+each at true button size, and enlarged without smoothing, because a preview
+that flatters is the wrong kind of help.
 
-One bug came out of it that only a small picture could show: the crop was
+The single most legible one was the lion, and that made it exactly the wrong
+choice: it is one faction's crest, and the logo deliberately carries both. A
+button that leaves out half the guild is not a good button, however well you
+can see it. The crop now spans both shields with the blade between them. It
+is wider than tall and gets squeezed — the shields sit side by side and the
+button is square, so either enough height comes along and lettering is in the
+picture, or it squeezes. Squeezed, the crests stay far enough apart to tell
+apart, which is the job.
+
+One bug came out of it that only a small picture could show: a crop was
 averaged over a field twice as far from the left edge as it should have been,
 so anything cropped came out a soft gradient instead of a picture. With no
 offset the mistake cancels itself, which is why the whole logo looked right
-in the addon list and only the minimap crest was mush.
+in the addon list while the minimap crest was mush — and why the regression
+test crops from somewhere that is not zero.
 
-The converter is tested against a picture it builds itself, so no image needs
+The converter is tested against a picture it builds itself, so no image has
 to live in the repository for the test to run. The part worth testing is the
 channel order: TGA stores blue first, PNG stores red first, and getting it
 wrong does not look like a bug. It looks like a blue logo, and then you go
