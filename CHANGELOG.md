@@ -103,6 +103,19 @@ arrives for an item this client had observed itself, the observation gives
 way: cancelled in favour of the decision, not deleted, so the journal says
 what happened. Compared by item id, never by name.
 
+**Only from your own group, though.** Raised straight away: two loot masters
+in two different dungeons have to work as well. Without that condition they
+did not. Award messages travel guild-wide, so they also reach whoever is
+standing somewhere else entirely — and if the same item drops in both
+instances within the hour, which for two groups in the same dungeon is the
+rule rather than the exception, one group's award would have cleared the
+other group's list. Their evening would simply have vanished.
+
+The sender has to be in your group for that to happen. Otherwise it is two
+finds, both stay, and the foreign award still lands in the history, because
+it did happen. Session announcements were never affected — those go over the
+raid channel, not the guild.
+
 **The threshold applies on arrival too**, for anything not yet awarded.
 Whoever records greens on their own client was filling everybody else's
 lists. Awarded items still come through whatever their colour: who got what

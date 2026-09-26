@@ -406,15 +406,26 @@ function Sync:OnAward(sender, text)
     -- meiner laufenden Sitzung und jemand anders meldet ihn als vergeben,
     -- ist das ein Widerspruch und kein Doppel — der gehoert ins Journal,
     -- nicht stillschweigend weggeraeumt.
-    -- DIE EIGENE BEOBACHTUNG WEICHT DER ENTSCHEIDUNG.
+    -- DIE EIGENE BEOBACHTUNG WEICHT DER ENTSCHEIDUNG — ABER NUR AUS DEM
+    -- EIGENEN SCHLACHTZUG.
     --
-    -- Was hier ankommt, traegt eine: eine Sitzung, eine Vergabe, eine
-    -- Uebergabe. Die eigene Erfassung desselben Teils war die Beobachtung
-    -- davor und stuende sonst als zweiter Eintrag daneben.
+    -- Was hier ankommt, traegt eine Entscheidung: eine Sitzung, eine
+    -- Vergabe, eine Uebergabe. Die eigene Erfassung desselben Teils war die
+    -- Beobachtung davor und stuende sonst als zweiter Eintrag daneben.
     --
-    -- Abgebrochen, nicht geloescht — im Journal steht, was passiert ist.
+    -- EINGEWANDT 26.09.2026: "Wenn 2 verschiedene Lootmeister in 2
+    -- verschiedenen Raids oder Dungeons unterwegs sind, muss das ja auch
+    -- funktionieren." Und ohne diese Pruefung tut es das nicht: Die
+    -- Nachricht laeuft ueber den Gildenkanal, also erreicht sie auch den,
+    -- der gerade woanders steht. Faellt dasselbe Teil in beiden Instanzen
+    -- innerhalb einer Stunde — bei zwei Gruppen in derselben Instanz eher
+    -- die Regel als die Ausnahme —, haette die Vergabe der einen Gruppe die
+    -- Erfassung der anderen abgeraeumt.
+    --
+    -- Der Absender muss also in MEINER Gruppe stehen. Dann ist es derselbe
+    -- Fund; sonst sind es zwei, und beide bleiben.
     local vorhanden = GA.Modules.Awards:FindLocalDetected(data.item, data.ts)
-    if vorhanden then
+    if vorhanden and Compat.IsInMyGroup(sender) then
         GA.Modules.Awards:Cancel(vorhanden.id, "durch die Meldung des Lootmeisters ersetzt")
         Debug:Print("comm", "Erfassung ersetzt: %s", tostring(data.name))
     end
