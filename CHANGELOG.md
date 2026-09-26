@@ -1,10 +1,11 @@
 # Changelog
 
-## 0.1.10
+## 0.1.11
 
-A guild rule, two new things on the map and in the memory report, and a run
-of bug reports — three of which turned out to share one cause, buried in the
-way this realm spells names.
+A guild rule about when a loot session is worth holding, names and levels
+on the map, and the memory figure turned from something to watch into
+something to measure. Plus the open-profession button, which did nothing and
+said nothing about it.
 
 ### No session without a master looter
 
@@ -144,11 +145,16 @@ out of. WoW's chat frame does not hand its text over, and a diagnostic report
 nobody can send on is useless as a diagnostic. `/ga probe` has had that window
 for a while; the two reports I ask for most often did not.
 
-Two allocations of my own from earlier today are gone with it: both new name
-helpers were written as local functions *inside* the routines that use them,
-which makes a fresh closure on every incoming addon message and every
-dashboard refresh. That is the exact shape of loop that produced the 18 MB in
-0.1.9, and I wrote two more of them while fixing it.
+Two allocations of my own are gone with it. Both name helpers added in 0.1.10
+were written as local functions *inside* the routines that use them, which
+makes a fresh closure on every incoming addon message and every dashboard
+refresh. That is the exact shape of loop that produced the 18 MB in 0.1.9 —
+so I wrote two more of them in the release that fixed it.
+
+## 0.1.10
+
+Three reports from one evening, and by the end of it one cause behind all
+of them: the way this realm spells names.
 
 ### The root: that second value is not a realm
 
