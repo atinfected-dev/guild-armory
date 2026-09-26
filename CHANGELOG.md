@@ -27,6 +27,12 @@ really loads. The list icon is only pointed at the logo once it has actually
 been written — a path to a missing file brings back exactly the question mark
 this was meant to remove.
 
+One bug came out of it that only a small picture could show: the crop was
+averaged over a field twice as far from the left edge as it should have been,
+so anything cropped came out a soft gradient instead of a picture. With no
+offset the mistake cancels itself, which is why the whole logo looked right
+in the addon list and only the minimap crest was mush.
+
 The converter is tested against a picture it builds itself, so no image needs
 to live in the repository for the test to run. The part worth testing is the
 channel order: TGA stores blue first, PNG stores red first, and getting it
