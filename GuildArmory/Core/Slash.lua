@@ -629,8 +629,23 @@ SlashCmdList["GUILDARMORY"] = function(input)
             local b = bericht()
             b.sag("%s", L.CRAFT_LINKS_TITLE)
 
+            -- DEN LINK ENTSCHAERFEN, SONST ZEIGT ER SICH NICHT.
+            --
+            -- Erster Versuch (25.09.2026) gab das hier aus:
+            --
+            --     Total Tumult / Alchemy (ok)
+            --       [Alchemy]
+            --
+            -- Das Fenster hat den Link GERENDERT statt ihn anzuzeigen —
+            -- genau das, was ein Link tun soll, und genau das Gegenteil von
+            -- dem, wozu ein Diagnosebericht da ist. Ein verdoppeltes "|"
+            -- zeigt WoW als ein einzelnes an, ohne es zu deuten.
+            local function roh(text)
+                return (string.gsub(tostring(text), "|", "||"))
+            end
+
             local eigen = GA.Core.Compat.GetTradeSkillLink()
-            b.sag(L.CRAFT_LINKS_OWN, eigen and ("\n" .. eigen) or "—")
+            b.sag(L.CRAFT_LINKS_OWN, eigen and ("\n" .. roh(eigen)) or "—")
 
             local account = GA.Core.Database.account
             for name, eintrag in pairs(account.crafting or {}) do
@@ -647,7 +662,7 @@ SlashCmdList["GUILDARMORY"] = function(input)
                     end
                     b.sag("%s / %s (%s)", tostring(name),
                         tostring(line.name or lineID), urteil)
-                    if line.link then b.sag("  %s", line.link) end
+                    if line.link then b.sag("  %s", roh(line.link)) end
                 end
             end
             b.zeigen(L.CRAFT_LINKS_TITLE)

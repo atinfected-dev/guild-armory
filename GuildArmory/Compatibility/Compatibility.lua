@@ -2214,12 +2214,45 @@ function Compat.CheckTradeSkillLink(link)
     return true
 end
 
---- @return boolean geoeffnet, string|nil grund
+--- GEMESSEN 25.09.2026, ueber /ga craft link:
+---
+---     Total Tumult / Alchemy (ok)
+---     我喜歡 火車 / Verzauberkunst (ok)
+---
+--- Die Links sind also heil — die Pruefung geht bis zum Schluss durch, und
+--- trotzdem ging kein Fenster auf. Der Bruch liegt HINTER der Pruefung, und
+--- dafuer gibt es zwei bekannte Gruende:
+---
+---   1. Blizzards Berufsfenster wird bei Bedarf nachgeladen. Ist es nicht
+---      da, laeuft SetItemRef ins Leere — ohne Fehler, ohne Rueckgabewert.
+---      Genau die Sorte Stille, die gemeldet wurde.
+---   2. Es gibt zwei Wege, und welcher auf dieser Linie traegt, ist
+---      ungemessen. C_TradeSkillUI.OpenTradeSkill ist der genaue,
+---      SetItemRef der allgemeine.
+---
+--- Deshalb: erst laden, dann den genauen Weg, dann den allgemeinen — und der
+--- Rueckgabewert sagt, WELCHER gelaufen ist. Beim naechsten Bericht steht
+--- damit da, ob es am Weg lag oder am Server.
+--- @return boolean abgeschickt, string|nil grundOderWeg
 function Compat.OpenTradeSkillLink(link)
     local brauchbar, grund = Compat.CheckTradeSkillLink(link)
     if not brauchbar then return false, grund end
 
     local kern = string.match(link, "|H(trade:[^|]+)|h")
+
+    -- ERST DAS FENSTER NACHLADEN. Blizzard_TradeSkillUI kommt erst, wenn
+    -- jemand einen Beruf oeffnet; wer vorher einen Link anklickt, klickt
+    -- gegen nichts.
+    local laden = (isTable(_G.C_AddOns) and _G.C_AddOns.LoadAddOn) or _G.LoadAddOn
+    if isFunction(laden) then pcall(laden, "Blizzard_TradeSkillUI") end
+
+    local api = _G.C_TradeSkillUI
+    if isTable(api) and isFunction(api.OpenTradeSkill) then
+        local okApi = pcall(api.OpenTradeSkill, link)
+        if okApi then return true, "C_TradeSkillUI.OpenTradeSkill" end
+    end
+
+    if not isFunction(_G.SetItemRef) then return false, "kein Weg vorhanden" end
 
     -- Der dritte Parameter ist die Maustaste; SetItemRef erwartet sie, und
     -- ohne sie werfen manche Fassungen.
@@ -2230,7 +2263,7 @@ function Compat.OpenTradeSkillLink(link)
     -- entscheidet der Server: Er muss die Daten des anderen Charakters
     -- herausgeben, und das tut er nur, solange der angemeldet ist. Diese
     -- Funktion kann das nicht wissen und behauptet es deshalb nicht.
-    return true
+    return true, "SetItemRef"
 end
 
 -- ================================================================ Speicher ---

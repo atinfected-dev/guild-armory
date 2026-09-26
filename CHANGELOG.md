@@ -5,6 +5,35 @@
 Three reports from the same evening, and by the end of it one cause behind
 all of them.
 
+### The open-profession button
+
+It did nothing, and said nothing about it. The button can stop at four
+different places and all four looked identical from outside, so every exit
+now names its reason and the button prints it.
+
+That first report already ruled out half the suspects: every stored link
+checks out. The link survives both encodings intact — so the break is behind
+the check, and there were two candidates for it.
+
+Blizzard's profession window is loaded on demand. Before anyone opens a
+profession it does not exist, and clicking a link then goes nowhere — no
+error, no return value, exactly the silence that was reported. It is now
+loaded first.
+
+And there are two ways to open such a link, the specific
+`C_TradeSkillUI.OpenTradeSkill` and the general `SetItemRef`; which of them
+carries on this client is unmeasured. Both are tried in that order, and the
+message says which one ran. If no window appears after that, the way was
+taken and the server handed nothing back — a different problem from a link
+that was never sent, and now distinguishable.
+
+`/ga craft link` also prints the links in the raw. The first version rendered
+them, so the report read "[Alchemy]" — which is what a link is for, and the
+opposite of what a diagnostic is for.
+
+Gathering professions have no link, and that is correct rather than missing:
+herbalism and skinning have no recipe list to link to.
+
 ### Names and levels on the map
 
 A dot answers "is somebody there". The question people actually have in front

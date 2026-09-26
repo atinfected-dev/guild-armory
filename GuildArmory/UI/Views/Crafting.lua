@@ -108,9 +108,20 @@ function CraftingView:Create(parent)
         -- DER GRUND GEHOERT IN DEN CHAT, nicht ins Schweigen. Ein Knopf, der
         -- nichts tut und nichts sagt, ist von aussen nicht aufzuklaeren —
         -- genau so war er gemeldet.
-        local ok, grund = Compat.OpenTradeSkillLink(detail.link)
-        if not ok then
-            GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(grund))
+        local ok, weg = Compat.OpenTradeSkillLink(detail.link)
+        if ok then
+            -- AUCH DER ERFOLG MELDET SICH — solange nicht gemessen ist,
+            -- welcher der beiden Wege auf dieser Linie traegt. Geht danach
+            -- trotzdem kein Fenster auf, ist der Weg gelaufen und der Server
+            -- hat nichts herausgegeben; das ist eine andere Baustelle als
+            -- ein Link, der nie abgeschickt wurde.
+            -- SICHTBAR, nicht ueber einen Debug-Kanal: Der laeuft nur, wenn
+            -- jemand ihn eingeschaltet hat, und dann sieht wieder niemand
+            -- etwas. Es ist eine Zeile auf einen Knopfdruck, den jemand
+            -- absichtlich getan hat.
+            GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(weg))
+        else
+            GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
         end
     end, "primary")
     self.openButton:SetPoint("LEFT", self.backButton, "RIGHT", 6, 0)

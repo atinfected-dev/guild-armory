@@ -889,6 +889,7 @@ GA.Core.Locale:Register("deDE", {
     CRAFT_SCAN_SAME    = "%s unveraendert: %d Rezepte.",
     CRAFT_SYNCED       = "Die Gilde gefragt und die eigenen Berufe geschickt.",
     CRAFT_LINKS_TITLE  = "Berufe-Links — woran der Oeffnen-Knopf haengt",
+    CRAFT_OPEN_SENT    = "Berufe-Link abgeschickt (%s) — das Fenster kommt vom Server, und nur solange der andere angemeldet ist.",
     CRAFT_LINKS_OWN    = "Eigener Link: %s",
     CRAFT_ERR_nowindow = "Kein Berufsfenster offen.",
     CRAFT_ERR_notready = "Das Berufsfenster hat seine Rezepte noch nicht geschickt — gleich noch einmal versuchen.",
