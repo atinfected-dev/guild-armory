@@ -2,10 +2,18 @@
 
 ## 0.1.11
 
-A guild rule about when a loot session is worth holding, names and levels
-on the map, and the memory figure turned from something to watch into
-something to measure. Plus the open-profession button, which did nothing and
-said nothing about it.
+Mostly one evening of raiding, spent finding out what the loot list had been
+collecting and why. It turns out it had been recording drops nobody was
+handing out, filing several of them more than once, and taking in everybody
+else's observations on top — each of those for a different reason, and the
+last one only visible because two clients speak different languages.
+
+The list has buttons now for tidying up after all that, and one for putting
+into it what is already in your bags.
+
+Alongside: names and levels beside the map pins, the memory figure turned
+from something to watch into something to measure, and the open-profession
+button, which did nothing and said nothing about it.
 
 ### The same drop, four times over
 
@@ -23,6 +31,9 @@ while one entry too many is obvious.
 With no known corpse the window shrinks to a minute: slot and item alone will
 eventually match a different corpse, and past that point recording twice
 beats discarding something real.
+
+That was half of it. The other half came in over the sync and is further
+down — same symptom, unrelated cause, found a few hours later.
 
 ### A remove button for detected items
 
