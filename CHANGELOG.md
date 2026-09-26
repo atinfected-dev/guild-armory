@@ -1,14 +1,9 @@
 # Changelog
 
-## 0.1.13
+## 0.1.14
 
-One evening of raiding, spent finding out what the loot list had been
-collecting and why. It had been filing several drops more than once — for two
-unrelated reasons, hours apart — and taking in everybody else's observations
-on top, which only showed because two clients speak different languages.
-
-The list has buttons now for tidying up after all that, and one for putting
-into it what is already in your bags.
+The map pins are round now, and the addon carries its own logo — in the
+list where addons are switched on and off, and on the minimap button.
 
 ### The addon's own logo, in the list and on the minimap
 
@@ -74,6 +69,17 @@ art that is known to work rather than a third guess.
 
 Without a class to draw, the coloured dot with its square outline stays. It
 says less, but it says it reliably, and a map with no dots is broken.
+
+## 0.1.13
+
+One evening of raiding, spent finding out what the loot list had been
+collecting and why. It had been filing several drops more than once — for
+two unrelated reasons, hours apart — and taking in everybody else's
+observations on top, which only showed because two clients speak different
+languages.
+
+The list has buttons now for tidying up after all that, and one for putting
+into it what is already in your bags.
 
 ### The same drop, four times over
 
