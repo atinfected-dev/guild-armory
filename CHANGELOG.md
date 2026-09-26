@@ -4,9 +4,11 @@
 
 ### The map pins are bigger, white-edged, and the same size everywhere
 
-Twenty-four pixels instead of sixteen. The crest needs the room to be a
-crest — the way there was twelve, fourteen, sixteen, twenty — and the limit
-upwards is the map itself: what a pin covers, nobody can read.
+Twenty-two pixels instead of sixteen. The crest needs the room to be a
+crest, and the limit upwards is the map itself: what a pin covers, nobody
+can read. The way there was twelve, fourteen, sixteen, twenty, twenty-four —
+and twenty-four was one step too far, which is the kind of thing only a
+screen can say.
 
 **The edge around it is white now, not black.** The edge has a job, which is
 to set the pin apart from the map, and which colour does that depends on

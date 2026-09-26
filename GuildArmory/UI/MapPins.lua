@@ -48,13 +48,18 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
--- 20, auf Ansage vom 26.09.2026. Der Weg war 12 (farbiger Punkt), 14, 16
--- (Klassenwappen) — und ein Wappen braucht Platz, um eines zu sein.
+-- 22, am Bildschirm gefunden. Der Weg war 12 (farbiger Punkt), 14, 16
+-- (Klassenwappen), 20, 24 — und 24 war eine Stufe zu viel.
 --
--- Nach oben ist die Grenze die Karte selbst: Was die Nadel verdeckt, kann
--- niemand mehr lesen, und bei zwanzig Gildenmitgliedern in einer Zone wird
--- aus einer Karte sonst eine Wappensammlung.
-local PIN_SIZE = 24
+-- Ein Wappen braucht Platz, um eines zu sein; nach oben ist die Grenze die
+-- Karte selbst. Was die Nadel verdeckt, kann niemand mehr lesen, und bei
+-- zwanzig Gildenmitgliedern in einer Zone wird daraus eine
+-- Wappensammlung.
+--
+-- Die Zahl gilt seit dem Massstabsausgleich weiter unten fuer JEDE
+-- Aufloesung und jede Zoomstufe gleich. Vorher waere sie nur fuer einen
+-- Bildschirm richtig gewesen.
+local PIN_SIZE = 22
 
 --- Die Farbe des Rands um die Nadel.
 ---
