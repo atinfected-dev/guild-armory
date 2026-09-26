@@ -82,9 +82,6 @@ assertion where the age is a measurement.
 them, so the report read "[Alchemy]" — which is what a link is for, and the
 opposite of what a diagnostic is for.
 
-Gathering professions have no link, and that is correct rather than missing:
-herbalism and skinning have no recipe list to link to.
-
 ### Names and levels on the map
 
 A dot answers "is somebody there". The question people actually have in front
