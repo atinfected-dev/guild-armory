@@ -2390,3 +2390,28 @@ function Compat.GetMaxPlayerLevel()
     end
     return nil
 end
+
+--- Der Name eines Berufs, in DER SPRACHE DIESES CLIENTS.
+---
+--- WOZU (27.09.2026 gemeldet): In der Berufeliste stand "Kochkunst" neben
+--- "Cooking" — derselbe Beruf, zweimal. Der Name kommt naemlich vom
+--- SCANNENDEN Client und ist in dessen Sprache; wer ihn weiterreicht,
+--- reicht eine fremde Spracheinstellung weiter.
+---
+--- Die Kennung der Berufslinie ist dagegen sprachlos. Aus ihr den Namen zu
+--- holen ist die einzige Fassung, die auf jedem Client dasselbe ergibt —
+--- naemlich das, was dort im Spiel steht.
+---
+--- @return string|nil  nil = dieser Client gibt den Namen nicht her; dann
+---                     ist der mitgeschickte immer noch besser als nichts
+function Compat.GetProfessionName(lineID)
+    lineID = tonumber(lineID)
+    if not lineID then return nil end
+
+    local api = _G.C_TradeSkillUI
+    if not isTable(api) or not isFunction(api.GetTradeSkillDisplayName) then return nil end
+
+    local ok, name = pcall(api.GetTradeSkillDisplayName, lineID)
+    if not ok or type(name) ~= "string" or name == "" then return nil end
+    return name
+end

@@ -2,6 +2,22 @@
 
 ## 0.1.15
 
+### Profession names in your own language
+
+They were showing in German on an English client. The name that travels with
+a profession is the *scanning* client's — so showing it means showing
+somebody else's language setting, and in a guild with two of them the same
+profession stands in the list twice. That was visible a day earlier without
+being understood: "Kochkunst" and "Cooking" under each other, "Lebendige
+Wurzel" and "Living Root".
+
+The id of the skill line has no language. Asked for locally it gives the
+name this client uses, which is the only version that comes out the same
+everywhere.
+
+If the client does not answer for an id, the transmitted name stays. A name
+in the wrong language still beats a number — 185 means nothing to anybody.
+
 ### The character list: sorted by item level, and a scrollbar that behaves
 
 The list answers one question — who is how far along — and sorted by name it

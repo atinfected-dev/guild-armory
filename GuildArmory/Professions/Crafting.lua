@@ -344,6 +344,23 @@ function Crafting:Index()
     return byItem
 end
 
+--- Der Name eines Berufs, wie er auf DIESEM Client heisst.
+---
+--- GEMELDET 27.09.2026: "Die Professions werden auf Deutsch angezeigt."
+--- Und vorher schon im Bild zu sehen gewesen: "Kochkunst" und "Cooking"
+--- untereinander in derselben Liste.
+---
+--- Der mitgeschickte Name ist der des SCANNENDEN Clients. Ihn anzuzeigen
+--- heisst, eine fremde Spracheinstellung anzuzeigen — und bei zwei
+--- Sprachen in einer Gilde steht derselbe Beruf zweimal da.
+---
+--- Die Kennung der Berufslinie ist sprachlos; aus ihr geholt stimmt der
+--- Name auf jedem Client. Geht das nicht, bleibt der mitgeschickte: Ein
+--- fremdsprachiger Name ist immer noch besser als eine Zahl.
+function Crafting:DisplayName(lineID, mitgeschickt)
+    return Compat.GetProfessionName(lineID) or mitgeschickt or tostring(lineID or "?")
+end
+
 --- Wer kann diesen Gegenstand herstellen?
 --- @return table { { name, line, lineName, rank, ts } }
 function Crafting:Crafters(itemID)
@@ -361,7 +378,7 @@ function Crafting:Crafters(itemID)
             out[#out + 1] = {
                 name = eintrag.name or hit.who or GA.L.UNKNOWN,
                 line = hit.line,
-                lineName = line.name,
+                lineName = self:DisplayName(lineID, line.name),
                 rank = line.rank,
                 ts = line.ts,
             }
@@ -379,10 +396,11 @@ function Crafting:Professions()
 
     for who, eintrag in pairs(db) do
         for lineID, line in pairs(eintrag.lines or {}) do
-            nachLinie[lineID] = nachLinie[lineID] or { line = lineID, name = line.name, crafters = {} }
+            nachLinie[lineID] = nachLinie[lineID]
+                or { line = lineID, name = self:DisplayName(lineID, line.name), crafters = {} }
             -- Der zuletzt gesehene Name gewinnt: Er ist in der Sprache
             -- dessen, der zuletzt gescannt hat, aber immer ein echter.
-            nachLinie[lineID].name = nachLinie[lineID].name or line.name
+            nachLinie[lineID].name = nachLinie[lineID].name or self:DisplayName(lineID, line.name)
 
             local items = Crafting.Decode(line.items) or {}
             local spells = Crafting.Decode(line.spells) or {}
@@ -440,7 +458,8 @@ function Crafting:LinesOf(name)
         local items = Crafting.Decode(line.items) or {}
         local spells = Crafting.Decode(line.spells) or {}
         out[#out + 1] = {
-            line = lineID, name = line.name, rank = line.rank, maxRank = line.maxRank,
+            line = lineID, name = self:DisplayName(lineID, line.name),
+            rank = line.rank, maxRank = line.maxRank,
             items = items, spells = spells, ts = line.ts,
         }
     end
