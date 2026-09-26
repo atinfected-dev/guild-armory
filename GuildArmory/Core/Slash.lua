@@ -41,6 +41,7 @@ local VIEWS = {
 }
 
 local pendingReset
+local pendingDedupe
 
 --- Was dieser Client kann, in Worten statt in Wahrheitswerten.
 ---
@@ -138,6 +139,44 @@ SlashCmdList["GUILDARMORY"] = function(input)
         end
         Debug:Info(L.SLASH_LANGUAGE_NOW, tostring(Locale.active),
             tostring(Locale.reason))
+    elseif command == "dedupe" or command == "doppelte" then
+        -- DIE DOPPELTEN VON HEUTE ABEND WEGRAEUMEN.
+        --
+        -- Die Regel gegen Mehrfacherfassung greift ab jetzt; was vorher
+        -- entstanden ist, steht weiter da — fuenfmal "Witherbite Bracers"
+        -- in einer Liste von 22. Das von Hand wegzuklicken ist Arbeit, die
+        -- ein Fehler verursacht hat, den ich gebaut habe.
+        --
+        -- ERST ZEIGEN, DANN AUSFUEHREN. Dasselbe Muster wie /ga reset: Der
+        -- erste Aufruf zaehlt auf, der zweite raeumt weg. Eine Liste
+        -- stillschweigend zu halbieren waere auch dann falsch, wenn die
+        -- Haelfte wirklich Muell ist.
+        local Awards = GA.Modules.Awards
+        local doppelte = Awards:FindDuplicates()
+
+        if #doppelte == 0 then
+            Debug:Info("%s", L.SLASH_DEDUPE_NONE)
+        elseif pendingDedupe ~= #doppelte then
+            pendingDedupe = #doppelte
+            Debug:Info(L.SLASH_DEDUPE_FOUND, #doppelte)
+            for _, award in ipairs(doppelte) do
+                Debug:Info("  %s", tostring(award.itemLink or award.itemName or award.itemID))
+            end
+            Debug:Info("%s", L.SLASH_DEDUPE_CONFIRM)
+            GA.Core.Compat.After(20, function() pendingDedupe = nil end)
+        else
+            pendingDedupe = nil
+            local weg = 0
+            local identity = GA.Core.Compat.GetPlayerIdentity()
+            for _, award in ipairs(doppelte) do
+                if Awards:Cancel(award.id, L.SLASH_DEDUPE_REASON, identity.guid) then
+                    weg = weg + 1
+                end
+            end
+            Debug:Info(L.SLASH_DEDUPE_DONE, weg)
+            GA.Core.Callbacks:Fire("AWARDS_CHANGED")
+        end
+
     elseif command == "bags" or command == "taschen" then
         -- WO LIEGT DER LOOT GERADE?
         --
@@ -153,10 +192,20 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local b = bericht()
         b.sag("%s", L.SLASH_BAGS_TITLE)
 
-        local taschen = {}
-        for _, eintrag in ipairs(GA.Core.Compat.GetBagItems()) do
+        -- WIE VIEL UEBERHAUPT GELESEN WURDE.
+        --
+        -- Der erste Bericht sagte "0 in your bags, 22 not" — und das heisst
+        -- zweierlei: "du hast keins davon" oder "ich konnte die Taschen gar
+        -- nicht lesen". Ohne diese Zahl ist nicht zu entscheiden, welches
+        -- von beidem, und eine Null, die beides bedeuten kann, ist keine
+        -- Auskunft.
+        local inhalt = GA.Core.Compat.GetBagItems()
+        local taschen, gelesen = {}, 0
+        for _, eintrag in ipairs(inhalt) do
+            gelesen = gelesen + 1
             taschen[eintrag.itemID] = taschen[eintrag.itemID] or eintrag
         end
+        b.sag(L.SLASH_BAGS_READ, gelesen)
 
         local offen = GA.Modules.Awards:List({ open = true })
         local da, fehlt = 0, 0

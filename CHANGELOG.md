@@ -47,6 +47,26 @@ list is the useful one — it is either already handed over or never arrived,
 and that is a conversation rather than a button. Copyable, like the other
 reports.
 
+The first run said "0 in your bags, 22 not", which means two different
+things: you have none of them, or the bags could not be read at all. It now
+says how many items were read, so the zero can be told apart from the
+silence.
+
+### /ga dedupe — clearing up after the bug above
+
+The rule against recording a drop twice works from now on; what already
+happened stays on the list. After one evening that was five identical pairs
+of bracers among 22 entries, and clicking those away by hand is work caused
+by a mistake of mine.
+
+It shows first and clears on the second call, the same as `/ga reset`.
+Halving a list quietly would be wrong even when half of it really is
+rubbish. The oldest of each group stays, because it carries the first
+measurement and any bids and votes hang off its id. Nothing awarded is
+touched — that is history, however much it looks like a duplicate — and
+nothing with an unknown source, because two finds of the same item from
+nowhere in particular may well be two real finds, and this one deletes.
+
 ### No loot recorded without a master looter either
 
 Reported from a dungeon run: it takes everything. The saved data said what

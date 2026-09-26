@@ -137,6 +137,47 @@ function Awards:FindDuplicate(item, context)
     return nil
 end
 
+--- Alle Eintraege, die denselben Fund ein zweites Mal beschreiben.
+---
+--- FUER DAS AUFRAEUMEN VON GESTERN. Die Regel oben verhindert neue Doppel;
+--- die alten stehen weiter da — nach einem Abend waren es fuenfmal dieselben
+--- Armschienen in einer Liste von 22.
+---
+--- DER AELTESTE BLEIBT. Er trägt die erste Messung, und alles, was daran
+--- haengt — Gebote, Stimmen —, haengt an seiner Kennung.
+---
+--- NUR WAS NOCH NICHT VERGEBEN IST. Ein vergebener Eintrag ist Geschichte,
+--- auch wenn er wie ein Doppel aussieht; wer den wegraeumt, aendert, was
+--- jemand bekommen hat.
+--- @return table Liste der ueberzaehligen Eintraege
+function Awards:FindDuplicates()
+    local nach, ueberzaehlig = {}, {}
+
+    for _, award in pairs(store()) do
+        if award.status == Status.DETECTED or award.status == Status.SESSION_OPEN then
+            -- OHNE HERKUNFT KEIN URTEIL. Zwei Funde desselben Teils ohne
+            -- bekannte Leiche koennen zwei echte Funde sein, und hier wird
+            -- geloescht — im Zweifel bleibt beides stehen.
+            if award.itemID and award.sourceGuid and award.slot then
+                local key = award.sourceGuid .. ":" .. tostring(award.slot)
+                    .. ":" .. tostring(award.itemID)
+                local erster = nach[key]
+                if not erster then
+                    nach[key] = award
+                elseif (award.ts or 0) < (erster.ts or 0) then
+                    nach[key] = award
+                    ueberzaehlig[#ueberzaehlig + 1] = erster
+                else
+                    ueberzaehlig[#ueberzaehlig + 1] = award
+                end
+            end
+        end
+    end
+
+    table.sort(ueberzaehlig, function(a, b) return (a.ts or 0) < (b.ts or 0) end)
+    return ueberzaehlig
+end
+
 function Awards:Get(awardId)
     return awardId and store()[awardId] or nil
 end
