@@ -2,21 +2,34 @@
 
 ## 0.1.15
 
-### The map pins are bigger, and the name sits above them
+### The map pins are bigger, white-edged, and the same size everywhere
 
-Twenty pixels instead of sixteen. The crest needs the room to be a crest —
-the way there was twelve, fourteen, sixteen — and the limit upwards is the
-map itself: what a pin covers, nobody can read, and twenty guild members in
-one zone would turn a map into a collection of coats of arms.
+Twenty-four pixels instead of sixteen. The crest needs the room to be a
+crest — the way there was twelve, fourteen, sixteen, twenty — and the limit
+upwards is the map itself: what a pin covers, nobody can read.
 
-The name sits centred above the pin now instead of beside it. Beside it had
-a reason — a long name grew outwards rather than shifting the dot — and
-centred solves the same thing better: it grows to *both* sides, so the dot
-stays in the middle of it, and with two pins side by side no name pushes
-itself over the other one.
+**The edge around it is white now, not black.** The edge has a job, which is
+to set the pin apart from the map, and which colour does that depends on
+what is underneath: black separates better on pale parchment, white on dark
+water and forest. The crest itself is dark — deep blue, black, gold — so a
+dark edge only makes the dark patch bigger, while a light one turns it into
+a token with a rim. Decided on screen rather than reasoned out.
 
-Above rather than below, because what matters on a map usually lies under
-the dot: roads, zone borders, your own arrow.
+It comes from one place now, for the crest and for the square fallback
+alike. Two pairs of numbers meant to mean the same thing drift apart.
+
+**And it keeps its size on every screen and at every zoom.** The screen
+alone would be no problem — WoW rescales the whole interface, and 24 units
+look the same everywhere. But a pin does not hang off the interface, it
+hangs off the map surface, and that has a scale of its own: it is stretched
+as you zoom, and everything in it with it. The pin now carries the ratio
+between the two, which leaves it at exactly the scale every other frame
+has.
+
+The offsets are divided by that ratio, because anchor offsets count in the
+frame’s own scale — set a pin to 0.7 and keep asking for 300 and it lands
+at 210, further off the further you zoom in. Without zooming, you would
+never see it.
 
 ## 0.1.14
 

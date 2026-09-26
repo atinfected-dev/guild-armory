@@ -54,7 +54,21 @@ local L = GA.L
 -- Nach oben ist die Grenze die Karte selbst: Was die Nadel verdeckt, kann
 -- niemand mehr lesen, und bei zwanzig Gildenmitgliedern in einer Zone wird
 -- aus einer Karte sonst eine Wappensammlung.
-local PIN_SIZE = 20
+local PIN_SIZE = 24
+
+--- Die Farbe des Rands um die Nadel.
+---
+--- WEISS, NICHT SCHWARZ (26.09.2026 auf Ansage: "so sieht man es denke ich
+--- besser"). Der Rand hat eine Aufgabe — die Nadel von der Karte
+--- abzusetzen —, und welche Farbe sie erfuellt, haengt am Untergrund: Auf
+--- einem hellen Pergament trennt Schwarz besser, auf dunklem Wasser und
+--- Wald Weiss.
+---
+--- Das Wappen selbst ist dunkel (tiefes Blau, Schwarz, Gold). Ein dunkler
+--- Rand darum vergroessert also nur den dunklen Fleck; ein heller macht
+--- daraus eine Marke mit Kante. Am Bildschirm entschieden, nicht
+--- ausgerechnet.
+local RAND_FARBE = { 1, 1, 1, 0.9 }
 local TICK = 0.5
 
 -- ================================================================== Nadeln ---
@@ -102,7 +116,7 @@ function MapPins:Pin(index)
     pin.ring = {}
     for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
         local line = pin:CreateTexture(nil, "BORDER")
-        Theme.Paint(line, { 0, 0, 0, 0.9 })
+        Theme.Paint(line, RAND_FARBE)
         if seite == "TOP" or seite == "BOTTOM" then
             line:SetHeight(2)
             line:SetPoint(seite .. "LEFT", pin, seite .. "LEFT", 0, 0)
@@ -200,6 +214,33 @@ function MapPins:Refresh()
     -- sich waehrend eines Durchlaufs nicht aendert.
     local beschriften = GA.Core.Config:Get("mapPinLabels") ~= false
 
+    -- GLEICH GROSS AUF JEDEM BILDSCHIRM UND IN JEDER ZOOMSTUFE.
+    --
+    -- GEFRAGT 26.09.2026: "wird das skaliert, wenn jemand nur auf 1920 oder
+    -- auf 2560 oder auf 3440x1440 spielt?"
+    --
+    -- Der Bildschirm allein waere kein Problem — WoW rechnet die ganze
+    -- Oberflaeche um, und ein Rahmen von 24 Einheiten sieht ueberall gleich
+    -- gross aus. Die Nadel haengt aber nicht an der Oberflaeche, sondern an
+    -- der KARTENFLAECHE, und die hat ihren eigenen Massstab: Sie wird beim
+    -- Zoomen gedehnt. Eine Nadel darin waechst mit — beim Hineinzoomen zu
+    -- einem Klotz, bei der Kontinentkarte zu einem Fleck.
+    --
+    -- Der Ausgleich ist ein Verhaeltnis: Steht die Nadel auf dem Massstab
+    -- der Oberflaeche geteilt durch den der Kartenflaeche, hat sie am Ende
+    -- genau den Massstab, den jedes andere Fenster auch hat. Damit gilt
+    -- wieder, was oben ueber 24 Pixel steht — auf jeder Aufloesung.
+    --
+    -- OHNE MESSUNG KEIN AUSGLEICH: Antwortet einer der beiden nicht, bleibt
+    -- es bei 1. Eine Nadel in falscher Groesse ist besser als gar keine.
+    local massstab = 1
+    local okUi, uiMass = pcall(UIParent.GetEffectiveScale, UIParent)
+    local okKarte, karteMass = pcall(canvas.GetEffectiveScale, canvas)
+    if okUi and okKarte and type(uiMass) == "number" and type(karteMass) == "number"
+        and karteMass > 0 and uiMass > 0 then
+        massstab = uiMass / karteMass
+    end
+
     local sichtbar = 0
     for _, entry in ipairs(Positions:All()) do
       -- DIE EIGENE NADEL BLEIBT DRAUSSEN. Siehe Dateikopf: Blizzard zeichnet
@@ -232,7 +273,8 @@ function MapPins:Refresh()
             if rund then
                 pin.fill:SetVertexColor(1, 1, 1, 1)
                 if Theme.SetClassPortrait(pin.rand, entry.class) then
-                    pin.rand:SetVertexColor(0, 0, 0, 0.9)
+                    pin.rand:SetVertexColor(
+                        RAND_FARBE[1], RAND_FARBE[2], RAND_FARBE[3], RAND_FARBE[4])
                     pin.rand:Show()
                 else
                     pin.rand:Hide()
@@ -275,8 +317,18 @@ function MapPins:Refresh()
             -- ERST UMHAENGEN, DANN SETZEN. Ein Anker auf einen Rahmen,
             -- der gleich ausgetauscht wird, ist einer zu viel.
             pin:SetParent(canvas)
+            pin:SetScale(massstab)
             pin:ClearAllPoints()
-            pin:SetPoint("CENTER", canvas, "TOPLEFT", x * breite, -(y * hoehe))
+
+            -- DIE VERSCHIEBUNG WIRD DURCH DEN MASSSTAB GETEILT.
+            --
+            -- Ankerabstaende gelten im Massstab des Rahmens SELBST. Wer die
+            -- Nadel auf 0.7 stellt und weiter 300 als Abstand angibt, setzt
+            -- sie auf 210 — sie waere also zu weit oben links, und zwar
+            -- umso mehr, je weiter man hineinzoomt. Das faellt beim
+            -- Ausprobieren nicht auf, wenn man nicht zoomt.
+            pin:SetPoint("CENTER", canvas, "TOPLEFT",
+                (x * breite) / massstab, -(y * hoehe) / massstab)
             pin:Show()
         end
       end
