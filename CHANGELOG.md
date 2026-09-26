@@ -2,8 +2,9 @@
 
 ## 0.1.10
 
-Three reports from the same evening, and by the end of it one cause behind
-all of them.
+A guild rule, two new things on the map and in the memory report, and a run
+of bug reports — three of which turned out to share one cause, buried in the
+way this realm spells names.
 
 ### No session without a master looter
 
