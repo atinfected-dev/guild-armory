@@ -513,9 +513,26 @@ function LootCouncil:AddAllFromBags()
     for _, eintrag in ipairs(Compat.GetBagItems()) do
         local info = eintrag.link and Compat.GetItemInfo(eintrag.link)
         local quality = info and info.quality
+
+        -- GEBUNDENES GEHOERT NICHT AUF DIE LISTE (26.09.2026: "ich kann
+        -- jetzt 2 items aus der bag laden, die sind aber schon soulbound").
+        --
+        -- Ein seelengebundenes Teil kann niemand mehr bekommen. Es
+        -- anzubieten heisst, jemanden auf etwas bieten zu lassen, das er
+        -- nie bekommt.
+        --
+        -- NUR BEI EINEM SICHEREN JA. Compat.ItemIsBound kennt drei
+        -- Antworten, und "weiss nicht" kommt vor. Hier waere das
+        -- Ausschliessen der teurere Fehler: Ein faelschlich angebotenes
+        -- Teil kostet einen Klick auf "Entfernen", ein faelschlich
+        -- weggelassenes fehlt, und es gibt keinen Weg, es doch noch
+        -- hereinzuholen.
+        local gebunden = Compat.ItemIsBound(eintrag.bag, eintrag.slot) == true
+
         -- OHNE QUALITAET NICHT. Ein unbekannter Wert ist keine Erlaubnis;
         -- der Client holt ihn nach, und beim naechsten Druck steht er da.
-        if quality and quality >= schwelle and not bekannt[eintrag.itemID] then
+        if quality and quality >= schwelle and not gebunden
+            and not bekannt[eintrag.itemID] then
             bekannt[eintrag.itemID] = true
             kandidaten[#kandidaten + 1] = {
                 itemID = eintrag.itemID, link = eintrag.link,

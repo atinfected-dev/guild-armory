@@ -52,6 +52,13 @@ The other direction: whoever collected as master looter has the evening in
 their bags and not on the list — because the addon was off for a while,
 because somebody else looted, or because the pieces came out of a trade.
 
+Soulbound pieces stay out. Something already bound cannot reach anybody, and
+offering it means letting somebody bid on what they will never get. Only on a
+definite yes, though: the bound check has three answers and "don't know"
+happens. Here leaving something out is the more expensive mistake — a piece
+offered wrongly costs one click on Remove, a piece left out wrongly is simply
+missing with no way to fetch it back.
+
 It shows before it acts, listing in chat what would come in, and only adds on
 the second press. Whether a piece is "for handing out" is not something this
 client knows — it stands in no field, and a rule that tries to guess it
