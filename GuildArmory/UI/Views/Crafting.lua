@@ -136,7 +136,22 @@ function CraftingView:Create(parent)
             -- jemand ihn eingeschaltet hat, und dann sieht wieder niemand
             -- etwas. Es ist eine Zeile auf einen Knopfdruck, den jemand
             -- absichtlich getan hat.
+            --
+            -- MIT DEM ALTER, IMMER. Ein Berufe-Link ist keine Adresse,
+            -- sondern ein Verweis auf eine laufende Sitzung: Der Server
+            -- beantwortet ihn nur, solange der andere angemeldet ist UND ihn
+            -- in dieser Sitzung erzeugt hat. Ein Eintrag von gestern sieht
+            -- genauso aus wie einer von eben — "vor 21 Std." ist die
+            -- Auskunft, die den Unterschied macht, und sie sagt gleich, was
+            -- zu tun ist.
+            --
+            -- KEINE SCHWELLE. Ab wann ein Link tot ist, haengt an der
+            -- Anmeldung des anderen, und die kennt dieser Client nicht. Eine
+            -- geratene Stundenzahl waere eine Behauptung; das Alter ist eine
+            -- Messung.
             GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(weg))
+            GA.Core.Debug:Info(L.CRAFT_OPEN_STALE, tostring(detail.name),
+                detail.ts and Util.TimeAgo(detail.ts) or L.UNKNOWN)
         else
             GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
         end

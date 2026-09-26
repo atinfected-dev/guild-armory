@@ -897,6 +897,7 @@ GA.Core.Locale:Register("enUS", {
     CRAFT_SYNCED       = "Asked the guild and sent your own professions.",
     CRAFT_LINKS_TITLE  = "Profession links — what the open button depends on",
     CRAFT_OPEN_SENT    = "Profession link sent (%s) — the window comes from the server, and only while the other player is online.",
+    CRAFT_OPEN_STALE   = "If no window appears: the link from %s was recorded %s. It only works while that player is online AND has had their profession window open this session.",
     CRAFT_LINKS_OWN    = "Own link: %s",
     CRAFT_ERR_nowindow = "No profession window open.",
     CRAFT_ERR_notready = "The profession window has not sent its recipes yet — try again in a moment.",

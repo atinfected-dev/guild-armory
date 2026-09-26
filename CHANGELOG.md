@@ -44,6 +44,18 @@ of whoever scanned. Counted across everybody, not per person: somebody whose
 window was only open briefly may report zero recipes, and that must not make
 a profession disappear for the whole guild.
 
+**A link is a reference to a session, not an address.** Asked after the fix:
+somebody else's profession still would not open — did he have to update
+first? Yes. That entry was 21 hours old, and the server only answers such a
+link while that player is online *and* has had their profession window open
+in their current session.
+
+A record from yesterday looks exactly like one from a minute ago, so the age
+is now printed with the message: what was recorded, when, and what the other
+person has to do. No threshold — when a link dies depends on somebody else's
+login, which this client cannot see, so a guessed number of hours would be an
+assertion where the age is a measurement.
+
 `/ga craft link` also prints the links in the raw. The first version rendered
 them, so the report read "[Alchemy]" — which is what a link is for, and the
 opposite of what a diagnostic is for.
