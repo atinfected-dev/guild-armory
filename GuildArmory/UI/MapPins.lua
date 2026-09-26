@@ -73,13 +73,14 @@ function MapPins:Pin(index)
     -- im Meer. Der helle Bogen macht aus der Scheibe eine Kugel; ohne ihn
     -- ist "rund" nur die Silhouette.
     --
-    -- OB DIESE LINIE MASKEN KANN, IST NICHT VORAUSGESETZT. Theme.MakeRound
-    -- prueft den Aufruf. Geht er nicht, bleibt der eckige Rand von vorher
-    -- stehen: ein viereckiger Punkt ist haesslich, eine Karte ohne Punkte
-    -- ist kaputt.
+    -- EINE RUNDE TEXTUR, KEINE MASKE AUF EINER FARBFLAECHE.
+    --
+    -- Der erste Versuch tat genau das — und die Nadeln blieben eckig,
+    -- gemeldet mit Bild am 26.09.2026. Der Aufruf lief durch, pcall meldete
+    -- Erfolg, der Rueckfall griff nicht. Ein pcall, der nicht wirft, ist
+    -- eben kein Beweis, dass etwas passiert ist.
     pin.rand = pin:CreateTexture(nil, "BACKGROUND")
     pin.rand:SetAllPoints(pin)
-    Theme.Paint(pin.rand, { 0, 0, 0, 0.9 })
 
     pin.fill = pin:CreateTexture(nil, "ARTWORK")
     pin.fill:SetPoint("TOPLEFT", pin, "TOPLEFT", 2, -2)
@@ -91,15 +92,18 @@ function MapPins:Pin(index)
     pin.glanz = pin:CreateTexture(nil, "OVERLAY")
     pin.glanz:SetPoint("TOPLEFT", pin, "TOPLEFT", 3, -3)
     pin.glanz:SetPoint("BOTTOMRIGHT", pin, "CENTER", -3, 0)
-    Theme.Paint(pin.glanz, { 1, 1, 1, 0.35 })
 
-    local rund = Theme.MakeRound(pin.rand) and Theme.MakeRound(pin.fill)
+    local rund = Theme.RoundTexture(pin.rand, { 0, 0, 0, 0.9 })
+        and Theme.RoundTexture(pin.fill)
+    pin.rund = rund
     if rund then
-        Theme.MakeRound(pin.glanz)
+        Theme.RoundTexture(pin.glanz, { 1, 1, 1, 0.35 })
     else
-        -- Der alte eckige Rand, Linie fuer Linie.
+        -- Der alte eckige Rand, Linie fuer Linie: Ein viereckiger Punkt ist
+        -- haesslich, eine Karte ohne Punkte ist kaputt.
         pin.glanz:Hide()
         pin.rand:Hide()
+        Theme.Paint(pin.fill, { 1, 1, 1, 1 })
         pin.ring = {}
         for _, seite in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
             local line = pin:CreateTexture(nil, "BACKGROUND")
@@ -213,7 +217,16 @@ function MapPins:Refresh()
             pin.entry = entry
 
             local r, g, b = Util.ClassColor(entry.class)
-            Theme.Paint(pin.fill, { r, g, b, 1 })
+            -- BEI EINER RUNDEN NADEL WIRD EINGEFAERBT, NICHT UEBERMALT.
+            -- Theme.Paint setzt eine Farbflaeche — es wuerde die runde
+            -- Textur bei jedem Zeichnen wieder durch ein Quadrat ersetzen,
+            -- und zwar erst nach dem ersten Auffrischen. Genau die Sorte
+            -- Fehler, die man am Bild sucht und im Aufbau nicht findet.
+            if pin.rund then
+                pin.fill:SetVertexColor(r, g, b, 1)
+            else
+                Theme.Paint(pin.fill, { r, g, b, 1 })
+            end
 
             -- NUR DER VORNAME, IN KLASSENFARBE.
             --

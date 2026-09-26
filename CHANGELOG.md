@@ -22,9 +22,23 @@ it would read as fog rather than curvature.
 The dot grew from 12 to 14 pixels with it. Three layers in twelve leaves
 three pixels for the highlight, which is a smudge, not a light.
 
-Whether this client can mask textures at all is not assumed — the call is
-tried, and if it fails the square outline from before stays. A square dot is
-ugly; a map without dots is broken.
+The first attempt did it with Blizzard's portrait mask over a colour fill.
+The call went through, the protected call reported success, the fallback
+never triggered — and the pins were still square. That is the most expensive
+outcome there is: no error, no "no", just a result that isn't true. A `pcall`
+that doesn't throw is no proof that anything happened.
+
+The mask is now used as a picture instead: it is a white disc on a
+transparent background, so tinted through vertex colour it is exactly what
+was wanted. And because `SetTexture` also says nothing about a file that
+isn't there, the path is read back afterwards — an invisible dot would be
+worse than a square one. If any of that fails, the square outline from before
+stays.
+
+One trap on the way: colouring the fill each redraw went through the helper
+that *paints* a solid colour, which would have replaced the round texture
+with a square one on the first refresh. A round pin is tinted, not painted
+over.
 
 ### The same drop, four times over
 

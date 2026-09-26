@@ -159,23 +159,46 @@ end
 -- ------------------------------------------------------------- Hilfsmittel ---
 
 --- Setzt eine einfarbige Textur. SetColorTexture fehlt in sehr alten Linien.
---- Macht eine Textur rund.
+--- Eine runde, eingefaerbte Flaeche.
 ---
---- WIE: Blizzards Portraitmaske. Sie ist eine Alphamaske in Kreisform und in
---- jeder Linie vorhanden, weil das Charakterfenster sie benutzt — dieselbe,
---- ueber die auch die runden Klassenwappen laufen.
+--- WARUM NICHT SetMask — GEMESSEN 26.09.2026, MIT BILD.
 ---
---- GEPRUEFT WIRD DER AUFRUF, NICHT DER NAME. SetMask gibt es auf dem
---- Retail-Client, und Forever IST der Retail-Client — aber das hat hier
---- schon oefter nichts geheissen. Wer sich darauf verlaesst und danebenliegt,
---- bekommt einen Fehler mitten im Zeichnen der Karte.
+--- Der erste Versuch legte Blizzards Portraitmaske ueber eine Farbflaeche
+--- (SetColorTexture + SetMask). Der Aufruf lief durch, pcall meldete Erfolg,
+--- der Rueckfall griff nicht — und die Nadeln waren weiter eckig. Eine Maske
+--- auf einer Farbflaeche tut auf dieser Linie nichts.
 ---
---- @return boolean rund  false = diese Linie kann es nicht, der Aufrufer
----                       braucht einen anderen Weg
-function Theme.MakeRound(texture)
-    if not texture or type(texture.SetMask) ~= "function" then return false end
-    return pcall(texture.SetMask, texture,
-        [[Interface\CHARACTERFRAME\TempPortraitAlphaMask]])
+--- Das ist der teuerste Ausgang von allen: kein Fehler, kein "nein", nur ein
+--- Ergebnis, das nicht stimmt. Ein pcall, der durchlaeuft, ist eben kein
+--- Beweis, dass etwas passiert ist.
+---
+--- STATTDESSEN DIE MASKE ALS BILD. Sie ist eine weisse Scheibe auf
+--- durchsichtigem Grund — als Textur gesetzt und ueber SetVertexColor
+--- eingefaerbt, ist sie genau das, was gebraucht wird: ein runder Punkt in
+--- der Wunschfarbe, mit weichen Raendern.
+---
+--- @return boolean gesetzt  false = kein Weg, der Aufrufer braucht einen
+---                          anderen
+function Theme.RoundTexture(texture, color)
+    if not texture or type(texture.SetTexture) ~= "function" then return false end
+    if not pcall(texture.SetTexture, texture,
+        [[Interface\CHARACTERFRAME\TempPortraitAlphaMask]]) then
+        return false
+    end
+
+    -- DER PFAD MUSS AUCH ANGEKOMMEN SEIN. SetTexture schweigt bei einer
+    -- Datei, die es nicht gibt, und ein unsichtbarer Punkt waere schlimmer
+    -- als ein eckiger.
+    if type(texture.GetTexture) == "function" then
+        local ok, pfad = pcall(texture.GetTexture, texture)
+        if not ok or type(pfad) ~= "string" or pfad == "" then return false end
+    end
+
+    if color and type(texture.SetVertexColor) == "function" then
+        pcall(texture.SetVertexColor, texture,
+            color[1], color[2], color[3], color[4] or 1)
+    end
+    return true
 end
 
 function Theme.Paint(texture, color)
