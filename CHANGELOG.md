@@ -5,6 +5,26 @@
 Three reports from the same evening, and by the end of it one cause behind
 all of them.
 
+### No session without a master looter
+
+Said plainly by the guild: loot only needs to go into a session when there is
+a master looter, otherwise it makes no sense. Correct — under group loot or
+need-before-greed the server hands the item out while the window is still
+collecting bids, and what is left at the end is a decision nobody can carry
+out.
+
+Opening a session is refused now when the client reports a loot method that
+is not master loot, and says why.
+
+Not when it reports nothing. Outside a group, and on some client lines,
+`GetLootMethod` gives no answer at all; treating that as "no master looter"
+would block the session exactly where the addon knows nothing, and the loot
+master would face a button that refuses without a reason. Only an answer
+naming a different method blocks.
+
+Recording carries on either way — who got what is worth keeping whoever
+handed it out. This is about the session, not the history.
+
 ### The open-profession button
 
 It did nothing, and said nothing about it. The button can stop at four

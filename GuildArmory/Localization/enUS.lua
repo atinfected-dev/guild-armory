@@ -225,6 +225,7 @@ GA.Core.Locale:Register("enUS", {
     COUNCIL_ERR_notallowed      = "You lack the permission for that.",
     COUNCIL_ERR_alreadyopen     = "A session is already running.",
     COUNCIL_ERR_noitems         = "No items selected.",
+    COUNCIL_ERR_nomaster        = "No master looter: the server hands this loot out itself, so a session would be voting on nothing. Recording for the history carries on.",
     COUNCIL_ERR_noeligible      = "Nothing detected to open.",
     COUNCIL_ERR_nobid           = "That player did not bid.",
     COUNCIL_ERR_closed          = "The session is closed.",

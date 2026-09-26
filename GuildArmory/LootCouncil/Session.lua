@@ -216,6 +216,26 @@ function Session:Open(awardIds, options)
     if self:Current() then return nil, "alreadyopen" end
     if not awardIds or #awardIds == 0 then return nil, "noitems" end
 
+    -- OHNE PLUENDERMEISTER IST EINE SITZUNG EINE ABSTIMMUNG UEBER NICHTS.
+    --
+    -- Auf Ansage der Gilde (25.09.2026): "Du brauchst Loot nur in eine
+    -- Session zu packen, wenn es einen Lootmeister gibt, andernfalls macht
+    -- es ja keinen Sinn." Stimmt — bei Gruppenloot oder Bedarf vor Gier
+    -- verteilt der Server, waehrend das Fenster noch Gebote sammelt. Am Ende
+    -- steht ein Beschluss, den niemand ausfuehren kann.
+    --
+    -- UNBEKANNT IST KEIN NEIN. Ausserhalb einer Gruppe und auf manchen
+    -- Linien antwortet GetLootMethod gar nicht; wer daraus "kein
+    -- Pluendermeister" macht, sperrt die Sitzung genau dort, wo er nichts
+    -- weiss. Gesperrt wird nur bei einer Antwort, die tatsaechlich eine
+    -- andere Methode nennt.
+    if not options.force then
+        local methode = Compat.GetLootMethod()
+        if methode ~= nil and methode ~= "master" then
+            return nil, "nomaster"
+        end
+    end
+
     local session = {
         id = Util.NewId("s"),
         ts = Util.Now(),

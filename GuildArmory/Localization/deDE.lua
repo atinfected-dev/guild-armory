@@ -217,6 +217,7 @@ GA.Core.Locale:Register("deDE", {
     COUNCIL_ERR_notallowed      = "Dafuer fehlt die Berechtigung.",
     COUNCIL_ERR_alreadyopen     = "Es laeuft schon eine Session.",
     COUNCIL_ERR_noitems         = "Keine Gegenstaende ausgewaehlt.",
+    COUNCIL_ERR_nomaster        = "Kein Pluendermeister: Der Server verteilt diesen Loot selbst, eine Sitzung wuerde ueber nichts abstimmen. Die Erfassung fuer die Historie laeuft weiter.",
     COUNCIL_ERR_noeligible      = "Nichts Erkanntes zum Oeffnen.",
     COUNCIL_ERR_nobid           = "Dieser Spieler hat sich nicht beworben.",
     COUNCIL_ERR_closed          = "Die Session ist geschlossen.",
