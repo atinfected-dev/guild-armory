@@ -35,6 +35,17 @@ a gap, and a misclick destroys nothing. Only items that have not been awarded
 yet; taking an awarded one off the list would be editing history, and there
 is a correction for that which leaves the old state standing.
 
+Next to it sits **Remove all**, for the evening that ends with twenty-two
+entries and half of them duplicates. It asks first: the button turns into
+"Really, 22?" and only clears on the second press, forgetting the question
+again after ten seconds. One misclick must not empty a list that holds the
+whole evening — and a confirmation dialog would be too much ceremony for
+something the journal keeps anyway.
+
+It takes everything still open, detected and in-session alike. A tidy-up
+button that clears half the list sends you back through it by hand
+afterwards.
+
 ### /ga bags — where is the loot right now
 
 After an evening with a master looter the open loot sits in *his* bags, and

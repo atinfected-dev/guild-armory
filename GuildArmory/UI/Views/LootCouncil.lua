@@ -102,6 +102,22 @@ function LootCouncil:Create(parent)
     end)
     self.removeButton:SetPoint("RIGHT", self.bidButton, "LEFT", -6, 0)
 
+    -- ALLE AUF EINMAL.
+    --
+    -- Gewuenscht am 26.09.2026, nach einem Abend mit 22 Eintraegen, von
+    -- denen die Haelfte Doppel waren. Einzeln wegzuklicken ist Arbeit, die
+    -- ein Fehler verursacht hat.
+    --
+    -- ZWEI DRUECKE, NICHT EINER. Der Knopf fragt erst nach und raeumt beim
+    -- zweiten Mal weg; nach zehn Sekunden ohne Bestaetigung vergisst er es
+    -- wieder. Ein einzelner Fehlgriff darf keine Liste leeren, auf der der
+    -- Abend steht — und ein Bestaetigungsfenster waere fuer etwas,
+    -- das im Journal nachvollziehbar bleibt, zu viel.
+    self.removeAllButton = Widgets.Button(bar, L.COUNCIL_REMOVE_ALL, function()
+        self:RemoveAll()
+    end)
+    self.removeAllButton:SetPoint("RIGHT", self.removeButton, "LEFT", -6, 0)
+
     -- Der Stand der Rotation gehoert neben den Knopf und nicht in ein
     -- Untermenue: Wer nicht sieht, wer gerade mitstimmt, kann die Abstimmung
     -- nicht einordnen.
@@ -453,6 +469,58 @@ function LootCouncil:RemoveSelected()
     end
 
     self.selectedAwardId = nil
+    self:Refresh()
+end
+
+--- Nimmt ALLES aus der Liste, was noch nicht vergeben ist.
+---
+--- WAS MITGEHT: erkannte Gegenstaende und solche in einer laufenden Sitzung.
+--- Beides ist "noch offen" und beides ist, was nach einem Abend
+--- herumliegt — eine Aufraeumtaste, die nur die Haelfte raeumt, schickt
+--- einen danach doch wieder durch die Liste.
+---
+--- WAS BLEIBT: alles Vergebene. Das ist Geschichte, und wer sie aendern
+--- will, nimmt die Korrektur — die laesst den alten Stand stehen.
+function LootCouncil:RemoveAll()
+    local Awards = GA.Modules.Awards
+    local offen = {}
+    for _, award in ipairs(Awards:List({ open = true })) do
+        if award.status == Status.DETECTED or award.status == Status.SESSION_OPEN then
+            offen[#offen + 1] = award
+        end
+    end
+
+    if #offen == 0 then
+        GA.Core.Debug:Info("%s", L.COUNCIL_REMOVE_NONE)
+        return
+    end
+
+    -- ERST FRAGEN. Der Knopf traegt die Frage selbst, damit die Antwort dort
+    -- gegeben wird, wo sie gestellt wurde.
+    if self.removeAllPending ~= #offen then
+        self.removeAllPending = #offen
+        self.removeAllButton:SetLabel(string.format(L.COUNCIL_REMOVE_ALL_CONFIRM, #offen))
+        Compat.After(10, function()
+            if not self.removeAllButton then return end
+            self.removeAllPending = nil
+            self.removeAllButton:SetLabel(L.COUNCIL_REMOVE_ALL)
+        end)
+        return
+    end
+
+    self.removeAllPending = nil
+    self.removeAllButton:SetLabel(L.COUNCIL_REMOVE_ALL)
+
+    local identity = Compat.GetPlayerIdentity()
+    local weg = 0
+    for _, award in ipairs(offen) do
+        if Awards:Cancel(award.id, L.COUNCIL_REMOVE_REASON, identity.guid) then
+            weg = weg + 1
+        end
+    end
+
+    self.selectedAwardId = nil
+    GA.Core.Debug:Info(L.COUNCIL_REMOVE_ALL_DONE, weg)
     self:Refresh()
 end
 
