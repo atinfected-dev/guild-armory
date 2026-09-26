@@ -48,10 +48,13 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
--- 16, seit die Nadel ein Klassenwappen traegt: Ein Wappen in zwoelf Pixeln
--- ist ein Fleck. Groesser waere es ein Symbol, das die Karte verdeckt, die
--- darunter liegt.
-local PIN_SIZE = 16
+-- 20, auf Ansage vom 26.09.2026. Der Weg war 12 (farbiger Punkt), 14, 16
+-- (Klassenwappen) — und ein Wappen braucht Platz, um eines zu sein.
+--
+-- Nach oben ist die Grenze die Karte selbst: Was die Nadel verdeckt, kann
+-- niemand mehr lesen, und bei zwanzig Gildenmitgliedern in einer Zone wird
+-- aus einer Karte sonst eine Wappensammlung.
+local PIN_SIZE = 20
 local TICK = 0.5
 
 -- ================================================================== Nadeln ---
@@ -118,13 +121,22 @@ function MapPins:Pin(index)
     -- der Karte stellt: nicht "ist da jemand", sondern "wer, und lohnt sich
     -- der Weg". Dafuer muesste man jede einzeln anfahren.
     --
-    -- Sie haengt RECHTS an der Nadel und ist nach links verankert: So
-    -- wandert der Text nach aussen, waehrend der Punkt auf seiner Stelle
-    -- bleibt. Umgekehrt verschoebe ein langer Name die Nadel optisch.
+    -- SIE STEHT MITTIG UEBER DER NADEL (26.09.2026 auf Ansage).
+    --
+    -- Vorher hing sie rechts daneben. Das hatte einen Grund — ein langer
+    -- Name sollte nach aussen wachsen, statt die Nadel optisch zu
+    -- verschieben —, und mittig loest dasselbe besser: Der Text waechst nach
+    -- BEIDEN Seiten, der Punkt bleibt also in seiner Mitte stehen, und
+    -- zwischen zwei Nadeln nebeneinander schiebt sich kein Name mehr auf die
+    -- andere.
+    --
+    -- UEBER der Nadel, nicht darunter: Was auf einer Karte wichtig ist, liegt
+    -- meist unter dem Punkt — Wege, Zonengrenzen, der eigene Pfeil. Ein Name
+    -- darueber verdeckt weniger.
     pin.label = pin:CreateFontString(nil, "OVERLAY")
     pin.label:SetFontObject(Theme.Fonts().pin)
-    pin.label:SetPoint("LEFT", pin, "RIGHT", 2, 0)
-    pin.label:SetJustifyH("LEFT")
+    pin.label:SetPoint("BOTTOM", pin, "TOP", 0, 1)
+    pin.label:SetJustifyH("CENTER")
 
     pin:SetScript("OnEnter", function(self)
         if not self.entry or not _G.GameTooltip then return end

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.15
+
+### The map pins are bigger, and the name sits above them
+
+Twenty pixels instead of sixteen. The crest needs the room to be a crest —
+the way there was twelve, fourteen, sixteen — and the limit upwards is the
+map itself: what a pin covers, nobody can read, and twenty guild members in
+one zone would turn a map into a collection of coats of arms.
+
+The name sits centred above the pin now instead of beside it. Beside it had
+a reason — a long name grew outwards rather than shifting the dot — and
+centred solves the same thing better: it grows to *both* sides, so the dot
+stays in the middle of it, and with two pins side by side no name pushes
+itself over the other one.
+
+Above rather than below, because what matters on a map usually lies under
+the dot: roads, zone borders, your own arrow.
+
 ## 0.1.14
 
 The map pins are round now, and the addon carries its own logo — in the
