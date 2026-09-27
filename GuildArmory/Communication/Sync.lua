@@ -109,6 +109,12 @@ function Sync:BuildCharacterPayload()
         realm = identity.realm,
         class = identity.class,
         level = identity.level,
+        -- Rasse als Kennung und Geschlecht, zwei Zahlen: Damit der
+        -- Empfaenger den Charakter als Modell anziehen kann, statt ihn zu
+        -- raten (27.09.2026). Fehlt eines, bleibt es weg — und dann gibt es
+        -- drueben eben kein Modell, kein falsches.
+        rc = identity.raceID,
+        sx = identity.sex,
         rank = character.guildRank,
         ilvl = character.itemLevel and character.itemLevel.value,
         count = character.itemLevel and character.itemLevel.count,
@@ -237,6 +243,12 @@ function Sync:OnCharacter(sender, text)
     local character = db:GetCharacter(data.guid, {
         name = data.name, realm = data.realm, class = data.class,
         level = data.level, guildRank = data.rank,
+        -- NUR ZAHLEN, UND NUR PLAUSIBLE: Was hier ankommt, hat jemand
+        -- anders geschrieben. Ein Geschlecht ausserhalb von 2 und 3 ist
+        -- keins, und eine Rassenkennung, die keine Zahl ist, wird nicht zur
+        -- Figur — sie bleibt weg, und damit bleibt das Modell weg.
+        raceID = tonumber(data.rc),
+        sex = (data.sx == 2 or data.sx == 3) and data.sx or nil,
     })
 
     -- Eine eigene Messung wird NICHT von einer Fremdmeldung ueberschrieben.

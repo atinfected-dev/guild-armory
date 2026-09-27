@@ -1282,7 +1282,14 @@ function Compat.GetUnitIdentity(unit)
 
     local name, zweiter = UnitName(unit)
     local className, classFile = UnitClass(unit)
-    local raceName, raceFile = UnitRace(unit)
+    -- RASSE ALS KENNUNG UND GESCHLECHT — fuer die Ankleidepuppe (27.09.2026).
+    -- Ein Modell braucht beides; ohne Geschlecht waere die Figur geraten, und
+    -- geraten wird hier nicht. UnitSex sagt 2 oder 3; alles andere ist
+    -- "unbekannt" und bleibt nil.
+    local raceName, raceFile, raceID = UnitRace(unit)
+    local okSex, sex = pcall(_G.UnitSex, unit)
+    if not okSex or (sex ~= 2 and sex ~= 3) then sex = nil end
+    if type(raceID) ~= "number" then raceID = nil end
 
     -- DER ZWEITE RUECKGABEWERT VON UnitName IST HIER KEIN REALM.
     --
@@ -1344,6 +1351,8 @@ function Compat.GetUnitIdentity(unit)
         className = className,
         race = raceFile,
         raceName = raceName,
+        raceID = raceID,
+        sex = sex,
         level = UnitLevel(unit),
         guildName = guildName,
         guildRank = guildRank,
@@ -2488,4 +2497,49 @@ function Compat.ShowUnitInModel(model, unit)
     -- Von vorn, leicht gedreht: so steht die Figur im Charakterfenster.
     if isFunction(model.SetFacing) then pcall(model.SetFacing, model, 0.35) end
     return true
+end
+
+--- Zieht ein Modell an: Rasse, Geschlecht, dann Gegenstand fuer Gegenstand.
+---
+--- FUER JEDEN IN DER GILDE, NICHT NUR FUER DIE IN REICHWEITE (27.09.2026 auf
+--- Ansage: "ja bau das"). Ein Charakter, der in einer anderen Zone steht,
+--- hat keine Einheit — aber er hat eine Rassenkennung, ein Geschlecht und
+--- siebzehn Gegenstandskennungen, alle gemessen, keine geraten. Daraus laesst
+--- sich die Figur zusammensetzen, wie das Ankleidezimmer es tut.
+---
+--- OHNE GESCHLECHT KEIN MODELL. Das Geschlecht wird seit heute mitgeschickt;
+--- ein Datensatz von vorher hat keins. Ihn mit einem geratenen zu zeigen
+--- traefe jeden zweiten Charakter falsch, und "falsch" sieht hier aus wie
+--- "richtig". Dann lieber die Textmitte.
+---
+--- Zwei Aufrufe, die auf dieser Linie ungemessen sind — SetCustomRace und
+--- TryOn — werden beide am Ergebnis geprueft und in der Sonde ausgewiesen.
+---
+--- @return boolean gesetzt, number|string angezogenOderGrund
+function Compat.DressModel(model, raceID, sex, itemIDs)
+    if not isTable(model) then return false, "kein Modell" end
+    if type(raceID) ~= "number" then return false, "Rasse unbekannt" end
+    if sex ~= 2 and sex ~= 3 then return false, "Geschlecht unbekannt" end
+    if not isFunction(model.SetCustomRace) then return false, "SetCustomRace fehlt" end
+
+    -- UnitSex zaehlt 2/3, SetCustomRace 0/1. Zwei Zaehlweisen fuer
+    -- dasselbe, an EINER Stelle uebersetzt.
+    local gender = sex - 2
+    if not pcall(model.SetCustomRace, model, raceID, gender) then
+        return false, "SetCustomRace wirft"
+    end
+    if isFunction(model.Undress) then pcall(model.Undress, model) end
+    if isFunction(model.SetFacing) then pcall(model.SetFacing, model, 0.35) end
+
+    if not isFunction(model.TryOn) then return true, 0 end
+    local angezogen = 0
+    for _, itemID in ipairs(itemIDs or {}) do
+        -- Als Verweiskern, nicht als nackte Zahl: TryOn nimmt auf den
+        -- neueren Linien einen Link, auf den aelteren auch die Zahl — der
+        -- Kern "item:1234" gilt auf beiden.
+        if pcall(model.TryOn, model, "item:" .. tostring(itemID)) then
+            angezogen = angezogen + 1
+        end
+    end
+    return true, angezogen
 end

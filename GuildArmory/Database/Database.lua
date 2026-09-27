@@ -171,7 +171,9 @@ function DB:GetCharacter(guid, seed)
     end
 
     if seed then
+        -- raceID und sex seit 27.09.2026: die Ankleidepuppe braucht beides.
         for _, key in ipairs({ "name", "realm", "class", "className", "race", "raceName",
+                               "raceID", "sex",
                                "level", "guildRank", "guildRankIndex", "specID" }) do
             if seed[key] ~= nil then character[key] = seed[key] end
         end

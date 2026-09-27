@@ -149,6 +149,36 @@ Probe.CHECKS = {
           return Probe.EMPTY, text .. " — erst nach /ga sync vollstaendig"
       end },
 
+    { key = "dressUp", was = "Ankleidepuppe: Rasse setzen und Gegenstaende anziehen",
+      fuer = "das Modell im Charakterfenster fuer Leute, die nicht in Reichweite sind",
+      run = function()
+          -- Gemessen wird der AUFRUF, nicht ob etwas zu sehen ist — das
+          -- kann nur ein Blick ins Fenster. Aber ob die beiden Funktionen
+          -- da sind und nicht werfen, entscheidet, ob es sich lohnt, hinzusehen.
+          local model = Compat.CreateDressUpModel(UIParent)
+          if not model then return Probe.NO, "kein DressUpModel-Rahmen" end
+          model:Hide()
+
+          local hat = {}
+          for _, name in ipairs({ "SetCustomRace", "TryOn", "Undress" }) do
+              hat[#hat + 1] = name .. "=" .. (isFunction(model[name]) and "ja" or "nein")
+          end
+          local liste = table.concat(hat, ", ")
+
+          local identity = Compat.GetPlayerIdentity()
+          if not identity.raceID or not identity.sex then
+              return Probe.EMPTY, liste .. " — eigene Rasse/Geschlecht nicht messbar"
+          end
+
+          local link = Compat.GetEquippedLink("player", 16)
+          local parsed = link and Compat.ParseItemLink(link)
+          local ok, ergebnis = Compat.DressModel(model, identity.raceID, identity.sex,
+              parsed and parsed.itemID and { parsed.itemID } or {})
+          if not ok then return Probe.NO, liste .. " — " .. tostring(ergebnis) end
+          return Probe.YES, string.format("%s — Rasse %d gesetzt, %s angezogen",
+              liste, identity.raceID, tostring(ergebnis))
+      end },
+
     -- --------------------------------------------------------- Raid, Tode ---
     { key = "playerDead", was = "Eigener Tod erkennbar",
       fuer = "GA-112..116 Raidtode, GA-102 Der Unsterbliche",

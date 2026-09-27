@@ -43,6 +43,21 @@ torn down and rebuilt on a half-second beat. It is set once per unit and
 character now; the same unit again is not a refresh, it is a reload with no
 reason.
 
+**And now for everybody, not only for those in range.** A guild member in
+another zone has no unit — but they have a race id, a sex and seventeen item
+ids, all measured. The figure is assembled from those, the way the dressing
+room does it: race and sex first, then every item put on. Nothing is guessed.
+
+For that, the sex now travels with the character over the sync, one small
+number, checked on arrival to be one of the two the game uses. A record from
+before today has none, and shows the text panel until its owner's client
+sends again — a guessed body would be wrong for every second character, and
+wrong looks exactly like right.
+
+Whether Forever's client actually honours the two calls involved is
+unmeasured. `/ga probe` has an entry for it now ("dressUp"): whether both
+functions exist, whether they run, how many items went on.
+
 Two things overlapped on first sight and made the whole thing look
 unfinished: the line under the name ran into the item level once a race name
 was long enough, and the three weapon labels stuck together below their

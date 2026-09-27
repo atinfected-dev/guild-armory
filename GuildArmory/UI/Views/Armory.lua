@@ -548,13 +548,32 @@ function Armory:RefreshDoll()
     -- Gemerkt wird, welche Einheit fuer welchen Charakter zuletzt gesetzt
     -- wurde. Dieselbe wieder zu setzen ist kein Auffrischen, sondern ein
     -- Neuladen ohne Anlass.
-    local schluessel = unit and (tostring(unit) .. ":" .. tostring(character.guid)) or nil
+    -- ZWEI WEGE ZUM MODELL. Ist der Charakter als Einheit da, zeigt das
+    -- Modell IHN — live, mit allem, was er gerade traegt. Ist er es nicht,
+    -- wird die Figur aus dem zusammengesetzt, was gemessen ist: Rasse,
+    -- Geschlecht, Gegenstaende (27.09.2026, "ja bau das"). Der Schluessel
+    -- traegt den Weg und den Stand, damit ein Wechsel neu laedt und ein
+    -- blosses Auffrischen nicht.
+    local schluessel
+    if unit then
+        schluessel = "unit:" .. tostring(unit) .. ":" .. tostring(character.guid)
+    elseif character.raceID and character.sex then
+        schluessel = "dress:" .. tostring(character.guid) .. ":" .. tostring(character.equipmentTs or 0)
+    end
+
     local modellSteht
     if self.model and schluessel then
         if self.modelKey == schluessel and self.model:IsShown() then
             modellSteht = true
-        else
+        elseif unit then
             modellSteht = Compat.ShowUnitInModel(self.model, unit)
+            self.modelKey = modellSteht and schluessel or nil
+        else
+            local items = {}
+            for _, entry in pairs(character.equipment or {}) do
+                if entry.itemID then items[#items + 1] = entry.itemID end
+            end
+            modellSteht = Compat.DressModel(self.model, character.raceID, character.sex, items)
             self.modelKey = modellSteht and schluessel or nil
         end
     end
