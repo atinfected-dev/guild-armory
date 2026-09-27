@@ -146,15 +146,21 @@ function Dashboard:Create(parent)
         glow:Hide()
     end
 
-    local emblemRing = hero:CreateTexture(nil, "OVERLAY")
-    emblemRing:SetWidth(96) emblemRing:SetHeight(96)
-    emblemRing:SetPoint("LEFT", hero, "LEFT", 14, 0)
-    pcall(emblemRing.SetTexture, emblemRing, "Interface\\Minimap\\MiniMap-TrackingBorder")
-    pcall(emblemRing.SetTexCoord, emblemRing, 0, 0.6, 0, 0.6)
+    -- KEIN RING. Der erste Stand hatte den Minimap-Rahmen um das Zeichen —
+    -- dick, rund, ueber einem eckigen Bild, das seinen eigenen runden Kranz
+    -- schon mitbringt ("der goldene Ring sieht nicht gut aus", 27.09.2026,
+    -- mit Bild). Jetzt eine Kachel wie die Kennzahlen rechts: dunkler
+    -- Grund, eine duenne Goldkante, das Logo darin. Dieselbe Form auf
+    -- beiden Seiten des Bands.
+    local emblemTile = CreateFrame("Frame", nil, hero)
+    emblemTile:SetWidth(84) emblemTile:SetHeight(84)
+    emblemTile:SetPoint("LEFT", hero, "LEFT", 18, 0)
+    Theme.Fill(emblemTile, Theme.color.windowBg)
+    Theme.Outline(emblemTile, Theme.color.goldDim)
 
-    self.emblem = hero:CreateTexture(nil, "ARTWORK")
-    self.emblem:SetWidth(76) self.emblem:SetHeight(76)
-    self.emblem:SetPoint("CENTER", emblemRing, "CENTER", 0, 0)
+    self.emblem = emblemTile:CreateTexture(nil, "ARTWORK")
+    self.emblem:SetPoint("TOPLEFT", emblemTile, "TOPLEFT", 4, -4)
+    self.emblem:SetPoint("BOTTOMRIGHT", emblemTile, "BOTTOMRIGHT", -4, 4)
 
     self.realmLine = Theme.Label(hero, "", fonts.small, Theme.color.goldDim)
     self.realmLine:SetPoint("TOPLEFT", hero, "TOPLEFT", 118, -14)
