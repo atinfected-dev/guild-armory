@@ -47,6 +47,7 @@ Armory\Players.lua
 Armory\Notes.lua
 Armory\GuildHistory.lua
 Armory\LevelUp.lua
+Armory\Activity.lua
 LootHistory\Awards.lua
 LootHistory\LootTracker.lua
 LootHistory\Handover.lua

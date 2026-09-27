@@ -150,6 +150,10 @@ function Theme.Fonts()
         -- WoW-nativ (19.09.2026): groessere Kapitalis fuer Charakternamen und
         -- Navigation, ohne gesperrte Versalien — wie im Charakterfenster.
         hero    = makeFont("Hero",    FONT_SERIF,  22, nil, GameFontNormalHuge),
+        -- Der Gildenname im Heroband des Dashboards (Entwurf D1, 27.09.2026):
+        -- eine Stufe ueber hero. Nur dort — ein zweiter grosser Titel auf
+        -- derselben Seite wuerde mit ihm streiten.
+        display = makeFont("Display", FONT_SERIF,  30, nil, GameFontNormalHuge),
         big     = makeFont("Big",     FONT_SERIF,  16, nil, GameFontNormalLarge),
         nav     = makeFont("Nav",     FONT_SERIF,  13, nil, GameFontNormal),
         body    = makeFont("Body",    FONT_SERIF,  12, nil, GameFontHighlight),

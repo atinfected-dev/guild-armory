@@ -175,6 +175,52 @@ that can be flipped under your hand leads to "but I clicked BiS" in the
 raid. Changing an answer goes through the loot window's "Bid window"
 button, which opens the cards again.
 
+### The dashboard: the hall of banners
+
+Three directions were drawn for the first page — a banner hall, a command
+deck of numbers and curves, a guild newspaper — and the guild picked the
+banner hall. It is built.
+
+**Across the top, the guild.** The guild emblem in a ring with a warm glow
+behind it, the guild name large, under it members and online count, the
+guild master in class colour, your rank. Chips say what is happening right
+now and are simply absent otherwise: a loot session with its item count,
+"you are master looter", hand-overs still pending in your bags. At the right
+four figures with their footing under each: average item level and how
+many of the roster were actually measured (unmeasured members are not
+zeros), online of total, loot awarded this week and how many of those the
+game itself confirmed, achievements unlocked of the catalogue.
+
+**Left, your character.** Portrait, name in the fullest spelling the addon
+knows, level and class and rank, the item level large with "10/17" under
+it, and the seventeen slots as a strip of colour — quality where something
+is worn, dark where nothing is. Under that five lines about you, each a
+click to the page behind it: the open loot session, how many of your
+wishes lie on its table, your oldest profession scan and how old it is
+(amber past three days), your DKP, and the achievement you are closest to
+— the measurable one with the highest fraction that is still reachable.
+
+**In the middle, today in the guild.** A stream: who reached which level,
+who joined or was promoted, who received what, who unlocked which
+achievement, who lit a campfire where. Every line has the time, the class
+crest, and its source under it — "confirmed by the game", "entered by
+hand", "roster". This needed a small new module, Armory/Activity: the addon
+measured all of these things already but kept none of them as events; a
+level-up was only ever a higher number in the roster afterwards. The
+module listens to the events the other modules fire and keeps a bounded
+log — 150 entries, seven days, the same thing within ten minutes counted
+once, a loot award updated in place as it goes from awarded to received.
+It measures nothing itself.
+
+**Right, who is where.** The zones of the online members from the roster,
+each with its people as class-coloured dots, the unknown zone last and
+grey; and, while it is fresh, the last campfire with who lit it. Below it
+the tradable items, as before, with the item's icon and its owner on the
+same line.
+
+The old "guild online" list is gone from this page: the zones say more
+with less, and the full list is one click away on the characters page.
+
 ### Profession names in your own language
 
 They were showing in German on an English client. The name that travels with
