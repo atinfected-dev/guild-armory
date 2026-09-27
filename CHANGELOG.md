@@ -62,9 +62,17 @@ numeric twin that actually adds and compares before it says yes, and race
 and sex go through it before anything else touches them. The probe report
 also keeps the line number now instead of fifty characters of file path.
 
-Whether Forever's client actually honours the two calls involved is
-unmeasured. `/ga probe` has an entry for it now ("dressUp"): whether both
-functions exist, whether they run, how many items went on.
+Whether Forever's client actually honours the two calls involved was the
+open question, and `/ga probe` has an entry for it now ("dressUp").
+Measured on the third run, 27 September: **TryOn and Undress exist,
+SetCustomRace does not.** Items can be put on a figure, but there is no way
+to give the figure a body that is not a unit in range — so on this client
+the assembled figure never appears. The fall-back was already there: the
+call says why it cannot, and the text panel stands as before. Everything
+that carries the data — race id, sex, the sync — stays, because it costs
+one number per character and the day a client answers differently, nothing
+else has to change. The probe now also reports whether SetDisplayInfo
+exists, the one other route to a body, so the next look is one command.
 
 Two things overlapped on first sight and made the whole thing look
 unfinished: the line under the name ran into the item level once a race name

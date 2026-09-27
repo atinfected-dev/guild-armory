@@ -163,12 +163,19 @@ Probe.CHECKS = {
           -- Gemessen wird der AUFRUF, nicht ob etwas zu sehen ist — das
           -- kann nur ein Blick ins Fenster. Aber ob die beiden Funktionen
           -- da sind und nicht werfen, entscheidet, ob es sich lohnt, hinzusehen.
+          --
+          -- GEMESSEN 27.09.2026 (dritter Lauf, Addon 0.1.15):
+          --   SetCustomRace=nein, TryOn=ja, Undress=ja
+          -- Anziehen geht, einen Koerper geben nicht. SetDisplayInfo steht
+          -- seitdem mit in der Liste: der einzige andere Weg zu einem
+          -- Koerper ohne Einheit. Nur gezaehlt, nicht benutzt — ob TryOn
+          -- auf einem so gesetzten Modell traegt, ist eine eigene Messung.
           local model = Compat.CreateDressUpModel(UIParent)
           if not model then return Probe.NO, "kein DressUpModel-Rahmen" end
           model:Hide()
 
           local hat = {}
-          for _, name in ipairs({ "SetCustomRace", "TryOn", "Undress" }) do
+          for _, name in ipairs({ "SetCustomRace", "SetDisplayInfo", "TryOn", "Undress" }) do
               hat[#hat + 1] = name .. "=" .. (isFunction(model[name]) and "ja" or "nein")
           end
           local liste = table.concat(hat, ", ")
