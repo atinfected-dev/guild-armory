@@ -181,8 +181,8 @@ Three directions were drawn for the first page — a banner hall, a command
 deck of numbers and curves, a guild newspaper — and the guild picked the
 banner hall. It is built.
 
-**Across the top, the guild.** The guild emblem in a ring with a warm glow
-behind it, the guild name large, under it members and online count, the
+**Across the top, the guild.** The guild emblem as a tile — dark ground,
+thin gold edge, a warm glow behind it — and the guild name large, under it members and online count, the
 guild master in class colour, your rank. Chips say what is happening right
 now and are simply absent otherwise: a loot session with its item count,
 "you are master looter", hand-overs still pending in your bags. At the right
@@ -220,6 +220,24 @@ same line.
 
 The old "guild online" list is gone from this page: the zones say more
 with less, and the full list is one click away on the characters page.
+
+**After the first screenshot.** Four things the picture showed. The
+footing lines under the figures had no left end and grew into the
+neighbouring tile — "0 confirmed by the game" stood in the online tile;
+every line has a width now and clips, the tiles are wider, the loot
+footing shorter. The line under your name ended before the item level
+number but collided with the label under it, which is wider than the
+number; both end before the label now. The slot strip had nineteen strips
+for a line that promises seventeen — shirt and tabard do not count and are
+out. And the emblem first sat in the minimap's tracking ring: thick,
+round, over a square picture that brings its own round wreath; it is the
+tile described above now.
+
+The fourth was not the dashboard's at all. "Cooking read vor 1 Tagen" on
+an English page: `Util.TimeAgo` had the German words built in, although
+the keys for every language had existed since the locale switch. It reads
+them at call time now — which fixes every "vor 3 Std." on every English
+page, not only this one.
 
 ### Profession names in your own language
 
