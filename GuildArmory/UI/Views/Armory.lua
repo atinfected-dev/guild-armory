@@ -142,17 +142,22 @@ function Armory:Create(parent)
     self.name = Theme.Label(doll, "", fonts.hero, Theme.color.goldBright)
     self.name:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 12, -4)
 
-    self.meta = Theme.Label(doll, "", fonts.body, Theme.color.textDim)
-    self.meta:SetPoint("TOPLEFT", self.name, "BOTTOMLEFT", 1, -3)
-
-    self.classIcon = doll:CreateTexture(nil, "ARTWORK")
-    self.classIcon:SetWidth(20) self.classIcon:SetHeight(20)
-    self.classIcon:SetPoint("LEFT", self.meta, "RIGHT", 6, 0)
-
     self.ilvlValue = Theme.Label(doll, "", fonts.hero, Theme.color.goldBright)
     self.ilvlValue:SetPoint("TOPRIGHT", doll, "TOPRIGHT", -20, -16)
     self.ilvlLabel = Theme.Label(doll, L.DASH_ITEMLEVEL, fonts.body, Theme.color.textDim)
     self.ilvlLabel:SetPoint("TOPRIGHT", self.ilvlValue, "BOTTOMRIGHT", 0, -2)
+
+    -- DIE ZEILE ENDET VOR DEM ITEMLEVEL. Gemeldet 27.09.2026 mit Bild:
+    -- "Level 20 · Windshaper Skyborne · Shaman · Guild Master" lief in
+    -- "Item level" hinein. Sie hatte kein rechtes Ende, und die Klassenkachel
+    -- hing hinten dran — bei einem langen Rassennamen stand beides ueber der
+    -- Zahl. Die Kachel ist weg: Die Klasse steht als Wort in der Zeile und
+    -- als Wappen in der Liste; ein drittes Mal sagt sie nichts Neues.
+    self.meta = Theme.Label(doll, "", fonts.body, Theme.color.textDim)
+    self.meta:SetPoint("TOPLEFT", self.name, "BOTTOMLEFT", 1, -3)
+    self.meta:SetPoint("RIGHT", self.ilvlLabel, "LEFT", -16, 0)
+    self.meta:SetJustifyH("LEFT")
+    self.meta:SetWordWrap(false)
 
     -- Zeitstempel/Quelle — die Regel aus dem Dateikopf.
     self.stamp = Theme.Label(doll, "", fonts.small, Theme.color.textFaint)
@@ -194,14 +199,19 @@ function Armory:Create(parent)
     end
 
     -- Waffen unten mittig, als Gruppe.
+    -- DIE WAFFEN STEHEN WEITER AUSEINANDER ALS DIE SPALTEN. Ihre Namen
+    -- stehen DARUNTER, nicht daneben — und "Main Hand" ist breiter als ein
+    -- Slot. Mit dem Spaltenabstand klebten die drei Namen zu "Main HandOff
+    -- Hand Ranged" zusammen (gemeldet 27.09.2026 mit Bild).
+    local WEAPON_GAP = 24
     local weapons = CreateFrame("Frame", nil, doll)
-    weapons:SetWidth(#BOTTOM_ROW * SLOT_SIZE + (#BOTTOM_ROW - 1) * SLOT_GAP)
+    weapons:SetWidth(#BOTTOM_ROW * SLOT_SIZE + (#BOTTOM_ROW - 1) * WEAPON_GAP)
     weapons:SetHeight(SLOT_SIZE)
     weapons:SetPoint("BOTTOM", doll, "BOTTOM", 0, 26)
     self.weapons = weapons
     for index, slotID in ipairs(BOTTOM_ROW) do
         local slot = Theme.ItemSlot(weapons, slotID, SLOT_SIZE)
-        slot:SetPoint("LEFT", weapons, "LEFT", (index - 1) * (SLOT_SIZE + SLOT_GAP), 0)
+        slot:SetPoint("LEFT", weapons, "LEFT", (index - 1) * (SLOT_SIZE + WEAPON_GAP), 0)
         slot:SetScript("OnEnter", function(button) self:ShowSlotTooltip(button) end)
         slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
         beschriften(slot, slotID, "TOP", "BOTTOM", 0, -2)
@@ -480,11 +490,6 @@ function Armory:RefreshDoll()
     if not gesetzt then gesetzt = Theme.SetClassPortrait(self.portrait, character.class) end
     if not gesetzt then Theme.Paint(self.portrait, Theme.color.rowAltBg) end
 
-    if not Theme.SetClassIcon(self.classIcon, character.class) then
-        self.classIcon:Hide()
-    else
-        self.classIcon:Show()
-    end
 
     local level = character.itemLevel and character.itemLevel.value
     self.ilvlValue:SetText(level and tostring(level) or "—")

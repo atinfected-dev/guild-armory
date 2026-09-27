@@ -43,6 +43,14 @@ torn down and rebuilt on a half-second beat. It is set once per unit and
 character now; the same unit again is not a refresh, it is a reload with no
 reason.
 
+Two things overlapped on first sight and made the whole thing look
+unfinished: the line under the name ran into the item level once a race name
+was long enough, and the three weapon labels stuck together below their
+slots. The line has a right end now, the class tile that hung off it is gone
+(the class is a word in that line and a crest in the list already), and the
+weapons stand further apart than the columns, because their names sit
+underneath and are wider than a slot.
+
 **The guild's logo sits in the portrait circle** of the window instead of
 the player's face. That circle says whose window this is, and this one
 belongs to the guild.
