@@ -118,6 +118,22 @@ function Compat.IsReadable(value)
     return (pcall(compareProbe, value, ""))
 end
 
+--- Ist das eine Zahl, mit der sich rechnen und vergleichen laesst?
+---
+--- IsReadable oben laesst JEDE Zahl durch — es wurde fuer verschleierte
+--- Zeichenketten gebaut. Verschleierte ZAHLEN gibt es auf dieser Linie
+--- aber genauso (UnitHealth, gemessen 24.09.2026: type sagt "number",
+--- Rechnen und Vergleichen werfen). Am 27.09. hat die Sonde fuer die
+--- Ankleidepuppe daran geworfen: Die Rassenkennung aus UnitRace kam als
+--- Zahl, und ein %d in string.format brachte sie zum Platzen.
+---
+--- Dieselbe Probe wie beim Lebensbalken: einmal rechnen, einmal vergleichen.
+--- @return boolean
+function Compat.IsReadableNumber(value)
+    if type(value) ~= "number" then return false end
+    return (pcall(numberProbe, value, 0))
+end
+
 --- Sind das dieselbe GUID?
 ---
 --- EIN VERGLEICH IST KEINE HARMLOSE OPERATION.
@@ -1288,8 +1304,12 @@ function Compat.GetUnitIdentity(unit)
     -- "unbekannt" und bleibt nil.
     local raceName, raceFile, raceID = UnitRace(unit)
     local okSex, sex = pcall(_G.UnitSex, unit)
-    if not okSex or (sex ~= 2 and sex ~= 3) then sex = nil end
-    if type(raceID) ~= "number" then raceID = nil end
+    -- LESBAR, NICHT NUR VOM TYP HER EINE ZAHL. Ein verschleierter Wert
+    -- besteht type() und wirft beim ersten Rechnen — gemessen am 27.09. an
+    -- genau dieser Rassenkennung, in der Sonde. Der Vergleich mit 2 und 3
+    -- darf erst laufen, wenn die Zahl es aushaelt.
+    if not okSex or not Compat.IsReadableNumber(sex) or (sex ~= 2 and sex ~= 3) then sex = nil end
+    if not Compat.IsReadableNumber(raceID) then raceID = nil end
 
     -- DER ZWEITE RUECKGABEWERT VON UnitName IST HIER KEIN REALM.
     --

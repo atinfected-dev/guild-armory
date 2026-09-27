@@ -54,6 +54,14 @@ before today has none, and shows the text panel until its owner's client
 sends again — a guessed body would be wrong for every second character, and
 wrong looks exactly like right.
 
+The first probe run crashed on it — not on those calls, but earlier: the
+race id came back as a number that "is" a number and throws the moment you
+do arithmetic with it, the same obscured kind that killed the health bar.
+The check that let strings through and waved every number past now has a
+numeric twin that actually adds and compares before it says yes, and race
+and sex go through it before anything else touches them. The probe report
+also keeps the line number now instead of fifty characters of file path.
+
 Whether Forever's client actually honours the two calls involved is
 unmeasured. `/ga probe` has an entry for it now ("dressUp"): whether both
 functions exist, whether they run, how many items went on.

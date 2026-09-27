@@ -175,8 +175,11 @@ Probe.CHECKS = {
           local ok, ergebnis = Compat.DressModel(model, identity.raceID, identity.sex,
               parsed and parsed.itemID and { parsed.itemID } or {})
           if not ok then return Probe.NO, liste .. " — " .. tostring(ergebnis) end
-          return Probe.YES, string.format("%s — Rasse %d gesetzt, %s angezogen",
-              liste, identity.raceID, tostring(ergebnis))
+          -- %s, NICHT %d: Ein %d rechnet, und genau daran ist diese Sonde
+          -- beim ersten Lauf geplatzt (27.09.2026) — die Rassenkennung war
+          -- eine Zahl, mit der sich nicht rechnen liess.
+          return Probe.YES, string.format("%s — Rasse %s gesetzt, %s angezogen",
+              liste, tostring(identity.raceID), tostring(ergebnis))
       end },
 
     -- --------------------------------------------------------- Raid, Tode ---
@@ -594,7 +597,13 @@ function Probe:Run()
     for _, check in ipairs(self.CHECKS) do
         local ok, state, detail = pcall(check.run)
         if not ok then
-            state, detail = self.NO, "Sonde selbst gescheitert: " .. tostring(state):sub(1, 50)
+            -- DEN PFAD WEGSCHNEIDEN, DIE ZEILE BEHALTEN. Die ersten fuenfzig
+            -- Zeichen einer Lua-Meldung sind der Dateipfad; abgeschnitten
+            -- blieb "Interface/AddOns/GuildArmory/Compatibility/Probe.l" —
+            -- und die Zeilennummer, um die es geht, fiel weg. Gemeldet
+            -- 27.09.2026 mit genau dieser Zeile.
+            local meldung = tostring(state):gsub("^.-([%w_]+%.lua:%d+:)", "%1")
+            state, detail = self.NO, "Sonde selbst gescheitert: " .. meldung:sub(1, 120)
         end
         state = state or self.NO
         counts[state] = (counts[state] or 0) + 1
