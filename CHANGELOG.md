@@ -2,7 +2,49 @@
 
 ## 0.1.16
 
-In progress.
+The characters page as a family tree, the achievements as a trophy hall.
+
+### Characters: the family tree
+
+Two directions were drawn; the guild picked the tree. The page is a grid of
+cards now, one per player: the role as a coloured edge on top (gold for
+administrators, amber for the loot master, jade for the council), the main
+with crest, name in class colour, class, level and item level, a role chip
+and, where the roster history saw it, when they joined. Under the main the
+alts hang on a line — and **the line itself says how the link came to be**:
+solid jade for proven (same account, a fact), dashed grey for set (somebody
+assigned it), dotted amber for claimed. The legend stands in the toolbar.
+Filters: all, council and up, with alts, claimed only.
+
+The right column keeps every tool the old page had: the unassigned
+characters with "Assign" to the selected player and "New player", and under
+that the selected player's panel — the four role buttons, nickname and note,
+and their characters with "Set main" and "Unlink" (still refused for a
+proven character: that link is a fact, not an entry).
+
+### Achievements: the trophy hall
+
+Every achievement is a **card with a rarity edge**, grey to gold in the
+order of item quality so nobody learns a second colour system. Unlocked
+cards carry their colour; open ones are dimmed; ones the client cannot
+measure yet are dimmed further and say so. On each card: the icon, the name,
+category and points, the description, the bar with "20 / 30" — and an
+**evidence chip**: measured, observed, entered, or not measurable yet. That
+chip is what tells this window apart from the game's.
+
+Across the top the three figures as tiles with their footing — points and
+how many of them were entered by hand, unlocked of the catalogue and how
+many are measurable, guild firsts and how many are contested — with search
+and the three views at the right. Under it the categories as chips with
+their own count; one pressed shows only that category, open. "All" shows the
+thirteen groups with a header each, folded by default as before, because
+272 cards nobody reads and thirteen standings everybody does.
+
+The Hall of Fame stands as a column beside your achievements with the
+latest guild firsts, holder, date and state — and as its own view with all
+of them as cards. The leaderboard stays a table, with a new column **HAND**:
+the points somebody entered count in the total, and they also stand beside
+it.
 
 ## 0.1.15
 
