@@ -505,6 +505,30 @@ Probe.CHECKS = {
           return number(_G.GetNumSkillLines)
       end },
 
+    { key = "professionIcon", was = "Berufssymbole aus der Linienkennung",
+      fuer = "Berufeseite: Symbol je Beruf in Liste und Kopf",
+      run = function()
+          local api = _G.C_TradeSkillUI
+          local hatTexture = isTable(api) and isFunction(api.GetTradeSkillTexture)
+          local eigene = GA.Core.Compat.GetProfessionLines()
+          if not eigene or #eigene == 0 then
+              return Probe.EMPTY, string.format(
+                  "GetTradeSkillTexture=%s — ohne eigenen Beruf nicht pruefbar",
+                  hatTexture and "ja" or "nein")
+          end
+          -- Gezaehlt wird, wie viele der EIGENEN Linien ein Symbol ergeben:
+          -- Das ist die einzige Menge, von der sicher ist, dass sie eines
+          -- haben muesste.
+          local mit = 0
+          for _, beruf in ipairs(eigene) do
+              if GA.Core.Compat.GetProfessionIcon(beruf.line) then mit = mit + 1 end
+          end
+          local text = string.format("GetTradeSkillTexture=%s, %d von %d eigenen Linien mit Symbol",
+              hatTexture and "ja" or "nein", mit, #eigene)
+          if mit == 0 then return Probe.NO, text end
+          return Probe.YES, text
+      end },
+
     { key = "tradeSkill", was = "Berufsfenster-API",
       fuer = "Berufeseite, GA-166, GA-167 Rezepte zaehlen",
       run = function()

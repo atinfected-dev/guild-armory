@@ -1,17 +1,25 @@
 --[[----------------------------------------------------------------------------
     Views/Crafting — wer in der Gilde kann das herstellen?
 
-    Links die Berufe, rechts die Antwort. Die rechte Liste zeigt DREIERLEI,
-    immer in demselben Rahmen:
+    Aufgebaut wie das Charakterfenster (Entwurf A, 27.09.2026): links die
+    Berufe als Liste mit Kopfzeile, rechts eine eingelassene Flaeche mit
+    KOPF (Symbol, Titel, Zeile darunter, Kennzahl rechts) und darunter die
+    Antwort als Tabelle. Der Kopf sagt immer, WAS gerade zu sehen ist —
+    derselbe Platz, drei Fragen:
 
-        Suchfeld leer      alle, die den links gewaehlten Beruf koennen
-        Suchfeld gefuellt  alle, die diesen einen Gegenstand herstellen
-        Person angeklickt  die Rezepte genau dieser Person
+        nichts gewaehlt     alle Berufe, alle Hersteller
+        Beruf gewaehlt      wer ihn kann, mit Fertigkeit als Balken
+        Suchfeld gefuellt   wer diesen einen Gegenstand herstellen kann
+        Person angeklickt   die Rezepte genau dieser Person
 
-    Drei Fenster dafuer waeren eine Verdopplung von etwas, das dieselbe Frage
-    aus drei Richtungen ist — und man denkt ohnehin im Kreis: Wer kann das?
-    Was kann der sonst noch? Wer kann DAS wiederum? Ein Klick auf ein Rezept
-    dreht die Frage deshalb zurueck und sucht nach seinen Herstellern.
+    Man denkt ohnehin im Kreis: Wer kann das? Was kann der sonst noch? Wer
+    kann DAS wiederum? Ein Klick auf ein Rezept dreht die Frage deshalb
+    zurueck und sucht nach seinen Herstellern.
+
+    ZWEI TABELLEN, NICHT EINE. Leute und Rezepte haben verschiedene Spalten
+    — Fertigkeit und Alter bei den einen, Symbol und Art bei den anderen.
+    Eine Kopfzeile, die je nach Inhalt luegt, waere schlimmer als ein zweiter
+    Zeilenvorrat; der kostet so viele Zeilen, wie gerade sichtbar sind.
 
     WAS EIN KLICK NICHT TUT: nachfragen. Alles, was hier steht, liegt schon
     in der Datenbank — gemeldet hat es die Person beim Scannen ihres eigenen
@@ -33,6 +41,73 @@ local L = GA.L
 
 CraftingView.titleKey = "NAV_CRAFTING"
 
+local LIST_WIDTH = 300
+local TILE_SIZE = 44
+local BAR_WIDTH = 34
+
+--- Als Funktionen, nicht als Tabellen: Eine beim Laden gebaute Spaltenliste
+--- traegt die Beschriftungen der Sprache, die beim Laden galt — und die
+--- Einstellung steht erst bei PLAYER_LOGIN fest (siehe Locale.lua).
+---
+--- Die Breiten stehen HIER und nirgends sonst: Kopfzeile und Zeilen rechnen
+--- ihre Positionen aus derselben Liste, damit beides zusammen wandert.
+local COLUMN_GAP = 6
+local COLUMN_X0 = 8
+
+local function professionColumns()
+    return {
+        { key = "icon",     label = "",               width = 16 },
+        { key = "name",     label = L.COL_NAME,       width = 150 },
+        { key = "crafters", label = L.COL_CRAFTERS,   width = 36, justify = "RIGHT" },
+        { key = "recipes",  label = L.COL_RECIPES,    width = 50, justify = "RIGHT" },
+    }
+end
+
+local function crafterColumns()
+    return {
+        { key = "crest",      label = "",                width = 16 },
+        { key = "name",       label = L.COL_NAME,        width = 150 },
+        { key = "profession", label = L.COL_PROFESSION,  width = 120 },
+        { key = "skill",      label = L.COL_SKILL,       width = 84, justify = "RIGHT" },
+        { key = "read",       label = L.COL_READ,        width = 90 },
+    }
+end
+
+local function recipeColumns()
+    return {
+        { key = "icon", label = "",          width = 16 },
+        { key = "name", label = L.COL_ITEM,  width = 260 },
+        { key = "kind", label = L.COL_TYPE,  width = 110 },
+    }
+end
+
+--- Linke Kante jeder Spalte, aus einer Spaltenliste gerechnet.
+local function columnOffsets(columns)
+    local x, out, breiten = COLUMN_X0, {}, {}
+    for _, column in ipairs(columns) do
+        out[column.key] = x
+        breiten[column.key] = column.width
+        x = x + column.width + COLUMN_GAP
+    end
+    return out, breiten
+end
+
+--- Ist das eine Textur, die sich setzen laesst? Eine Zahl (FileID) oder ein
+--- nicht leerer Pfad — nil und "" sind keine.
+local function zeigeSymbol(texture, icon)
+    if not texture then return false end
+    local brauchbar = type(icon) == "number" or (type(icon) == "string" and icon ~= "")
+    if brauchbar and pcall(texture.SetTexture, texture, icon) then
+        pcall(texture.SetTexCoord, texture, 0.08, 0.92, 0.08, 0.92)
+        texture:Show()
+        return true
+    end
+    texture:Hide()
+    return false
+end
+
+-- ================================================================== Aufbau ----
+
 function CraftingView:Create(parent)
     local fonts = Theme.Fonts()
     local pad, gap = 4, 8
@@ -41,31 +116,27 @@ function CraftingView:Create(parent)
     frame:SetAllPoints(parent)
     self.frame = frame
 
-    -- ------------------------------------------------------- Berufe --------
-    local professions = Widgets.Panel(frame, L.CRAFT_PROFESSIONS)
-    professions:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -pad)
-    professions:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
-    professions:SetWidth(240)
-    self.professionPanel = professions
+    -- ---------------------------------------------------- Linke Spalte ------
 
-    self.professionList = Widgets.ScrollList(professions.content, {
-        rowHeight = 24,
-        createRow = function(row)
-            row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
-            row.name:SetPoint("LEFT", row, "LEFT", 6, 0)
-            row.name:SetWidth(150)
-            row.name:SetJustifyH("LEFT")
+    local listPanel = Widgets.Panel(frame, L.CRAFT_PROFESSIONS)
+    listPanel:SetWidth(LIST_WIDTH)
+    listPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -pad)
+    listPanel:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
+    self.listPanel = listPanel
 
-            row.count = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-            row.count:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        end,
-        updateRow = function(row, entry)
-            local gewaehlt = (self.selectedLine == entry.line)
-            row.name:SetText(entry.name or tostring(entry.line))
-            local color = gewaehlt and Theme.color.goldBright or Theme.color.text
-            row.name:SetTextColor(color[1], color[2], color[3])
-            row.count:SetText(string.format("%d", #entry.crafters))
-        end,
+    -- Unten der Stand des Wissens — dieselbe Stelle, an der im
+    -- Charakterfenster der Inspect-Hinweis steht.
+    self.status = Theme.Label(listPanel.content, "", fonts.small, Theme.color.textFaint)
+    self.status:SetPoint("BOTTOMLEFT", listPanel.content, "BOTTOMLEFT", 2, 0)
+    self.status:SetPoint("RIGHT", listPanel.content, "RIGHT", -2, 0)
+    self.status:SetJustifyH("LEFT")
+    self.status:SetHeight(30)
+
+    self.professionList = Widgets.ScrollList(listPanel.content, {
+        rowHeight = Theme.size.rowHeight,
+        columns = professionColumns(),
+        createRow = function(row) self:BuildProfessionRow(row) end,
+        updateRow = function(row, entry) self:UpdateProfessionRow(row, entry) end,
         onClickRow = function(entry)
             -- Nochmal derselbe Beruf hebt die Wahl auf. Ein Filter ohne Weg
             -- zurueck ist eine Sackgasse.
@@ -74,35 +145,61 @@ function CraftingView:Create(parent)
             self:Refresh()
         end,
     })
-    self.professionList:SetAllPoints(professions.content)
+    self.professionList:SetPoint("TOPLEFT", listPanel.content, "TOPLEFT", 0, 0)
+    self.professionList:SetPoint("BOTTOMRIGHT", self.status, "TOPRIGHT", 2, 4)
 
-    -- ------------------------------------------------------- Ergebnis ------
-    local result = Widgets.Panel(frame, L.CRAFT_WHO)
-    result:SetPoint("TOPLEFT", professions, "TOPRIGHT", gap, 0)
+    -- ---------------------------------------------------- Rechte Flaeche ----
+
+    local result = Widgets.Inset(frame)
+    result:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", gap, 0)
     result:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
-    self.resultPanel = result
+    self.result = result
 
-    self.search = Widgets.SearchBox(result.content, L.CRAFT_SEARCH, function(text)
+    -- Kopf: Kachel mit Symbol, Titel, Zeile darunter, Kennzahl rechts.
+    local tile = CreateFrame("Frame", nil, result)
+    tile:SetWidth(TILE_SIZE) tile:SetHeight(TILE_SIZE)
+    tile:SetPoint("TOPLEFT", result, "TOPLEFT", 16, -14)
+    Theme.Fill(tile, Theme.color.rowAltBg)
+    Theme.Outline(tile, Theme.color.goldDeep)
+    self.tile = tile
+
+    self.tileIcon = tile:CreateTexture(nil, "ARTWORK")
+    self.tileIcon:SetPoint("TOPLEFT", tile, "TOPLEFT", 2, -2)
+    self.tileIcon:SetPoint("BOTTOMRIGHT", tile, "BOTTOMRIGHT", -2, 2)
+
+    self.bigValue = Theme.Label(result, "", fonts.hero, Theme.color.goldBright)
+    self.bigValue:SetPoint("TOPRIGHT", result, "TOPRIGHT", -20, -16)
+    self.bigLabel = Theme.Label(result, "", fonts.body, Theme.color.textDim)
+    self.bigLabel:SetPoint("TOPRIGHT", self.bigValue, "BOTTOMRIGHT", 0, -2)
+
+    self.title = Theme.Label(result, "", fonts.hero, Theme.color.goldBright)
+    self.title:SetPoint("TOPLEFT", tile, "TOPRIGHT", 12, -2)
+    self.title:SetPoint("RIGHT", self.bigValue, "LEFT", -16, 0)
+    self.title:SetJustifyH("LEFT")
+    self.title:SetWordWrap(false)
+
+    -- DIE ZEILE ENDET VOR DER KENNZAHL — dieselbe Lehre wie im
+    -- Charakterfenster: ohne rechtes Ende laeuft ein langer Text in die
+    -- Zahl hinein.
+    self.meta = Theme.Label(result, "", fonts.body, Theme.color.textDim)
+    self.meta:SetPoint("TOPLEFT", self.title, "BOTTOMLEFT", 1, -3)
+    self.meta:SetPoint("RIGHT", self.bigLabel, "LEFT", -16, 0)
+    self.meta:SetJustifyH("LEFT")
+    self.meta:SetWordWrap(false)
+
+    -- Werkzeugzeile: Suche links, Knoepfe rechts.
+    self.search = Widgets.SearchBox(result, L.CRAFT_SEARCH, function(text)
         self:SetSearch(text)
     end)
-    self.search:SetPoint("TOPLEFT", result.content, "TOPLEFT", 0, 0)
-    self.search:SetPoint("TOPRIGHT", result.content, "TOPRIGHT", 0, 0)
-
-    -- Zurueck aus der Rezeptliste einer Person. Steht nur da, solange es
-    -- etwas zurueckzugehen gibt.
-    self.backButton = Widgets.Button(result.content, L.CRAFT_BACK, function()
-        self.detail = nil
-        self:Refresh()
-    end)
-    self.backButton:SetPoint("TOPLEFT", self.search, "BOTTOMLEFT", 0, -4)
-    self.backButton:Hide()
+    self.search:SetPoint("TOPLEFT", tile, "BOTTOMLEFT", 0, -12)
+    self.search:SetWidth(280)
 
     -- DAS SPIEL KANN DAS BESSER. Ein Berufe-Link oeffnet Blizzards eigenes
     -- Fenster — mit Kategorien, Reagenzien und allem, was diese Liste nicht
     -- hat. Der Knopf steht trotzdem NEBEN der Liste und nicht an ihrer
     -- Stelle: Der Link ist eine Abfrage beim Server und funktioniert nur,
     -- solange die Person online ist. Die Liste funktioniert auch nachts.
-    self.openButton = Widgets.Button(result.content, L.CRAFT_OPEN, function()
+    self.openButton = Widgets.Button(result, L.CRAFT_OPEN, function()
         local detail = self.detail
         if not detail then return end
 
@@ -132,10 +229,6 @@ function CraftingView:Create(parent)
             -- trotzdem kein Fenster auf, ist der Weg gelaufen und der Server
             -- hat nichts herausgegeben; das ist eine andere Baustelle als
             -- ein Link, der nie abgeschickt wurde.
-            -- SICHTBAR, nicht ueber einen Debug-Kanal: Der laeuft nur, wenn
-            -- jemand ihn eingeschaltet hat, und dann sieht wieder niemand
-            -- etwas. Es ist eine Zeile auf einen Knopfdruck, den jemand
-            -- absichtlich getan hat.
             --
             -- MIT DEM ALTER, IMMER. Ein Berufe-Link ist keine Adresse,
             -- sondern ein Verweis auf eine laufende Sitzung: Der Server
@@ -143,12 +236,10 @@ function CraftingView:Create(parent)
             -- in dieser Sitzung erzeugt hat. Ein Eintrag von gestern sieht
             -- genauso aus wie einer von eben — "vor 21 Std." ist die
             -- Auskunft, die den Unterschied macht, und sie sagt gleich, was
-            -- zu tun ist.
-            --
-            -- KEINE SCHWELLE. Ab wann ein Link tot ist, haengt an der
-            -- Anmeldung des anderen, und die kennt dieser Client nicht. Eine
-            -- geratene Stundenzahl waere eine Behauptung; das Alter ist eine
-            -- Messung.
+            -- zu tun ist. KEINE SCHWELLE: Ab wann ein Link tot ist, haengt
+            -- an der Anmeldung des anderen, und die kennt dieser Client
+            -- nicht. Das Alter ist eine Messung, eine Stundenzahl waere
+            -- eine Behauptung.
             GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(weg))
             GA.Core.Debug:Info(L.CRAFT_OPEN_STALE, tostring(detail.name),
                 detail.ts and Util.TimeAgo(detail.ts) or L.UNKNOWN)
@@ -156,37 +247,51 @@ function CraftingView:Create(parent)
             GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
         end
     end, "primary")
-    self.openButton:SetPoint("LEFT", self.backButton, "RIGHT", 6, 0)
+    self.openButton:SetPoint("RIGHT", result, "RIGHT", -16, 0)
+    self.openButton:SetPoint("TOP", self.search, "TOP", 0, 0)
     self.openButton:Hide()
 
-    self.hint = Theme.Label(result.content, "", fonts.small, Theme.color.textFaint)
-    self.hint:SetPoint("TOPLEFT", self.search, "BOTTOMLEFT", 2, -4)
-    self.hint:SetPoint("RIGHT", result.content, "RIGHT", 0, 0)
-    self.hint:SetJustifyH("LEFT")
+    -- Zurueck aus der Rezeptliste einer Person. Steht nur da, solange es
+    -- etwas zurueckzugehen gibt.
+    self.backButton = Widgets.Button(result, L.CRAFT_BACK, function()
+        self.detail = nil
+        self:Refresh()
+    end)
+    self.backButton:SetPoint("RIGHT", self.openButton, "LEFT", -6, 0)
+    self.backButton:SetPoint("TOP", self.search, "TOP", 0, 0)
+    self.backButton:Hide()
 
-    self.list = Widgets.ScrollList(result.content, {
-        rowHeight = 24,
-        createRow = function(row) self:BuildRow(row, fonts) end,
-        updateRow = function(row, entry) self:UpdateRow(row, entry) end,
+    -- Die beiden Tabellen liegen uebereinander; es ist immer nur eine da.
+    self.crafters = Widgets.ScrollList(result, {
+        rowHeight = Theme.size.rowHeight,
+        columns = crafterColumns(),
+        createRow = function(row) self:BuildCrafterRow(row) end,
+        updateRow = function(row, entry) self:UpdateCrafterRow(row, entry) end,
         onClickRow = function(entry)
-            if entry.recipe then
-                -- Ein Rezept anklicken dreht die Frage um: von "was kann
-                -- der" zu "wer kann das". Das ist die Schleife, in der man
-                -- ohnehin denkt.
-                if entry.itemID then
-                    -- :Clear(), nicht :SetText(). Beide Fassungen des
-                    -- Suchfelds haben Clear; SetText nur die native — der
-                    -- gezeichnete Rueckfall ist ein Rahmen um ein EditBox
-                    -- und haette hier geworfen.
-                    self.search:Clear()
-                    self.detail = nil
-                    self.searchItemID, self.searchText = entry.itemID, tostring(entry.itemID)
-                    self:Refresh()
-                end
-                return
-            end
             -- Eine Person anklicken oeffnet ihre Rezepte.
             self:ShowRecipes(entry.name, entry.line, entry.lineName)
+        end,
+    })
+    self.crafters:SetPoint("TOPLEFT", self.search, "BOTTOMLEFT", 0, -10)
+    self.crafters:SetPoint("BOTTOMRIGHT", result, "BOTTOMRIGHT", -16, 14)
+
+    self.recipes = Widgets.ScrollList(result, {
+        rowHeight = Theme.size.rowHeight,
+        columns = recipeColumns(),
+        createRow = function(row) self:BuildRecipeRow(row) end,
+        updateRow = function(row, entry) self:UpdateRecipeRow(row, entry) end,
+        onClickRow = function(entry)
+            -- Ein Rezept anklicken dreht die Frage um: von "was kann der"
+            -- zu "wer kann das". Das ist die Schleife, in der man ohnehin
+            -- denkt.
+            if not entry.itemID then return end
+            -- :Clear(), nicht :SetText(). Beide Fassungen des Suchfelds
+            -- haben Clear; SetText nur die native — der gezeichnete
+            -- Rueckfall ist ein Rahmen um ein EditBox und haette geworfen.
+            self.search:Clear()
+            self.detail = nil
+            self.searchItemID, self.searchText = entry.itemID, tostring(entry.itemID)
+            self:Refresh()
         end,
         onEnterRow = function(row, entry)
             if entry and entry.itemID then
@@ -195,8 +300,8 @@ function CraftingView:Create(parent)
         end,
         onLeaveRow = function() Widgets.HideItemTooltip() end,
     })
-    self.list:SetPoint("TOPLEFT", self.hint, "BOTTOMLEFT", -2, -6)
-    self.list:SetPoint("BOTTOMRIGHT", result.content, "BOTTOMRIGHT", 0, 0)
+    self.recipes:SetAllPoints(self.crafters)
+    self.recipes:Hide()
 
     GA.Core.Callbacks:On("CRAFTING_CHANGED", function()
         if frame:IsShown() then CraftingView:Refresh() end
@@ -205,31 +310,112 @@ function CraftingView:Create(parent)
     return frame
 end
 
-function CraftingView:BuildRow(row, fonts)
-    -- EINE ZEILENFORM FUER ZWEI LISTEN. Rechts stehen entweder Leute oder
-    -- Rezepte; zwei Zeilenbauer in derselben Liste hiessen zwei Vorraete,
-    -- die sich beim Umschalten ins Gehege kommen. Das Symbol bleibt bei
-    -- Personen einfach leer.
+-- ================================================================== Zeilen ----
+
+--- Eine Berufszeile: Symbol, Name, Zahl der Hersteller, Zahl der Rezepte.
+function CraftingView:BuildProfessionRow(row)
+    local fonts = Theme.Fonts()
+    local x, w = columnOffsets(professionColumns())
+
+    row.edge = Theme.Fill(row, Theme.color.gold)
+    row.edge:ClearAllPoints()
+    row.edge:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.edge:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    row.edge:SetWidth(2)
+    row.edge:Hide()
+
     row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetWidth(16)
-    row.icon:SetHeight(16)
-    row.icon:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.icon:SetWidth(14) row.icon:SetHeight(14)
+    row.icon:SetPoint("LEFT", row, "LEFT", x.icon, 0)
 
-    row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.name:SetWidth(150)
-    row.name:SetJustifyH("LEFT")
+    row.nameText = Theme.Label(row, "", fonts.row, Theme.color.text)
+    row.nameText:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.nameText:SetWidth(w.name)
+    row.nameText:SetJustifyH("LEFT")
+    row.nameText:SetWordWrap(false)
 
-    row.profession = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-    row.profession:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
-    row.profession:SetWidth(150)
-    row.profession:SetJustifyH("LEFT")
+    row.craftersText = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
+    row.craftersText:SetPoint("LEFT", row, "LEFT", x.crafters, 0)
+    row.craftersText:SetWidth(w.crafters)
+    row.craftersText:SetJustifyH("RIGHT")
 
-    row.age = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
-    row.age:SetPoint("LEFT", row.profession, "RIGHT", 6, 0)
-    row.age:SetWidth(110)
-    row.age:SetJustifyH("LEFT")
+    row.recipesText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.recipesText:SetPoint("LEFT", row, "LEFT", x.recipes, 0)
+    row.recipesText:SetWidth(w.recipes)
+    row.recipesText:SetJustifyH("RIGHT")
+end
+
+function CraftingView:UpdateProfessionRow(row, entry)
+    local selected = entry.line == self.selectedLine
+    if selected then
+        row.edge:Show()
+        Theme.Paint(row.background, Theme.color.rowHover)
+    else
+        row.edge:Hide()
+    end
+
+    zeigeSymbol(row.icon, Compat.GetProfessionIcon(entry.line))
+
+    row.nameText:SetText(entry.name or tostring(entry.line))
+    local color = selected and Theme.color.goldBright or Theme.color.text
+    row.nameText:SetTextColor(color[1], color[2], color[3])
+
+    row.craftersText:SetText(tostring(#entry.crafters))
+    local rezepte = 0
+    for _, crafter in ipairs(entry.crafters) do
+        rezepte = rezepte + (crafter.recipes or 0)
+    end
+    row.recipesText:SetText(tostring(rezepte))
+end
+
+--- Eine Herstellerzeile: Wappen, Name mit Online-Punkt, Beruf, Fertigkeit
+--- als Balken und Zahl, Alter der Auskunft — und bei einer Gegenstandssuche
+--- der Fragen-Knopf.
+function CraftingView:BuildCrafterRow(row)
+    local fonts = Theme.Fonts()
+    local x, w = columnOffsets(crafterColumns())
+
+    row.crest = row:CreateTexture(nil, "ARTWORK")
+    row.crest:SetWidth(14) row.crest:SetHeight(14)
+    row.crest:SetPoint("LEFT", row, "LEFT", x.crest, 0)
+
+    row.nameText = Theme.Label(row, "", fonts.row, Theme.color.text)
+    row.nameText:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.nameText:SetWidth(w.name - 10)
+    row.nameText:SetJustifyH("LEFT")
+    row.nameText:SetWordWrap(false)
+
+    row.dot = row:CreateTexture(nil, "ARTWORK")
+    row.dot:SetWidth(5) row.dot:SetHeight(5)
+    row.dot:SetPoint("LEFT", row, "LEFT", x.name + w.name - 6, 0)
+
+    row.professionText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.professionText:SetPoint("LEFT", row, "LEFT", x.profession, 0)
+    row.professionText:SetWidth(w.profession)
+    row.professionText:SetJustifyH("LEFT")
+    row.professionText:SetWordWrap(false)
+
+    -- Balken links, Zahl rechts — die Zahl ist die Auskunft, der Balken die
+    -- Einordnung auf einen Blick. Wie das Itemlevel im Charakterfenster.
+    row.barBg = row:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(row.barBg, Theme.color.windowBg)
+    row.barBg:SetWidth(BAR_WIDTH) row.barBg:SetHeight(5)
+    row.barBg:SetPoint("LEFT", row, "LEFT", x.skill, 0)
+
+    row.barFill = row:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(row.barFill, Theme.color.goldDim)
+    row.barFill:SetHeight(5)
+    row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
+
+    row.skillText = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
+    row.skillText:SetPoint("LEFT", row, "LEFT", x.skill + BAR_WIDTH + 6, 0)
+    row.skillText:SetWidth(w.skill - BAR_WIDTH - 6)
+    row.skillText:SetJustifyH("RIGHT")
+
+    row.readText = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.readText:SetPoint("LEFT", row, "LEFT", x.read, 0)
+    row.readText:SetWidth(w.read)
+    row.readText:SetJustifyH("LEFT")
 
     -- DER KNOPF STEHT NUR BEI EINER ITEMSUCHE. Ohne einen bestimmten
     -- Gegenstand gibt es nichts zu erbitten — ein Knopf, der dann nichts
@@ -247,28 +433,61 @@ function CraftingView:BuildRow(row, fonts)
     row.ask:Hide()
 end
 
-function CraftingView:UpdateRow(row, entry)
+function CraftingView:UpdateCrafterRow(row, entry)
     row.entry = entry
 
-    if entry.recipe then
-        self:UpdateRecipeRow(row, entry)
-        return
+    -- Die Klasse kennt die Berufsliste nicht — die Charakterdatenbank
+    -- vielleicht. Bekannt: Wappen und Farbe wie ueberall. Unbekannt: kein
+    -- Wappen, Textfarbe. Ein graues Wappen hiesse "keine Klasse".
+    local class = self:ClassOf(entry.name)
+    if class and Theme.SetClassPortrait(row.crest, class) then
+        row.crest:Show()
+    else
+        row.crest:Hide()
     end
 
-    row.icon:SetTexture(nil)
-    row.name:SetText(entry.name or L.UNKNOWN)
-    row.name:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
-
-    local beruf = entry.lineName or tostring(entry.line or "")
-    if entry.rank and entry.rank > 0 then
-        beruf = string.format("%s %d", beruf, entry.rank)
+    row.nameText:SetText(entry.name or L.UNKNOWN)
+    if class then
+        row.nameText:SetTextColor(Util.ClassColor(class))
+    else
+        row.nameText:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
     end
-    row.profession:SetText(beruf)
+
+    -- Online ist eine Auskunft des Rosters. Fehlt sie, gibt es keinen Punkt
+    -- — ein grauer Punkt hiesse "offline", und das ist etwas anderes als
+    -- "weiss nicht".
+    local online = self:OnlineOf(entry.name)
+    if online == nil then
+        row.dot:Hide()
+    else
+        row.dot:Show()
+        Theme.Paint(row.dot, online and Theme.color.good or Theme.color.border)
+    end
+
+    row.professionText:SetText(entry.lineName or tostring(entry.line or ""))
+
+    -- Die Fertigkeit: Zahl immer, Balken nur mit bekanntem Hoechstwert.
+    -- Ohne Hoechstwert ist "wie voll" keine Frage, die sich beantworten
+    -- laesst — also kein Balken, statt einem geratenen.
+    local rank, maxRank = tonumber(entry.rank), tonumber(entry.maxRank)
+    if rank and rank > 0 then
+        row.skillText:SetText(tostring(rank))
+        if maxRank and maxRank > 0 then
+            local anteil = math.min(1, rank / maxRank)
+            row.barFill:SetWidth(math.max(1, math.floor(BAR_WIDTH * anteil)))
+            row.barBg:Show() row.barFill:Show()
+        else
+            row.barBg:Hide() row.barFill:Hide()
+        end
+    else
+        row.skillText:SetText("—")
+        row.barBg:Hide() row.barFill:Hide()
+    end
 
     -- DAS ALTER STEHT DABEI, IMMER. Eine Rezeptliste von vor sechs Wochen
     -- ist eine andere Auskunft als eine von heute, und beide sehen ohne
     -- diese Spalte gleich aus.
-    row.age:SetText(entry.ts and Util.TimeAgo(entry.ts) or L.UNKNOWN)
+    row.readText:SetText(entry.ts and Util.TimeAgo(entry.ts) or L.UNKNOWN)
 
     if self.searchItemID and not (GA.Core.Comm and GA.Core.Comm:IsSelf(entry.name)) then
         row.ask:Show()
@@ -277,39 +496,89 @@ function CraftingView:UpdateRow(row, entry)
     end
 end
 
---- Eine Zeile in der Rezeptliste einer Person.
+--- Eine Rezeptzeile: Symbol, Name in Qualitaetsfarbe, Art.
+function CraftingView:BuildRecipeRow(row)
+    local fonts = Theme.Fonts()
+    local x, w = columnOffsets(recipeColumns())
+
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetWidth(14) row.icon:SetHeight(14)
+    row.icon:SetPoint("LEFT", row, "LEFT", x.icon, 0)
+
+    row.nameText = Theme.Label(row, "", fonts.row, Theme.color.text)
+    row.nameText:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.nameText:SetWidth(w.name)
+    row.nameText:SetJustifyH("LEFT")
+    row.nameText:SetWordWrap(false)
+
+    row.kindText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.kindText:SetPoint("LEFT", row, "LEFT", x.kind, 0)
+    row.kindText:SetWidth(w.kind)
+    row.kindText:SetJustifyH("LEFT")
+end
+
 function CraftingView:UpdateRecipeRow(row, entry)
-    row.ask:Hide()
-    row.age:SetText("")
+    row.entry = entry
 
     if entry.itemID then
         local info = Compat.GetItemInfo(entry.itemID)
-        local icon = Compat.GetItemIcon(entry.itemID)
-        row.icon:SetTexture(icon)
+        zeigeSymbol(row.icon, Compat.GetItemIcon(entry.itemID))
 
         if info and info.name then
-            row.name:SetText(info.name)
+            row.nameText:SetText(info.name)
             local farbe = info.quality and Theme.QualityColor(info.quality)
-            if farbe then row.name:SetTextColor(farbe[1], farbe[2], farbe[3])
-            else row.name:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3]) end
+            if farbe then row.nameText:SetTextColor(farbe[1], farbe[2], farbe[3])
+            else row.nameText:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3]) end
         else
             -- NOCH NICHT GELADEN IST NICHT UNBEKANNT. Der Client holt den
             -- Namen nach; bis dahin steht die Kennung da, nicht "unbekannt".
-            row.name:SetText(string.format(L.SLASH_ITEM_FALLBACK, tostring(entry.itemID)))
-            row.name:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2],
+            row.nameText:SetText(string.format(L.SLASH_ITEM_FALLBACK, tostring(entry.itemID)))
+            row.nameText:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2],
                 Theme.color.textFaint[3])
         end
-        row.profession:SetText("")
+        row.kindText:SetText(L.CRAFT_TYPE_ITEM)
     else
         -- Ein Rezept ohne Gegenstand: eine Verzauberung. Der Name kommt aus
         -- dem Zauberbuch dieses Clients, nicht aus der Nachricht.
-        row.icon:SetTexture(nil)
-        row.name:SetText(Compat.GetSpellName(entry.spellID)
+        row.icon:Hide()
+        row.nameText:SetText(Compat.GetSpellName(entry.spellID)
             or string.format(L.CRAFT_SPELL_FALLBACK, tostring(entry.spellID)))
-        row.name:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
-        row.profession:SetText(L.CRAFT_ENCHANT)
+        row.nameText:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
+        row.kindText:SetText(L.CRAFT_TYPE_ENCHANT)
     end
 end
+
+-- ================================================================ Nachschlag --
+
+--- Die Klasse eines Herstellers, wenn die Charakterdatenbank ihn kennt.
+--- nil = unbekannt, nicht "keine".
+function CraftingView:ClassOf(name)
+    local db = GA.Core.Database
+    if not name or not db or not db.FindCharacterByName then return nil end
+    local ok, character = pcall(db.FindCharacterByName, db, name)
+    return ok and character and character.class or nil
+end
+
+--- Ist die Person angemeldet? Aus dem Roster, einmal je Auffrischen
+--- gesammelt — nicht je Zeile durch alle Mitglieder.
+--- @return boolean|nil  nil = nicht im Roster gefunden
+function CraftingView:OnlineOf(name)
+    if not name or not self.online then return nil end
+    return self.online[string.lower(Util.ShortName(name))]
+end
+
+function CraftingView:SammleOnline()
+    local online = {}
+    for index = 1, Compat.GetNumGuildMembers() do
+        local member = Compat.GetGuildMember(index)
+        if member and member.name then
+            online[string.lower(Util.ShortName(member.name))] = member.online and true or false
+        end
+    end
+    self.online = online
+end
+
+-- ================================================================== Steuerung -
 
 --- Was im Suchfeld steht, zu einer Gegenstandskennung.
 function CraftingView:SetSearch(text)
@@ -348,6 +617,7 @@ function CraftingView:RecipeRows()
     for _, eintrag in ipairs(Crafting:LinesOf(detail.name)) do
         if eintrag.line == detail.line then
             detail.rank = eintrag.rank
+            detail.maxRank = eintrag.maxRank
             detail.ts = eintrag.ts
             detail.link = eintrag.link
             detail.lineName = eintrag.name or detail.lineName
@@ -380,12 +650,6 @@ function CraftingView:RecipeRows()
     return zeilen
 end
 
---- Zeigt den Knopf nur, wenn er auch etwas tun kann — und sagt sonst, woran
---- es liegt.
----
---- EIN AUSGEGRAUTER KNOPF MIT GRUND ist besser als ein fehlender: "Wo ist der
---- Knopf?" ist eine Frage, die niemand beantworten kann; "offline" ist eine
---- Antwort.
 --- Ist das der eigene Charakter?
 ---
 --- NICHT MIT ==. Die Namensquellen dieses Realms sind sich ueber den vollen
@@ -398,6 +662,12 @@ function CraftingView:IstEigen(name)
         and Util.SameCharacter(name, identity.name)
 end
 
+--- Zeigt den Knopf nur, wenn er auch etwas tun kann — und sagt sonst, woran
+--- es liegt.
+---
+--- EIN AUSGEGRAUTER KNOPF MIT GRUND ist besser als ein fehlender: "Wo ist der
+--- Knopf?" ist eine Frage, die niemand beantworten kann; "offline" ist eine
+--- Antwort.
 function CraftingView:UpdateOpenButton()
     local detail = self.detail
     if not detail then self.openButton:Hide() return end
@@ -419,96 +689,159 @@ function CraftingView:UpdateOpenButton()
 
     -- Der Link ist eine Abfrage beim Server nach den Daten dieses
     -- Charakters. Ist die Person weg, kommt nichts — und zwar wortlos.
-    local online = nil
-    for index = 1, Compat.GetNumGuildMembers() do
-        local member = Compat.GetGuildMember(index)
-        if member and member.name and Util.ShortName(member.name) == detail.name then
-            online = member.online
-            break
-        end
-    end
-
-    if online == false then
+    -- nil heisst "nicht im Roster gefunden" — kein Grund, den Knopf zu
+    -- sperren. Weiss nicht ist nicht nein.
+    if self:OnlineOf(detail.name) == false then
         self.openButton:SetEnabledState(false, L.CRAFT_OPEN_OFFLINE)
     else
-        -- nil heisst "nicht im Roster gefunden" — kein Grund, den Knopf zu
-        -- sperren. Weiss nicht ist nicht nein.
         self.openButton:SetEnabledState(true)
     end
+end
+
+--- Der Kopf der rechten Flaeche: Symbol, Titel, Zeile, Kennzahl.
+function CraftingView:SetHeader(icon, title, titleColor, meta, value, unit)
+    if icon == false then
+        self.tileIcon:Hide()
+    elseif type(icon) == "string" and icon:sub(1, 6) == "class:" then
+        -- Ein Klassenwappen statt eines Symbols.
+        if Theme.SetClassPortrait(self.tileIcon, icon:sub(7)) then
+            self.tileIcon:Show()
+        else
+            self.tileIcon:Hide()
+        end
+    else
+        zeigeSymbol(self.tileIcon, icon)
+    end
+
+    self.title:SetText(title or "")
+    local farbe = titleColor or Theme.color.goldBright
+    self.title:SetTextColor(farbe[1], farbe[2], farbe[3])
+    self.meta:SetText(meta or "")
+    self.bigValue:SetText(value ~= nil and tostring(value) or "—")
+    self.bigLabel:SetText(unit or "")
+end
+
+--- Wie viele verschiedene Leute stehen in diesen Berufen?
+local function verschiedeneHersteller(berufe)
+    local gesehen, zahl = {}, 0
+    for _, beruf in ipairs(berufe) do
+        for _, crafter in ipairs(beruf.crafters) do
+            local key = string.lower(crafter.name or "")
+            if not gesehen[key] then
+                gesehen[key] = true
+                zahl = zahl + 1
+            end
+        end
+    end
+    return zahl
 end
 
 function CraftingView:Refresh()
     local Crafting = GA.Modules.Crafting
     if not Crafting or not self.frame then return end
 
+    self:SammleOnline()
+
     local berufe = Crafting:Professions()
     self.professionList:SetData(berufe)
 
-    local zeilen = {}
+    local charaktere, _, rezepteGesamt = Crafting:Stats()
+    self.status:SetText(charaktere > 0
+        and string.format(L.CRAFT_KNOWN, charaktere, rezepteGesamt)
+        or L.CRAFT_EMPTY)
+    GA.UI.MainFrame:SetContext(string.format(L.CRAFT_CONTEXT, #berufe))
 
+    -- ---------------------------------------------------- Eine Person ------
     if self.detail then
-        zeilen = self:RecipeRows()
+        local zeilen = self:RecipeRows()
+        local detail = self.detail
         self.backButton:Show()
         self:UpdateOpenButton()
-        -- ClearAllPoints ZUERST: SetPoint fuegt einen Anker hinzu, es
-        -- ersetzt keinen. Ohne das sammelt der Hinweis bei jedem Wechsel
-        -- zwischen Liste und Rezepten einen weiteren an, bis sie sich
-        -- widersprechen.
-        self.hint:ClearAllPoints()
-        self.hint:SetPoint("TOPLEFT", self.backButton, "BOTTOMLEFT", 2, -4)
-        self.hint:SetPoint("RIGHT", self.resultPanel.content, "RIGHT", 0, 0)
-        self.hint:SetText(string.format(L.CRAFT_RECIPES_OF,
-            self.detail.name,
-            tostring(self.detail.lineName or self.detail.line),
-            self.detail.rank or 0,
-            #zeilen,
-            self.detail.ts and Util.TimeAgo(self.detail.ts) or L.UNKNOWN))
-        self.list:SetData(zeilen)
-        GA.UI.MainFrame:SetContext(string.format(L.CRAFT_CONTEXT, #berufe))
+
+        local class = self:ClassOf(detail.name)
+        local fertigkeit = detail.rank and tostring(detail.rank) or "—"
+        if detail.rank and detail.maxRank and detail.maxRank > 0 then
+            fertigkeit = string.format("%d/%d", detail.rank, detail.maxRank)
+        end
+        local farbe
+        if class then
+            local r, g, b = Util.ClassColor(class)
+            farbe = { r, g, b }
+        end
+        self:SetHeader(class and ("class:" .. class) or false,
+            detail.name, farbe,
+            string.format(L.CRAFT_META_PERSON,
+                tostring(detail.lineName or detail.line), fertigkeit,
+                detail.ts and Util.TimeAgo(detail.ts) or L.UNKNOWN),
+            #zeilen, L.CRAFT_UNIT_RECIPES)
+
+        self.recipes:SetData(zeilen)
+        self.crafters:Hide()
+        self.recipes:Show()
         return
     end
 
     self.backButton:Hide()
     self.openButton:Hide()
-    self.hint:ClearAllPoints()
-    self.hint:SetPoint("TOPLEFT", self.search, "BOTTOMLEFT", 2, -4)
-    self.hint:SetPoint("RIGHT", self.resultPanel.content, "RIGHT", 0, 0)
+    self.recipes:Hide()
+    self.crafters:Show()
 
+    local zeilen = {}
+
+    -- ---------------------------------------------------- Ein Gegenstand ---
     if self.searchItemID then
         zeilen = Crafting:Crafters(self.searchItemID)
         local info = Compat.GetItemInfo(self.searchItemID)
         local was = (info and info.name)
             or string.format(L.SLASH_ITEM_FALLBACK, tostring(self.searchItemID))
-        self.hint:SetText(#zeilen > 0
-            and string.format(L.CRAFT_FOUND, #zeilen, was)
-            or string.format(L.CRAFT_NOBODY, was))
+        local farbe = info and info.quality and Theme.QualityColor(info.quality)
+        self:SetHeader(Compat.GetItemIcon(self.searchItemID), was, farbe,
+            #zeilen > 0 and string.format(L.CRAFT_FOUND, #zeilen, was)
+                or string.format(L.CRAFT_NOBODY, was),
+            #zeilen, L.CRAFT_UNIT_CANMAKE)
 
+    -- ---------------------------------------------------- Kein Gegenstand --
     elseif self.searchText and self.searchText ~= "" then
         -- Etwas eingetippt, aber kein Gegenstand daraus geworden.
-        self.hint:SetText(string.format(L.CRAFT_NO_ITEM, self.searchText))
+        self:SetHeader(false, self.searchText, Theme.color.textDim,
+            string.format(L.CRAFT_NO_ITEM, self.searchText), nil, "")
 
+    -- ---------------------------------------------------- Beruf / alle -----
     else
+        local gewaehlt
         for _, beruf in ipairs(berufe) do
             if not self.selectedLine or self.selectedLine == beruf.line then
+                if self.selectedLine then gewaehlt = beruf end
                 for _, crafter in ipairs(beruf.crafters) do
                     zeilen[#zeilen + 1] = {
                         name = crafter.name,
                         line = beruf.line, lineName = beruf.name,
-                        rank = crafter.rank, ts = crafter.ts,
-                        recipes = crafter.recipes,
+                        rank = crafter.rank, maxRank = crafter.maxRank,
+                        ts = crafter.ts, recipes = crafter.recipes,
                     }
                 end
             end
         end
 
-        local charaktere, _, rezepte = Crafting:Stats()
-        self.hint:SetText(charaktere > 0
-            and string.format(L.CRAFT_KNOWN, charaktere, rezepte)
-            or L.CRAFT_EMPTY)
+        local rezepte = 0
+        for _, zeile in ipairs(zeilen) do rezepte = rezepte + (zeile.recipes or 0) end
+
+        if gewaehlt then
+            self:SetHeader(Compat.GetProfessionIcon(gewaehlt.line),
+                gewaehlt.name or tostring(gewaehlt.line), nil,
+                string.format(L.CRAFT_META_PROFESSION, #zeilen, rezepte),
+                #zeilen, L.CRAFT_UNIT_CRAFTERS)
+        else
+            -- Nichts gewaehlt: das Addon-Zeichen, wie im Fensterportrait.
+            local logo = "Interface\\AddOns\\GuildArmory\\Media\\Logo.tga"
+            self:SetHeader(Theme.TextureExists(logo) and logo or false,
+                L.CRAFT_WHO, nil,
+                string.format(L.CRAFT_META_ALL, #berufe, verschiedeneHersteller(berufe), rezepte),
+                verschiedeneHersteller(berufe), L.CRAFT_UNIT_CRAFTERS)
+        end
     end
 
-    self.list:SetData(zeilen)
-    GA.UI.MainFrame:SetContext(string.format(L.CRAFT_CONTEXT, #berufe))
+    self.crafters:SetData(zeilen)
 end
 
 GA.UI.MainFrame:RegisterView("crafting", CraftingView)

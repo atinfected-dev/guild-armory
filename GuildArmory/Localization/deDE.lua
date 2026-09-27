@@ -967,6 +967,21 @@ GA.Core.Locale:Register("deDE", {
     SET_ONSCREEN       = "Am Bildschirm",
 
 
+    COL_PROFESSION     = "Beruf",
+    COL_SKILL          = "Fertigkeit",
+    COL_READ           = "Gelesen",
+    COL_CRAFTERS       = "Wer",
+    COL_RECIPES        = "Rezepte",
+    COL_TYPE           = "Art",
+    CRAFT_META_ALL     = "%d Berufe · %d Hersteller · %d Rezepte",
+    CRAFT_META_PROFESSION = "%d Hersteller · %d Rezepte",
+    CRAFT_META_PERSON  = "%s %s · gelesen %s",
+    CRAFT_UNIT_CRAFTERS = "Hersteller",
+    CRAFT_UNIT_RECIPES = "Rezepte",
+    CRAFT_UNIT_CANMAKE = "koennen es",
+    CRAFT_TYPE_ITEM    = "Gegenstand",
+    CRAFT_TYPE_ENCHANT = "Verzauberung",
+
     CRAFT_BACK         = "Zurueck",
     CRAFT_RECIPES_OF   = "%s — %s %d, %d Rezepte, gelesen %s",
     CRAFT_ENCHANT      = "kein Gegenstand",

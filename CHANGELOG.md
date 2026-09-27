@@ -86,6 +86,47 @@ underneath and are wider than a slot.
 the player's face. That circle says whose window this is, and this one
 belongs to the guild.
 
+### The professions page, built the same way
+
+The professions page had the old shape: two framed panels, a plain list on
+each side, a hint line doing the work of a title. It is built like the
+character window now.
+
+**Left, the professions** as a table with a header — the profession's icon,
+its name, how many can do it, how many recipes they know between them. The
+selected one has the gold edge. The icon comes from the client by the
+profession line's id, the same id the name already comes from; where the
+client has no icon for a line, the cell stays empty rather than showing a
+guessed one, and `/ga probe` has an entry ("professionIcon") that says how
+many of your own lines resolve.
+
+**Right, one surface with a head.** A tile with an icon, a title, a line
+underneath, and a large number at the right — the same head the character
+window has, and it always says what the table below it is: all professions
+(the addon's mark, the number of crafters), one profession (its icon, its
+crafters), one item (its icon in its quality colour, how many can make it),
+one person (their class crest, name in class colour, skill as 120/300 and
+when their list was read, the number of recipes). The search field and the
+two buttons sit in one row under the head instead of stacking above the list.
+
+**The crafter table** carries what the character list carries: class crest
+and class colour where the character database knows the person, an online
+dot where the roster says so and none where it does not, the skill as a
+number with a short bar against the profession's maximum — no bar where the
+maximum is unknown, because "how full" has no answer then — and when the
+list was read. Recipes get their own table with icon, name in quality colour
+and whether it is an item or an enchantment; two tables with two honest
+headers instead of one whose header lied about half its contents.
+
+**Two gaps in the module came to light while rebuilding.** The list of a
+person's professions never handed the profession link back — it was stored
+since the beginning, and `/ga craft link` found it in the store, but the
+view read it through a function that left it out, so every foreign
+profession said "no profession link yet". And the crafter list for an item
+looked the profession's display name up with a variable that did not exist,
+so it always fell back to the name in the scanner's language. Both fixed;
+both have tests now.
+
 ### Profession names in your own language
 
 They were showing in German on an English client. The name that travels with

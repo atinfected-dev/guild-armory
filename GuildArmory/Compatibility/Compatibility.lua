@@ -2445,6 +2445,47 @@ function Compat.GetProfessionName(lineID)
     return name
 end
 
+--- Das Symbol eines Berufs, aus der Kennung der Berufslinie.
+---
+--- Zwei Wege, in dieser Reihenfolge: C_TradeSkillUI.GetTradeSkillTexture
+--- kennt jede Linie, auch fremde — wenn der Client die Funktion hat. Sonst
+--- GetProfessionInfo, das nur die EIGENEN Berufe beschreibt, aber ihr
+--- Symbol mitliefert (zweiter Rueckgabewert, siebter ist die Linie).
+---
+--- GEPRUEFT WIRD DER RUECKGABEWERT: eine Zahl (FileID) oder ein nicht leerer
+--- Pfad. Eine Funktion, die da ist und nil liefert, ist kein Symbol.
+---
+--- @return number|string|nil  nil = dieser Client gibt keins her; die Zeile
+---                            zeigt dann keins, statt eines geratenen
+function Compat.GetProfessionIcon(lineID)
+    lineID = tonumber(lineID)
+    if not lineID then return nil end
+
+    local function brauchbar(icon)
+        return type(icon) == "number" or (type(icon) == "string" and icon ~= "")
+    end
+
+    local api = _G.C_TradeSkillUI
+    if isTable(api) and isFunction(api.GetTradeSkillTexture) then
+        local ok, icon = pcall(api.GetTradeSkillTexture, lineID)
+        if ok and brauchbar(icon) then return icon end
+    end
+
+    if isFunction(_G.GetProfessions) and isFunction(_G.GetProfessionInfo) then
+        local ok, first, second, archaeology, fishing, cooking, firstAid = pcall(GetProfessions)
+        if ok then
+            for _, index in ipairs({ first, second, archaeology, fishing, cooking, firstAid }) do
+                if type(index) == "number" then
+                    local okInfo, _, icon, _, _, _, _, line = pcall(GetProfessionInfo, index)
+                    if okInfo and line == lineID and brauchbar(icon) then return icon end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
 -- ============================================================ Charakterfenster
 
 --- Der Name eines Ausruestungsplatzes in der Sprache des Clients.

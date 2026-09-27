@@ -378,8 +378,13 @@ function Crafting:Crafters(itemID)
             out[#out + 1] = {
                 name = eintrag.name or hit.who or GA.L.UNKNOWN,
                 line = hit.line,
-                lineName = self:DisplayName(lineID, line.name),
+                -- hit.line, NICHT lineID: Hier gab es nie eine Variable
+                -- dieses Namens. Das Nachschlagen lief mit nil und gab den
+                -- mitgeschickten Namen zurueck — in der Sprache des
+                -- Scanners, genau das, was DisplayName verhindern soll.
+                lineName = self:DisplayName(hit.line, line.name),
                 rank = line.rank,
+                maxRank = line.maxRank,
                 ts = line.ts,
             }
         end
@@ -461,6 +466,13 @@ function Crafting:LinesOf(name)
             line = lineID, name = self:DisplayName(lineID, line.name),
             rank = line.rank, maxRank = line.maxRank,
             items = items, spells = spells, ts = line.ts,
+            -- DER LINK GEHOERT DAZU. Gespeichert wurde er seit jeher
+            -- (Remember), zurueckgegeben nie — die Ansicht las
+            -- eintrag.link, bekam nil und sagte bei JEDEM fremden Beruf
+            -- "noch kein Berufe-Link", waehrend /ga craft link denselben
+            -- Link im Speicher fand. Zwei Leser, ein Speicher, eine Luecke
+            -- dazwischen (27.09.2026).
+            link = line.link,
         }
     end
     table.sort(out, function(a, b) return tostring(a.name or a.line) < tostring(b.name or b.line) end)

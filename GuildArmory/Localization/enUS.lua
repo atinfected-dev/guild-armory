@@ -974,6 +974,22 @@ GA.Core.Locale:Register("enUS", {
     SET_ONSCREEN       = "On screen",
 
 
+    -- Berufeseite, Entwurf A (27.09.2026): Spalten, Kopfzeile, Einheiten.
+    COL_PROFESSION     = "Profession",
+    COL_SKILL          = "Skill",
+    COL_READ           = "Read",
+    COL_CRAFTERS       = "Who",
+    COL_RECIPES        = "Recipes",
+    COL_TYPE           = "Type",
+    CRAFT_META_ALL     = "%d professions · %d crafters · %d recipes",
+    CRAFT_META_PROFESSION = "%d crafters · %d recipes",
+    CRAFT_META_PERSON  = "%s %s · read %s",
+    CRAFT_UNIT_CRAFTERS = "crafters",
+    CRAFT_UNIT_RECIPES = "recipes",
+    CRAFT_UNIT_CANMAKE = "can make it",
+    CRAFT_TYPE_ITEM    = "Item",
+    CRAFT_TYPE_ENCHANT = "Enchantment",
+
     CRAFT_BACK         = "Back",
     CRAFT_RECIPES_OF   = "%s — %s %d, %d recipes, read %s",
     CRAFT_ENCHANT      = "no item",
