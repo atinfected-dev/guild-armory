@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16
+
+In progress.
+
 ## 0.1.15
 
 A congratulation in guild chat when somebody levels, and four things that
