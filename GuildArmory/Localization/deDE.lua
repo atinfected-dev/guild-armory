@@ -91,6 +91,7 @@ GA.Core.Locale:Register("deDE", {
     COL_NAME                = "Name",
     COL_CLASS               = "Klasse",
     COL_ILVL                = "Ilvl",
+    COL_LEVEL               = "St.",
     ARMORY_INSPECT_TARGET   = "Ziel inspizieren",
     ARMORY_INSPECT_HINT     = "Spieler anvisieren (bis ~28 m), dann inspizieren.",
     ARMORY_INSPECT_SENT     = "Inspect angefordert: %s",

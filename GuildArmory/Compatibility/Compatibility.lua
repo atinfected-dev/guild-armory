@@ -2415,3 +2415,77 @@ function Compat.GetProfessionName(lineID)
     if not ok or type(name) ~= "string" or name == "" then return nil end
     return name
 end
+
+-- ============================================================ Charakterfenster
+
+--- Der Name eines Ausruestungsplatzes in der Sprache des Clients.
+---
+--- Die Tabelle EQUIPMENT_SLOTS oben traegt deutsche Beschriftungen — sie war
+--- fuer die Fehlersuche gedacht, nicht fuer die Anzeige. Das Spiel selbst
+--- hat die Namen in jeder Sprache als globale Zeichenketten (HEADSLOT,
+--- WRISTSLOT, ...). Geprueft wird der Rueckgabewert: eine Zeichenkette, die
+--- nicht leer ist. Alles andere faellt auf die Tabelle zurueck.
+local SLOT_GLOBALS = {
+    [1] = "HEADSLOT", [2] = "NECKSLOT", [3] = "SHOULDERSLOT", [15] = "BACKSLOT",
+    [5] = "CHESTSLOT", [4] = "SHIRTSLOT", [19] = "TABARDSLOT", [9] = "WRISTSLOT",
+    [10] = "HANDSSLOT", [6] = "WAISTSLOT", [7] = "LEGSSLOT", [8] = "FEETSLOT",
+    [11] = "FINGER0SLOT", [12] = "FINGER1SLOT", [13] = "TRINKET0SLOT", [14] = "TRINKET1SLOT",
+    [16] = "MAINHANDSLOT", [17] = "SECONDARYHANDSLOT", [18] = "RANGEDSLOT",
+}
+
+function Compat.SlotName(slotID)
+    local key = SLOT_GLOBALS[slotID]
+    local name = key and _G[key]
+    if type(name) == "string" and name ~= "" then return name end
+    for _, slot in ipairs(Compat.EQUIPMENT_SLOTS) do
+        if slot.id == slotID then return slot.label end
+    end
+    return tostring(slotID)
+end
+
+--- Welche Einheit traegt diese GUID gerade?
+---
+--- FUER DAS MODELL IN DER MITTE DES CHARAKTERFENSTERS. Ein 3D-Modell laesst
+--- sich nur von einer EINHEIT zeigen — Ziel, Gruppenmitglied, man selbst.
+--- Wer nicht in Reichweite ist, hat keine, und dann gibt es auch kein
+--- Modell: Ein fremdes Modell mit seinen Gegenstaenden anzuziehen zeigte
+--- die falsche Rasse mit dem richtigen Helm, und das ist eine Erfindung.
+---
+--- @return string|nil unitToken
+function Compat.FindUnitByGUID(guid)
+    if not guid or not isFunction(_G.UnitGUID) then return nil end
+
+    local function passt(unit)
+        local ok, wert = pcall(_G.UnitGUID, unit)
+        return ok and Compat.IsReadable(wert) and wert == guid
+    end
+
+    if passt("player") then return "player" end
+    if passt("target") then return "target" end
+    for i = 1, 4 do if passt("party" .. i) then return "party" .. i end end
+    for i = 1, 40 do if passt("raid" .. i) then return "raid" .. i end end
+    return nil
+end
+
+--- Ein Modellrahmen fuer das Charakterfenster, oder nil.
+---
+--- GEPRUEFT AM ERGEBNIS: Der Rahmentyp existiert auf dieser Linie nur, wenn
+--- CreateFrame ihn hergibt UND das Ergebnis SetUnit kann. Beides wird
+--- angesehen, nichts vorausgesetzt.
+--- @return table|nil
+function Compat.CreateDressUpModel(parent)
+    local ok, model = pcall(CreateFrame, "DressUpModel", nil, parent)
+    if not ok or not isTable(model) or not isFunction(model.SetUnit) then return nil end
+    return model
+end
+
+--- Zeigt die Einheit im Modell. Wahr heisst: Der Aufruf lief durch — ob
+--- der Client wirklich etwas zeichnet, sieht nur, wer hinschaut.
+function Compat.ShowUnitInModel(model, unit)
+    if not isTable(model) or not isFunction(model.SetUnit) or not unit then return false end
+    local ok = pcall(model.SetUnit, model, unit)
+    if not ok then return false end
+    -- Von vorn, leicht gedreht: so steht die Figur im Charakterfenster.
+    if isFunction(model.SetFacing) then pcall(model.SetFacing, model, 0.35) end
+    return true
+end

@@ -7,6 +7,39 @@ were showing the wrong thing: professions in somebody else's language, a
 character list sorted by the wrong column, a scrollbar sitting on top of one,
 and map pins that changed size with the zoom.
 
+### The armory as a character window
+
+Chosen from four drawn directions: the one that keeps what was already right
+— eight slots left, eight right, three weapons below, the way the game's own
+character window lays them out — and changes what stood around it.
+
+**The character list.** The class as text is gone; it came capitalised
+differently depending on the roster's language, and the crest says it without
+a word. Each row now carries the class crest, the name with an online dot,
+the level, and the item level as a number with a short bar beside it. The
+bar is measured against the best in the list, not against 60 — in a guild at
+level 20 a bar against 60 is equally short everywhere and says nothing. No
+measured item level means a dash and no bar: unknown is not zero. The
+selected row has a gold edge and stays marked without the mouse over it.
+
+No online dot where the roster says nothing. A grey dot would read as
+"offline", and that is a different claim from "don't know".
+
+**Every slot is labelled**, in the client's own language — the game keeps
+those names for every locale, so nothing is written down twice. With a
+ring or a trinket empty, the silhouette alone does not say which slot it is.
+
+**The character stands in the middle as a model** when they are there to be
+shown: yourself, your target, anybody in the group. Anybody else keeps the
+text panel from before. The alternative — dressing a stand-in model in their
+items — would show the wrong race in the right helmet, and this window shows
+nothing invented. The item-level history sits fixed below, above the
+weapons, so it stays put whether a model or text is above it.
+
+**The guild's logo sits in the portrait circle** of the window instead of
+the player's face. That circle says whose window this is, and this one
+belongs to the guild.
+
 ### Profession names in your own language
 
 They were showing in German on an English client. The name that travels with

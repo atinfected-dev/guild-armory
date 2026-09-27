@@ -235,6 +235,22 @@ function MainFrame:UpdatePortrait()
     local frame = self.frame
     if not frame or not self.native then return end
 
+    -- DAS EIGENE LOGO IM KREIS, nicht das Gesicht des Spielers (27.09.2026
+    -- auf Ansage, mit dem Entwurf A). Der Kreis ist die Stelle, an der ein
+    -- Fenster sagt, wessen es ist — und dieses gehoert der Gilde, nicht dem,
+    -- der es gerade aufhat.
+    --
+    -- GEPRUEFT AM ERGEBNIS, wie ueberall: Die Datei liegt im Paket, aber ob
+    -- der Client sie laedt, sagt erst GetTexture. Ohne sie bleibt das
+    -- Portrait des Spielers, wie vorher.
+    local logo = [[Interface\AddOns\GuildArmory\Media\Logo.tga]]
+    local texture = (frame.PortraitContainer and frame.PortraitContainer.portrait)
+        or frame.portrait or frame.Portrait
+    if texture and Theme.TextureExists(logo) and pcall(texture.SetTexture, texture, logo) then
+        pcall(texture.SetTexCoord, texture, 0, 1, 0, 1)
+        return
+    end
+
     if frame.SetPortraitToUnit then
         if pcall(frame.SetPortraitToUnit, frame, "player") then return end
     end

@@ -32,12 +32,33 @@ local BOTTOM_ROW   = { 16, 17, 18 }                   -- Waffenhand, Schildhand,
 --- Als Funktion, nicht als Tabelle: Eine beim Laden gebaute Spaltenliste
 --- traegt die Beschriftungen der Sprache, die beim Laden galt — und die
 --- Einstellung steht erst bei PLAYER_LOGIN fest.
+---
+--- DIE SPALTEN (Entwurf A, 27.09.2026): Wappen, Name mit Online-Punkt,
+--- Stufe, Itemlevel mit Balken. Die Klasse als Text ist weg — sie kam mal
+--- gross, mal klein, je nach Sprache des Rosters, und das Wappen sagt sie
+--- ohne ein Wort. Die Breiten stehen HIER und nirgends sonst: Die Zeilen
+--- rechnen ihre Positionen aus dieser Liste, damit Kopf und Zeile nicht
+--- auseinanderlaufen koennen.
+local COLUMN_GAP = 6
+local COLUMN_X0 = 8
+
 local function characterColumns()
     return {
-        { key = "name",  label = L.COL_NAME,  width = 104 },
-        { key = "class", label = L.COL_CLASS, width = 66 },
-        { key = "ilvl",  label = L.COL_ILVL,  width = 32, justify = "RIGHT" },
+        { key = "crest", label = "",          width = 16 },
+        { key = "name",  label = L.COL_NAME,  width = 138 },
+        { key = "level", label = L.COL_LEVEL, width = 28, justify = "RIGHT" },
+        { key = "ilvl",  label = L.COL_ILVL,  width = 64, justify = "RIGHT" },
     }
+end
+
+--- Linke Kante jeder Spalte, aus characterColumns() gerechnet.
+local function columnOffsets()
+    local x, out = COLUMN_X0, {}
+    for _, column in ipairs(characterColumns()) do
+        out[column.key] = x
+        x = x + column.width + COLUMN_GAP
+    end
+    return out
 end
 
 -- ================================================================== Aufbau ----
@@ -52,7 +73,7 @@ function Armory:Create(parent)
     -- ---------------------------------------------------- Linke Spalte ------
 
     local listPanel = Widgets.Panel(frame, L.ARMORY_CHARACTERS)
-    listPanel:SetWidth(240)
+    listPanel:SetWidth(300)
     listPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -pad)
     listPanel:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
     self.listPanel = listPanel
@@ -68,22 +89,8 @@ function Armory:Create(parent)
     self.characters = Widgets.ScrollList(listPanel.content, {
         rowHeight = Theme.size.rowHeight,
         columns = characterColumns(),
-        createRow = function(row, columns) Widgets.BuildCells(row, columns) end,
-        updateRow = function(row, character)
-            local cells = row.cells
-            cells.name:SetText(character.name or "?")
-            local r, g, b = Util.ClassColor(character.class)
-            if character.guid == self.selectedGuid then
-                cells.name:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
-            else
-                cells.name:SetTextColor(r, g, b)
-            end
-            cells.class:SetText(character.className or character.class or "")
-            cells.class:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
-            local level = character.itemLevel and character.itemLevel.value
-            cells.ilvl:SetText(level and tostring(level) or "—")
-            cells.ilvl:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
-        end,
+        createRow = function(row) self:BuildRow(row) end,
+        updateRow = function(row, character) self:UpdateRow(row, character) end,
         onClickRow = function(character)
             self.selectedGuid = character.guid
             self:RefreshCharacters()
@@ -157,6 +164,16 @@ function Armory:Create(parent)
     self.slots = {}
     local columnTop = -92
 
+    -- JEDER PLATZ TRAEGT SEINEN NAMEN. Bei leeren Plaetzen raet man sonst,
+    -- welcher es ist — die Silhouette allein sagt es bei Ring und Schmuck
+    -- nicht. Die Namen kommen vom Client in seiner Sprache
+    -- (Compat.SlotName), nicht aus einer eigenen Liste.
+    local function beschriften(slot, slotID, anchorPoint, relativePoint, x, y)
+        local label = Theme.Label(slot, Compat.SlotName(slotID), fonts.small, Theme.color.textDim)
+        label:SetPoint(anchorPoint, slot, relativePoint, x, y)
+        slot.label = label
+    end
+
     local function place(slotID, anchorPoint, x, y)
         local slot = Theme.ItemSlot(doll, slotID, SLOT_SIZE)
         slot:SetPoint(anchorPoint, doll, anchorPoint, x, y)
@@ -167,28 +184,67 @@ function Armory:Create(parent)
     end
 
     for index, slotID in ipairs(LEFT_COLUMN) do
-        place(slotID, "TOPLEFT", 16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
+        local slot = place(slotID, "TOPLEFT", 16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
+        beschriften(slot, slotID, "LEFT", "RIGHT", 6, 0)
     end
     for index, slotID in ipairs(RIGHT_COLUMN) do
-        place(slotID, "TOPRIGHT", -16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
+        local slot = place(slotID, "TOPRIGHT", -16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
+        beschriften(slot, slotID, "RIGHT", "LEFT", -6, 0)
+        slot.label:SetJustifyH("RIGHT")
     end
 
     -- Waffen unten mittig, als Gruppe.
     local weapons = CreateFrame("Frame", nil, doll)
     weapons:SetWidth(#BOTTOM_ROW * SLOT_SIZE + (#BOTTOM_ROW - 1) * SLOT_GAP)
     weapons:SetHeight(SLOT_SIZE)
-    weapons:SetPoint("BOTTOM", doll, "BOTTOM", 0, 16)
+    weapons:SetPoint("BOTTOM", doll, "BOTTOM", 0, 26)
+    self.weapons = weapons
     for index, slotID in ipairs(BOTTOM_ROW) do
         local slot = Theme.ItemSlot(weapons, slotID, SLOT_SIZE)
         slot:SetPoint("LEFT", weapons, "LEFT", (index - 1) * (SLOT_SIZE + SLOT_GAP), 0)
         slot:SetScript("OnEnter", function(button) self:ShowSlotTooltip(button) end)
         slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        beschriften(slot, slotID, "TOP", "BOTTOM", 0, -2)
         self.slots[slotID] = slot
     end
 
-    -- Mitte: Talente, Gildenrang, Snapshots — ruhig, in Friz.
+    -- ---------------------------------------------------- Die Mitte ---------
+    --
+    -- Entwurf A (27.09.2026): Der Charakter steht als MODELL in der Mitte,
+    -- wie im Charakterfenster — darunter der Itemlevel-Verlauf. Das Modell
+    -- gibt es nur, wenn der Charakter als Einheit da ist (man selbst, Ziel,
+    -- Gruppe); fuer alle anderen bleibt die Textmitte von vorher. Ein
+    -- fremdes Modell mit seinen Gegenstaenden anzuziehen zeigte die falsche
+    -- Rasse mit dem richtigen Helm — und das waere eine Erfindung.
+    --
+    -- Der Verlauf sitzt fest UNTEN, ueber den Waffen: So bleibt er an
+    -- derselben Stelle, ob darueber das Modell steht oder der Text.
+    self.historyHint = Theme.Label(doll, L.GEAR_DISCRETE, fonts.small, Theme.color.textFaint)
+    self.historyHint:SetPoint("BOTTOM", weapons, "TOP", 0, 10)
+
+    self.history = Widgets.LevelChart(doll, 24)
+    self.history:SetWidth(300)
+    self.history:SetHeight(84)
+    self.history:SetPoint("BOTTOM", self.historyHint, "TOP", 0, 2)
+
+    self.historyTitle = Theme.Label(doll, L.GEAR_HISTORY, fonts.heading, Theme.color.heading)
+    self.historyTitle:SetPoint("BOTTOM", self.history, "TOP", 0, 4)
+
+    -- Das Modell fuellt den Raum zwischen den Slotspalten und dem Verlauf.
+    -- Ob es den Rahmentyp gibt, sagt Compat — nicht diese Datei.
+    local model = Compat.CreateDressUpModel(doll)
+    if model then
+        model:SetPoint("TOPLEFT", doll, "TOPLEFT", 16 + SLOT_SIZE + 76, columnTop)
+        model:SetPoint("BOTTOMRIGHT", self.historyTitle, "TOP", 0, 6)
+        model:SetPoint("RIGHT", doll, "RIGHT", -(16 + SLOT_SIZE + 76), 0)
+        model:Hide()
+    end
+    self.model = model
+
+    -- Die Textmitte: Gildenrang, Plaetze, Staende — der Rueckfall ohne
+    -- Einheit, und bis dahin genau das, was vorher hier stand.
     self.centerTitle = Theme.Label(doll, "", fonts.big, Theme.color.heading)
-    self.centerTitle:SetPoint("TOP", doll, "TOP", 0, columnTop - 6)
+    self.centerTitle:SetPoint("TOP", doll, "TOP", 0, columnTop - 30)
 
     self.centerBody = Theme.Label(doll, "", fonts.body, Theme.color.textDim)
     self.centerBody:SetPoint("TOP", self.centerTitle, "BOTTOM", 0, -8)
@@ -196,21 +252,117 @@ function Armory:Create(parent)
     self.centerBody:SetJustifyH("CENTER")
     self.centerBody:SetSpacing(4)
 
-    -- Itemlevel-Verlauf: in der Mitte, wo im Charakterfenster das 3D-Modell
-    -- steht. Balken statt Linie — siehe Widgets.LevelChart.
-    self.historyTitle = Theme.Label(doll, L.GEAR_HISTORY, fonts.heading, Theme.color.heading)
-    self.historyTitle:SetPoint("TOP", self.centerBody, "BOTTOM", 0, -14)
-
-    self.history = Widgets.LevelChart(doll, 24)
-    self.history:SetWidth(300)
-    self.history:SetHeight(104)
-    self.history:SetPoint("TOP", self.historyTitle, "BOTTOM", 0, -6)
-
-    self.historyHint = Theme.Label(doll, L.GEAR_DISCRETE, fonts.small, Theme.color.textFaint)
-    self.historyHint:SetPoint("TOP", self.history, "BOTTOM", 0, -4)
-
     self.frame = frame
     return frame
+end
+
+-- ================================================================== Zeilen ----
+
+--- Baut die feste Form einer Listenzeile: Wappen, Name, Online-Punkt,
+--- Stufe, Balken und Zahl. Die Positionen kommen aus characterColumns() —
+--- dieselbe Quelle wie die Kopfzeile, damit beides zusammen wandert.
+function Armory:BuildRow(row)
+    local fonts = Theme.Fonts()
+    local x = columnOffsets()
+    local columns = {}
+    for _, column in ipairs(characterColumns()) do columns[column.key] = column end
+
+    row.edge = Theme.Fill(row, Theme.color.gold)
+    row.edge:ClearAllPoints()
+    row.edge:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.edge:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    row.edge:SetWidth(2)
+    row.edge:Hide()
+
+    row.crest = row:CreateTexture(nil, "ARTWORK")
+    row.crest:SetWidth(14) row.crest:SetHeight(14)
+    row.crest:SetPoint("LEFT", row, "LEFT", x.crest, 0)
+
+    row.nameText = Theme.Label(row, "", fonts.row, Theme.color.text)
+    row.nameText:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.nameText:SetWidth(columns.name.width - 10)
+    row.nameText:SetJustifyH("LEFT")
+    -- Ein Wort, das nicht passt, wird abgeschnitten, nicht umgebrochen: Eine
+    -- zweizeilige Zeile ist keine mehr.
+    row.nameText:SetWordWrap(false)
+
+    row.dot = row:CreateTexture(nil, "ARTWORK")
+    row.dot:SetWidth(5) row.dot:SetHeight(5)
+    row.dot:SetPoint("LEFT", row, "LEFT", x.name + columns.name.width - 6, 0)
+
+    row.levelText = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.levelText:SetPoint("LEFT", row, "LEFT", x.level, 0)
+    row.levelText:SetWidth(columns.level.width)
+    row.levelText:SetJustifyH("RIGHT")
+
+    -- Balken links, Zahl rechts — die Zahl ist die Auskunft, der Balken die
+    -- Einordnung auf einen Blick.
+    row.barBg = row:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(row.barBg, Theme.color.windowBg)
+    row.barBg:SetWidth(34) row.barBg:SetHeight(5)
+    row.barBg:SetPoint("LEFT", row, "LEFT", x.ilvl, 0)
+
+    row.barFill = row:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(row.barFill, Theme.color.goldDim)
+    row.barFill:SetHeight(5)
+    row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
+
+    row.ilvlText = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
+    row.ilvlText:SetPoint("LEFT", row, "LEFT", x.ilvl + 40, 0)
+    row.ilvlText:SetWidth(columns.ilvl.width - 40)
+    row.ilvlText:SetJustifyH("RIGHT")
+end
+
+--- Fuellt eine Zeile. Laeuft je sichtbarer Zeile bei jedem Auffrischen —
+--- deshalb nichts Neues anlegen, nur setzen.
+function Armory:UpdateRow(row, character)
+    local selected = character.guid == self.selectedGuid
+    local r, g, b = Util.ClassColor(character.class)
+
+    -- Die gewaehlte Zeile: goldene Kante und der Hover-Grund, damit sie auch
+    -- ohne Maus darueber als gewaehlt zu erkennen ist. ScrollList hat den
+    -- Grund vorher nach gerade/ungerade gemalt; hier wird er uebermalt.
+    if selected then
+        row.edge:Show()
+        Theme.Paint(row.background, Theme.color.rowHover)
+    else
+        row.edge:Hide()
+    end
+
+    if not Theme.SetClassPortrait(row.crest, character.class) then
+        row.crest:Hide()
+    else
+        row.crest:Show()
+    end
+
+    row.nameText:SetText(character.name or "?")
+    row.nameText:SetTextColor(r, g, b)
+
+    -- Online ist eine Auskunft des Rosters. Fehlt sie, gibt es keinen Punkt
+    -- — ein grauer Punkt hiesse "offline", und das ist etwas anderes als
+    -- "weiss nicht".
+    local online = self.online and (self.online[character.guid]
+        or (character.name and self.online[string.lower(Util.ShortName(character.name))]))
+    if online == nil then
+        row.dot:Hide()
+    else
+        row.dot:Show()
+        Theme.Paint(row.dot, online and Theme.color.good or Theme.color.border)
+    end
+
+    row.levelText:SetText(character.level and tostring(character.level) or "")
+
+    local value = character.itemLevel and character.itemLevel.value
+    if value then
+        row.ilvlText:SetText(tostring(value))
+        local anteil = (self.bestIlvl or 0) > 0 and (value / self.bestIlvl) or 0
+        row.barFill:SetWidth(math.max(1, math.floor(34 * anteil)))
+        row.barBg:Show() row.barFill:Show()
+    else
+        -- Ungemessen ist nicht null: kein Balken, ein Strich.
+        row.ilvlText:SetText("—")
+        row.barBg:Hide() row.barFill:Hide()
+    end
 end
 
 -- ================================================================== Tooltip ---
@@ -255,6 +407,27 @@ function Armory:RefreshCharacters()
         local own = Compat.GetPlayerIdentity().guid
         self.selectedGuid = own or (list[1] and list[1].guid)
     end
+
+    -- EINMAL JE LISTE, NICHT JE ZEILE. Wer online ist, steht im Roster; die
+    -- Zeile fragt nachher nur noch nach. Bei 23 Mitgliedern und 16 Zeilen
+    -- waeren es sonst 368 Vergleiche je Auffrischen — nicht viel, aber die
+    -- Sorte Schleife, die sich summiert.
+    local online = {}
+    for _, member in pairs(GA.Core.Database.account.guild.members or {}) do
+        if member.guid then online[member.guid] = member.online and true or false end
+        if member.name then online[string.lower(member.name)] = member.online and true or false end
+    end
+    self.online = online
+
+    -- Der Balken ist RELATIV zum Besten der Liste: Ein Balken gegen 60 waere
+    -- bei einer Gilde auf Stufe 20 ueberall gleich kurz und sagte nichts.
+    local best = 0
+    for _, character in ipairs(list) do
+        local value = character.itemLevel and character.itemLevel.value
+        if value and value > best then best = value end
+    end
+    self.bestIlvl = best
+
     self.characters:SetData(list)
 end
 
@@ -271,6 +444,9 @@ function Armory:RefreshDoll()
         self.centerBody:SetText("")
         self.history:SetPoints(nil, L.GEAR_NO_HISTORY)
         self.historyHint:Hide()
+        if self.model then self.model:Hide() end
+        self.centerTitle:Show()
+        self.centerBody:Show()
         for _, slot in pairs(self.slots) do slot:SetItem(nil) end
         return
     end
@@ -312,6 +488,16 @@ function Armory:RefreshDoll()
     local level = character.itemLevel and character.itemLevel.value
     self.ilvlValue:SetText(level and tostring(level) or "—")
 
+    -- "Itemlevel · 10 von 17" unter der grossen Zahl: Die Zahl allein sagt
+    -- nicht, aus wie vielen Plaetzen sie kommt — und 21 aus zehn Plaetzen ist
+    -- etwas anderes als 21 aus siebzehn.
+    local count = character.itemLevel and character.itemLevel.count
+    if count then
+        self.ilvlLabel:SetText(L.DASH_ITEMLEVEL .. "  ·  " .. string.format(L.DASH_EQUIPPED, count, 17))
+    else
+        self.ilvlLabel:SetText(L.DASH_ITEMLEVEL)
+    end
+
     -- Zeitstempel und Quelle
     if character.equipmentTs then
         local ago = Util.TimeAgo(character.equipmentTs)
@@ -328,9 +514,31 @@ function Armory:RefreshDoll()
         self.stamp:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
     end
 
-    -- Slots
+    -- Slots — und ihre Namen: gedaempft, wo etwas steckt, leise, wo nichts.
     for slotID, slot in pairs(self.slots) do
-        slot:SetItem(character.equipment and character.equipment[slotID] or nil)
+        local item = character.equipment and character.equipment[slotID] or nil
+        slot:SetItem(item)
+        if slot.label then
+            local farbe = item and Theme.color.textDim or Theme.color.textFaint
+            slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
+        end
+    end
+
+    -- DAS MODELL, WENN ES EINE EINHEIT GIBT — sonst der Text.
+    --
+    -- Man selbst immer; andere nur, wenn sie als Ziel oder in der Gruppe
+    -- da sind. Wer nicht in Reichweite ist, bekommt kein Modell, weil es
+    -- keines von IHM waere.
+    local unit = own and "player" or Compat.FindUnitByGUID(character.guid)
+    local modellSteht = self.model and unit and Compat.ShowUnitInModel(self.model, unit)
+    if modellSteht then
+        self.model:Show()
+        self.centerTitle:Hide()
+        self.centerBody:Hide()
+    else
+        if self.model then self.model:Hide() end
+        self.centerTitle:Show()
+        self.centerBody:Show()
     end
 
     -- Mitte

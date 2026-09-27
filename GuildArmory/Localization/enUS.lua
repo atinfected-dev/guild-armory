@@ -99,6 +99,7 @@ GA.Core.Locale:Register("enUS", {
     COL_NAME                = "Name",
     COL_CLASS               = "Class",
     COL_ILVL                = "Ilvl",
+    COL_LEVEL               = "Lvl",
     ARMORY_INSPECT_TARGET   = "Inspect target",
     ARMORY_INSPECT_HINT     = "Target a player (within ~28 yd), then inspect.",
     ARMORY_INSPECT_SENT     = "Inspect requested: %s",
