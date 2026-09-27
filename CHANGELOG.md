@@ -36,6 +36,13 @@ items — would show the wrong race in the right helmet, and this window shows
 nothing invented. The item-level history sits fixed below, above the
 weapons, so it stays put whether a model or text is above it.
 
+The model blinked at first. Setting the unit reloads the model, and the
+panel refreshes not only on a click but every time the client finishes
+loading any item — bundled to twice a second, but still — so the figure was
+torn down and rebuilt on a half-second beat. It is set once per unit and
+character now; the same unit again is not a refresh, it is a reload with no
+reason.
+
 **The guild's logo sits in the portrait circle** of the window instead of
 the player's face. That circle says whose window this is, and this one
 belongs to the guild.

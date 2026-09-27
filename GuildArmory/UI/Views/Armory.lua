@@ -445,6 +445,7 @@ function Armory:RefreshDoll()
         self.history:SetPoints(nil, L.GEAR_NO_HISTORY)
         self.historyHint:Hide()
         if self.model then self.model:Hide() end
+        self.modelKey = nil
         self.centerTitle:Show()
         self.centerBody:Show()
         for _, slot in pairs(self.slots) do slot:SetItem(nil) end
@@ -530,13 +531,36 @@ function Armory:RefreshDoll()
     -- da sind. Wer nicht in Reichweite ist, bekommt kein Modell, weil es
     -- keines von IHM waere.
     local unit = own and "player" or Compat.FindUnitByGUID(character.guid)
-    local modellSteht = self.model and unit and Compat.ShowUnitInModel(self.model, unit)
+
+    -- SetUnit NUR, WENN SICH ETWAS GEAENDERT HAT.
+    --
+    -- GEMELDET 27.09.2026: "es blinkt." SetUnit laedt das Modell neu, und
+    -- RefreshDoll laeuft nicht nur beim Klick auf einen Charakter, sondern
+    -- auch bei jedem GET_ITEM_INFO_RECEIVED — das feuert, sobald irgendwer
+    -- irgendein Item nachlaedt, alle 0,4 s gebuendelt. Jedes Mal wurde die
+    -- Figur weggenommen und neu aufgebaut: ein Blitzen im Halbsekundentakt.
+    --
+    -- Gemerkt wird, welche Einheit fuer welchen Charakter zuletzt gesetzt
+    -- wurde. Dieselbe wieder zu setzen ist kein Auffrischen, sondern ein
+    -- Neuladen ohne Anlass.
+    local schluessel = unit and (tostring(unit) .. ":" .. tostring(character.guid)) or nil
+    local modellSteht
+    if self.model and schluessel then
+        if self.modelKey == schluessel and self.model:IsShown() then
+            modellSteht = true
+        else
+            modellSteht = Compat.ShowUnitInModel(self.model, unit)
+            self.modelKey = modellSteht and schluessel or nil
+        end
+    end
+
     if modellSteht then
         self.model:Show()
         self.centerTitle:Hide()
         self.centerBody:Hide()
     else
         if self.model then self.model:Hide() end
+        self.modelKey = nil
         self.centerTitle:Show()
         self.centerBody:Show()
     end
