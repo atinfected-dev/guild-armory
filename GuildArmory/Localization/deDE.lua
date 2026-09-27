@@ -243,6 +243,7 @@ GA.Core.Locale:Register("deDE", {
     BID_ANSWERED                = "Geantwortet: %s",
     BID_FAILED                  = "Bewerbung konnte nicht gesendet werden (%s).",
     BID_ANSWERED_COUNT          = "%d von %d beantwortet",
+    BID_QUEUED                  = "%d warten",
     BID_EQUIPPED                = "Angelegt",
     BID_NEW                     = "Neu",
     BID_NOT_ANSWERED            = "noch keine Antwort",

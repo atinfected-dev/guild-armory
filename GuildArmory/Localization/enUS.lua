@@ -253,6 +253,7 @@ GA.Core.Locale:Register("enUS", {
     BID_FAILED                  = "Could not send the bid (%s).",
     -- Gebotsfenster als Karten (Entwurf B2, 27.09.2026)
     BID_ANSWERED_COUNT          = "%d of %d answered",
+    BID_QUEUED                  = "%d waiting",
     BID_EQUIPPED                = "Equipped",
     BID_NEW                     = "New",
     BID_NOT_ANSWERED            = "no answer yet",

@@ -40,6 +40,11 @@ local L = GA.L
 
 local CARD_W, CARD_H, CARD_GAP = 212, 272, 8
 local MAX_COLUMNS = 3
+--- Mehr Karten als das stehen nie gleichzeitig im Fenster. Gemeldet
+--- 27.09.2026: Mit neun oder zwoelf Gegenstaenden wuchs das Fenster ueber
+--- den Bildschirm hinaus. Was nicht passt, wartet und rueckt nach, sobald
+--- eine Karte beantwortet ist — der Zaehler im Kopf sagt, wie viele warten.
+local MAX_VISIBLE = 6
 local PAD = 14
 local HEAD_H = 52          -- Titelleiste der Vorlage + Zeile mit Lootmeister + Fristbalken
 local FOOT_H = 34
@@ -359,13 +364,28 @@ function BidFrame:BuildRow(index)
         -- jemand ins Leere und erfaehrt erst nach dem Druecken, warum es
         -- nicht ging.
         row.dkpInfo = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-        row.dkpInfo:SetPoint("TOPLEFT", row, "TOPLEFT", 12, answersTop - BUTTON_H - 6)
+        row.dkpInfo:SetPoint("TOPLEFT", row, "TOPLEFT", 12, answersTop - BUTTON_H - 4)
         row.dkpInfo:SetWidth(CARD_W - 24)
-        row.dkpInfo:SetHeight(28)
+        row.dkpInfo:SetHeight(16)
         row.dkpInfo:SetJustifyH("LEFT")
-        row.dkpInfo:SetJustifyV("TOP")
+        row.dkpInfo:SetWordWrap(false)
         row.dkpInfo:Hide()
     end
+
+    -- PASSEN BEI WURF UND GEBOT. Im Council-Modus ist Pass eine der
+    -- Antworten; bei Wurf und DKP gab es keinen Weg, nein zu sagen
+    -- (gemeldet 27.09.2026). Der Knopf schickt dieselbe Antwort wie der
+    -- Pass des Councils — der Lootmeister sieht ein "Pass" statt Schweigen,
+    -- und Schweigen ist von "noch nicht gesehen" nicht zu unterscheiden.
+    -- Dritte Reihe, damit er bei DKP nicht neben dem Feld klemmt.
+    local pass = GA.Modules.Session:ResponseByKey("PASS")
+    row.passButton = Widgets.Button(row, pass and (pass.short or pass.label) or "Pass", function()
+        BidFrame:Answer(index, "PASS")
+    end)
+    row.passButton:SetHeight(BUTTON_H)
+    row.passButton:SetWidth(BUTTON_W)
+    platz(row.passButton, 7)
+    row.passButton:Hide()
 
     -- Wer reserviert hat. Steht STATT der Knoepfe: Ist ein Stueck
     -- reserviert, entscheidet die Reservierung, und ein Gebot daneben waere
@@ -574,6 +594,7 @@ function BidFrame:ApplyMode(row, itemID)
         zeige(row.rollButtons, false)
         row.reserved:Hide()
         dkpZeigen(true)
+        row.passButton:Show()
 
         row.answer:Hide()
         row.pending:Show()
@@ -591,6 +612,7 @@ function BidFrame:ApplyMode(row, itemID)
             table.concat(reserviert, ", ")))
         row.reserved:Show()
         row.pending:Hide()
+        row.passButton:Hide()
         row.mode = "reserved"
         return "reserved"
     end
@@ -601,44 +623,100 @@ function BidFrame:ApplyMode(row, itemID)
     if Session:RollsFor(itemID) then
         zeige(row.buttons, false)
         zeige(row.rollButtons, true)
+        row.passButton:Show()
         row.mode = "roll"
         return "roll"
     end
 
     zeige(row.rollButtons, false)
     zeige(row.buttons, true)
+    row.passButton:Hide()
     row.mode = "bid"
     return "bid"
 end
 
 --- Schreibt den Zaehler "k von n beantwortet" neu.
+--- Ist diese Karte beantwortet? Erledigt (weg), oder ein stehendes Gebot.
+function BidFrame:IsAnswered(row)
+    if not row then return false end
+    if row.done then return true end
+    return row.mode == "dkp" and self:OwnDkpBid(row.awardId) ~= nil
+end
+
 function BidFrame:UpdateCounter()
     if not self.counter or not self.announcement then return end
     local gesamt, beantwortet = #self.announcement.items, 0
     for index = 1, gesamt do
-        local row = self.rows[index]
-        if row and row.answer:IsShown() then beantwortet = beantwortet + 1 end
+        if self:IsAnswered(self.rows[index]) then beantwortet = beantwortet + 1 end
     end
-    self.counter:SetText(string.format(L.BID_ANSWERED_COUNT, beantwortet, gesamt))
+    local text = string.format(L.BID_ANSWERED_COUNT, beantwortet, gesamt)
+    if (self.queued or 0) > 0 then
+        text = text .. "  ·  " .. string.format(L.BID_QUEUED, self.queued)
+    end
+    self.counter:SetText(text)
 
-    -- "Rest passen" nur, wenn es einen Rest gibt, auf den man passen kann.
+    -- "Rest passen" nur, wenn es einen Rest gibt.
     local offen = false
     for index = 1, gesamt do
         local row = self.rows[index]
-        if row and row.mode == "bid" and not row.answer:IsShown() then offen = true break end
+        if row and row.mode ~= "reserved" and not self:IsAnswered(row) then offen = true break end
     end
     self.passRest:SetShown(offen)
 end
 
---- Passt auf alles, was noch offen ist und eine Antwort kennt.
+--- Passt auf alles, was noch offen ist. Ein stehendes DKP-Gebot ist eine
+--- Antwort und bleibt.
 function BidFrame:PassRest()
     if not self.announcement then return end
     for index = 1, #self.announcement.items do
         local row = self.rows[index]
-        if row and row.mode == "bid" and not row.answer:IsShown() then
+        if row and row.mode ~= "reserved" and not self:IsAnswered(row) then
             self:Answer(index, "PASS")
         end
     end
+end
+
+--- Legt die offenen Karten ins Raster: die ersten MAX_VISIBLE, der Rest
+--- wartet. Erledigte Karten sind weg, und was dahinter stand, rueckt nach.
+--- Ist nichts mehr offen, schliesst sich das Fenster kurz darauf.
+function BidFrame:Layout()
+    if not self.frame or not self.announcement then return end
+
+    local offen = {}
+    for index = 1, #self.announcement.items do
+        local row = self.rows[index]
+        if row and not row.done then offen[#offen + 1] = row end
+    end
+
+    local sichtbar = math.min(#offen, MAX_VISIBLE)
+    self.queued = #offen - sichtbar
+
+    local width, height = frameSize(math.max(sichtbar, 1))
+    self.frame:SetWidth(width)
+    self.frame:SetHeight(height)
+
+    local columns = raster(math.max(sichtbar, 1))
+    for position, row in ipairs(offen) do
+        if position <= sichtbar then
+            local spalte = (position - 1) % columns
+            local reihe = math.floor((position - 1) / columns)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", self.frame, "TOPLEFT",
+                PAD + spalte * (CARD_W + CARD_GAP), -(HEAD_H + reihe * (CARD_H + CARD_GAP)))
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+    for index = 1, #self.rows do
+        local row = self.rows[index]
+        if row.done or index > #self.announcement.items then row:Hide() end
+    end
+
+    self:UpdateCounter()
+
+    -- Alles beantwortet? Dann kann das Fenster weg.
+    if #offen == 0 then Compat.After(1.5, function() BidFrame:Hide() end) end
 end
 
 -- ================================================================== DKP -------
@@ -833,7 +911,7 @@ function BidFrame:LockAll()
         for _, liste in ipairs({ row.buttons, row.rollButtons }) do
             for _, button in ipairs(liste or {}) do button:Hide() end
         end
-        for _, element in ipairs({ row.dkpBox, row.dkpButton, row.dkpCancel }) do
+        for _, element in ipairs({ row.dkpBox, row.dkpButton, row.dkpCancel, row.passButton }) do
             if element then element:Hide() end
         end
     end
@@ -942,13 +1020,16 @@ function BidFrame:Roll(index, tierKey)
         return
     end
 
-    -- Die Knoepfe weg: Ein zweiter Wurf zaehlt nicht, und ein Knopf, der
-    -- nichts mehr bewirkt, laedt trotzdem zum Druecken ein.
-    for _, button in ipairs(row.rollButtons) do button:Hide() end
+    -- DIE KARTE IST ERLEDIGT und geht aus dem Fenster; was dahinter
+    -- wartete, rueckt nach. Ein zweiter Wurf zaehlt ohnehin nicht. Das
+    -- Ergebnis steht im Chat und in der Sitzung, nicht auf einer Karte,
+    -- die niemand mehr braucht (27.09.2026: "nachdem man seinen Bid
+    -- gesetzt hat, das Item aus der Liste").
     row.answer:SetText(GA.L.BID_ROLLED)
     row.answer:Show()
     row.pending:Hide()
-    self:UpdateCounter()
+    row.done = true
+    self:Layout()
 
     -- DIE ZAHL NACHTRAGEN, SOBALD SIE DA IST.
     --
@@ -971,23 +1052,14 @@ function BidFrame:Show(announcement)
     self.announcement = announcement
 
     local count = #announcement.items
-    local width, height = frameSize(count)
-    self.frame:SetWidth(width)
-    self.frame:SetHeight(height)
     self.hint:SetText(string.format(L.BID_FROM, announcement.host or "?"))
 
-    local columns = raster(count)
     for index, item in ipairs(announcement.items) do
         local row = self:BuildRow(index)
         row.position = index
         row.awardId = item.awardId
         row.itemID = item.itemID
-
-        local spalte = (index - 1) % columns
-        local reihe = math.floor((index - 1) / columns)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", self.frame, "TOPLEFT",
-            PAD + spalte * (CARD_W + CARD_GAP), -(HEAD_H + reihe * (CARD_H + CARD_GAP)))
+        row.done = false
 
         self:Label(row, item.itemID)
 
@@ -1000,21 +1072,23 @@ function BidFrame:Show(announcement)
         for _, button in ipairs(row.rollButtons) do
             button:SetEnabledState(true)
         end
+        row.passButton:SetEnabledState(true)
 
         BidFrame:ApplyMode(row, item.itemID)
-        row:Show()
     end
 
     for index = count + 1, #self.rows do self.rows[index]:Hide() end
+
+    -- Die Karten ins Raster — erst jetzt, nach dem Fenster: Layout misst
+    -- den Rahmen, und ein Rahmen ohne Groesse misst nichts.
+    self.frame:Show()
+    self:Layout()
 
     self:WatchItemInfo()
 
     self.expired = false
     self.timerTotal = self:TimeLeft()
     self:UpdateTimer()
-    self:UpdateCounter()
-
-    self.frame:Show()
 end
 
 function BidFrame:Hide()
@@ -1039,21 +1113,17 @@ function BidFrame:Answer(index, responseKey)
         return
     end
 
-    -- Die Knoepfe verschwinden, die Antwort bleibt stehen. Aendern geht ueber
-    -- ein erneutes Oeffnen — eine Karte, die sich unter der Hand umstellen
-    -- laesst, fuehrt im Raid zu "ich hatte doch BiS geklickt".
+    -- DIE KARTE GEHT AUS DEM FENSTER, und was dahinter wartete, rueckt nach
+    -- (27.09.2026: mit zwoelf Gegenstaenden passte das Fenster nicht mehr
+    -- auf den Bildschirm). Aendern geht ueber ein erneutes Oeffnen — eine
+    -- Karte, die sich unter der Hand umstellen laesst, fuehrt im Raid zu
+    -- "ich hatte doch BiS geklickt". Bei DKP kommt man hier nur ueber den
+    -- Pass-Knopf her; ein Gebot selbst laesst die Karte stehen, weil man
+    -- es erhoehen oder zurueckziehen kann.
     local response = GA.Modules.Session:ResponseByKey(responseKey)
-    for _, button in ipairs(row.buttons) do button:Hide() end
     row.answer:SetText(string.format(L.BID_ANSWERED, response and response.label or responseKey))
     row.answer:Show()
     row.pending:Hide()
-    self:UpdateCounter()
-
-    -- Alles beantwortet? Dann kann das Fenster weg.
-    local done = true
-    for i = 1, #self.announcement.items do
-        local other = self.rows[i]
-        if other and other:IsShown() and not other.answer:IsShown() then done = false break end
-    end
-    if done then Compat.After(1.5, function() BidFrame:Hide() end) end
+    row.done = true
+    self:Layout()
 end

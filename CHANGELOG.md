@@ -170,10 +170,25 @@ with the bidding time if the loot master set one. "Pass on the rest" at the
 bottom passes on every card that still has an answer to give — not on
 rolls or bids, which have no pass.
 
-Answering still hides the other buttons on that card, as before: a card
-that can be flipped under your hand leads to "but I clicked BiS" in the
-raid. Changing an answer goes through the loot window's "Bid window"
-button, which opens the cards again.
+**An answered card leaves the window, and the rest move up.** Reported
+the same evening: with nine or twelve items the window grew past the
+screen. Now an answer or a roll takes the card out and whatever was behind
+it moves into its place; at most six cards stand in the window at once,
+and the head says how many are waiting ("2 of 12 answered · 6 waiting").
+When the last card is answered the window closes. A DKP bid does not
+remove the card — you can raise it or withdraw it, so it stays until you
+pass.
+
+**You can pass everywhere now.** With rolls and points there was no way to
+say no; the loot master saw silence, and silence looks exactly like "has
+not seen it yet". Roll and DKP cards carry a Pass button in their third
+row that sends the same answer the council's Pass sends, and takes the
+card out. "Pass on the rest" passes on every open card of any kind; a
+standing DKP bid counts as answered and is left alone.
+
+Changing an answer still goes through the loot window's "Bid window"
+button, which opens the cards again — a card that can be flipped under
+your hand leads to "but I clicked BiS" in the raid.
 
 ### The dashboard: the hall of banners
 
