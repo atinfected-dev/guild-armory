@@ -152,6 +152,14 @@ Probe.CHECKS = {
     { key = "dressUp", was = "Ankleidepuppe: Rasse setzen und Gegenstaende anziehen",
       fuer = "das Modell im Charakterfenster fuer Leute, die nicht in Reichweite sind",
       run = function()
+          -- DIESE DATEI HAT KEIN Compat. Sie spricht ueberall mit _G, und
+          -- der erste Lauf dieser Sonde ist genau daran gescheitert:
+          -- "Probe.lua:158: attempt to index global 'Compat' (a nil value)"
+          -- (27.09.2026, zweiter Anlauf). Beim Aufruf geholt, nicht beim
+          -- Laden — die Ladereihenfolge der Dateien ist nichts, worauf eine
+          -- Sonde sich verlassen sollte.
+          local Compat = GA.Core.Compat
+
           -- Gemessen wird der AUFRUF, nicht ob etwas zu sehen ist — das
           -- kann nur ein Blick ins Fenster. Aber ob die beiden Funktionen
           -- da sind und nicht werfen, entscheidet, ob es sich lohnt, hinzusehen.
