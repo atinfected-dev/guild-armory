@@ -2503,6 +2503,64 @@ local SLOT_GLOBALS = {
     [16] = "MAINHANDSLOT", [17] = "SECONDARYHANDSLOT", [18] = "RANGEDSLOT",
 }
 
+--- Welche Ausruestungsplaetze ein Gegenstand seiner Art nach belegen kann.
+---
+--- Das ist Spieldatum, kein Ratespiel: Der Client nennt fuer jeden
+--- Gegenstand seinen Ausruestungsort (INVTYPE_…), und die Plaetze, die
+--- dazu gehoeren, sind seit Vanilla dieselben. Zwei Eintraege bei Ring,
+--- Schmuck und einhaendigen Waffen — dort gibt es zwei Plaetze, und
+--- welchen jemand tauschen wuerde, weiss nur er.
+local SLOTS_FOR_EQUIPLOC = {
+    INVTYPE_HEAD = { 1 }, INVTYPE_NECK = { 2 }, INVTYPE_SHOULDER = { 3 },
+    INVTYPE_BODY = { 4 }, INVTYPE_CHEST = { 5 }, INVTYPE_ROBE = { 5 },
+    INVTYPE_WAIST = { 6 }, INVTYPE_LEGS = { 7 }, INVTYPE_FEET = { 8 },
+    INVTYPE_WRIST = { 9 }, INVTYPE_HAND = { 10 },
+    INVTYPE_FINGER = { 11, 12 }, INVTYPE_TRINKET = { 13, 14 },
+    INVTYPE_CLOAK = { 15 }, INVTYPE_TABARD = { 19 },
+    INVTYPE_WEAPON = { 16, 17 }, INVTYPE_2HWEAPON = { 16 },
+    INVTYPE_WEAPONMAINHAND = { 16 }, INVTYPE_WEAPONOFFHAND = { 17 },
+    INVTYPE_SHIELD = { 17 }, INVTYPE_HOLDABLE = { 17 },
+    INVTYPE_RANGED = { 18 }, INVTYPE_RANGEDRIGHT = { 18 },
+    INVTYPE_THROWN = { 18 }, INVTYPE_RELIC = { 18 },
+}
+
+--- @return table|nil  Platzkennungen; nil = nicht anlegbar oder unbekannt
+function Compat.SlotsForEquipLoc(equipLoc)
+    if type(equipLoc) ~= "string" then return nil end
+    return SLOTS_FOR_EQUIPLOC[equipLoc]
+end
+
+--- Der Ausruestungsort als Wort in der Sprache des Clients ("Schulter").
+--- Das Spiel haelt die Namen unter dem Ort selbst als globale Zeichenkette.
+--- @return string|nil
+function Compat.EquipLocName(equipLoc)
+    if type(equipLoc) ~= "string" or equipLoc == "" then return nil end
+    local name = _G[equipLoc]
+    if type(name) == "string" and name ~= "" then return name end
+    return nil
+end
+
+--- Was der eigene Charakter an der Stelle traegt, die ein Gegenstand
+--- belegen wuerde: der Platz mit dem NIEDRIGSTEN Itemlevel, denn den
+--- wuerde man tauschen. Ein leerer Platz zaehlt als 0 — und ist die beste
+--- Verbesserung ueberhaupt.
+---
+--- @return table|nil { slotID, link, itemLevel }  nil = kein Platz bekannt
+function Compat.EquippedToReplace(equipLoc)
+    local slots = Compat.SlotsForEquipLoc(equipLoc)
+    if not slots then return nil end
+
+    local bester
+    for _, slotID in ipairs(slots) do
+        local link = Compat.GetEquippedLink("player", slotID)
+        local level = link and Compat.GetItemLevelOf(link) or 0
+        if not bester or level < bester.itemLevel then
+            bester = { slotID = slotID, link = link, itemLevel = level }
+        end
+    end
+    return bester
+end
+
 function Compat.SlotName(slotID)
     local key = SLOT_GLOBALS[slotID]
     local name = key and _G[key]

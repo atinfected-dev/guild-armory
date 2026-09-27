@@ -1,8 +1,15 @@
 --[[----------------------------------------------------------------------------
-    Views/LootCouncil — die Ansicht des Lootmeisters und des Councils.
+    Views/LootCouncil — der Beutetisch: die Ansicht des Lootmeisters und des
+    Councils.
 
-    Links die Gegenstaende (offene Session oder frisch erkannte Beute), rechts
-    die Bewerber mit Antwort, Itemlevel, Notiz und Stimmen.
+    Entwurf L2 (27.09.2026): OBEN die Gegenstaende als Karten nebeneinander,
+    wie sie vom Boss fallen — Qualitaetskante, Symbol, Name, Platz, Stand,
+    Zahl der Gebote. DARUNTER die Bewerber auf den gewaehlten Gegenstand,
+    NACH ANTWORT GRUPPIERT: Best in Slot zuerst, dann Main-Spec, dann der
+    Rest; innerhalb einer Gruppe steht oben, wer am wenigsten hat. RECHTS
+    die Entscheidung: wer fuehrt, wie die Stimmen liegen, ein Knopf — und
+    darunter die Fakten zum Gegenstand (Reservierung, Rotation, Nachweis,
+    Alter, Herkunft), die man sonst zusammensuchen muesste.
 
     DER WICHTIGSTE KNOPF IST "VERGEBEN", UND ER MACHT ZWEI DINGE GETRENNT:
 
@@ -18,6 +25,12 @@
     GiveMasterLoot ist eine geschuetzte Funktion: Der Aufruf muss aus dem Klick
     heraus erfolgen. Deshalb passiert er hier direkt im OnClick und nicht in
     einem spaeteren Rueckruf.
+
+    WER FUEHRT, SAGT DIE ANSICHT — ENTSCHEIDEN TUT SIE NICHT. Der Fuehrende
+    ist, wer strikt die meisten Stimmen hat (Council), das hoechste Gebot
+    (DKP) oder den hoechsten Wurf in der hoechsten Stufe (Wurf). Bei
+    Gleichstand steht niemand vorn, und der Knopf ist aus: Das Addon pickt
+    nicht heimlich den Erstgenannten.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -32,6 +45,52 @@ local L = GA.L
 LootCouncil.titleKey = "NAV_LOOTCOUNCIL"
 
 local Status = GA.Data.Schema.LootStatus
+
+--- Die Karten oben: so breit, wie der Platz es zulaesst, zwischen zwei
+--- Grenzen. Passen nicht alle, blaettern zwei Pfeile — eine Karte, die
+--- auf 60 Pixel gequetscht ist, sagt nichts mehr.
+local CARD_H = 72
+local CARD_MIN, CARD_MAX, CARD_GAP = 132, 210, 6
+local ARROW_W = 22
+
+local DECISION_W = 220
+local BAR_WIDTH = 30
+
+--- Als Funktion, nicht als Tabelle: Die Beschriftungen tragen die Sprache,
+--- die bei PLAYER_LOGIN feststeht, nicht die vom Laden. Die Breiten stehen
+--- HIER und nirgends sonst; Kopfzeile und Zeilen rechnen aus derselben Liste.
+local COLUMN_GAP = 6
+local COLUMN_X0 = 8
+
+local function candidateColumns()
+    return {
+        { key = "crest",   label = "",            width = 16 },
+        { key = "name",    label = L.COL_NAME,    width = 110 },
+        { key = "value",   label = "",            width = 56 },
+        { key = "ilvl",    label = L.COL_ILVL,    width = 62, justify = "RIGHT" },
+        { key = "plus",    label = "+1",          width = 26, justify = "RIGHT" },
+        { key = "note",    label = "",            width = 80 },
+        { key = "votes",   label = L.COUNCIL_VOTE, width = 30, justify = "RIGHT" },
+    }
+end
+
+local function columnOffsets(columns)
+    local x, out, breiten = COLUMN_X0, {}, {}
+    for _, column in ipairs(columns) do
+        out[column.key] = x
+        breiten[column.key] = column.width
+        x = x + column.width + COLUMN_GAP
+    end
+    return out, breiten
+end
+
+--- Plündermethode als Wort. Die Werte kommen vom Client (GetLootMethod)
+--- und sind auf jeder Linie dieselben Kennwoerter.
+local LOOT_METHOD_KEYS = {
+    freeforall = "LOOT_FREEFORALL", roundrobin = "LOOT_ROUNDROBIN",
+    master = "LOOT_MASTER", group = "LOOT_GROUP",
+    needbeforegreed = "LOOT_NBG", personalloot = "LOOT_PERSONAL",
+}
 
 -- ================================================================== Aufbau ----
 
@@ -133,7 +192,7 @@ function LootCouncil:Create(parent)
     -- nicht einordnen.
     self.rotationState = Theme.Label(bar, "", fonts.small, Theme.color.textDim)
     self.rotationState:SetPoint("LEFT", self.state, "RIGHT", 10, 0)
-    self.rotationState:SetPoint("RIGHT", self.rotateButton, "LEFT", -8, 0)
+    self.rotationState:SetPoint("RIGHT", self.addAllButton, "LEFT", -8, 0)
     self.rotationState:SetJustifyH("LEFT")
 
     -- Stand der Reservierungen. Steht unter der Werkzeugleiste und nicht in
@@ -143,50 +202,72 @@ function LootCouncil:Create(parent)
     self.softResState:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 2, -2)
     self.softResState:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
     self.softResState:SetJustifyH("LEFT")
+    self.softResState:SetHeight(12)
 
-    -- ------------------------------------------------------ Gegenstaende ----
-    local itemPanel = Widgets.Panel(frame, L.COUNCIL_ITEMS)
-    itemPanel:SetWidth(280)
-    itemPanel:SetPoint("TOPLEFT", self.softResState, "BOTTOMLEFT", -2, -6)
-    itemPanel:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
-    self.itemPanel = itemPanel
+    -- ------------------------------------------------------ Kartenleiste ----
+    local strip = CreateFrame("Frame", nil, frame)
+    strip:SetPoint("TOPLEFT", self.softResState, "BOTTOMLEFT", -2, -4)
+    strip:SetPoint("RIGHT", frame, "RIGHT", -pad, 0)
+    strip:SetHeight(CARD_H)
+    self.strip = strip
+    self.cards = {}
+    self.cardOffset = 0
 
-    self.items = Widgets.ScrollList(itemPanel.content, {
-        rowHeight = 28,
-        createRow = function(row)
-            row.icon = row:CreateTexture(nil, "ARTWORK")
-            row.icon:SetWidth(22) row.icon:SetHeight(22)
-            row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-            row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-            row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
-            row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-            row.name:SetPoint("RIGHT", row, "RIGHT", -60, 0)
-            row.name:SetJustifyH("LEFT")
-            row.tag = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
-            row.tag:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        end,
-        updateRow = function(row, award) self:UpdateItemRow(row, award) end,
-        onClickRow = function(award)
-            self.selectedAwardId = award.id
-            self:Refresh()
-        end,
-        onEnterRow = function(row, award)
-            Widgets.ShowItemTooltip(row, award.itemID, award.itemLink)
-        end,
-        onLeaveRow = function() Widgets.HideItemTooltip() end,
-    })
-    self.items:SetAllPoints(itemPanel.content)
+    self.prevButton = Widgets.Button(strip, "<", function()
+        self.cardOffset = math.max(0, self.cardOffset - 1)
+        self:Refresh()
+    end)
+    self.prevButton:SetWidth(ARROW_W) self.prevButton:SetHeight(CARD_H)
+    self.prevButton:SetPoint("LEFT", strip, "LEFT", 0, 0)
+    self.prevButton:Hide()
+
+    self.nextButton = Widgets.Button(strip, ">", function()
+        self.cardOffset = self.cardOffset + 1
+        self:Refresh()
+    end)
+    self.nextButton:SetWidth(ARROW_W) self.nextButton:SetHeight(CARD_H)
+    self.nextButton:SetPoint("RIGHT", strip, "RIGHT", 0, 0)
+    self.nextButton:Hide()
+
+    -- Ohne Gegenstaende: ein Satz statt einer leeren Leiste.
+    self.stripHint = Theme.Label(strip, "", fonts.body, Theme.color.textFaint)
+    self.stripHint:SetPoint("CENTER", strip, "CENTER", 0, 0)
+
+    -- ------------------------------------------------------ Entscheidung ----
+    local decision = Widgets.Panel(frame, L.COUNCIL_DECISION)
+    decision:SetWidth(DECISION_W)
+    decision:SetHeight(24 + 206)
+    decision:SetPoint("TOPRIGHT", strip, "BOTTOMRIGHT", 0, -gap)
+    self.decisionPanel = decision
+    self:BuildDecision(decision.content, fonts)
+
+    local facts = Widgets.Panel(frame, L.COUNCIL_ABOUT_ITEM)
+    facts:SetPoint("TOPLEFT", decision, "BOTTOMLEFT", 0, -gap)
+    facts:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+    self.factsPanel = facts
+    self:BuildFacts(facts.content)
 
     -- ------------------------------------------------------ Bewerber --------
     local bidPanel = Widgets.Panel(frame, L.COUNCIL_CANDIDATES)
-    bidPanel:SetPoint("TOPLEFT", itemPanel, "TOPRIGHT", gap, 0)
-    bidPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+    bidPanel:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 0, -gap)
+    bidPanel:SetPoint("BOTTOMRIGHT", decision, "BOTTOMLEFT", -gap, 0)
+    bidPanel:SetPoint("BOTTOM", frame, "BOTTOM", 0, pad)
     self.bidPanel = bidPanel
+
+    self.collapsed = { PASS = true }
 
     self.candidates = Widgets.ScrollList(bidPanel.content, {
         rowHeight = 26,
+        columns = candidateColumns(),
         createRow = function(row) self:BuildCandidateRow(row) end,
-        updateRow = function(row, candidate) self:UpdateCandidateRow(row, candidate) end,
+        updateRow = function(row, entry) self:UpdateCandidateRow(row, entry) end,
+        onClickRow = function(entry)
+            -- Eine Gruppe klappt auf Klick zu und wieder auf.
+            if entry.group then
+                self.collapsed[entry.key] = not self.collapsed[entry.key]
+                self:Refresh()
+            end
+        end,
     })
     self.candidates:SetPoint("TOPLEFT", bidPanel.content, "TOPLEFT", 0, 0)
     self.candidates:SetPoint("BOTTOMRIGHT", bidPanel.content, "BOTTOMRIGHT", 0, 22)
@@ -200,179 +281,373 @@ function LootCouncil:Create(parent)
     return frame
 end
 
--- ================================================================== Zeilen ----
+-- ================================================================== Karten ----
 
-function LootCouncil:UpdateItemRow(row, award)
+--- Baut eine Karte der Leiste. Einmal je Platz; danach wird nur gesetzt.
+function LootCouncil:BuildCard(index)
+    if self.cards[index] then return self.cards[index] end
+    local fonts = Theme.Fonts()
+
+    local card = CreateFrame("Button", nil, self.strip)
+    card:SetHeight(CARD_H)
+    card.background = Theme.Fill(card, Theme.color.panelBg)
+    card.lines = Theme.Outline(card, Theme.color.border)
+
+    -- Die Qualitaetskante oben: Das ist die eine Farbe, die jeder im Raid
+    -- ohne Lesen versteht.
+    card.edge = card:CreateTexture(nil, "OVERLAY")
+    card.edge:SetPoint("TOPLEFT", card, "TOPLEFT", 0, 0)
+    card.edge:SetPoint("TOPRIGHT", card, "TOPRIGHT", 0, 0)
+    card.edge:SetHeight(3)
+
+    card.icon = card:CreateTexture(nil, "ARTWORK")
+    card.icon:SetWidth(30) card.icon:SetHeight(30)
+    card.icon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -10)
+    card.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+    card.name = Theme.Label(card, "", fonts.row, Theme.color.text)
+    card.name:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", 6, -1)
+    card.name:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    card.name:SetJustifyH("LEFT")
+    card.name:SetWordWrap(false)
+
+    card.slot = Theme.Label(card, "", fonts.small, Theme.color.textDim)
+    card.slot:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -2)
+    card.slot:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    card.slot:SetJustifyH("LEFT")
+    card.slot:SetWordWrap(false)
+
+    card.tag = Theme.Label(card, "", fonts.small, Theme.color.textFaint)
+    card.tag:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 7)
+    card.tag:SetPoint("RIGHT", card, "RIGHT", -40, 0)
+    card.tag:SetJustifyH("LEFT")
+    card.tag:SetWordWrap(false)
+
+    card.badge = CreateFrame("Frame", nil, card)
+    card.badge:SetWidth(26) card.badge:SetHeight(16)
+    card.badge:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
+    card.badgeFill = Theme.Fill(card.badge, Theme.color.goldDeep)
+    card.badgeText = Theme.Label(card.badge, "", fonts.rowBold, Theme.color.goldBright)
+    card.badgeText:SetPoint("CENTER", card.badge, "CENTER", 0, 0)
+
+    card:SetScript("OnClick", function(button)
+        if button.award then
+            self.selectedAwardId = button.award.id
+            self:Refresh()
+        end
+    end)
+    card:SetScript("OnEnter", function(button)
+        if button.award then
+            Widgets.ShowItemTooltip(button, button.award.itemID, button.award.itemLink)
+        end
+        if not button.selected then Theme.Paint(button.background, Theme.color.rowHover) end
+    end)
+    card:SetScript("OnLeave", function(button)
+        Widgets.HideItemTooltip()
+        if not button.selected then Theme.Paint(button.background, Theme.color.panelBg) end
+    end)
+
+    self.cards[index] = card
+    return card
+end
+
+--- Fuellt eine Karte mit einem Eintrag.
+function LootCouncil:UpdateCard(card, award)
+    card.award = award
     local info = award.itemID and Compat.GetItemInfo(award.itemLink or award.itemID)
-    if info and info.icon then row.icon:SetTexture(info.icon) row.icon:Show() else row.icon:Hide() end
+    if info and info.icon then card.icon:SetTexture(info.icon) card.icon:Show() else card.icon:Hide() end
 
-    row.name:SetText(award.itemName or (info and info.name) or ("#" .. tostring(award.itemID)))
     local quality = Theme.QualityColor(award.quality or (info and info.quality))
-    row.name:SetTextColor(quality[1], quality[2], quality[3])
+    Theme.Paint(card.edge, quality)
 
-    if award.id == self.selectedAwardId then
-        row.name:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
-    end
-
-    -- Eine Probevergabe muss als solche zu erkennen sein. Sonst sieht sie in
-    -- der Liste aus wie echter Loot, und irgendwann vergibt jemand einen
-    -- Gegenstand, den es nie gab.
+    card.name:SetText(award.itemName or (info and info.name) or ("#" .. tostring(award.itemID)))
+    card.name:SetTextColor(quality[1], quality[2], quality[3])
     if award.test then
-        row.name:SetText(L.TEST_MARK .. "  " .. (row.name:GetText() or ""))
-        row.name:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+        card.name:SetText(L.TEST_MARK .. "  " .. (card.name:GetText() or ""))
+        card.name:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
     end
 
+    -- Platz, Art, Itemlevel — was der Client dazu weiss, in seiner Sprache.
+    local teile = {}
+    if info then
+        local ort = Compat.EquipLocName(info.equipLoc)
+        if ort then teile[#teile + 1] = ort end
+        if info.subType and info.subType ~= "" then teile[#teile + 1] = info.subType end
+        local level = Compat.GetItemLevelOf(info.link) or info.itemLevel
+        if level and level > 0 then teile[#teile + 1] = tostring(level) end
+    end
+    card.slot:SetText(table.concat(teile, " · "))
+
+    -- Der Stand: Gebote offen, vergeben an, oder der Status als Wort.
     local session = GA.Modules.Session:Current()
+    local gebote = 0
     if award.status == Status.SESSION_OPEN and session then
-        local tally = GA.Modules.Session:Tally(session.id, award.id)
-        row.tag:SetText(string.format(L.COUNCIL_BIDS, #tally))
-        row.tag:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+        gebote = #GA.Modules.Session:Tally(session.id, award.id)
+        card.tag:SetText(L.LOOT_STATUS_SESSION_OPEN)
+        card.tag:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
     elseif award.recipientName then
-        row.tag:SetText(Util.ShortName(award.recipientName))
-        row.tag:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
+        card.tag:SetText(Util.ShortName(award.recipientName))
+        local farbe = award.status == Status.TRANSFER_PENDING and Theme.color.warn or Theme.color.jade
+        card.tag:SetTextColor(farbe[1], farbe[2], farbe[3])
     else
-        row.tag:SetText(L["LOOT_STATUS_" .. tostring(award.status)] or "")
-        row.tag:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        card.tag:SetText(L["LOOT_STATUS_" .. tostring(award.status)] or "")
+        card.tag:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+    end
+
+    if gebote > 0 then
+        card.badgeText:SetText(tostring(gebote))
+        card.badge:Show()
+    else
+        card.badge:Hide()
+    end
+
+    card.selected = (award.id == self.selectedAwardId)
+    if card.selected then
+        Theme.Paint(card.background, Theme.color.rowHover)
+        for _, line in ipairs(card.lines) do Theme.Paint(line, Theme.color.gold) end
+    else
+        Theme.Paint(card.background, Theme.color.panelBg)
+        for _, line in ipairs(card.lines) do Theme.Paint(line, Theme.color.border) end
     end
 end
 
+--- Legt die Karten in die Leiste: so viele, wie passen, der Rest blaettert.
+function LootCouncil:RefreshCards(list)
+    local strip = self.strip
+    local breite = strip:GetWidth()
+    if not breite or breite < CARD_MIN then breite = 700 end
+
+    local anzahl = #list
+    self.stripHint:SetShown(anzahl == 0)
+    if anzahl == 0 then
+        self.stripHint:SetText(GA.Modules.Session:Current() and L.COUNCIL_PICK_ITEM or L.COUNCIL_HINT)
+    end
+
+    -- Passen alle? Sonst Platz fuer die Pfeile abziehen und neu zaehlen.
+    local frei = breite
+    local passen = math.max(1, math.floor((frei + CARD_GAP) / (CARD_MIN + CARD_GAP)))
+    local blaettern = anzahl > passen
+    if blaettern then
+        frei = breite - 2 * (ARROW_W + 4)
+        passen = math.max(1, math.floor((frei + CARD_GAP) / (CARD_MIN + CARD_GAP)))
+    end
+
+    local sichtbar = math.min(anzahl, passen)
+    local maxOffset = math.max(0, anzahl - sichtbar)
+    if self.cardOffset > maxOffset then self.cardOffset = maxOffset end
+
+    -- Die gewaehlte Karte bleibt im Bild: Wer eine Karte waehlt, will sie
+    -- sehen, nicht suchen.
+    if self.selectedAwardId then
+        for index, award in ipairs(list) do
+            if award.id == self.selectedAwardId then
+                if index - 1 < self.cardOffset then self.cardOffset = index - 1 end
+                if index > self.cardOffset + sichtbar then self.cardOffset = index - sichtbar end
+                break
+            end
+        end
+    end
+
+    local cardW = sichtbar > 0
+        and math.min(CARD_MAX, math.floor((frei - (sichtbar - 1) * CARD_GAP) / sichtbar))
+        or CARD_MIN
+    local x0 = blaettern and (ARROW_W + 4) or 0
+
+    for slot = 1, sichtbar do
+        local card = self:BuildCard(slot)
+        card:ClearAllPoints()
+        card:SetWidth(cardW)
+        card:SetPoint("TOPLEFT", strip, "TOPLEFT", x0 + (slot - 1) * (cardW + CARD_GAP), 0)
+        self:UpdateCard(card, list[self.cardOffset + slot])
+        card:Show()
+    end
+    for slot = sichtbar + 1, #self.cards do self.cards[slot]:Hide() end
+
+    self.prevButton:SetShown(blaettern)
+    self.nextButton:SetShown(blaettern)
+    if blaettern then
+        self.prevButton:SetEnabledState(self.cardOffset > 0)
+        self.nextButton:SetEnabledState(self.cardOffset < maxOffset)
+        self.nextButton.tooltip = self.cardOffset < maxOffset
+            and string.format(L.COUNCIL_MORE, maxOffset - self.cardOffset) or nil
+    end
+end
+
+-- ================================================================== Zeilen ----
+
+--- Eine Zeile hat ZWEI GESICHTER: Gruppenkopf oder Bewerber. Beide werden
+--- einmal gebaut und je nach Eintrag gezeigt — zwei Zeilenvorraete in einer
+--- Liste kaemen sich beim Umschalten ins Gehege.
 function LootCouncil:BuildCandidateRow(row)
     local fonts = Theme.Fonts()
+    local x, w = columnOffsets(candidateColumns())
 
-    row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
-    row.name:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.name:SetWidth(104)
+    -- Gruppenkopf
+    row.groupBar = row:CreateTexture(nil, "ARTWORK")
+    row.groupBar:SetWidth(3) row.groupBar:SetHeight(12)
+    row.groupBar:SetPoint("LEFT", row, "LEFT", 8, 0)
+
+    row.groupLabel = Theme.Label(row, "", fonts.heading, Theme.color.heading)
+    row.groupLabel:SetPoint("LEFT", row, "LEFT", 17, 0)
+
+    row.groupCount = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.groupCount:SetPoint("LEFT", row.groupLabel, "RIGHT", 6, 0)
+
+    row.groupHint = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.groupHint:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+    -- Bewerber
+    row.crest = row:CreateTexture(nil, "ARTWORK")
+    row.crest:SetWidth(14) row.crest:SetHeight(14)
+    row.crest:SetPoint("LEFT", row, "LEFT", x.crest, 0)
+
+    row.name = Theme.Label(row, "", fonts.row, Theme.color.text)
+    row.name:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.name:SetWidth(w.name)
     row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
 
-    row.response = Theme.Label(row, "", fonts.body, Theme.color.text)
-    row.response:SetPoint("LEFT", row.name, "RIGHT", 4, 0)
-    row.response:SetWidth(96)
-    row.response:SetJustifyH("LEFT")
+    -- Wurf oder Gebot — nur dort, wo es eines gibt. Die Antwort selbst
+    -- steht ueber der Gruppe, nicht in jeder Zeile noch einmal.
+    row.value = Theme.Label(row, "", fonts.small, Theme.color.gold)
+    row.value:SetPoint("LEFT", row, "LEFT", x.value, 0)
+    row.value:SetWidth(w.value)
+    row.value:SetJustifyH("LEFT")
 
-    row.ilvl = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-    row.ilvl:SetPoint("LEFT", row.response, "RIGHT", 4, 0)
-    row.ilvl:SetWidth(44)
+    row.barBg = row:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(row.barBg, Theme.color.windowBg)
+    row.barBg:SetWidth(BAR_WIDTH) row.barBg:SetHeight(5)
+    row.barBg:SetPoint("LEFT", row, "LEFT", x.ilvl, 0)
+
+    row.barFill = row:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(row.barFill, Theme.color.goldDim)
+    row.barFill:SetHeight(5)
+    row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
+
+    row.ilvl = Theme.Label(row, "", fonts.rowBold, Theme.color.text)
+    row.ilvl:SetPoint("LEFT", row, "LEFT", x.ilvl + BAR_WIDTH + 4, 0)
+    row.ilvl:SetWidth(w.ilvl - BAR_WIDTH - 4)
     row.ilvl:SetJustifyH("RIGHT")
 
-    -- Plus Eins neben dem Itemlevel: Beides sind Zahlen, die das Council
-    -- beim Abwaegen ansieht, und beide sind Hinweise — keine Wertung.
     row.plusOne = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-    row.plusOne:SetPoint("LEFT", row.ilvl, "RIGHT", 6, 0)
-    row.plusOne:SetWidth(30)
+    row.plusOne:SetPoint("LEFT", row, "LEFT", x.plus, 0)
+    row.plusOne:SetWidth(w.plus)
     row.plusOne:SetJustifyH("RIGHT")
 
+    -- Der Hinweis nimmt, was bis zu den Stimmen frei ist.
     row.note = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
-    row.note:SetPoint("LEFT", row.plusOne, "RIGHT", 8, 0)
-    row.note:SetPoint("RIGHT", row, "RIGHT", -190, 0)
+    row.note:SetPoint("LEFT", row, "LEFT", x.note, 0)
     row.note:SetJustifyH("LEFT")
+    row.note:SetWordWrap(false)
 
     row.award = Widgets.Button(row, L.COUNCIL_AWARD, function()
-        -- GiveMasterLoot ist geschuetzt: direkt aus dem Klick heraus, ohne
-        -- Umweg ueber einen Timer oder Rueckruf.
-        if row.item then LootCouncil:Award(row.item.name) end
+        if row.item and not row.item.group then LootCouncil:Award(row.item.name) end
     end, "primary")
     row.award:SetHeight(18)
     row.award:SetPoint("RIGHT", row, "RIGHT", -6, 0)
 
     row.vote = Widgets.Button(row, L.COUNCIL_VOTE, function()
-        if row.item then LootCouncil:Vote(row.item.name) end
+        if row.item and not row.item.group then LootCouncil:Vote(row.item.name) end
     end)
     row.vote:SetHeight(18)
     row.vote:SetPoint("RIGHT", row.award, "LEFT", -4, 0)
 
-    row.votes = Theme.Label(row, "", fonts.body, Theme.color.goldBright)
-    row.votes:SetPoint("RIGHT", row.vote, "LEFT", -6, 0)
-    row.votes:SetWidth(24)
+    row.votes = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
+    row.votes:SetPoint("RIGHT", row.vote, "LEFT", -8, 0)
+    row.votes:SetWidth(w.votes)
     row.votes:SetJustifyH("RIGHT")
+    row.note:SetPoint("RIGHT", row.votes, "LEFT", -6, 0)
+
+    row.candidateWidgets = { row.crest, row.name, row.value, row.barBg, row.barFill,
+        row.ilvl, row.plusOne, row.note, row.award, row.vote, row.votes }
+    row.groupWidgets = { row.groupBar, row.groupLabel, row.groupCount, row.groupHint }
 end
 
-function LootCouncil:UpdateCandidateRow(row, candidate)
+local function zeigeAlle(liste, an)
+    for _, element in ipairs(liste) do
+        if an then element:Show() else element:Hide() end
+    end
+end
+
+function LootCouncil:UpdateCandidateRow(row, entry)
+    if entry.group then
+        zeigeAlle(row.candidateWidgets, false)
+        zeigeAlle(row.groupWidgets, true)
+        Theme.Paint(row.background, Theme.color.windowBg)
+        Theme.Paint(row.groupBar, entry.color)
+        row.groupLabel:SetText(string.upper(entry.label or ""))
+        row.groupLabel:SetTextColor(entry.color[1], entry.color[2], entry.color[3])
+        row.groupCount:SetText("· " .. tostring(entry.count))
+        row.groupHint:SetText(entry.hint or "")
+        return
+    end
+
+    zeigeAlle(row.groupWidgets, false)
+    zeigeAlle(row.candidateWidgets, true)
+
+    local candidate = entry
     local r, g, b = Util.ClassColor(candidate.class)
+    if candidate.class and Theme.SetClassPortrait(row.crest, candidate.class) then
+        row.crest:Show()
+    else
+        row.crest:Hide()
+    end
     row.name:SetText(candidate.name)
     row.name:SetTextColor(r, g, b)
 
-    local response = GA.Modules.Session:ResponseByKey(candidate.response)
-
-    -- IM WURFMODUS IST DIE ZAHL DIE ANTWORT. Sie gehoert deshalb an
-    -- dieselbe Stelle und nicht in eine zusaetzliche Spalte, die bei den
-    -- anderen beiden Verteilarten leer bliebe.
-    -- DIE GEBOTE SIEHT NUR DER PLUENDERMEISTER.
-    --
-    -- Sie verlassen seinen Client ohnehin nicht — kein SOPEN, kein AWARD
-    -- traegt einen Betrag. Diese Zeile ist die zweite Sperre: Wuerde
-    -- spaeter jemand Sitzungen abgleichen, stuenden die Zahlen sonst
-    -- ploetzlich bei allen. Ein verdecktes Gebot, das einer sieht, ist
-    -- keins mehr.
+    -- WURF UND GEBOT als Wert; ein versiegeltes Gebot bleibt versiegelt.
     local session = GA.Modules.Session:Current()
     local eigeneGuid = Compat.GetPlayerIdentity().guid
-
-    -- NIL IST KEINE UEBEREINSTIMMUNG.
-    --
-    -- "session.openedBy == identity.guid" allein waere wahr, wenn BEIDE
-    -- nil sind — und auf diesem Client kann die eigene Kennung
-    -- unlesbar sein. Dann stuenden die verdeckten Gebote ploetzlich offen
-    -- da, ausgerechnet dort, wo ohnehin schon etwas nicht stimmt.
-    local darfSehen = session ~= nil
-        and eigeneGuid ~= nil
-        and session.openedBy == eigeneGuid
-
+    local darfSehen = session ~= nil and eigeneGuid ~= nil and session.openedBy == eigeneGuid
     if candidate.dkp and not darfSehen then
-        row.response:SetText(L.COUNCIL_SEALED)
-        local grau = Theme.color.textDim
-        row.response:SetTextColor(grau[1], grau[2], grau[3])
+        row.value:SetText(L.COUNCIL_SEALED)
+        row.value:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
     elseif candidate.dkp then
-        row.response:SetText(string.format(L.COUNCIL_DKP, candidate.dkp))
-        local gold = Theme.color.gold
-        row.response:SetTextColor(gold[1], gold[2], gold[3])
+        row.value:SetText(string.format(L.COUNCIL_DKP, candidate.dkp))
+        row.value:SetTextColor(Theme.color.gold[1], Theme.color.gold[2], Theme.color.gold[3])
     elseif candidate.roll then
-        row.response:SetText(string.format(L.COUNCIL_ROLLED,
-            candidate.roll, candidate.rollMax or "?",
-            response and response.label or candidate.response or "?"))
+        row.value:SetText(string.format("%d / %s", candidate.roll, tostring(candidate.rollMax or "?")))
+        row.value:SetTextColor(Theme.color.gold[1], Theme.color.gold[2], Theme.color.gold[3])
     else
-        row.response:SetText(response and response.label or candidate.response or "?")
+        row.value:SetText("")
     end
 
-    local color = response and response.color or Theme.color.textDim
-    row.response:SetTextColor(color[1], color[2], color[3])
+    -- Itemlevel: Zahl immer, Balken gegen das beste unter den Bewerbern.
+    -- Ungemessen ist nicht null: Strich, kein Balken.
+    if candidate.itemLevel then
+        row.ilvl:SetText(string.format("%.0f", candidate.itemLevel))
+        local anteil = (self.bestIlvl or 0) > 0 and (candidate.itemLevel / self.bestIlvl) or 0
+        row.barFill:SetWidth(math.max(1, math.floor(BAR_WIDTH * math.min(1, anteil))))
+        row.barBg:Show() row.barFill:Show()
+    else
+        row.ilvl:SetText("—")
+        row.barBg:Hide() row.barFill:Hide()
+    end
 
-    row.ilvl:SetText(candidate.itemLevel and string.format("%.1f", candidate.itemLevel) or "—")
-
-    -- Wunschliste als HINWEIS, nicht als Wertung: Sie steht neben der
-    -- Bewerbung, sie ersetzt sie nicht und erzeugt keine Punktzahl.
-    -- Wer entscheidet, bleibt das Council (siehe Wishlist/Wishlist.lua).
     local award = self.selectedAwardId and GA.Modules.Awards:Get(self.selectedAwardId)
     local wish = award and award.itemID
         and GA.Modules.Wishlist:ForCandidate(award.itemID, candidate.name) or nil
 
-    -- Plus Eins: wie oft dieser Spieler schon etwas bekommen hat. Wenig ist
-    -- nicht "im Recht" und viel nicht "dran gewesen" — die Zahl steht da,
-    -- damit sie nicht jeder im Kopf schaetzen muss.
     local plus = candidate.guid and GA.Modules.PlusOne:For(candidate.guid)
     if plus then
         row.plusOne:SetText("+" .. tostring(plus.total))
-        -- Wer nichts bekommen hat, faellt auf. Das ist die Information, die
-        -- im Gedaechtnis am schnellsten verlorengeht.
         local color = plus.total == 0 and Theme.color.jade or Theme.color.textDim
         row.plusOne:SetTextColor(color[1], color[2], color[3])
     else
         row.plusOne:SetText("")
     end
 
-    -- Reservierung: steht VOR der Wunschliste, weil sie mehr behauptet.
-    -- Eine Wunschliste sagt "kann ich gebrauchen", eine Reservierung sagt
-    -- "das ist heute meins" — und ist damit eine Zusage der Gilde.
     local reserved
-    for _, entry in ipairs(award and award.itemID
+    for _, eintrag in ipairs(award and award.itemID
         and GA.Modules.SoftRes:For(award.itemID) or {}) do
-        if Util.NormalizeName(entry.name) == Util.NormalizeName(candidate.name) then
-            reserved = entry
+        if Util.NormalizeName(eintrag.name) == Util.NormalizeName(candidate.name) then
+            reserved = eintrag
             break
         end
     end
 
     local parts = {}
     if candidate.note and candidate.note ~= "" then parts[#parts + 1] = candidate.note end
-
     if reserved then
         parts[#parts + 1] = string.format(L.COUNCIL_RESERVED,
             reserved.origin == "claim" and L.SOFTRES_ORIGIN_CLAIM or L.SOFTRES_ORIGIN_LIST)
@@ -383,9 +658,7 @@ function LootCouncil:UpdateCandidateRow(row, candidate)
         if wish.fulfilled then label = label .. " " .. L.COUNCIL_WISH_DONE end
         parts[#parts + 1] = label
     end
-
     row.note:SetText(table.concat(parts, "  ·  "))
-    -- Die Reservierung ist die staerkste Aussage in der Zeile und faerbt sie.
     local noteColor = Theme.color.textFaint
     if reserved then noteColor = Theme.color.goldBright
     elseif wish and not wish.fulfilled then noteColor = Theme.color.jade end
@@ -394,28 +667,331 @@ function LootCouncil:UpdateCandidateRow(row, candidate)
     row.votes:SetText(candidate.votes > 0 and tostring(candidate.votes) or "")
 
     local identity = Compat.GetPlayerIdentity()
-    row.vote:SetWidth(64)
-    row.vote:SetEnabledState(GA.Modules.Session:CanVote(identity.guid),
-        L.COUNCIL_NEED_COUNCIL)
-    row.award:SetWidth(76)
-    row.award:SetEnabledState(GA.Modules.Session:CanHost(identity.guid),
-        L.COUNCIL_NEED_LOOTMASTER)
+    row.vote:SetWidth(52)
+    row.vote:SetEnabledState(GA.Modules.Session:CanVote(identity.guid), L.COUNCIL_NEED_COUNCIL)
+    row.award:SetWidth(66)
+    row.award:SetEnabledState(GA.Modules.Session:CanHost(identity.guid), L.COUNCIL_NEED_LOOTMASTER)
 end
 
--- ================================================================== Aktionen --
+--- Ordnet die Bewerber in Gruppen nach Antwort und liefert die flache
+--- Zeilenliste: Gruppenkopf, dann seine Zeilen — es sei denn, sie ist
+--- zugeklappt.
+---
+--- REIHENFOLGE IN DER GRUPPE: Wer bietet, nach Gebot; wer wuerfelt, nach
+--- Wurf; sonst NIEDRIGSTES ITEMLEVEL ZUERST, dann Stimmen, dann Name. Wer
+--- am wenigsten hat, steht oben — das ist die Frage, die ein Council
+--- stellt, und die Sortierung stellt sie, bevor jemand scrollt.
+function LootCouncil:GroupRows(candidates)
+    local Session = GA.Modules.Session
+    local nachKey, reihe = {}, {}
 
---- Oeffnet eine Session aus allen frisch erkannten Gegenstaenden.
---- Macht das Gebotsfenster wieder auf.
+    for _, candidate in ipairs(candidates) do
+        local key, label, color, weight
+        if candidate.dkp then
+            key, label, color, weight = "DKP", L.DKP_TITLE, Theme.color.gold, 1000
+        else
+            local response = Session:ResponseByKey(candidate.response)
+            key = tostring(candidate.response or "?")
+            label = response and response.label or key
+            color = response and response.color or Theme.color.textDim
+            weight = candidate.weight or 0
+        end
+        if not nachKey[key] then
+            nachKey[key] = { group = true, key = key, label = label, color = color,
+                weight = weight, rows = {} }
+            reihe[#reihe + 1] = nachKey[key]
+        end
+        table.insert(nachKey[key].rows, candidate)
+    end
+
+    table.sort(reihe, function(a, b)
+        if a.weight ~= b.weight then return a.weight > b.weight end
+        return a.label < b.label
+    end)
+
+    local zeilen = {}
+    for index, gruppe in ipairs(reihe) do
+        table.sort(gruppe.rows, function(a, b)
+            if a.dkp or b.dkp then return (a.dkp or -1) > (b.dkp or -1) end
+            if a.roll or b.roll then return (a.roll or -1) > (b.roll or -1) end
+            local ia, ib = a.itemLevel, b.itemLevel
+            if ia ~= ib then
+                if ia == nil then return false end
+                if ib == nil then return true end
+                return ia < ib
+            end
+            if a.votes ~= b.votes then return a.votes > b.votes end
+            return a.name < b.name
+        end)
+
+        gruppe.count = #gruppe.rows
+        gruppe.collapsed = self.collapsed[gruppe.key] and true or false
+        if gruppe.collapsed then
+            gruppe.hint = L.COUNCIL_GROUP_COLLAPSED
+        elseif index == 1 and not (gruppe.rows[1] and (gruppe.rows[1].dkp or gruppe.rows[1].roll)) then
+            gruppe.hint = L.COUNCIL_LOWEST_FIRST
+        else
+            gruppe.hint = ""
+        end
+
+        zeilen[#zeilen + 1] = gruppe
+        if not gruppe.collapsed then
+            for _, candidate in ipairs(gruppe.rows) do zeilen[#zeilen + 1] = candidate end
+        end
+    end
+    return zeilen
+end
+
+-- ============================================================ Entscheidung ----
+
+function LootCouncil:BuildDecision(content, fonts)
+    self.leaderCrest = content:CreateTexture(nil, "ARTWORK")
+    self.leaderCrest:SetWidth(28) self.leaderCrest:SetHeight(28)
+    self.leaderCrest:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -2)
+
+    self.leaderName = Theme.Label(content, "", fonts.big, Theme.color.heading)
+    self.leaderName:SetPoint("TOPLEFT", self.leaderCrest, "TOPRIGHT", 8, 0)
+    self.leaderName:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    self.leaderName:SetJustifyH("LEFT")
+    self.leaderName:SetWordWrap(false)
+
+    self.leaderMeta = Theme.Label(content, "", fonts.small, Theme.color.textDim)
+    self.leaderMeta:SetPoint("TOPLEFT", self.leaderName, "BOTTOMLEFT", 0, -2)
+    self.leaderMeta:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    self.leaderMeta:SetJustifyH("LEFT")
+    self.leaderMeta:SetWordWrap(false)
+
+    -- Drei Balken: die Stimmenverteilung auf einen Blick. Mehr als drei
+    -- Namen sind keine Verteilung mehr, sondern die Liste links.
+    self.tally = {}
+    for index = 1, 3 do
+        local row = CreateFrame("Frame", nil, content)
+        row:SetHeight(14)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(40 + (index - 1) * 16))
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+        row.name = Theme.Label(row, "", fonts.small, Theme.color.text)
+        row.name:SetPoint("LEFT", row, "LEFT", 0, 0)
+        row.name:SetWidth(84)
+        row.name:SetJustifyH("LEFT")
+        row.name:SetWordWrap(false)
+
+        row.count = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
+        row.count:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        row.count:SetWidth(16)
+        row.count:SetJustifyH("RIGHT")
+
+        row.track = row:CreateTexture(nil, "ARTWORK")
+        Theme.Paint(row.track, Theme.color.windowBg)
+        row.track:SetHeight(6)
+        row.track:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
+        row.track:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
+
+        row.fill = row:CreateTexture(nil, "OVERLAY")
+        Theme.Paint(row.fill, Theme.color.gold)
+        row.fill:SetHeight(6)
+        row.fill:SetPoint("LEFT", row.track, "LEFT", 0, 0)
+        row.fill:SetWidth(1)
+
+        row:Hide()
+        self.tally[index] = row
+    end
+
+    self.votesCast = Theme.Label(content, "", fonts.small, Theme.color.textFaint)
+    self.votesCast:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -90)
+    self.votesCast:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    self.votesCast:SetJustifyH("LEFT")
+
+    self.awardButton = Widgets.Button(content, L.COUNCIL_AWARD, function()
+        if self.leader then LootCouncil:Award(self.leader.name) end
+    end, "primary")
+    self.awardButton:SetHeight(26)
+    self.awardButton:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -108)
+    self.awardButton:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+    self.awardNote = Theme.Label(content, L.COUNCIL_AWARD_NOTE, fonts.small, Theme.color.textFaint)
+    self.awardNote:SetPoint("TOPLEFT", self.awardButton, "BOTTOMLEFT", 0, -6)
+    self.awardNote:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    self.awardNote:SetJustifyH("LEFT")
+    self.awardNote:SetSpacing(2)
+end
+
+--- Wer vorn liegt — oder niemand.
 ---
---- ZWEI HERKUENFTE, EINE ANZEIGE.
----
---- Als Raidmitglied liegt die Ankuendigung in Session.incoming — dann wird
---- genau die wieder gezeigt. Als Plündermeister gibt es die gar nicht: Die
---- Sitzung liegt hier, und die Ankuendigung wurde nur verschickt. Dann
---- wird sie aus der eigenen Sitzung gebaut.
----
---- Ohne das kaeme der Plündermeister nie an sein eigenes Gebotsfenster,
---- obwohl er der Einzige ist, der es sicher oeffnen kann.
+--- @return table|nil leader, string grund (wenn niemand)
+function LootCouncil:Leader(candidates)
+    if #candidates == 0 then return nil, L.COUNCIL_PICK_ITEM end
+    local erster, zweiter = candidates[1], candidates[2]
+
+    if erster.dkp then
+        if zweiter and zweiter.dkp == erster.dkp then return nil, L.COUNCIL_TIE_VOTES end
+        return erster
+    end
+    if erster.roll then
+        if zweiter and zweiter.roll == erster.roll and zweiter.rollRank == erster.rollRank then
+            return nil, L.COUNCIL_TIE_VOTES
+        end
+        return erster
+    end
+
+    -- Council: strikt die meisten Stimmen. Keine Stimme, kein Fuehrender.
+    local beste, zahl = nil, 0
+    for _, candidate in ipairs(candidates) do
+        if candidate.votes > zahl then beste, zahl = candidate, candidate.votes
+        elseif candidate.votes == zahl and zahl > 0 then beste = false end
+    end
+    if zahl == 0 then return nil, L.COUNCIL_NO_VOTES end
+    if not beste then return nil, L.COUNCIL_TIE_VOTES end
+    return beste
+end
+
+function LootCouncil:RefreshDecision(candidates, session)
+    local leader, grund = self:Leader(candidates)
+    self.leader = leader
+
+    if leader then
+        local r, g, b = Util.ClassColor(leader.class)
+        if leader.class and Theme.SetClassPortrait(self.leaderCrest, leader.class) then
+            self.leaderCrest:Show()
+        else
+            self.leaderCrest:Hide()
+        end
+        self.leaderName:SetText(leader.name)
+        self.leaderName:SetTextColor(r, g, b)
+
+        local response = GA.Modules.Session:ResponseByKey(leader.response)
+        local teile = {}
+        if leader.dkp then teile[#teile + 1] = string.format(L.COUNCIL_DKP, leader.dkp)
+        elseif leader.roll then teile[#teile + 1] = string.format("%d / %s", leader.roll, tostring(leader.rollMax or "?")) end
+        if response then teile[#teile + 1] = response.label end
+        if leader.itemLevel then teile[#teile + 1] = string.format("%s %.0f", L.COL_ILVL, leader.itemLevel) end
+        self.leaderMeta:SetText(table.concat(teile, " · "))
+    else
+        self.leaderCrest:Hide()
+        self.leaderName:SetText(grund or "")
+        self.leaderName:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        self.leaderMeta:SetText("")
+    end
+
+    -- Die Balken: nach Stimmen, die drei mit den meisten. Ohne eine
+    -- einzige Stimme keine Balken — leere Balken sehen aus wie ein Ergebnis.
+    local sortiert = {}
+    for _, candidate in ipairs(candidates) do
+        if candidate.votes > 0 then sortiert[#sortiert + 1] = candidate end
+    end
+    table.sort(sortiert, function(a, b)
+        if a.votes ~= b.votes then return a.votes > b.votes end
+        return a.name < b.name
+    end)
+    local meiste = sortiert[1] and sortiert[1].votes or 0
+    for index, row in ipairs(self.tally) do
+        local candidate = sortiert[index]
+        if candidate then
+            local r, g, b = Util.ClassColor(candidate.class)
+            row.name:SetText(candidate.name)
+            row.name:SetTextColor(r, g, b)
+            row.count:SetText(tostring(candidate.votes))
+            local breite = row.track:GetWidth()
+            if not breite or breite <= 0 then breite = 80 end
+            row.fill:SetWidth(math.max(1, breite * candidate.votes / meiste))
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+
+    local abgegeben = session and self.selectedAwardId
+        and GA.Modules.Session:VoteCount(session.id, self.selectedAwardId) or 0
+    self.votesCast:SetText(string.format(L.COUNCIL_VOTES_CAST, abgegeben))
+
+    local identity = Compat.GetPlayerIdentity()
+    local canHost = GA.Modules.Session:CanHost(identity.guid)
+    self.awardButton:SetLabel(leader
+        and string.format(L.COUNCIL_AWARD_TO, Util.ShortName(leader.name)) or L.COUNCIL_AWARD)
+    self.awardButton:SetEnabledState(canHost and leader ~= nil,
+        (not canHost) and L.COUNCIL_NEED_LOOTMASTER or grund)
+end
+
+-- ================================================================== Fakten ----
+
+function LootCouncil:BuildFacts(content)
+    self.facts = {}
+    local keys = { "softres", "rotation", "proof", "detected", "source", "method" }
+    local labels = {
+        softres = L.COUNCIL_FACT_SOFTRES, rotation = L.COUNCIL_FACT_ROTATION,
+        proof = L.COUNCIL_FACT_PROOF, detected = L.COUNCIL_FACT_DETECTED,
+        source = L.COUNCIL_FACT_SOURCE, method = L.COUNCIL_FACT_METHOD,
+    }
+    local vorige
+    for _, key in ipairs(keys) do
+        local row = Widgets.KeyValue(content, labels[key], "")
+        if vorige then
+            row:SetPoint("TOPLEFT", vorige, "BOTTOMLEFT", 0, -4)
+        else
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+        end
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        row.value:SetWidth(120)
+        row.value:SetJustifyH("RIGHT")
+        row.value:SetWordWrap(false)
+        self.facts[key] = row
+        vorige = row
+    end
+end
+
+function LootCouncil:RefreshFacts(award)
+    local facts = self.facts
+    local keiner = L.LOOT_PROOF_NONE
+    if not award then
+        for _, row in pairs(facts) do row:SetValue(keiner, Theme.color.textFaint) end
+        return
+    end
+
+    -- Reservierungen auf DIESEN Gegenstand.
+    local namen = {}
+    for _, eintrag in ipairs(award.itemID and GA.Modules.SoftRes:For(award.itemID) or {}) do
+        namen[#namen + 1] = Util.ShortName(eintrag.name or "?")
+    end
+    facts.softres:SetValue(#namen > 0 and table.concat(namen, ", ") or keiner,
+        #namen > 0 and Theme.color.goldBright or Theme.color.textFaint)
+
+    local Rotation = GA.Modules.Rotation
+    if GA.Core.Config:Get("rotationEnabled") then
+        local seats, teile = Rotation:Active(), {}
+        for _, seat in ipairs(seats) do teile[#teile + 1] = Util.ShortName(seat.name or "?") end
+        local done, total = Rotation:CycleProgress()
+        facts.rotation:SetValue(#teile > 0
+            and string.format("%s · %d/%d", table.concat(teile, ", "), done, total)
+            or L.ROTATION_NONE, Theme.color.text)
+    else
+        facts.rotation:SetValue(keiner, Theme.color.textFaint)
+    end
+
+    if award.confirmation then
+        local stark = award.confirmation == GA.Data.Schema.Confirmation.MASTER_LOOT
+            or award.confirmation == GA.Data.Schema.Confirmation.TRADE
+        facts.proof:SetValue(L["LOOT_PROOF_" .. award.confirmation] or award.confirmation,
+            stark and Theme.color.jade or Theme.color.warn)
+    else
+        facts.proof:SetValue(keiner, Theme.color.textFaint)
+    end
+
+    facts.detected:SetValue(award.ts and Util.TimeAgo(award.ts) or keiner, Theme.color.text)
+
+    local quelle
+    if award.encounterName then quelle = award.encounterName
+    elseif award.sourceName then quelle = award.sourceName
+    elseif award.sourceNpcID then quelle = string.format(L.LOOT_FROM_NPCID, award.sourceNpcID)
+    else quelle = L.LOOT_FROM_UNKNOWN end
+    facts.source:SetValue(quelle, award.encounterName and Theme.color.text or Theme.color.textDim)
+
+    local methodKey = award.lootMethod and LOOT_METHOD_KEYS[award.lootMethod]
+    facts.method:SetValue(methodKey and L[methodKey] or tostring(award.lootMethod or keiner),
+        Theme.color.text)
+end
+
+-- ================================================================ Handlungen --
+
 function LootCouncil:ReopenBidFrame()
     local Session = GA.Modules.Session
     if not GA.UI.BidFrame then return false end
@@ -709,7 +1285,6 @@ function LootCouncil:Refresh()
     local identity = Compat.GetPlayerIdentity()
     local canHost = Session:CanHost(identity.guid)
 
-    -- Ohne Session zeigt die Liste, was erkannt wurde und zur Wahl stuende.
     local list
     if session then
         list = {}
@@ -719,16 +1294,13 @@ function LootCouncil:Refresh()
         end
         self.state:SetText(string.format(L.COUNCIL_RUNNING, #session.awardIds,
             Util.ShortName(session.openedByName or "?")))
-        self.itemPanel:SetTitle(L.COUNCIL_ITEMS)
     else
         list = GA.Modules.Awards:List({ status = Status.DETECTED })
         self.state:SetText(#list > 0
             and string.format(L.COUNCIL_DETECTED, #list)
             or L.COUNCIL_IDLE)
-        self.itemPanel:SetTitle(L.COUNCIL_DETECTED_TITLE)
     end
 
-    self.items:SetData(list)
     self.openButton:SetEnabledState(canHost and not session and #list > 0,
         (not canHost) and L.COUNCIL_NEED_LOOTMASTER
         or (session and L.COUNCIL_ALREADY_OPEN)
@@ -736,7 +1308,6 @@ function LootCouncil:Refresh()
     self.closeButton:SetEnabledState(canHost and session ~= nil,
         (not canHost) and L.COUNCIL_NEED_LOOTMASTER or L.COUNCIL_NO_SESSION)
 
-    -- Rotation
     local Rotation = GA.Modules.Rotation
     local enabled = GA.Core.Config:Get("rotationEnabled") and true or false
     self.rotateButton:SetShown(enabled)
@@ -757,7 +1328,6 @@ function LootCouncil:Refresh()
             (not canHost) and L.ROTATION_ERR_NOTALLOWED or L.ROTATION_ERR_NOGROUP)
     end
 
-    -- Reservierungen
     local SoftRes = GA.Modules.SoftRes
     if not SoftRes:Current() then
         self.softResState:SetText("")
@@ -768,25 +1338,42 @@ function LootCouncil:Refresh()
             text = text .. "  ·  " .. string.format("%s: %d", L.SOFTRES_OVERLIMIT, stats.overLimit)
         end
         self.softResState:SetText(text)
-        -- Umkaempftes oder Ueberschreitungen in Warnfarbe: Genau das sind die
-        -- Faelle, in denen das Council etwas entscheiden muss.
         local color = (stats.contested > 0 or stats.overLimit > 0)
             and Theme.color.warn or Theme.color.textDim
         self.softResState:SetTextColor(color[1], color[2], color[3])
     end
 
-    -- Bewerber des gewaehlten Gegenstands.
-    if not self.selectedAwardId and list[1] then self.selectedAwardId = list[1].id end
+    -- Die Auswahl: gesetzt bleibt gesetzt, sonst der erste. Eine Auswahl
+    -- auf etwas, das nicht mehr in der Liste steht, faellt zurueck.
+    local gewaehlt
+    for _, award in ipairs(list) do
+        if award.id == self.selectedAwardId then gewaehlt = award break end
+    end
+    if not gewaehlt and list[1] then
+        self.selectedAwardId = list[1].id
+        gewaehlt = list[1]
+    elseif not gewaehlt then
+        self.selectedAwardId = nil
+    end
+
+    self:RefreshCards(list)
 
     local candidates = {}
     if session and self.selectedAwardId then
         candidates = Session:Tally(session.id, self.selectedAwardId)
     end
-    self.candidates:SetData(candidates)
 
-    local award = self.selectedAwardId and GA.Modules.Awards:Get(self.selectedAwardId)
-    self.bidPanel:SetTitle(award
-        and string.format(L.COUNCIL_CANDIDATES_FOR, award.itemName or "?")
+    self.bestIlvl = 0
+    for _, candidate in ipairs(candidates) do
+        if candidate.itemLevel and candidate.itemLevel > self.bestIlvl then
+            self.bestIlvl = candidate.itemLevel
+        end
+    end
+
+    self.candidates:SetData(self:GroupRows(candidates))
+
+    self.bidPanel:SetTitle(gewaehlt
+        and string.format(L.COUNCIL_CANDIDATES_FOR, gewaehlt.itemName or "?")
         or L.COUNCIL_CANDIDATES)
 
     if session and self.selectedAwardId then
@@ -798,12 +1385,14 @@ function LootCouncil:Refresh()
         self.footer:SetText(L.COUNCIL_HINT)
     end
 
+    self:RefreshDecision(candidates, session)
+    self:RefreshFacts(gewaehlt)
+
     GA.UI.MainFrame:SetContext(session and L.COUNCIL_CONTEXT_OPEN or "")
 end
 
 GA.UI.MainFrame:RegisterView("lootcouncil", LootCouncil)
 
--- Sessionaenderungen kommen ueber Nachrichten herein, nicht nur ueber Klicks.
 GA.Core.Callbacks:On("SESSION_CHANGED", function()
     if LootCouncil.frame and LootCouncil.frame:IsVisible() then LootCouncil:Refresh() end
 end, "LootCouncilView")

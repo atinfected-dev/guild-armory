@@ -1,16 +1,31 @@
 --[[----------------------------------------------------------------------------
     UI/BidFrame — das Fenster, das beim Spieler aufgeht, wenn eine Lootsession
-    startet. Eine Zeile je Gegenstand, ein Knopf je Antwortmoeglichkeit.
+    startet. EINE KARTE JE GEGENSTAND (Entwurf B2, 27.09.2026): oben das
+    Symbol mit Qualitaetskante, der Name, der Platz; in der Mitte der
+    Vergleich mit dem, was man traegt — "Angelegt 22, Neu 27, +5" als zwei
+    Balken; darunter die Antworten; unten der Stand der Karte.
+
+    Der Vergleich ist die Auskunft, die im Raid fehlt: Ob ein Teil eine
+    Verbesserung ist, weiss der Spieler nur, wenn er sein Charakterfenster
+    daneben aufmacht. Hier steht es da — gemessen an seinem eigenen
+    Gegenstand am selben Platz, nicht geraten.
 
     ENTWURFSENTSCHEIDUNG: kein Zwang, keine Zeituhr. Manche Loot-Addons zaehlen
     einen Countdown herunter und werten Schweigen als "Passen". Das erzeugt im
     Raid genau den Streit, den ein LootCouncil vermeiden soll — wer gerade tot
     war oder nachgeladen hat, verliert seine Bewerbung. Hier bleibt das Fenster
     stehen, bis der Spieler antwortet oder der Lootmeister die Session schliesst.
+    (Eine Frist, WENN der Lootmeister eine setzt, wird angezeigt — und die
+    Knoepfe gehen weg, bevor jemand in eine Ablehnung hineinlaeuft.)
 
     Das Fenster erscheint nur, wenn wirklich eine Ankuendigung kam. Es baut
-    seine Zeilen aus der Ankuendigung, nicht aus einer eigenen Datenbank: Was
+    seine Karten aus der Ankuendigung, nicht aus einer eigenen Datenbank: Was
     zur Abstimmung steht, entscheidet der Lootmeister.
+
+    DIE FELDER EINER KARTE HEISSEN WIE VORHER (row.buttons, row.rollButtons,
+    row.dkpBox, row.answer …): Session.lua und die Sandbox greifen auf das
+    Fenster zu, und ein Umbau der Form ist kein Grund, die Schnittstelle zu
+    aendern.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -23,18 +38,30 @@ local Widgets = GA.UI.Widgets
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local ROW_HEIGHT = 34
-local BUTTON_WIDTH = 54
-local BUTTON_GAP = 3
-local NAME_WIDTH = 150
+local CARD_W, CARD_H, CARD_GAP = 212, 272, 8
+local MAX_COLUMNS = 3
+local PAD = 14
+local HEAD_H = 52          -- Titelleiste der Vorlage + Zeile mit Lootmeister + Fristbalken
+local FOOT_H = 34
+local BUTTON_W, BUTTON_H, BUTTON_GAP = 60, 18, 4
+local PER_ROW = 3          -- Antwortknoepfe je Reihe: 3 x 60 + 2 x 4 = 188 < 192
 
---- Die Breite richtet sich nach der Zahl der Antworten. Eine feste Breite
---- wuerde bei einem erweiterten Antwortsatz die letzten Knoepfe aus dem
---- Fenster schieben — sichtbar erst dann, wenn eine Gilde ihn erweitert.
-local function frameWidth()
-    local count = #GA.Modules.Session:Responses()
-    return 28 + 24 + 8 + NAME_WIDTH + 6
-        + count * BUTTON_WIDTH + math.max(0, count - 1) * BUTTON_GAP
+--- Das Fragezeichen: Platzhalter, solange der Client den Gegenstand nicht
+--- kennt. Es haelt den Platz, damit die Karten nicht versetzt stehen.
+local QUESTION_MARK = [[Interface\Icons\INV_Misc_QuestionMark]]
+
+--- Spalten und Reihen fuer n Karten.
+local function raster(count)
+    local columns = math.max(1, math.min(MAX_COLUMNS, count))
+    local rows = math.max(1, math.ceil(count / columns))
+    return columns, rows
+end
+
+local function frameSize(count)
+    local columns, rows = raster(count)
+    local width = 2 * PAD + columns * CARD_W + (columns - 1) * CARD_GAP
+    local height = HEAD_H + rows * CARD_H + (rows - 1) * CARD_GAP + 10 + FOOT_H
+    return width, height
 end
 
 -- ================================================================== Aufbau ----
@@ -52,8 +79,9 @@ function BidFrame:Create()
         end
     end
 
-    frame:SetWidth(frameWidth())
-    frame:SetHeight(160)
+    local width, height = frameSize(1)
+    frame:SetWidth(width)
+    frame:SetHeight(height)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
@@ -75,19 +103,55 @@ function BidFrame:Create()
         frame.CloseButton:SetScript("OnClick", function() BidFrame:Hide() end)
     end
 
-    self.hint = Theme.Label(frame, L.BID_HINT, fonts.small, Theme.color.textFaint)
-    self.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -30)
-    self.hint:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
+    self.hint = Theme.Label(frame, L.BID_HINT, fonts.small, Theme.color.textDim)
+    self.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -30)
     self.hint:SetJustifyH("LEFT")
 
     -- Die Uhr steht rechts im Kopf, neben dem Hinweis: Dort sucht man
-    -- sie, und sie verdeckt keine Zeile.
+    -- sie, und sie verdeckt keine Karte. Links davon der Zaehler.
     self.timer = Theme.Label(frame, "", fonts.small, Theme.color.textFaint)
-    self.timer:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -30)
+    self.timer:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -30)
     self.timer:SetJustifyH("RIGHT")
 
-    -- Einmal je Sekunde genuegt: Eine Uhr, die dreissigmal in der Sekunde
-    -- dieselbe Zahl schreibt, kostet nur Rechenzeit.
+    self.counter = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
+    self.counter:SetPoint("RIGHT", self.timer, "LEFT", -10, 0)
+    self.counter:SetJustifyH("RIGHT")
+    self.hint:SetPoint("RIGHT", self.counter, "LEFT", -10, 0)
+
+    -- DIE FRIST ALS BALKEN unter der Kopfzeile: schrumpft mit der Zeit.
+    -- Eine Zahl liest man, einen Balken sieht man aus dem Augenwinkel.
+    self.timerTrack = frame:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(self.timerTrack, Theme.color.rowBg)
+    self.timerTrack:SetHeight(2)
+    self.timerTrack:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -(HEAD_H - 6))
+    self.timerTrack:SetPoint("RIGHT", frame, "RIGHT", -PAD, 0)
+    self.timerTrack:Hide()
+
+    self.timerFill = frame:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(self.timerFill, Theme.color.warn)
+    self.timerFill:SetHeight(2)
+    self.timerFill:SetPoint("TOPLEFT", self.timerTrack, "TOPLEFT", 0, 0)
+    self.timerFill:SetWidth(1)
+    self.timerFill:Hide()
+
+    -- Fusszeile: der Satz zum Fenster und "Rest passen".
+    self.footHint = Theme.Label(frame, L.BID_HINT_CARDS, fonts.small, Theme.color.textFaint)
+    self.footHint:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", PAD, 12)
+    self.footHint:SetJustifyH("LEFT")
+    self.footHint:SetWordWrap(false)
+
+    -- REST PASSEN: alles, was noch offen ist und auf das man mit einer
+    -- Antwort passen KANN. Wurf und Gebot haben kein Passen — dort heisst
+    -- Nichtstun schon nichts.
+    self.passRest = Widgets.Button(frame, L.BID_PASS_REST, function()
+        BidFrame:PassRest()
+    end)
+    self.passRest:SetHeight(20)
+    self.passRest:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PAD, 10)
+    self.footHint:SetPoint("RIGHT", self.passRest, "LEFT", -8, 0)
+
+    -- Einmal je Viertelsekunde genuegt: Eine Uhr, die dreissigmal in der
+    -- Sekunde dieselbe Zahl schreibt, kostet nur Rechenzeit.
     frame:SetScript("OnUpdate", function(self, verstrichen)
         self.seit = (self.seit or 0) + verstrichen
         if self.seit < 0.25 then return end
@@ -104,92 +168,156 @@ function BidFrame:Create()
     return frame
 end
 
---- Eine Zeile: Icon, Name, Antwortknoepfe.
+--- Eine Karte: Symbol, Name, Platz, Vergleich, Antworten, Stand.
 function BidFrame:BuildRow(index)
     if self.rows[index] then return self.rows[index] end
 
     local fonts = Theme.Fonts()
     local row = CreateFrame("Frame", nil, self.frame)
-    row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 14, -(48 + (index - 1) * ROW_HEIGHT))
-    row:SetPoint("RIGHT", self.frame, "RIGHT", -14, 0)
+    row:SetWidth(CARD_W)
+    row:SetHeight(CARD_H)
+    row.fill = Theme.Fill(row, Theme.color.panelBg)
+    row.lines = Theme.Outline(row, Theme.color.border)
+
+    row.edge = row:CreateTexture(nil, "OVERLAY")
+    row.edge:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.edge:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    row.edge:SetHeight(3)
 
     row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetWidth(24) row.icon:SetHeight(24)
-    row.icon:SetPoint("LEFT", row, "LEFT", 0, 0)
+    row.icon:SetWidth(40) row.icon:SetHeight(40)
+    row.icon:SetPoint("TOP", row, "TOP", 0, -12)
     row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
     row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-    row.name:SetWidth(NAME_WIDTH)
-    row.name:SetJustifyH("LEFT")
+    row.name:SetPoint("TOP", row.icon, "BOTTOM", 0, -6)
+    row.name:SetWidth(CARD_W - 20)
+    row.name:SetHeight(30)
+    row.name:SetJustifyH("CENTER")
+    row.name:SetJustifyV("TOP")
 
-    -- Der Itemlink soll sich wie ueberall im Spiel verhalten: Tooltip beim
-    -- Darueberfahren, Shift-Klick fuegt ihn in den Chat ein.
+    row.slot = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.slot:SetPoint("TOP", row.name, "BOTTOM", 0, -2)
+    row.slot:SetWidth(CARD_W - 20)
+    row.slot:SetJustifyH("CENTER")
+    row.slot:SetWordWrap(false)
+
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         GA.UI.Widgets.ShowItemTooltip(self, self.itemID, self.itemLink)
     end)
     row:SetScript("OnLeave", function() GA.UI.Widgets.HideItemTooltip() end)
 
+    -- ------------------------------------------------------- Vergleich -----
+    local cmp = CreateFrame("Frame", nil, row)
+    cmp:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -112)
+    cmp:SetWidth(CARD_W - 20)
+    cmp:SetHeight(58)
+    Theme.Fill(cmp, Theme.color.windowBg)
+    Theme.Outline(cmp, Theme.color.border)
+    row.cmp = cmp
+
+    cmp.haveLabel = Theme.Label(cmp, L.BID_EQUIPPED, fonts.small, Theme.color.textFaint)
+    cmp.haveLabel:SetPoint("TOPLEFT", cmp, "TOPLEFT", 6, -5)
+
+    cmp.haveName = Theme.Label(cmp, "", fonts.small, Theme.color.textDim)
+    cmp.haveName:SetPoint("TOPRIGHT", cmp, "TOPRIGHT", -6, -5)
+    cmp.haveName:SetPoint("LEFT", cmp.haveLabel, "RIGHT", 6, 0)
+    cmp.haveName:SetJustifyH("RIGHT")
+    cmp.haveName:SetWordWrap(false)
+
+    cmp.haveIlvl = Theme.Label(cmp, "", fonts.small, Theme.color.textDim)
+    cmp.haveIlvl:SetPoint("TOPRIGHT", cmp, "TOPRIGHT", -6, -19)
+    cmp.haveIlvl:SetWidth(28)
+    cmp.haveIlvl:SetJustifyH("RIGHT")
+
+    cmp.haveTrack = cmp:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(cmp.haveTrack, Theme.color.rowBg)
+    cmp.haveTrack:SetHeight(4)
+    cmp.haveTrack:SetPoint("TOPLEFT", cmp, "TOPLEFT", 6, -23)
+    cmp.haveTrack:SetPoint("RIGHT", cmp.haveIlvl, "LEFT", -6, 0)
+
+    cmp.haveFill = cmp:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(cmp.haveFill, Theme.color.goldDeep)
+    cmp.haveFill:SetHeight(4)
+    cmp.haveFill:SetPoint("LEFT", cmp.haveTrack, "LEFT", 0, 0)
+    cmp.haveFill:SetWidth(1)
+
+    cmp.newIlvl = Theme.Label(cmp, "", fonts.rowBold, Theme.color.goldBright)
+    cmp.newIlvl:SetPoint("TOPRIGHT", cmp, "TOPRIGHT", -6, -30)
+    cmp.newIlvl:SetWidth(28)
+    cmp.newIlvl:SetJustifyH("RIGHT")
+
+    cmp.newTrack = cmp:CreateTexture(nil, "ARTWORK")
+    Theme.Paint(cmp.newTrack, Theme.color.rowBg)
+    cmp.newTrack:SetHeight(4)
+    cmp.newTrack:SetPoint("TOPLEFT", cmp, "TOPLEFT", 6, -35)
+    cmp.newTrack:SetPoint("RIGHT", cmp.newIlvl, "LEFT", -6, 0)
+
+    cmp.newFill = cmp:CreateTexture(nil, "OVERLAY")
+    Theme.Paint(cmp.newFill, Theme.color.goldDim)
+    cmp.newFill:SetHeight(4)
+    cmp.newFill:SetPoint("LEFT", cmp.newTrack, "LEFT", 0, 0)
+    cmp.newFill:SetWidth(1)
+
+    cmp.newLabel = Theme.Label(cmp, L.BID_NEW, fonts.small, Theme.color.textFaint)
+    cmp.newLabel:SetPoint("BOTTOMLEFT", cmp, "BOTTOMLEFT", 6, 5)
+
+    cmp.delta = Theme.Label(cmp, "", fonts.rowBold, Theme.color.jade)
+    cmp.delta:SetPoint("BOTTOMRIGHT", cmp, "BOTTOMRIGHT", -6, 5)
+
+    -- ------------------------------------------------------- Antworten -----
+    -- DREI MOEGLICHE ANTWORTBLOECKE, alle beim Bauen angelegt und je nach
+    -- Verteilart gezeigt. Sie beim Oeffnen neu zu bauen waere einfacher zu
+    -- schreiben und schlechter zu benutzen: Knoepfe, die bei jedem Aufbau
+    -- anders sitzen, lassen einen ins Leere klicken.
+    local answersTop = -(112 + 58 + 8)
+    local function platz(button, position)
+        local spalte = (position - 1) % PER_ROW
+        local reihe = math.floor((position - 1) / PER_ROW)
+        button:SetPoint("TOPLEFT", row, "TOPLEFT",
+            12 + spalte * (BUTTON_W + BUTTON_GAP), answersTop - reihe * (BUTTON_H + BUTTON_GAP))
+    end
+
     row.buttons = {}
-    local previous
-    for _, response in ipairs(GA.Modules.Session:Responses()) do
+    for position, response in ipairs(GA.Modules.Session:Responses()) do
         local button = Widgets.Button(row, response.short or response.label, function()
             BidFrame:Answer(index, response.key)
         end)
-        button:SetHeight(18)
-        -- Nach SetText misst sich der Blizzard-Knopf selbst; hier muessen alle
-        -- gleich breit bleiben, sonst rutscht die Reihe bei jedem Aufbau anders.
-        button:SetWidth(BUTTON_WIDTH)
+        button:SetHeight(BUTTON_H)
+        -- Nach SetText misst sich der Blizzard-Knopf selbst; hier muessen
+        -- alle gleich breit bleiben, sonst rutscht das Raster.
+        button:SetWidth(BUTTON_W)
         button.tooltip = response.label
-        if previous then
-            button:SetPoint("LEFT", previous, "RIGHT", BUTTON_GAP, 0)
-        else
-            button:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
-        end
+        platz(button, position)
         button.responseKey = response.key
         row.buttons[#row.buttons + 1] = button
-        previous = button
     end
 
-    -- DREI MOEGLICHE RECHTE SEITEN, alle beim Bauen angelegt und je nach
-    -- Verteilart gezeigt.
-    --
-    -- Sie beim Oeffnen neu zu bauen waere einfacher zu schreiben und
-    -- schlechter zu benutzen: Die Knopfbreiten messen sich nach dem Text,
-    -- und eine Reihe, die bei jedem Aufbau anders sitzt, laesst einen ins
-    -- Leere klicken.
     row.rollButtons = {}
-    local vorigerWurf
-    for _, tier in ipairs(GA.Data.Schema.RollTiers) do
+    for position, tier in ipairs(GA.Data.Schema.RollTiers) do
         local button = Widgets.Button(row, tostring(tier.max), function()
             BidFrame:Roll(index, tier.key)
         end)
-        button:SetHeight(18)
-        button:SetWidth(BUTTON_WIDTH)
+        button:SetHeight(BUTTON_H)
+        button:SetWidth(BUTTON_W)
         button.tooltip = tier.label
-        if vorigerWurf then
-            button:SetPoint("LEFT", vorigerWurf, "RIGHT", BUTTON_GAP, 0)
-        else
-            button:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
-        end
+        platz(button, position)
         button.tierKey = tier.key
         row.rollButtons[#row.rollButtons + 1] = button
-        vorigerWurf = button
     end
 
     -- DKP: ein Eingabefeld statt Knoepfen.
     --
     -- Knoepfe gingen hier nicht: Der Betrag ist nicht aus einer Handvoll
     -- Moeglichkeiten zu waehlen, sondern eine Zahl zwischen dem
-    -- Mindestgebot und dem eigenen Stand. Beides steht daneben, damit
+    -- Mindestgebot und dem eigenen Stand. Beides steht darunter, damit
     -- niemand raten muss.
     row.dkpBox = Theme.CreateNative("EditBox", nil, row, "InputBoxTemplate")
     if row.dkpBox then
-        row.dkpBox:SetWidth(60)
-        row.dkpBox:SetHeight(18)
-        row.dkpBox:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
+        row.dkpBox:SetWidth(52)
+        row.dkpBox:SetHeight(BUTTON_H)
+        row.dkpBox:SetPoint("TOPLEFT", row, "TOPLEFT", 18, answersTop)
         row.dkpBox:SetAutoFocus(false)
         row.dkpBox:SetNumeric(true)
         row.dkpBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -211,8 +339,8 @@ function BidFrame:BuildRow(index)
         row.dkpButton = Widgets.Button(row, L.BID_DKP_SEND, function()
             BidFrame:Bid(index)
         end)
-        row.dkpButton:SetHeight(18)
-        row.dkpButton:SetWidth(BUTTON_WIDTH)
+        row.dkpButton:SetHeight(BUTTON_H)
+        row.dkpButton:SetWidth(BUTTON_W)
         row.dkpButton:SetPoint("LEFT", row.dkpBox, "RIGHT", 4, 0)
         row.dkpButton:Hide()
 
@@ -222,8 +350,8 @@ function BidFrame:BuildRow(index)
         row.dkpCancel = Widgets.Button(row, L.BID_DKP_CANCEL, function()
             BidFrame:CancelBid(index)
         end)
-        row.dkpCancel:SetHeight(18)
-        row.dkpCancel:SetWidth(BUTTON_WIDTH + 12)
+        row.dkpCancel:SetHeight(BUTTON_H)
+        row.dkpCancel:SetWidth(BUTTON_W + 6)
         row.dkpCancel:SetPoint("LEFT", row.dkpButton, "RIGHT", 4, 0)
         row.dkpCancel:Hide()
 
@@ -231,9 +359,11 @@ function BidFrame:BuildRow(index)
         -- jemand ins Leere und erfaehrt erst nach dem Druecken, warum es
         -- nicht ging.
         row.dkpInfo = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-        row.dkpInfo:SetPoint("LEFT", row.dkpCancel, "RIGHT", 8, 0)
-        row.dkpInfo:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        row.dkpInfo:SetPoint("TOPLEFT", row, "TOPLEFT", 12, answersTop - BUTTON_H - 6)
+        row.dkpInfo:SetWidth(CARD_W - 24)
+        row.dkpInfo:SetHeight(28)
         row.dkpInfo:SetJustifyH("LEFT")
+        row.dkpInfo:SetJustifyV("TOP")
         row.dkpInfo:Hide()
     end
 
@@ -241,14 +371,22 @@ function BidFrame:BuildRow(index)
     -- reserviert, entscheidet die Reservierung, und ein Gebot daneben waere
     -- ein zweites Verfahren fuer dieselbe Sache.
     row.reserved = Theme.Label(row, "", fonts.small, Theme.color.gold)
-    row.reserved:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
-    row.reserved:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    row.reserved:SetJustifyH("LEFT")
+    row.reserved:SetPoint("TOPLEFT", row, "TOPLEFT", 12, answersTop)
+    row.reserved:SetWidth(CARD_W - 24)
+    row.reserved:SetJustifyH("CENTER")
     row.reserved:Hide()
 
-    row.answer = Theme.Label(row, "", fonts.body, Theme.color.jade)
-    row.answer:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
+    -- Der Stand der Karte, ganz unten: die gegebene Antwort in Jade, sonst
+    -- "noch keine Antwort" in Grau.
+    row.answer = Theme.Label(row, "", fonts.small, Theme.color.jade)
+    row.answer:SetPoint("BOTTOM", row, "BOTTOM", 0, 8)
+    row.answer:SetWidth(CARD_W - 16)
+    row.answer:SetJustifyH("CENTER")
+    row.answer:SetWordWrap(false)
     row.answer:Hide()
+
+    row.pending = Theme.Label(row, L.BID_NOT_ANSWERED, fonts.small, Theme.color.textFaint)
+    row.pending:SetPoint("BOTTOM", row, "BOTTOM", 0, 8)
 
     self.rows[index] = row
     return row
@@ -256,12 +394,87 @@ end
 
 -- ================================================================== Anzeigen --
 
---- @param announcement table { id, host, items = { { awardId, itemID } } }
---- Das Fragezeichen: Platzhalter, solange der Client den Gegenstand nicht
---- kennt. Es haelt den Platz, damit die Zeilen nicht versetzt stehen.
-local QUESTION_MARK = [[Interface\Icons\INV_Misc_QuestionMark]]
+--- Schreibt Name, Farbe, Symbol, Platz und Vergleich einer Karte — alles,
+--- was aus den Itemdaten kommt. Ohne Daten: Fragezeichen und Kennung.
+function BidFrame:Label(row, itemID)
+    local info = Compat.GetItemInfo(itemID)
+    row.itemLink = info and info.link or row.itemLink
 
---- Beschriftet die Zeilen neu, sobald der Server Itemdaten nachliefert.
+    row.name:SetText(info and info.name or ("#" .. tostring(itemID)))
+    local quality = Theme.QualityColor(info and info.quality)
+    row.name:SetTextColor(quality[1], quality[2], quality[3])
+    Theme.Paint(row.edge, info and quality or Theme.color.border)
+    row.icon:SetTexture(info and info.icon or QUESTION_MARK)
+    row.icon:Show()
+
+    local teile = {}
+    if info then
+        local ort = Compat.EquipLocName(info.equipLoc)
+        if ort then teile[#teile + 1] = ort end
+        if info.subType and info.subType ~= "" then teile[#teile + 1] = info.subType end
+    end
+    row.slot:SetText(table.concat(teile, " · "))
+
+    self:Compare(row, info)
+    return info ~= nil
+end
+
+--- Der Vergleich mit dem eigenen Gegenstand am selben Platz.
+---
+--- GEMESSEN, NICHT GERATEN: der eigene Gegenstand mit dem niedrigsten
+--- Itemlevel unter den Plaetzen, die das Teil belegen kann — den wuerde man
+--- tauschen. Ein leerer Platz ist 0 und damit die groesste Verbesserung.
+--- Was nicht anlegbar ist, bekommt keinen Vergleich, sondern den Satz dazu.
+function BidFrame:Compare(row, info)
+    local cmp = row.cmp
+    local neu = info and (Compat.GetItemLevelOf(info.link) or info.itemLevel) or nil
+    if neu and neu <= 0 then neu = nil end
+
+    local getragen = info and Compat.EquippedToReplace(info.equipLoc)
+
+    local function balken(fill, wert, maximum)
+        local breite = cmp.haveTrack:GetWidth()
+        if not breite or breite <= 0 then breite = CARD_W - 20 - 12 - 34 end
+        if wert and maximum and maximum > 0 then
+            fill:SetWidth(math.max(1, math.floor(breite * math.min(1, wert / maximum))))
+            fill:Show()
+        else
+            fill:Hide()
+        end
+    end
+
+    if not getragen then
+        cmp.haveName:SetText(info and L.BID_NO_COMPARE or "")
+        cmp.haveIlvl:SetText("")
+        cmp.newIlvl:SetText(neu and tostring(neu) or "")
+        cmp.delta:SetText("")
+        balken(cmp.haveFill, nil)
+        balken(cmp.newFill, neu, neu)
+        return
+    end
+
+    local eigenInfo = getragen.link and Compat.GetItemInfo(getragen.link)
+    cmp.haveName:SetText(eigenInfo and eigenInfo.name or L.BID_EMPTY_SLOT)
+    cmp.haveIlvl:SetText(getragen.itemLevel > 0 and tostring(getragen.itemLevel) or "—")
+    cmp.newIlvl:SetText(neu and tostring(neu) or "—")
+
+    local maximum = math.max(getragen.itemLevel, neu or 0, 1)
+    balken(cmp.haveFill, getragen.itemLevel, maximum)
+    balken(cmp.newFill, neu, maximum)
+
+    if neu then
+        local unterschied = neu - getragen.itemLevel
+        local farbe = unterschied > 0 and Theme.color.jade
+            or unterschied < 0 and Theme.color.warn or Theme.color.textFaint
+        cmp.delta:SetText(unterschied > 0 and ("+" .. unterschied)
+            or unterschied < 0 and tostring(unterschied) or "±0")
+        cmp.delta:SetTextColor(farbe[1], farbe[2], farbe[3])
+    else
+        cmp.delta:SetText("")
+    end
+end
+
+--- Beschriftet die Karten neu, sobald der Server Itemdaten nachliefert.
 ---
 --- WARUM UEBERHAUPT.
 ---
@@ -299,23 +512,15 @@ function BidFrame:WatchItemInfo()
     self.watcher:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 end
 
---- Schreibt Namen, Farbe und Symbol neu — ohne die Antworten anzufassen.
+--- Schreibt Namen, Farbe, Symbol und Vergleich neu — ohne die Antworten
+--- anzufassen.
 function BidFrame:Relabel()
     if not self.frame or not self.frame:IsShown() or not self.announcement then return end
 
     local fehlt = false
     for index, item in ipairs(self.announcement.items) do
         local row = self.rows[index]
-        local info = Compat.GetItemInfo(item.itemID)
-        if row and info then
-            row.itemLink = info.link or row.itemLink
-            row.name:SetText(info.name or ("#" .. tostring(item.itemID)))
-            local quality = Theme.QualityColor(info.quality)
-            row.name:SetTextColor(quality[1], quality[2], quality[3])
-            row.icon:SetTexture(info.icon or QUESTION_MARK)
-        elseif row then
-            fehlt = true
-        end
+        if row and not self:Label(row, item.itemID) then fehlt = true end
     end
 
     -- Auch die eigene Wurfzahl nachtragen: Relabel wird gerufen, wenn sie
@@ -329,14 +534,15 @@ function BidFrame:Relabel()
     if not fehlt and self.watcher then self.watcher:UnregisterAllEvents() end
 end
 
---- Zeigt in einer Zeile das, was zur Verteilart passt.
+--- Zeigt auf einer Karte das, was zur Verteilart passt.
 ---
---- Drei Faelle, und sie schliessen einander aus:
+--- Vier Faelle, und sie schliessen einander aus:
 ---
+---   DKP          Feld, Bieten, Zurueckziehen, und darunter Stand und Minimum.
 ---   reserviert   Die Reservierung entscheidet. Es gibt nichts zu tun,
 ---                also auch keine Knoepfe — nur die Namen.
 ---   verrollt     Drei Spannen zur Wahl. Der Klick wuerfelt wirklich.
----   sonst        Die Antworten des Councils wie bisher.
+---   sonst        Die Antworten des Councils.
 function BidFrame:ApplyMode(row, itemID)
     local Session = GA.Modules.Session
     local SoftRes = GA.Modules.SoftRes
@@ -369,13 +575,10 @@ function BidFrame:ApplyMode(row, itemID)
         row.reserved:Hide()
         dkpZeigen(true)
 
-        -- Stand und Mindestgebot daneben: Ohne sie bietet jemand ins Leere
-        -- und erfaehrt erst nach dem Druecken, warum es nicht ging.
-        -- Die grüne Antwortzeile gehoert hier nicht hin: Sie sitzt an
-        -- derselben Stelle wie das Eingabefeld und lag im ersten Anlauf
-        -- quer darueber. Bei DKP sagt die Infozeile alles.
         row.answer:Hide()
-        self:UpdateDkpRow(index)
+        row.pending:Show()
+        row.mode = "dkp"
+        self:UpdateDkpRow(row.position)
         return "dkp"
     end
 
@@ -387,23 +590,59 @@ function BidFrame:ApplyMode(row, itemID)
         row.reserved:SetText(string.format(GA.L.BID_RESERVED_BY,
             table.concat(reserviert, ", ")))
         row.reserved:Show()
+        row.pending:Hide()
+        row.mode = "reserved"
         return "reserved"
     end
 
     row.reserved:Hide()
+    row.pending:Show()
 
     if Session:RollsFor(itemID) then
         zeige(row.buttons, false)
         zeige(row.rollButtons, true)
+        row.mode = "roll"
         return "roll"
     end
 
     zeige(row.rollButtons, false)
     zeige(row.buttons, true)
+    row.mode = "bid"
     return "bid"
 end
 
---- Schickt das eingetippte DKP-Gebot ab.
+--- Schreibt den Zaehler "k von n beantwortet" neu.
+function BidFrame:UpdateCounter()
+    if not self.counter or not self.announcement then return end
+    local gesamt, beantwortet = #self.announcement.items, 0
+    for index = 1, gesamt do
+        local row = self.rows[index]
+        if row and row.answer:IsShown() then beantwortet = beantwortet + 1 end
+    end
+    self.counter:SetText(string.format(L.BID_ANSWERED_COUNT, beantwortet, gesamt))
+
+    -- "Rest passen" nur, wenn es einen Rest gibt, auf den man passen kann.
+    local offen = false
+    for index = 1, gesamt do
+        local row = self.rows[index]
+        if row and row.mode == "bid" and not row.answer:IsShown() then offen = true break end
+    end
+    self.passRest:SetShown(offen)
+end
+
+--- Passt auf alles, was noch offen ist und eine Antwort kennt.
+function BidFrame:PassRest()
+    if not self.announcement then return end
+    for index = 1, #self.announcement.items do
+        local row = self.rows[index]
+        if row and row.mode == "bid" and not row.answer:IsShown() then
+            self:Answer(index, "PASS")
+        end
+    end
+end
+
+-- ================================================================== DKP -------
+
 function BidFrame:Bid(index)
     local row = self.rows[index]
     if not row or not row.dkpBox or not self.announcement then return end
@@ -424,7 +663,7 @@ function BidFrame:Bid(index)
     end
 
     if not ok then
-        -- DER GRUND STEHT IN DER ZEILE, nicht nur im Chat. Im Raid laufen
+        -- DER GRUND STEHT AUF DER KARTE, nicht nur im Chat. Im Raid laufen
         -- dort Kampfmeldungen durch, und das Gebotsfenster liegt darueber
         -- — eine Ablehnung im Chat sieht niemand.
         row.dkpError = GA.L["BID_DKP_ERR_" .. tostring(grund)] or tostring(grund)
@@ -436,12 +675,12 @@ function BidFrame:Bid(index)
     row.dkpBox:ClearFocus()
     row.dkpBox:SetText("")
 
-    -- ALLE Zeilen, nicht nur diese: Ein gebundener Punkt fehlt ueberall
+    -- ALLE Karten, nicht nur diese: Ein gebundener Punkt fehlt ueberall
     -- sonst.
     self:RefreshDkpRows()
 end
 
---- Schreibt die Infozeile einer DKP-Zeile neu.
+--- Schreibt die Infozeile einer DKP-Karte neu.
 ---
 --- SIE SAGT ALLES, WAS MAN BRAUCHT: das eigene Gebot auf DIESEN
 --- Gegenstand, was danach noch frei ist, und das Mindestgebot. Oder,
@@ -476,15 +715,22 @@ function BidFrame:UpdateDkpRow(index)
             eigenes, frei, Dkp:MinBid()))
         local jade = Theme.color.jade
         row.dkpInfo:SetTextColor(jade[1], jade[2], jade[3])
+        -- Ein stehendes Gebot ist eine Antwort: Das zeigt der Stand unten.
+        row.answer:SetText(string.format(GA.L.BID_DKP_SENT, eigenes))
+        row.answer:Show()
+        row.pending:Hide()
     else
         row.dkpInfo:SetText(string.format(GA.L.BID_DKP_AVAILABLE, frei, Dkp:MinBid()))
         row.dkpInfo:SetTextColor(dim[1], dim[2], dim[3])
+        row.answer:Hide()
+        row.pending:Show()
     end
 
     -- Zurueckziehen geht nur, wenn etwas dasteht.
     if row.dkpCancel and row.dkpCancel.SetEnabledState then
         row.dkpCancel:SetEnabledState(eigenes ~= nil)
     end
+    self:UpdateCounter()
 end
 
 --- Das eigene Gebot auf einen Gegenstand, oder nil.
@@ -507,6 +753,8 @@ function BidFrame:OwnDkpBid(awardId)
     return eigen or nil
 end
 
+-- ================================================================== Frist -----
+
 --- Wann die Gebotsfrist dieses Fensters ablaeuft, als eigene Uhrzeit.
 ---
 --- ZWEI QUELLEN, WIE UEBERALL HIER. Der Plündermeister hat die Sitzung
@@ -528,7 +776,7 @@ function BidFrame:TimeLeft()
     return math.max(0, ende - Compat.Now())
 end
 
---- Schreibt die Uhr und sperrt alles, wenn sie abgelaufen ist.
+--- Schreibt die Uhr und den Balken und sperrt alles, wenn sie abgelaufen ist.
 ---
 --- DIE ANZEIGE IST NICHT DIE ENTSCHEIDUNG. Abgelehnt wird beim
 --- Plündermeister, nach SEINER Uhr — zwei Clients haben nie genau
@@ -541,6 +789,7 @@ function BidFrame:UpdateTimer()
     local rest = self:TimeLeft()
     if not rest then
         if self.timer then self.timer:SetText("") end
+        if self.timerTrack then self.timerTrack:Hide() self.timerFill:Hide() end
         return
     end
 
@@ -553,6 +802,20 @@ function BidFrame:UpdateTimer()
             local warn = Theme.color.warn
             self.timer:SetText(GA.L.BID_TIME_UP)
             self.timer:SetTextColor(warn[1], warn[2], warn[3])
+        end
+    end
+
+    -- Der Balken: gemessen an der Frist, die beim Oeffnen noch lief.
+    if self.timerTrack then
+        local gesamt = self.timerTotal or rest
+        local breite = self.timerTrack:GetWidth()
+        if not breite or breite <= 0 then breite = 200 end
+        self.timerTrack:Show()
+        if gesamt > 0 and rest > 0 then
+            self.timerFill:SetWidth(math.max(1, breite * math.min(1, rest / gesamt)))
+            self.timerFill:Show()
+        else
+            self.timerFill:Hide()
         end
     end
 
@@ -574,6 +837,7 @@ function BidFrame:LockAll()
             if element then element:Hide() end
         end
     end
+    if self.passRest then self.passRest:Hide() end
 end
 
 --- Zeigt eine Ablehnung, die vom Plündermeister kam.
@@ -591,9 +855,9 @@ function BidFrame:ShowBidError(awardId, grund)
     end
 end
 
---- Frischt ALLE DKP-Zeilen auf.
+--- Frischt ALLE DKP-Karten auf.
 ---
---- Nach jedem Gebot, nicht nur nach dem in dieser Zeile: Ein gebundener
+--- Nach jedem Gebot, nicht nur nach dem auf dieser Karte: Ein gebundener
 --- Punkt fehlt ueberall sonst. Im ersten Anlauf stand bei allen Zeilen
 --- dieselbe Zahl, waehrend eine davon laengst gebunden war.
 function BidFrame:RefreshDkpRows()
@@ -628,8 +892,9 @@ function BidFrame:CancelBid(index)
     self:RefreshDkpRows()
 end
 
---- Wuerfelt fuer den Gegenstand in dieser Zeile.
---- Traegt das eigene Wurfergebnis in die Zeile nach.
+-- ================================================================== Wurf ------
+
+--- Traegt das eigene Wurfergebnis auf der Karte nach.
 ---
 --- Gelesen wird es aus der SITZUNG, nicht aus dem Chat: Dort steht es
 --- bereits als Bewerbung, und wenn die Chatzeile ausgeblendet ist, ist die
@@ -664,6 +929,7 @@ function BidFrame:ShowOwnRoll(index)
         eigen.roll, eigen.rollMax or 0))
 end
 
+--- Wuerfelt fuer den Gegenstand auf dieser Karte.
 function BidFrame:Roll(index, tierKey)
     local row = self.rows[index]
     if not row or not self.announcement then return end
@@ -681,6 +947,8 @@ function BidFrame:Roll(index, tierKey)
     for _, button in ipairs(row.rollButtons) do button:Hide() end
     row.answer:SetText(GA.L.BID_ROLLED)
     row.answer:Show()
+    row.pending:Hide()
+    self:UpdateCounter()
 
     -- DIE ZAHL NACHTRAGEN, SOBALD SIE DA IST.
     --
@@ -693,6 +961,9 @@ function BidFrame:Roll(index, tierKey)
     Compat.After(2, function() BidFrame:ShowOwnRoll(index) end)
 end
 
+-- ================================================================== Oeffnen ---
+
+--- @param announcement table { id, host, items = { { awardId, itemID } } }
 function BidFrame:Show(announcement)
     if not announcement or not announcement.items or #announcement.items == 0 then return end
 
@@ -700,33 +971,29 @@ function BidFrame:Show(announcement)
     self.announcement = announcement
 
     local count = #announcement.items
-    self.frame:SetWidth(frameWidth())
-    self.frame:SetHeight(58 + count * ROW_HEIGHT + 14)
+    local width, height = frameSize(count)
+    self.frame:SetWidth(width)
+    self.frame:SetHeight(height)
     self.hint:SetText(string.format(L.BID_FROM, announcement.host or "?"))
 
+    local columns = raster(count)
     for index, item in ipairs(announcement.items) do
         local row = self:BuildRow(index)
+        row.position = index
         row.awardId = item.awardId
-        -- Auch die ID: Der Tooltip kommt sonst nicht zustande, wenn dieser
-        -- Client den Gegenstand noch nie gesehen hat.
         row.itemID = item.itemID
 
-        -- Den Link baut dieser Client selbst aus der Item-ID. Verschickt wird
-        -- nur die Zahl — ein Itemlink ueberlebt den Transport nicht unveraendert.
-        local info = Compat.GetItemInfo(item.itemID)
-        row.itemLink = info and info.link or nil
-        row.name:SetText(info and info.name or ("#" .. tostring(item.itemID)))
-        local quality = Theme.QualityColor(info and info.quality)
-        row.name:SetTextColor(quality[1], quality[2], quality[3])
+        local spalte = (index - 1) % columns
+        local reihe = math.floor((index - 1) / columns)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", self.frame, "TOPLEFT",
+            PAD + spalte * (CARD_W + CARD_GAP), -(HEAD_H + reihe * (CARD_H + CARD_GAP)))
 
-        -- DAS SYMBOL BEHAELT SEINEN PLATZ. Es zu verstecken laesst den
-        -- Namen nach links rutschen, und dann stehen die Zeilen versetzt —
-        -- ausgerechnet die, bei denen ohnehin noch Daten fehlen.
-        row.icon:SetTexture(info and info.icon or QUESTION_MARK)
-        row.icon:Show()
+        self:Label(row, item.itemID)
 
-        -- Zurueck auf "noch nicht geantwortet".
         row.answer:Hide()
+        row.pending:Show()
+        row.awaitingRoll = false
         for _, button in ipairs(row.buttons) do
             button:SetEnabledState(true)
         end
@@ -734,24 +1001,18 @@ function BidFrame:Show(announcement)
             button:SetEnabledState(true)
         end
 
-        -- Welche Seite ueberhaupt gezeigt wird, entscheidet die Verteilart.
         BidFrame:ApplyMode(row, item.itemID)
         row:Show()
     end
 
     for index = count + 1, #self.rows do self.rows[index]:Hide() end
 
-    -- FEHLENDE NAMEN NACHREICHEN.
-    --
-    -- Ein Gegenstand, den dieser Client noch nie gesehen hat, liefert bei
-    -- GetItemInfo nichts — dann stand hier "#12103" und blieb so stehen.
-    -- Der Server schickt die Daten kurz darauf nach; dieses Ereignis sagt
-    -- es, und dann wird die Zeile neu beschriftet.
     self:WatchItemInfo()
 
-    -- Eine neue Ankuendigung heisst: neue Frist.
     self.expired = false
+    self.timerTotal = self:TimeLeft()
     self:UpdateTimer()
+    self:UpdateCounter()
 
     self.frame:Show()
 end
@@ -779,12 +1040,14 @@ function BidFrame:Answer(index, responseKey)
     end
 
     -- Die Knoepfe verschwinden, die Antwort bleibt stehen. Aendern geht ueber
-    -- ein erneutes Oeffnen — eine Zeile, die sich unter der Hand umstellen
+    -- ein erneutes Oeffnen — eine Karte, die sich unter der Hand umstellen
     -- laesst, fuehrt im Raid zu "ich hatte doch BiS geklickt".
     local response = GA.Modules.Session:ResponseByKey(responseKey)
     for _, button in ipairs(row.buttons) do button:Hide() end
     row.answer:SetText(string.format(L.BID_ANSWERED, response and response.label or responseKey))
     row.answer:Show()
+    row.pending:Hide()
+    self:UpdateCounter()
 
     -- Alles beantwortet? Dann kann das Fenster weg.
     local done = true

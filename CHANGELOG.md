@@ -127,6 +127,54 @@ looked the profession's display name up with a variable that did not exist,
 so it always fell back to the name in the scanner's language. Both fixed;
 both have tests now.
 
+### The loot table and the bid cards
+
+Two directions were drawn for each window; the guild picked the second of
+each. Both windows are rebuilt.
+
+**The loot window is a table now, not two lists.** Across the top the items
+as cards, the way they fall from a boss — quality edge on top, icon, name,
+slot and armour type, the state ("bidding open", the recipient in green,
+"transfer pending" in amber) and a badge with the number of bids. More
+cards than fit, and two arrows page through them; the selected card stays
+in view. Below, the candidates for the selected item **grouped by answer**:
+Best in Slot first, then Main-Spec, then the rest, each group with its
+colour bar and count, Pass folded shut by default — a click on a group head
+folds it either way. Inside a group, whoever has the least stands on top:
+lowest item level first, then votes, then name. For rolls the roll, for
+points the bid. The item level has a short bar against the best in the
+list; a class crest and class colour stand at every name.
+
+**At the right, the decision.** Who leads — strictly the most votes, the
+highest bid, or the highest roll in the highest tier — with crest, name,
+answer and item level, the vote split as three bars, how many votes are in,
+and one button: "Award to Rudi". On a tie the button is off and the head
+says so: the addon does not quietly pick whoever came first. Below it the
+facts about the item that were spread over the old view or not shown at
+all: who has it soft-reserved, the rotation seats and cycle, the evidence,
+how long ago it was detected, its source, the loot method at the time.
+
+**The bid window is cards.** One card per item, three to a row: icon with
+quality edge, name, slot and armour type — and a comparison block that was
+missing before: **what you wear at that slot, its item level, the new item
+level, and the difference**, as two bars. Measured, not guessed: the game
+names the item's slot, the client names what you have there, and where a
+slot can be one of two (rings, trinkets, one-hand weapons) the one with the
+lower item level is the one you would replace — an empty slot counts as
+zero, the biggest upgrade there is. Below the block the seven answers as a
+grid, or the three roll ranges, or the points field with bid and withdraw
+and the line that says what you have and what the minimum is. The foot of
+each card says its state: "no answer yet", or the answer given in green.
+The head counts "1 of 3 answered", and a thin amber bar under it shrinks
+with the bidding time if the loot master set one. "Pass on the rest" at the
+bottom passes on every card that still has an answer to give — not on
+rolls or bids, which have no pass.
+
+Answering still hides the other buttons on that card, as before: a card
+that can be flipped under your hand leads to "but I clicked BiS" in the
+raid. Changing an answer goes through the loot window's "Bid window"
+button, which opens the cards again.
+
 ### Profession names in your own language
 
 They were showing in German on an English client. The name that travels with
