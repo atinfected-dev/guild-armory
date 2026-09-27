@@ -2,7 +2,7 @@
 
 ## 0.1.16
 
-The characters page as a family tree, the achievements as a trophy hall.
+The characters page as a family tree, the achievements as a trophy hall, and map pins that bundle up when a crowd stands on one spot.
 
 ### Map pins bundle up
 
