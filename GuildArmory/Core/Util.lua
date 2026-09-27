@@ -258,13 +258,22 @@ function Util.Now()
 end
 
 --- "vor 4 min" / "vor 2 Std." / "gerade eben"
+--- "vor 3 Std." — in der Sprache der Einstellung.
+---
+--- GEMESSEN 27.09.2026 mit Bild: Auf einem englischen Dashboard stand
+--- "Cooking read vor 1 Tagen". Die Schluessel dafuer gab es laengst
+--- (JUST_NOW, AGO_MINUTES, AGO_HOURS, AGO_DAYS, NEVER) — diese Funktion
+--- hatte die deutschen Woerter fest eingebaut und die Schluessel nie
+--- gefragt. GA.L wird BEIM AUFRUF gelesen, nicht beim Laden: Die Sprache
+--- steht erst bei PLAYER_LOGIN fest (siehe Locale.lua).
 function Util.TimeAgo(timestamp)
-    if not timestamp then return "nie" end
+    local L = GA.L or {}
+    if not timestamp then return L.NEVER or "nie" end
     local delta = Util.Now() - timestamp
-    if delta < 60 then return "gerade eben" end
-    if delta < 3600 then return string.format("vor %d min", math.floor(delta / 60)) end
-    if delta < 86400 then return string.format("vor %d Std.", math.floor(delta / 3600)) end
-    return string.format("vor %d Tagen", math.floor(delta / 86400))
+    if delta < 60 then return L.JUST_NOW or "gerade eben" end
+    if delta < 3600 then return string.format(L.AGO_MINUTES or "vor %d min", math.floor(delta / 60)) end
+    if delta < 86400 then return string.format(L.AGO_HOURS or "vor %d Std.", math.floor(delta / 3600)) end
+    return string.format(L.AGO_DAYS or "vor %d Tagen", math.floor(delta / 86400))
 end
 
 -- ------------------------------------------------------------------- IDs -----

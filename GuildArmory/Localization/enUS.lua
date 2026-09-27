@@ -63,7 +63,7 @@ GA.Core.Locale:Register("enUS", {
     DASH_KPI_ONLINE   = "ONLINE",
     DASH_KPI_ONLINE_TREND = "of %d",
     DASH_KPI_LOOT     = "LOOT · 7 DAYS",
-    DASH_KPI_LOOT_TREND = "%d confirmed by the game",
+    DASH_KPI_LOOT_TREND = "%d game-confirmed",
     DASH_KPI_ACH      = "ACHIEVEMENTS",
     DASH_KPI_ACH_TREND = "of %d",
     DASH_FEED         = "Today in the guild",

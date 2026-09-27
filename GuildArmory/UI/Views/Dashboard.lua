@@ -38,7 +38,7 @@ local L = GA.L
 Dashboard.titleKey = "NAV_DASHBOARD"
 
 local HERO_HEIGHT = 118
-local KPI_W, KPI_H, KPI_GAP = 92, 66, 8
+local KPI_W, KPI_H, KPI_GAP = 104, 66, 8
 local MINE_WIDTH = 290
 local RIGHT_WIDTH = 240
 local SLOT_W, SLOT_GAP = 14, 2
@@ -49,8 +49,10 @@ local WEEK = 7 * 86400
 local DAY = 86400
 
 --- Die Reihenfolge der Plaetze im Farbstreifen: wie im Charakterfenster,
---- links oben nach rechts unten, die Waffen zuletzt.
-local SLOT_ORDER = { 1, 2, 3, 15, 5, 4, 19, 9, 10, 6, 7, 8, 11, 12, 13, 14, 16, 17, 18 }
+--- links oben nach rechts unten, die Waffen zuletzt. OHNE Hemd und
+--- Wappenrock: Sie zaehlen nicht zum Itemlevel, und mit ihnen waren es
+--- neunzehn Streifen fuer eine Zeile, die "17" verspricht (27.09.2026).
+local SLOT_ORDER = { 1, 2, 3, 15, 5, 9, 10, 6, 7, 8, 11, 12, 13, 14, 16, 17, 18 }
 
 -- ================================================================== Aufbau ----
 
@@ -89,11 +91,21 @@ local function kpi(parent)
     tile.value = Theme.Label(tile, "—", fonts.hero, Theme.color.goldBright)
     tile.value:SetPoint("TOPRIGHT", tile, "TOPRIGHT", -8, -8)
 
+    -- JEDE ZEILE HAT EIN LINKES ENDE. Ein rechts verankerter Text ohne
+    -- Breite waechst nach links ueber die Kachel hinaus — gemessen
+    -- 27.09.2026 mit Bild: "0 confirmed by the game" stand in der
+    -- Nachbarkachel. Was nicht passt, wird abgeschnitten, nicht umgebrochen.
     tile.label = Theme.Label(tile, "", fonts.small, Theme.color.textDim)
     tile.label:SetPoint("TOPRIGHT", tile.value, "BOTTOMRIGHT", 0, -3)
+    tile.label:SetWidth(KPI_W - 16)
+    tile.label:SetJustifyH("RIGHT")
+    tile.label:SetWordWrap(false)
 
     tile.trend = Theme.Label(tile, "", fonts.small, Theme.color.textFaint)
     tile.trend:SetPoint("TOPRIGHT", tile.label, "BOTTOMRIGHT", 0, -1)
+    tile.trend:SetWidth(KPI_W - 16)
+    tile.trend:SetJustifyH("RIGHT")
+    tile.trend:SetWordWrap(false)
 
     function tile:Set(value, label, trend, valueColor, trendColor)
         self.value:SetText(value ~= nil and tostring(value) or "—")
@@ -264,8 +276,10 @@ function Dashboard:BuildMine(content, fonts)
     self.ilvl:SetPoint("TOPRIGHT", content, "TOPRIGHT", -2, -2)
     self.ilvlLabel = Theme.Label(content, "", fonts.small, Theme.color.textDim)
     self.ilvlLabel:SetPoint("TOPRIGHT", self.ilvl, "BOTTOMRIGHT", 0, -1)
-    self.charName:SetPoint("RIGHT", self.ilvl, "LEFT", -8, 0)
-    self.charMeta:SetPoint("RIGHT", self.ilvl, "LEFT", -8, 0)
+    -- BEIDE ENDEN VOR DER BESCHRIFTUNG, nicht vor der Zahl: "ILVL · 10/17"
+    -- ist breiter als "19" und ragt weiter nach links (27.09.2026, Bild).
+    self.charName:SetPoint("RIGHT", self.ilvlLabel, "LEFT", -8, 0)
+    self.charMeta:SetPoint("RIGHT", self.ilvlLabel, "LEFT", -8, 0)
 
     -- Die 17 Plaetze als Streifen. Farbe = Qualitaet, leer = dunkel.
     self.slots = {}
