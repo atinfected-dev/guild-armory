@@ -76,6 +76,15 @@ local PIN_SIZE = 22
 local RAND_FARBE = { 1, 1, 1, 0.9 }
 local TICK = 0.5
 
+--- AB VIER WIRD GEBUENDELT (27.09.2026 auf Ansage: "wenn mehr als 3 in
+--- einem Umkreis sind"). Stehen so viele Nadeln uebereinander, ist keine
+--- mehr zu lesen — weder Wappen noch Name. Dann steht dort EINE Nadel mit
+--- der Zahl, und wer zeigt, sieht, wer alles dort ist.
+---
+--- Der Umkreis ist die Nadel selbst: Zwei Nadeln, deren Mitten naeher
+--- beieinander liegen als eine Nadel breit ist, ueberschneiden sich.
+local CLUSTER_MIN = 4
+
 -- ================================================================== Nadeln ---
 
 function MapPins:Pin(index)
@@ -157,8 +166,36 @@ function MapPins:Pin(index)
     pin.label:SetPoint("BOTTOM", pin, "TOP", 0, 1)
     pin.label:SetJustifyH("CENTER")
 
+    -- Die Zahl auf einer gebuendelten Nadel. Dunkel auf Gold, mit Umriss —
+    -- der Untergrund ist hier die Nadel selbst, nicht die Karte.
+    pin.count = pin:CreateFontString(nil, "OVERLAY")
+    pin.count:SetFontObject(Theme.Fonts().rowBold)
+    pin.count:SetPoint("CENTER", pin, "CENTER", 0, 0)
+    pin.count:SetTextColor(0.03, 0.05, 0.04)
+    pin.count:Hide()
+
     pin:SetScript("OnEnter", function(self)
-        if not self.entry or not _G.GameTooltip then return end
+        if not _G.GameTooltip then return end
+
+        -- EINE BUENDELUNG ZEIGT ALLE, DIE DORT STEHEN: Name in Klassenfarbe,
+        -- Stufe, Alter — sortiert nach Name, damit dieselbe Gruppe zweimal
+        -- gleich aussieht.
+        if self.cluster then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(string.format(L.MAP_CLUSTER, #self.cluster), 0.96, 0.90, 0.71)
+            local sortiert = {}
+            for _, entry in ipairs(self.cluster) do sortiert[#sortiert + 1] = entry end
+            table.sort(sortiert, function(a, b) return (a.name or "") < (b.name or "") end)
+            for _, entry in ipairs(sortiert) do
+                local r, g, b = Util.ClassColor(entry.class)
+                local rechts = entry.level and string.format(L.LEVEL_FMT, tostring(entry.level)) or ""
+                GameTooltip:AddDoubleLine(Util.ShortName(entry.name), rechts, r, g, b, 0.66, 0.61, 0.52)
+            end
+            GameTooltip:Show()
+            return
+        end
+
+        if not self.entry then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local r, g, b = Util.ClassColor(self.entry.class)
         -- DER VOLLE NAME, ohne Realm. An der Nadel steht nur der Vorname;
@@ -185,6 +222,52 @@ function MapPins:Pin(index)
 
     self.pins[index] = pin
     return pin
+end
+
+-- ================================================================ Buendeln ---
+
+--- Fasst Punkte zusammen, die einander ueberschneiden.
+---
+--- REIN, OHNE RAHMEN: Jeder Punkt traegt px/py in Bildschirmpixeln und
+--- seinen Eintrag. Heraus kommt eine Liste in Zeichenreihenfolge — eine
+--- Buendelung ({ cluster = true, members, px, py } mit der Mitte ihrer
+--- Mitglieder) fuer jede Gruppe ab `minimum`, und jeden anderen Punkt
+--- einzeln, wie er kam.
+---
+--- GIERIG UND DETERMINISTISCH: Ein Punkt geht zur ersten Gruppe, deren
+--- ERSTEM Punkt er naeher als `radius` ist. Das ist nicht die schoenste
+--- Buendelung, aber dieselbe bei jedem Zeichnen — und zweimal je Sekunde
+--- gezeichnet darf eine Gruppe nicht flackern, weil ihre Mitte wandert.
+function MapPins.Cluster(points, radius, minimum)
+    local gruppen = {}
+    for _, point in ipairs(points) do
+        local ziel
+        for _, gruppe in ipairs(gruppen) do
+            local dx, dy = point.px - gruppe.anker.px, point.py - gruppe.anker.py
+            if (dx * dx + dy * dy) < (radius * radius) then ziel = gruppe break end
+        end
+        if not ziel then
+            ziel = { anker = point, members = {} }
+            gruppen[#gruppen + 1] = ziel
+        end
+        ziel.members[#ziel.members + 1] = point
+    end
+
+    local out = {}
+    for _, gruppe in ipairs(gruppen) do
+        if #gruppe.members >= (minimum or 4) then
+            local sx, sy, entries = 0, 0, {}
+            for _, point in ipairs(gruppe.members) do
+                sx, sy = sx + point.px, sy + point.py
+                entries[#entries + 1] = point.entry
+            end
+            out[#out + 1] = { cluster = true, members = entries,
+                px = sx / #gruppe.members, py = sy / #gruppe.members }
+        else
+            for _, point in ipairs(gruppe.members) do out[#out + 1] = point end
+        end
+    end
+    return out
 end
 
 -- ================================================================ Zeichnen ---
@@ -246,7 +329,9 @@ function MapPins:Refresh()
         massstab = uiMass / karteMass
     end
 
-    local sichtbar = 0
+    -- ERST SAMMELN, DANN BUENDELN, DANN ZEICHNEN. Wer beim Sammeln schon
+    -- zeichnet, kann nicht wissen, ob an derselben Stelle noch drei kommen.
+    local punkte = {}
     for _, entry in ipairs(Positions:All()) do
       -- DIE EIGENE NADEL BLEIBT DRAUSSEN. Siehe Dateikopf: Blizzard zeichnet
       -- den Pfeil, und zwei Markierungen an derselben Stelle sind eine zu
@@ -260,10 +345,45 @@ function MapPins:Refresh()
             x, y = Compat.TranslateMapPosition(entry.mapID, entry.x, entry.y, mapID)
         end
 
+        -- DIE VERSCHIEBUNG WIRD DURCH DEN MASSSTAB GETEILT.
+        --
+        -- Ankerabstaende gelten im Massstab des Rahmens SELBST. Wer die
+        -- Nadel auf 0.7 stellt und weiter 300 als Abstand angibt, setzt
+        -- sie auf 210 — sie waere also zu weit oben links, und zwar
+        -- umso mehr, je weiter man hineinzoomt. Das faellt beim
+        -- Ausprobieren nicht auf, wenn man nicht zoomt. Und im selben
+        -- Massstab ist eine Nadel PIN_SIZE breit — der Umkreis der
+        -- Buendelung.
         if x then
-            sichtbar = sichtbar + 1
-            local pin = self:Pin(sichtbar)
+            punkte[#punkte + 1] = { entry = entry,
+                px = (x * breite) / massstab, py = (y * hoehe) / massstab }
+        end
+      end
+    end
+
+    local sichtbar = 0
+    for _, gruppe in ipairs(MapPins.Cluster(punkte, PIN_SIZE, CLUSTER_MIN)) do
+        sichtbar = sichtbar + 1
+        local pin = self:Pin(sichtbar)
+
+        if gruppe.cluster then
+            -- EINE NADEL FUER ALLE: goldene Flaeche, weisser Rand, die Zahl
+            -- darauf. Kein Wappen — es waere das einer Person, und hier
+            -- stehen vier oder mehr.
+            pin.entry = nil
+            pin.cluster = gruppe.members
+            pin.rand:Hide()
+            Theme.Paint(pin.fill, { 0.898, 0.800, 0.502, 1 })
+            for _, line in ipairs(pin.ring) do line:Show() end
+            pin.count:SetText(tostring(#gruppe.members))
+            pin.count:Show()
+            pin.label:SetText("")
+            pin.label:Hide()
+        else
+            local entry = gruppe.entry
             pin.entry = entry
+            pin.cluster = nil
+            pin.count:Hide()
 
             local r, g, b = Util.ClassColor(entry.class)
 
@@ -319,24 +439,15 @@ function MapPins:Refresh()
                 pin.label:Hide()
             end
 
-            -- ERST UMHAENGEN, DANN SETZEN. Ein Anker auf einen Rahmen,
-            -- der gleich ausgetauscht wird, ist einer zu viel.
-            pin:SetParent(canvas)
-            pin:SetScale(massstab)
-            pin:ClearAllPoints()
-
-            -- DIE VERSCHIEBUNG WIRD DURCH DEN MASSSTAB GETEILT.
-            --
-            -- Ankerabstaende gelten im Massstab des Rahmens SELBST. Wer die
-            -- Nadel auf 0.7 stellt und weiter 300 als Abstand angibt, setzt
-            -- sie auf 210 — sie waere also zu weit oben links, und zwar
-            -- umso mehr, je weiter man hineinzoomt. Das faellt beim
-            -- Ausprobieren nicht auf, wenn man nicht zoomt.
-            pin:SetPoint("CENTER", canvas, "TOPLEFT",
-                (x * breite) / massstab, -(y * hoehe) / massstab)
-            pin:Show()
         end
-      end
+
+        -- ERST UMHAENGEN, DANN SETZEN. Ein Anker auf einen Rahmen,
+        -- der gleich ausgetauscht wird, ist einer zu viel.
+        pin:SetParent(canvas)
+        pin:SetScale(massstab)
+        pin:ClearAllPoints()
+        pin:SetPoint("CENTER", canvas, "TOPLEFT", gruppe.px, -gruppe.py)
+        pin:Show()
     end
 
     for index = sichtbar + 1, #(self.pins or {}) do

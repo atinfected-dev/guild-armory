@@ -1048,6 +1048,7 @@ GA.Core.Locale:Register("deDE", {
     MAP_WHY_REJECTED   = "Verworfen: Karte %d, Feld %d",
     MAP_NO_CANVAS      = "Keine Kartenflaeche gefunden — die Gildennadeln fallen auf diesem Client aus. /ga map why nennt, was versucht wurde.",
     MAP_STATS          = "Karte: %d Positionen bekannt, auf %d Karten.",
+    MAP_CLUSTER        = "%d Gildenmitglieder hier",
     MAP_SHARING        = "Position teilen: %s",
     MAP_NOTICE         = "Die Gildenkarte ist an: Solange du online bist, meldet dieser Client der Gilde, auf welcher Karte du bist und wo. Abschalten in den Einstellungen oder mit /ga map off — aus heisst, er sendet nichts und empfaengt nichts.",
 

@@ -1060,6 +1060,7 @@ GA.Core.Locale:Register("enUS", {
     MAP_WHY_REJECTED   = "Rejected: map %d, field %d",
     MAP_NO_CANVAS      = "No world map surface found — guild pins are off on this client. /ga map why says what was tried.",
     MAP_STATS          = "Map: %d positions known, on %d maps.",
+    MAP_CLUSTER        = "%d guild members here",
     MAP_SHARING        = "Sharing position: %s",
     MAP_NOTICE         = "The guild map is on: while you are online, this client tells the guild which map you are on and where. Switch it off in the settings or with /ga map off — off means it neither sends nor receives.",
 

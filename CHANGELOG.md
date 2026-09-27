@@ -4,6 +4,19 @@
 
 The characters page as a family tree, the achievements as a trophy hall.
 
+### Map pins bundle up
+
+Four or more guild members standing on top of each other were four crests
+on top of each other, none readable. Now, when pins would overlap — centres
+closer than a pin is wide — and there are more than three of them, one gold
+pin with the count stands there instead; hovering it lists everybody, name
+in class colour and level, sorted by name. Three or fewer stay separate,
+as asked.
+
+The bundling is deterministic: a pin joins the first group whose first pin
+is within reach, so the same crowd bundles the same way on every redraw —
+twice a second, a group whose centre wandered would flicker.
+
 ### Characters: the family tree
 
 Two directions were drawn; the guild picked the tree. The page is a grid of
