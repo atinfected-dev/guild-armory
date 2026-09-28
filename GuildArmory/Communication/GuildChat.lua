@@ -84,18 +84,50 @@ local function dropShadowed(lines)
     local removed = 0
     for index = #lines, 1, -1 do
         local line = lines[index]
-        if not line.id then
-            for _, other in ipairs(lines) do
-                if other ~= line and other.id and other.channel == line.channel
-                    and sameLine(other, line.who or "", line.text, line.ts) then
-                    table.remove(lines, index)
-                    removed = removed + 1
-                    break
+        local doppelt = false
+        for j, other in ipairs(lines) do
+            if other ~= line and other.channel == line.channel then
+                if line.id and other.id and line.id == other.id then
+                    -- DIESELBE KENNUNG ZWEIMAL (gesehen 28.09.2026): die
+                    -- mitgehoerte Zeile bekam beim Abgleich die Kennung
+                    -- ihres schon eingefuegten Zwillings. Es bleibt die
+                    -- aus dem Verlauf; sind beide gleich, die vordere.
+                    doppelt = (other.history and not line.history) or (not line.history == not other.history and j < index)
+                elseif not line.id and other.id and sameLine(other, line.who or "", line.text, line.ts) then
+                    doppelt = true
                 end
+                if doppelt then break end
             end
+        end
+        if doppelt then
+            table.remove(lines, index)
+            removed = removed + 1
         end
     end
     return removed
+end
+
+--- Doppelte Paare mit allen Feldern — fuer /ga chatdupes, wenn die Augen
+--- zwei gleiche Zeilen sehen und der Vergleich sie nicht. Zeigt Laengen
+--- in Bytes, denn ein unsichtbares Zeichen ist der uebliche Grund.
+function GuildChat:Duplicates()
+    local lines = store() or {}
+    local out = {}
+    for i = 1, #lines do
+        for j = i + 1, #lines do
+            local a, b = lines[i], lines[j]
+            if a.channel == b.channel and a.text == b.text
+                and math.abs((a.ts or 0) - (b.ts or 0)) <= 600 then
+                local function describe(line)
+                    return string.format("who=%q(%d) ts=%s id=%s hist=%s",
+                        tostring(line.who), #tostring(line.who or ""), tostring(line.ts),
+                        tostring(line.id), tostring(line.history))
+                end
+                out[#out + 1] = string.format("%s | A %s | B %s", tostring(a.text), describe(a), describe(b))
+            end
+        end
+    end
+    return out
 end
 
 function GuildChat:MergeHistory(channel, entries)

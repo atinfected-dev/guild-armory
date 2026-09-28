@@ -1019,6 +1019,16 @@ SlashCmdList["GUILDARMORY"] = function(input)
         Debug:Info(L.SLASH_COMBATLOG,
             GA.Core.Config:Get("autoCombatLog") and L.SLASH_ON or L.SLASH_OFF,
             running == nil and L.UNKNOWN or (running and L.SLASH_ON or L.SLASH_OFF))
+    elseif command == "chatdupes" then
+        -- ZWEI GLEICHE ZEILEN IM GILDENCHAT, die der Abgleich nicht als eine
+        -- sieht: hier stehen beide mit allen Feldern, Bytezahlen inklusive.
+        local GuildChat = GA.Modules.GuildChat
+        local pairs_ = GuildChat and GuildChat:Duplicates() or {}
+        if #pairs_ == 0 then
+            Debug:Info(L.CHATDUPES_NONE)
+        else
+            GA.UI.Widgets.CopyDialog(L.CHATDUPES_TITLE, table.concat(pairs_, "\n"))
+        end
     elseif command == "probe" then
         -- WAS GIBT DIESER CLIENT FUER DIE OFFENEN ERFOLGE HER?
         --

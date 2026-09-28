@@ -2931,6 +2931,28 @@ function Compat.SetGuildOfficerNote(index, text, guid)
     return setNote(index, text, guid, "GuildRosterSetOfficerNote", false)
 end
 
+--- Blizzards eigenes Notizfenster ("Set Player Note:") — das StaticPopup,
+--- das sein Gildenfenster oeffnet. Der Aufruf darin ist Blizzards Code;
+--- die GUID geben wir mit, und ob das Spiel den Klick auf "Akzeptieren"
+--- dann noch als unseren zaehlt, sagt nur die Messung am Ergebnis
+--- (Roster: VerifyNote). Kein Versprechen — ein Versuch, der sichtbar
+--- ausgeht.
+--- @return string|nil weg, string|nil grund
+function Compat.OpenBlizzardNotePopup(kind, guid, current)
+    local dialogs = _G.StaticPopupDialogs
+    if not isTable(dialogs) or not isFunction(_G.StaticPopup_Show) then return nil, "nopopup" end
+    local key = kind == "OFFICER" and "SET_GUILDOFFICERNOTE" or "SET_GUILDPLAYERNOTE"
+    if not isTable(dialogs[key]) then return nil, "nodialog:" .. key end
+    if not guid then return nil, "noguid" end
+    local ok, dialog = pcall(StaticPopup_Show, key, nil, nil, guid)
+    if not ok or not isTable(dialog) then return nil, "noshow" end
+    if isTable(dialog.editBox) and isFunction(dialog.editBox.SetText) then
+        pcall(dialog.editBox.SetText, dialog.editBox, tostring(current or ""))
+        pcall(dialog.editBox.HighlightText, dialog.editBox)
+    end
+    return key, nil, dialog
+end
+
 --- Welcher Notizweg da ist — fuer /ga probe.
 function Compat.GuildNotePath()
     if isFunction(_G.GuildRosterSetPublicNote) then return "GuildRosterSetPublicNote" end

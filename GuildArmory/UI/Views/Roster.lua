@@ -417,15 +417,27 @@ function View:BuildDetail(parent, fonts)
     d.notesOpen:SetPoint("TOP", d.notesHead, "TOP", 0, 2)
     d.notesOpen:Hide()
 
-    local function feld(y, label, onSave)
+    -- Je Feld ein kleiner Knopf "Bearbeiten …", der Blizzards eigenes
+    -- Notizfenster oeffnet — sichtbar erst, wenn das Spiel das direkte
+    -- Schreiben geblockt hat. Ob der Weg durchs Popup durchkommt, misst
+    -- VerifyNote am naechsten Roster, wie beim direkten Weg.
+    local function feld(y, label, onSave, kind)
         local caption = Theme.Label(d, label, fonts.small, Theme.color.textDim)
         caption:SetPoint("TOPLEFT", d, "TOPLEFT", 12, y)
         local box = editBox(d, DETAIL_W - 30, onSave)
         box:SetPoint("TOPLEFT", caption, "BOTTOMLEFT", 6, -2)
-        return box, caption
+        local edit
+        if kind then
+            edit = Widgets.FlatButton(d, L.ROSTER_NOTE_EDIT, function() self:OpenNotePopup(kind) end)
+            edit:SetHeight(14)
+            edit:SetPoint("RIGHT", d, "RIGHT", -10, 0)
+            edit:SetPoint("TOP", caption, "TOP", 0, 1)
+            edit:Hide()
+        end
+        return box, caption, edit
     end
-    d.publicBox, d.publicCaption = feld(-144, L.ROSTER_NOTE_PUBLIC, function(text) self:SaveNote("public", text) end)
-    d.officerBox, d.officerCaption = feld(-184, L.ROSTER_NOTE_OFFICER, function(text) self:SaveNote("officer", text) end)
+    d.publicBox, d.publicCaption, d.publicEdit = feld(-144, L.ROSTER_NOTE_PUBLIC, function(text) self:SaveNote("public", text) end, "public")
+    d.officerBox, d.officerCaption, d.officerEdit = feld(-184, L.ROSTER_NOTE_OFFICER, function(text) self:SaveNote("officer", text) end, "officer")
     d.ownBox, d.ownCaption = feld(-224, L.ROSTER_NOTE_OWN, function(text) self:SaveNote("own", text) end)
 
     -- Verlauf: die letzten drei Eintraege der Rosterhistorie.
@@ -597,6 +609,37 @@ function View:SaveNote(kind, text)
     Compat.After(15, function() View:VerifyNote(true) end)
 end
 
+--- Blizzards Notizfenster fuer das gewaehlte Mitglied. Was der Spieler
+--- darin bestaetigt, liest ein Haken am Schliessen des Fensters und gibt
+--- es VerifyNote zum Nachmessen — steht die Notiz danach im Roster, ist
+--- der Weg offen, und die Sperre faellt.
+function View:OpenNotePopup(kind)
+    local member = self:Selected()
+    if not member then return end
+    local current = kind == "public" and member.publicNote or member.officerNote
+    local key, grund, dialog = Compat.OpenBlizzardNotePopup(kind == "officer" and "OFFICER" or "GUILD", member.guid, current)
+    if not key then
+        GA.Core.Debug:Info(L.ROSTER_NOTE_POPUP_NONE, tostring(grund))
+        return
+    end
+    if dialog and not dialog.guildArmoryHooked and type(dialog.HookScript) == "function" then
+        dialog.guildArmoryHooked = true
+        dialog:HookScript("OnHide", function(frame)
+            local pending = View.popupNote
+            if not pending or frame.which ~= pending.key then return end
+            View.popupNote = nil
+            local text = frame.editBox and frame.editBox:GetText() or nil
+            if type(text) ~= "string" then return end
+            text = trim(text)
+            if text == trim(pending.current) then return end
+            View.noteCheck = { name = pending.name, kind = pending.kind, text = text, weg = "StaticPopup", ts = GA.Core.Util.Now() }
+            Compat.RequestGuildRoster()
+            Compat.After(15, function() View:VerifyNote(true) end)
+        end)
+    end
+    self.popupNote = { key = key, kind = kind, name = member.name, current = current or "" }
+end
+
 --- Vergleicht die zuletzt abgeschickte Notiz mit dem, was das Roster
 --- traegt. Steht sie: Sperre weg, falls eine war. Steht sie nicht und die
 --- Frist ist um: gesperrt, mit dem Weg als Grund.
@@ -619,6 +662,12 @@ function View:VerifyNote(final)
     end
     if final then
         self.noteCheck = nil
+        if check.weg == "StaticPopup" then
+            -- Der Weg durchs Popup war der letzte Versuch; er bleibt
+            -- sichtbar, aber die Meldung sagt, dass auch er nicht trug.
+            GA.Core.Debug:Info(L.ROSTER_NOTE_POPUP_FAILED)
+            return
+        end
         self:MarkNoteBlocked(check.weg .. " " .. L.ROSTER_NOTE_NOEFFECT)
     end
 end
@@ -780,6 +829,8 @@ function View:RefreshDetail(member)
     if not member then
         for _, w in ipairs(widgets) do w:Hide() end
         d.notesOpen:Hide()
+        d.publicEdit:Hide()
+        d.officerEdit:Hide()
         d.none:Show()
         return
     end
@@ -838,6 +889,8 @@ function View:RefreshDetail(member)
     -- gemessen 28.09.2026), bleiben die Felder lesbar und sagen es.
     local noteBlocked = GA.Core.Config:Get("guildNoteBlocked")
     d.notesOpen:SetShown(noteBlocked and true or false)
+    d.publicEdit:SetShown(noteBlocked and Compat.CanEditPublicNote() == true)
+    d.officerEdit:SetShown(noteBlocked and Compat.CanEditOfficerNote() == true and Compat.CanViewOfficerNote() ~= false)
     d.publicBox:Load(member.publicNote or "")
     d.publicBox:SetEnabled(Compat.CanEditPublicNote() == true and not noteBlocked)
     d.publicCaption:SetText(noteBlocked and (L.ROSTER_NOTE_PUBLIC .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_PUBLIC)
