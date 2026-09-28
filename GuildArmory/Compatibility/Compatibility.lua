@@ -3018,68 +3018,13 @@ function Compat.FindGuildMemberIndex(name)
     return nil
 end
 
---- Die GUID eines Rosterplatzes — der neuere Notizweg will sie statt des
---- Platzes. GetGuildRosterInfo gibt sie als 17. Wert zurueck, wo es sie gibt.
-local function rosterGuid(index)
-    if not index or not has.guildRoster then return nil end
-    local ok, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, guid = pcall(GetGuildRosterInfo, index)
-    if ok and type(guid) == "string" and guid ~= "" then return guid end
-    return nil
-end
-
---- Notizen setzen — ZWEI WEGE. GEMESSEN 28.09.2026: GuildRosterSetPublicNote
---- fehlt auf diesem Client ("noapi"); die neuere Linie hat stattdessen
---- C_GuildInfo.SetNote(guid, text, isPublic). Der alte Weg zuerst, dann der
---- neue mit der GUID aus dem Roster (oder der mitgegebenen).
----
---- UND GEMESSEN DANACH, 28.09.2026: C_GuildInfo.SetNote ist auf diesem
---- Client GESCHUETZT ("blocked by Blizzard") — der Aufruf geht durch, und
---- das Spiel wirft ihn als ADDON_ACTION_BLOCKED weg. Ein Makro dafuer gibt
---- es nicht. Wer das Ereignis sieht (Roster hoert darauf), merkt es sich:
---- Die Felder werden dann nur lesbar, und die Notiz bleibt Blizzards Fenster.
---- @return boolean ok, string weg
---- @return boolean ok, string weg, string|nil fehler  (der Text, den pcall fing)
-local function setNote(index, text, guid, oldName, isPublic)
-    text = tostring(text or "")
-    if index and isFunction(_G[oldName]) then
-        local ok, err = pcall(_G[oldName], index, text)
-        return ok, oldName, (not ok) and tostring(err) or nil
-    end
-    local api = _G.C_GuildInfo
-    if isTable(api) and isFunction(api.SetNote) then
-        guid = guid or rosterGuid(index)
-        if not guid then return false, "noguid" end
-        local ok, err = pcall(api.SetNote, guid, text, isPublic)
-        return ok, "C_GuildInfo.SetNote", (not ok) and tostring(err) or nil
-    end
-    return false, "noapi"
-end
-
-function Compat.SetGuildPublicNote(index, text, guid)
-    return setNote(index, text, guid, "GuildRosterSetPublicNote", true)
-end
-
-function Compat.SetGuildOfficerNote(index, text, guid)
-    return setNote(index, text, guid, "GuildRosterSetOfficerNote", false)
-end
-
--- BLIZZARDS NOTIZ-POPUP IST KEIN WEG. GEMESSEN 28.09.2026, dreistufig:
--- (1) StaticPopup_Show("SET_GUILDPLAYERNOTE") mit der nackten GUID warf
--- beim Anzeigen — die Definition dieses Clients liest ein Feld aus data;
--- (2) mit einer Tabelle als data ging das Fenster auf und nahm den Text;
--- (3) der Klick auf "Akzeptieren" darin wurde vom Spiel geblockt. Der
--- Grund ist die GUID: Sie kommt aus Addon-Code, und was Blizzards Code
--- daraus liest, macht seinen Aufruf zu unserem. Ein Popup, das von uns
--- geoeffnet wird, ist also so wenig ein Weg wie der direkte Aufruf. Was
--- bleibt, ist Blizzards Gildenfenster — OpenBlizzardGuildFrame.
-
---- Welcher Notizweg da ist — fuer /ga probe.
-function Compat.GuildNotePath()
-    if isFunction(_G.GuildRosterSetPublicNote) then return "GuildRosterSetPublicNote" end
-    local api = _G.C_GuildInfo
-    if isTable(api) and isFunction(api.SetNote) then return "C_GuildInfo.SetNote" end
-    return nil
-end
+-- GILDENNOTIZEN SCHREIBT DIESES ADDON NICHT. GEMESSEN 28.09.2026, drei
+-- Wege, alle vom Spiel geblockt: GuildRosterSetPublicNote fehlt;
+-- C_GuildInfo.SetNote geht durch und wird als ADDON_ACTION_BLOCKED
+-- verworfen; Blizzards eigenes Popup (SET_GUILDPLAYERNOTE) blockt beim
+-- Klick auf "Akzeptieren", weil die GUID aus Addon-Code kommt. Was
+-- bleibt, ist Blizzards Gildenfenster — und fuer das Roster eine eigene,
+-- ueber die Gilde verteilte Notiz (Communication/GuildNotes).
 
 --- Befoerdern, degradieren, entfernen — GEMESSEN 28.09.2026: GESCHUETZT.
 --- Aus Addon-Code geblockt ("blocked by Blizzard"), auch aus einem Klick,

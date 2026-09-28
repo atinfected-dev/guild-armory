@@ -22,9 +22,11 @@ nickname.
 To the right the selected member: class, level, online and zone, joined
 when (from the roster history) and item level; the rank between ▲ and ▼
 with the neighbouring ranks' names, enabled only when the game says your
-rank may; **three notes** — public, officers, and one that stays on this
-client, because a note that looks like the others but never leaves your
-machine needs to say so; the last three roster history entries; whisper,
+rank may; **one note per member that everyone with Guild Armory sees**,
+carried by the addon itself over the guild channel, the newest wins, and
+the line below says who wrote it and when — the game's own public and
+officer notes are not here, see below; the last three roster history
+entries; whisper,
 invite, equipment. No "remove from the guild" here: that stays the game's
 window — a button that does it from a directory is pressed too easily.
 
@@ -62,12 +64,16 @@ release) the client's own setting expects. The rank sits between the
 arrows as a chip in its colour; the line below names the neighbouring
 ranks; the tooltip says where each arrow leads.
 
-**Notes: what the game blocks, the roster says.** Writing public and
-officer notes is protected on this client — the game throws the call away
-after the fact. The first time that happens the roster remembers it, the
-two fields go read-only and their captions say the game's window edits
-them. `/ga probe` (guildManage) shows the note path, whether a block was
-seen, the frame names, the key and its override.
+**Notes: the addon carries its own.** Writing the game's public and
+officer notes is protected on this client — measured three ways on
+28.09.2026 (the roster function is missing, C_GuildInfo.SetNote is thrown
+away after the fact, and even the game's own "Set Player Note" dialog
+blocks on Accept when an addon opened it). So the roster shows neither;
+it has one note per member that Guild Armory distributes to every client
+in the guild (GNOTE / GNOTEQ, last writer wins, deletions travel too).
+Who may write it: whoever the game would let write the public note; what
+the client cannot measure is not a no. `/ga probe` (guildManage) shows
+the frame names, the key and its override.
 
 **The J key**, off by default, in the settings: the key the game binds to
 its guild window is overridden while the setting is on, so the game's

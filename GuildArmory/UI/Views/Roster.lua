@@ -13,10 +13,12 @@
     (Compat gibt nil zurueck), zeigt die Seite als "nicht messbar", nicht
     als "nein" — die Sonde "guildManage" sagt, was auf dieser Linie da ist.
 
-    DREI NOTIZEN, und der Unterschied steht dran: die oeffentliche und die
-    Offiziersnotiz gehen durch die Gilde (Blizzards Felder), die dritte
-    bleibt auf diesem Client (Armory/Notes.lua). Eine Oberflaeche, die das
-    gleich aussehen laesst, schickt irgendwann etwas Privates an alle.
+    EINE NOTIZ, und sie geht durch die Gilde — ueber das Addon
+    (Communication/GuildNotes), nicht ueber Blizzards Felder: Die sind
+    aus einem Addon auf diesem Client nicht zu schreiben (gemessen
+    28.09.2026, drei Wege, alle geblockt) und stehen hier darum nicht.
+    Die Beschriftung sagt, dass alle sie sehen; der private Zettel
+    (Armory/Notes.lua) bleibt im Charakterfenster, wo er hingehoert.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -66,13 +68,6 @@ end
 --- Ein Eingabefeld, das beim Enter speichert und bei Escape verwirft.
 local function trim(text)
     return (tostring(text or "")):match("^%s*(.-)%s*$")
-end
-
---- Die Fehlertexte, mit denen das Spiel einen geschuetzten Aufruf abweist.
-local function looksBlocked(err)
-    local s = string.lower(tostring(err or ""))
-    return s:find("blocked", 1, true) or s:find("protected", 1, true)
-        or s:find("forbidden", 1, true) or s:find("secure", 1, true) or false
 end
 
 local function editBox(parent, width, onSave)
@@ -304,7 +299,7 @@ function View:UpdateRow(row, member)
     for _, line in ipairs(row.rankLines) do Theme.Paint(line, farbe) end
     row.rank:SetWidth(math.min(84, row.rankText:GetStringWidth() + 12))
 
-    row.note:SetText(member.publicNote or "")
+    row.note:SetText(GA.Modules.GuildNotes:Get(GA.Modules.GuildNotes.Key(member.guid, member.name)) or "")
 
     -- Zuletzt gesehen: online jetzt, sonst das Roster, sonst der Strich.
     if member.online then
@@ -402,37 +397,29 @@ function View:BuildDetail(parent, fonts)
     d.rankHint:SetJustifyH("LEFT")
     d.rankHint:SetWordWrap(false)
 
-    -- Notizen: drei Felder, drei Reichweiten.
+    -- EINE NOTIZ, die alle mit Guild Armory sehen (Communication/GuildNotes).
+    -- Blizzards oeffentliche und Offiziersnotiz stehen hier nicht mehr:
+    -- Aus einem Addon sind sie auf diesem Client nicht zu schreiben
+    -- (gemessen 28.09.2026, drei Wege, alle geblockt), und eine Notiz,
+    -- die nur Blizzards Fenster aendern kann, gehoert in Blizzards Fenster.
     d.notesHead = Theme.Label(d, string.upper(L.ROSTER_NOTES), fonts.heading, Theme.color.goldDim)
     d.notesHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -128)
-    -- Sperrt das Spiel die Notizen (gemessen 28.09.2026), fuehrt ein Knopf
-    -- neben der Ueberschrift dorthin, wo sie sich schreiben lassen.
-    d.notesOpen = Widgets.FlatButton(d, L.ROSTER_NOTE_OPEN, function()
-        View.openingBlizzard = true
-        Compat.After(1, function() View.openingBlizzard = nil end)
-        if not Compat.OpenBlizzardGuildFrame() then GA.Core.Debug:Info("%s", L.ROSTER_BLIZZARD_NONE) end
-    end)
-    d.notesOpen:SetHeight(16)
-    d.notesOpen:SetPoint("RIGHT", d, "RIGHT", -10, 0)
-    d.notesOpen:SetPoint("TOP", d.notesHead, "TOP", 0, 2)
-    d.notesOpen:Hide()
-
-    -- KEIN "Bearbeiten …" ueber Blizzards Popup: gemessen 28.09.2026 wird
-    -- der Klick auf "Akzeptieren" darin ebenso geblockt (Compat, Notiz).
-    local function feld(y, label, onSave)
-        local caption = Theme.Label(d, label, fonts.small, Theme.color.textDim)
-        caption:SetPoint("TOPLEFT", d, "TOPLEFT", 12, y)
-        local box = editBox(d, DETAIL_W - 30, onSave)
-        box:SetPoint("TOPLEFT", caption, "BOTTOMLEFT", 6, -2)
-        return box, caption
-    end
-    d.publicBox, d.publicCaption = feld(-144, L.ROSTER_NOTE_PUBLIC, function(text) self:SaveNote("public", text) end)
-    d.officerBox, d.officerCaption = feld(-184, L.ROSTER_NOTE_OFFICER, function(text) self:SaveNote("officer", text) end)
-    d.ownBox, d.ownCaption = feld(-224, L.ROSTER_NOTE_OWN, function(text) self:SaveNote("own", text) end)
+    d.noteCaption = Theme.Label(d, L.ROSTER_NOTE_SHARED, fonts.small, Theme.color.textDim)
+    d.noteCaption:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -144)
+    d.noteCaption:SetPoint("RIGHT", d, "RIGHT", -10, 0)
+    d.noteCaption:SetJustifyH("LEFT")
+    d.noteCaption:SetWordWrap(false)
+    d.noteBox = editBox(d, DETAIL_W - 30, function(text) self:SaveNote(text) end)
+    d.noteBox:SetPoint("TOPLEFT", d.noteCaption, "BOTTOMLEFT", 6, -2)
+    d.noteMeta = Theme.Label(d, "", fonts.small, Theme.color.textFaint)
+    d.noteMeta:SetPoint("TOPLEFT", d.noteBox, "BOTTOMLEFT", 0, -3)
+    d.noteMeta:SetPoint("RIGHT", d, "RIGHT", -10, 0)
+    d.noteMeta:SetJustifyH("LEFT")
+    d.noteMeta:SetWordWrap(false)
 
     -- Verlauf: die letzten drei Eintraege der Rosterhistorie.
     d.historyHead = Theme.Label(d, string.upper(L.ROSTER_HISTORY), fonts.heading, Theme.color.goldDim)
-    d.historyHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -270)
+    d.historyHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -204)
     d.history = {}
     for index = 1, 3 do
         local line = Theme.Label(d, "", fonts.small, Theme.color.textDim)
@@ -572,68 +559,14 @@ end
 --- RefreshDetail. Hier gibt es nichts zu tun, und das ist der Punkt —
 --- aus Addon-Code wird der Aufruf geblockt (gemessen 28.09.2026).
 
-function View:SaveNote(kind, text)
+function View:SaveNote(text)
     local member = self:Selected()
     if not member then return end
-    if kind == "own" then
-        if member.guid then GA.Modules.Notes:SetNote(member.guid, text) end
-        return
+    local ok, grund = GA.Modules.GuildNotes:Set(member.guid, member.name, text)
+    if not ok then
+        GA.Core.Debug:Info("%s", grund == "noright" and L.ROSTER_NOTE_NORIGHT or L.ROSTER_NOTE_NOKEY)
     end
-    local index = Compat.FindGuildMemberIndex(member.name)
-    local ok, weg, err
-    if kind == "public" then ok, weg, err = Compat.SetGuildPublicNote(index, text, member.guid)
-    else ok, weg, err = Compat.SetGuildOfficerNote(index, text, member.guid) end
-    -- Blockt das Spiel den Aufruf als Lua-Fehler, faengt pcall den Text.
-    if not ok and err and looksBlocked(err) then
-        self:MarkNoteBlocked(weg .. ": " .. err)
-        return
-    end
-    GA.Core.Debug:Info(ok and L.ROSTER_NOTE_SAVED or L.ROSTER_NOTE_FAILED, member.name, tostring(err or weg))
-    if not ok then return end
-    -- AM ERGEBNIS GEMESSEN: Der Aufruf ging durch, aber ob die Notiz steht,
-    -- sagt erst das naechste Roster. Kommt es und traegt sie nicht, hat das
-    -- Spiel sie verworfen — dann sind die Felder ab jetzt nur lesbar. Das
-    -- Roster laesst sich nicht oefter als alle zehn Sekunden anfordern,
-    -- darum die lange Frist, bevor wir ohne Roster urteilen.
-    self.noteCheck = { name = member.name, kind = kind, text = trim(text), weg = weg, ts = GA.Core.Util.Now() }
-    Compat.RequestGuildRoster()
-    Compat.After(15, function() View:VerifyNote(true) end)
-end
-
---- Vergleicht die zuletzt abgeschickte Notiz mit dem, was das Roster
---- traegt. Steht sie: Sperre weg, falls eine war. Steht sie nicht und die
---- Frist ist um: gesperrt, mit dem Weg als Grund.
-function View:VerifyNote(final)
-    local check = self.noteCheck
-    if not check then return end
-    local member
-    for _, m in ipairs(GA.Modules.Guild:List()) do
-        if m.name == check.name then member = m break end
-    end
-    if not member then self.noteCheck = nil return end
-    local ist = trim(check.kind == "public" and member.publicNote or member.officerNote)
-    if ist == check.text then
-        self.noteCheck = nil
-        if GA.Core.Config:Get("guildNoteBlocked") then
-            GA.Core.Config:Set("guildNoteBlocked", false)
-            if self.frame and self.frame:IsVisible() then self:Refresh() end
-        end
-        return
-    end
-    if final then
-        self.noteCheck = nil
-        self:MarkNoteBlocked(check.weg .. " " .. L.ROSTER_NOTE_NOEFFECT)
-    end
-end
-
---- Merkt sich, dass das Spiel Notizen aus dem Addon verwirft — dauerhaft,
---- bis eine spaetere Notiz doch im Roster steht.
-function View:MarkNoteBlocked(reason)
-    if not GA.Core.Config:Get("guildNoteBlocked") then
-        GA.Core.Config:Set("guildNoteBlocked", reason)
-        GA.Core.Debug:Info(L.ROSTER_NOTE_BLOCKED, reason)
-    end
-    if self.frame and self.frame:IsVisible() then self:Refresh() end
+    self:Refresh()
 end
 
 -- ============================================================= Einladen -----
@@ -763,10 +696,11 @@ function View:Filtered(list)
         local keep = true
         if self.filter == "ONLINE" then keep = member.online == true
         elseif self.filter == "OFFICERS" then keep = (member.rankIndex or 99) <= 1
-        elseif self.filter == "NONOTE" then keep = not member.publicNote or member.publicNote == "" end
+        elseif self.filter == "NONOTE" then keep = GA.Modules.GuildNotes:Get(GA.Modules.GuildNotes.Key(member.guid, member.name)) == nil end
         if keep and search ~= "" then
             local nick = member.guid and GA.Modules.Notes:GetNickname(member.guid) or ""
-            local heu = string.lower(table.concat({ member.name or "", member.publicNote or "", member.zone or "", nick }, " "))
+            local note = GA.Modules.GuildNotes:Get(GA.Modules.GuildNotes.Key(member.guid, member.name)) or ""
+            local heu = string.lower(table.concat({ member.name or "", note, member.zone or "", nick }, " "))
             keep = string.find(heu, search, 1, true) ~= nil
         end
         if keep then out[#out + 1] = member end
@@ -777,12 +711,11 @@ end
 function View:RefreshDetail(member)
     local d = self.detail
     local widgets = { d.crest, d.name, d.meta, d.since, d.rankHead, d.promote, d.rankNow, d.demote, d.rankHint,
-        d.notesHead, d.publicBox, d.publicCaption, d.officerBox, d.officerCaption, d.ownBox, d.ownCaption,
+        d.notesHead, d.noteCaption, d.noteBox, d.noteMeta,
         d.historyHead, d.whisper, d.invite, d.gear }
     for _, line in ipairs(d.history) do widgets[#widgets + 1] = line end
     if not member then
         for _, w in ipairs(widgets) do w:Hide() end
-        d.notesOpen:Hide()
         d.none:Show()
         return
     end
@@ -837,21 +770,13 @@ function View:RefreshDetail(member)
         or (darfRunter == false and L.ROSTER_NO_RIGHT or (darfRunter == nil and L.ROSTER_UNMEASURED or L.ROSTER_BOTTOM)))
 
     -- Notizen: laden, ohne dass das Laden speichert.
-    -- Hat das Spiel das Schreiben einmal geblockt (ADDON_ACTION_BLOCKED,
-    -- gemessen 28.09.2026), bleiben die Felder lesbar und sagen es.
-    local noteBlocked = GA.Core.Config:Get("guildNoteBlocked")
-    d.notesOpen:SetShown(noteBlocked and true or false)
-    d.publicBox:Load(member.publicNote or "")
-    d.publicBox:SetEnabled(Compat.CanEditPublicNote() == true and not noteBlocked)
-    d.publicCaption:SetText(noteBlocked and (L.ROSTER_NOTE_PUBLIC .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_PUBLIC)
-    local officer = Compat.CanViewOfficerNote()
-    d.officerBox:Load(member.officerNote or "")
-    d.officerBox:SetEnabled(Compat.CanEditOfficerNote() == true and not noteBlocked)
-    d.officerCaption:SetText(noteBlocked and (L.ROSTER_NOTE_OFFICER .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_OFFICER)
-    d.officerBox:SetShown(officer ~= false)
-    d.officerCaption:SetShown(officer ~= false)
-    d.ownBox:Load(member.guid and GA.Modules.Notes:GetNote(member.guid) or "")
-    d.ownBox:SetEnabled(member.guid ~= nil)
+    -- Die geteilte Notiz: Text, und wer sie wann schrieb.
+    local GuildNotes = GA.Modules.GuildNotes
+    local text, entry = GuildNotes:Get(GuildNotes.Key(member.guid, member.name))
+    d.noteBox:Load(text or "")
+    d.noteBox:SetEnabled(GuildNotes:CanEdit())
+    d.noteCaption:SetText(GuildNotes:CanEdit() and L.ROSTER_NOTE_SHARED or (L.ROSTER_NOTE_SHARED .. "  |cff6f6753" .. L.ROSTER_NOTE_NORIGHT .. "|r"))
+    d.noteMeta:SetText(entry and entry.by and entry.ts and string.format(L.ROSTER_NOTE_BY, entry.by, Util.TimeAgo(entry.ts)) or "")
 
     local history = GA.Modules.GuildHistory:List({ name = member.name })
     for i, line in ipairs(d.history) do
@@ -1038,21 +963,11 @@ GA.Core.Callbacks:On("ADDON_READY", function()
         if View.keyPending then View:ApplyGuildKey() end
     end, "RosterView")
 
-    -- Notizen: Blockt das Spiel das Schreiben, sagt es das hier — nicht
-    -- als Fehler im Chat, sondern als Messwert, der bleibt.
-    for _, event in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do
-        GA.Core.Events:Register(event, function(_, addon, func)
-            if addon ~= "GuildArmory" or type(func) ~= "string" then return end
-            if func:find("SetNote", 1, true) or func:find("Note", 1, true) and func:find("GuildRoster", 1, true) then
-                View.noteCheck = nil
-                View:MarkNoteBlocked(func)
-            end
-        end, "RosterView")
-    end
-    -- Das naechste Roster nach einer Notiz sagt, ob sie steht.
-    GA.Core.Events:Register("GUILD_ROSTER_UPDATE", function()
-        if View.noteCheck then Compat.After(0.5, function() View:VerifyNote(false) end) end
-    end, "RosterView")
+end, "RosterView")
+
+-- Eine Notiz kam aus der Gilde: Liste und Detail zeigen sie.
+GA.Core.Callbacks:On("GUILD_NOTES", function()
+    if View.frame and View.frame:IsVisible() then View:Refresh() end
 end, "RosterView")
 
 GA.Core.Callbacks:On("CONFIG_CHANGED", function(key)

@@ -76,6 +76,7 @@ Communication\Sync.lua
 Communication\VersionCheck.lua
 Communication\Announce.lua
 Communication\GuildChat.lua
+Communication\GuildNotes.lua
 
 # --- UI: Theme -> Widgets -> MainFrame -> Views ------------------------------
 UI\Theme.lua
