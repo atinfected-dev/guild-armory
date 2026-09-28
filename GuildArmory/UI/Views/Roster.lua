@@ -354,7 +354,9 @@ function View:BuildDetail(parent, fonts)
     end
     d.promote, d.secure = macroButton("")
     d.promote:SetHeight(20)
-    d.promote:SetPoint("TOPLEFT", d.rankHead, "BOTTOMLEFT", 0, -4)
+    -- Am Frame verankert, nicht an der Ueberschrift: ein geschuetzter
+    -- Knopf darf nicht an einer Region haengen (gemessen 28.09.2026).
+    d.promote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -86)
     d.promote:SetWidth(72)
 
     d.rankNow = CreateFrame("Frame", nil, d)
