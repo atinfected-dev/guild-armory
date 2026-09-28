@@ -264,6 +264,9 @@ function View:Create(parent)
     chips:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", 0, -6)
     chips:SetHeight(20)
     self.chipBar = chips
+    -- Die Chips brechen um, sobald die Breite feststeht — und wieder, wenn
+    -- sie sich aendert.
+    chips:SetScript("OnSizeChanged", function() self:LayoutChips() end)
 
     self.category = nil
     self.categoryChips = {}
@@ -277,8 +280,6 @@ function View:Create(parent)
                 self.category = (pressed and key ~= "ALL") and key or nil
                 self:Refresh()
             end)
-        if vorige then chip:SetPoint("LEFT", vorige, "RIGHT", 3, 0)
-        else chip:SetPoint("LEFT", chips, "LEFT", 0, 0) end
         chip.categoryKey = key
         self.categoryChips[#self.categoryChips + 1] = chip
         vorige = chip
@@ -1060,6 +1061,35 @@ function View:CategoryStats()
     return stats
 end
 
+--- Legt die Chips zeilenweise: so viele je Zeile, wie die Breite hergibt,
+--- die Leiste waechst mit, und was darunter haengt, rueckt nach.
+---
+--- GEMESSEN 28.09.2026 mit Bild: Vierzehn Chips in einer Kette liefen
+--- rechts aus dem Fenster — "ECONOMY 0/18" war halb zu sehen, der Rest gar
+--- nicht. Eine Kette hat kein Ende; eine Zeile hat eines.
+local CHIP_GAP, CHIP_ROW = 3, 22
+function View:LayoutChips()
+    local bar = self.chipBar
+    if not bar then return end
+    local breite = bar:GetWidth()
+    if not breite or breite <= 1 then return end
+
+    local x, reihe = 0, 0
+    for _, chip in ipairs(self.categoryChips) do
+        if chip:IsShown() then
+            local w = chip:GetWidth() or 60
+            if x > 0 and x + w > breite then
+                x, reihe = 0, reihe + 1
+            end
+            chip:ClearAllPoints()
+            chip:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -(reihe * CHIP_ROW))
+            x = x + w + CHIP_GAP
+        end
+    end
+    local hoehe = self.mode == "OWN" and ((reihe + 1) * CHIP_ROW - 2) or 0
+    if math.abs((bar:GetHeight() or 0) - hoehe) > 0.5 then bar:SetHeight(math.max(1, hoehe)) end
+end
+
 function View:Refresh()
     if not self.frame then return end
     for _, button in ipairs(self.modeButtons) do
@@ -1085,6 +1115,7 @@ function View:Refresh()
         chip:SetPressed((key == "ALL" and self.category == nil) or key == self.category)
         chip:SetShown(self.mode == "OWN")
     end
+    self:LayoutChips()
 
     local rows = self:Rows()
     local own = self.mode ~= "BOARD"

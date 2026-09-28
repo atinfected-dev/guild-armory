@@ -4,6 +4,10 @@
 
 In progress.
 
+### Achievements: the category chips wrap
+
+Fourteen category chips in one chain ran off the right edge of the window at 1000 wide (seen in a screenshot). They wrap now: as many per row as fit, the bar grows with the rows, and the cards below move down.
+
 ## 0.1.17
 
 A Questhub for finding people for a quest, and notifications at the minimap.
