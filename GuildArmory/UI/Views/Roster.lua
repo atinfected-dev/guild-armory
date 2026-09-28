@@ -356,8 +356,20 @@ function View:BuildDetail(parent, fonts)
     -- GuildPromote aus Addon-Code wird geblockt (gemessen 28.09.2026).
     -- Kennt der Client die Vorlage nicht, bleiben normale Knoepfe, die
     -- sagen, dass es nur in Blizzards Fenster geht.
+    -- Die sicheren Knoepfe haengen NICHT an d, sondern am Traeger neben dem
+    -- Hauptfenster (Widgets.SecureCarrier) — sonst liesse sich das Fenster
+    -- im Kampf nicht schliessen (gemessen 28.09.2026). Verankert sind sie
+    -- weiter an d; der Traeger folgt d in Sichtbarkeit und Ebene.
+    local carrier = Widgets.SecureCarrier()
+    carrier:Follow(d)
+    local main = GA.UI.MainFrame and GA.UI.MainFrame.frame
+    if main and type(main.HookScript) == "function" then
+        -- Das Hauptfenster hebt sich beim Anklicken (SetToplevel); der
+        -- Traeger zieht nach, sonst laegen die Knoepfe darunter.
+        main:HookScript("OnMouseDown", function() if carrier.sync then carrier.sync() end end)
+    end
     local function macroButton(text, variant)
-        local button = Widgets.SecureMacroButton(d, text, variant)
+        local button = Widgets.SecureMacroButton(carrier, text, variant)
         if button then
             button.onAfter = function() Compat.After(0.5, function() Compat.RequestGuildRoster() end) end
             return button, true
@@ -640,6 +652,11 @@ function View:ShowInvite(prefill)
 
         frame:Hide()
         if type(_G.UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GuildArmoryInviteDialog") end
+        -- Der sichere Knopf macht das Fenster im Kampf unschliessbar; also
+        -- schliesst das Spiel es dort selbst (siehe Widgets.SecureCarrier).
+        if type(_G.RegisterStateDriver) == "function" then
+            pcall(RegisterStateDriver, frame, "visibility", "[combat]hide")
+        end
         self.inviteFrame = frame
     end
     frame.status:SetText("")
@@ -718,12 +735,14 @@ function View:RefreshDetail(member)
         d.historyHead, d.whisper, d.invite, d.gear }
     for _, line in ipairs(d.history) do widgets[#widgets + 1] = line end
     if not member then
-        for _, w in ipairs(widgets) do w:Hide() end
+        -- Sichere Knoepfe im Kampf: Show/Hide ist dort geblockt, und der
+        -- Traeger ist ohnehin weg — pcall, damit der Rest der Seite laeuft.
+        for _, w in ipairs(widgets) do pcall(w.Hide, w) end
         d.none:Show()
         return
     end
     d.none:Hide()
-    for _, w in ipairs(widgets) do w:Show() end
+    for _, w in ipairs(widgets) do pcall(w.Show, w) end
 
     local r, g, b = Util.ClassColor(member.class)
     if member.class and Theme.SetClassPortrait(d.crest, member.class) then d.crest:Show() else d.crest:Hide() end

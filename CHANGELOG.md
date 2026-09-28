@@ -4,6 +4,14 @@
 
 In progress.
 
+**The window closes in combat again.** The secure rank buttons lived
+inside the main window, and a frame with protected children counts as
+protected in combat — so the window could not be hidden. They hang on
+a carrier beside the window now, following the roster detail in
+visibility and layer; in combat the game hides the carrier itself and
+brings it back afterwards. The invite dialog hides in combat the same
+way.
+
 **Map clusters count you too.** Four on one spot, one of them you, made
 no cluster: your own position was never collected, so the cluster saw
 three. It is counted now; the cluster shows the number and the list

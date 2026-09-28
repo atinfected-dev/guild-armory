@@ -646,6 +646,65 @@ function Widgets.InputDialog(title, hintText, onAccept)
     return frame
 end
 
+-- ------------------------------------------------------- Traeger ------------
+
+--- DER TRAEGER FUER SICHERE KNOEPFE — NEBEN dem Hauptfenster, nicht darin.
+---
+--- GEMESSEN 28.09.2026: "ich kann infight das fenster nicht schliessen".
+--- Ein Rahmen, der geschuetzte Kinder hat, gilt im Kampf selbst als
+--- geschuetzt: Ihn zu verstecken versteckte die Kinder, und das darf
+--- Addon-Code im Kampf nicht. Die sicheren Knoepfe des Rosters machten
+--- so das ganze Hauptfenster unschliessbar.
+---
+--- Darum haengen sie an diesem Rahmen unter UIParent. Er folgt dem Rahmen,
+--- zu dem die Knoepfe gehoeren (Follow): erscheint mit ihm, verschwindet
+--- mit ihm, liegt eine Ebene ueber ihm. Im Kampf versteckt ihn das Spiel
+--- selbst ueber die Zustandssteuerung ("[combat]hide") — die Knoepfe
+--- taugen dort ohnehin nichts, ihre Makros sind dann nicht setzbar —,
+--- und nach dem Kampf kommt er zurueck, wenn sein Rahmen noch da ist.
+function Widgets.SecureCarrier()
+    if Widgets._secureCarrier then return Widgets._secureCarrier end
+    local carrier = CreateFrame("Frame", "GuildArmorySecureCarrier", UIParent)
+    carrier:SetSize(1, 1)
+    carrier:SetPoint("CENTER")
+    carrier:Hide()
+    if type(_G.RegisterStateDriver) == "function" then
+        pcall(RegisterStateDriver, carrier, "visibility", "[combat]hide")
+    end
+
+    local function inCombat()
+        return type(_G.InCombatLockdown) == "function" and InCombatLockdown() and true or false
+    end
+
+    --- Folgt einem Rahmen: Sichtbarkeit und Ebene.
+    function carrier:Follow(frame)
+        local function sync()
+            if inCombat() then return end
+            pcall(self.SetFrameStrata, self, frame:GetFrameStrata())
+            pcall(self.SetFrameLevel, self, frame:GetFrameLevel() + 20)
+        end
+        self.sync = sync
+        frame:HookScript("OnShow", function()
+            if inCombat() then return end
+            sync()
+            pcall(self.Show, self)
+        end)
+        frame:HookScript("OnHide", function()
+            if inCombat() then return end
+            pcall(self.Hide, self)
+        end)
+        if GA.Core.Events then
+            GA.Core.Events:Register("PLAYER_REGEN_ENABLED", function()
+                if frame:IsVisible() then sync() pcall(carrier.Show, carrier) else pcall(carrier.Hide, carrier) end
+            end, "SecureCarrier")
+        end
+        if frame:IsVisible() then sync() self:Show() end
+    end
+
+    Widgets._secureCarrier = carrier
+    return carrier
+end
+
 -- ------------------------------------------------------- Sicherer Knopf -----
 
 --- Ein Knopf, dessen Klick ein MAKRO des Spiels ausfuehrt — fuer Aufrufe,
