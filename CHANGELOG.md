@@ -30,12 +30,18 @@ window — a button that does it from a directory is pressed too easily.
 
 **Guild chat** under the list: guild and officer channels, lines with time
 and name in class colour, item links that answer to a click, an input line
-that sends. On clients that keep the guild as a "club" (C_Club) the panel
-reads the game's own history — the same lines the game's guild window
-shows, including what was said before login — and merges it with what it
-heard itself, each message once. Where the game keeps no history the
-panel shows what it heard and says so. The last five hundred lines
-survive a reload. `/ga probe` has an entry ("clubChat") for the source.
+that sends. What the panel hears itself is text and is kept — the last
+five hundred lines survive a reload. On clients that keep the guild as a
+"club" (C_Club) the panel also shows the game's own history for the time
+before you logged in, the same lines the game's guild window shows.
+Measured on 28.09.2026: that history is not text but keys of the game
+("|Kw14208|k") which only the client can render, and only in the session
+they were issued in — so the panel shows them, never stores them, and
+never compares them to text; where history and heard lines overlap, the
+same sender within ten seconds is the same message, and the heard text
+wins. `/ga probe` has an entry ("clubChat") for the source; `/ga
+clubchat` and `/ga chatdupes` show the raw material, `/ga chatclear`
+empties the stored lines.
 
 **Invite to the guild**, in the head: a small dialog with the character's
 name and a secure button that runs /ginvite with it — the button is the
