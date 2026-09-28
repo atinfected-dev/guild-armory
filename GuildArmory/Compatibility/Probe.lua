@@ -554,7 +554,8 @@ Probe.CHECKS = {
           teile[#teile + 1] = "Klick=" .. mode .. " (" .. source .. ")"
           teile[#teile + 1] = "Notizweg=" .. (Compat.GuildNotePath() or "keiner")
           local dialogs = _G.StaticPopupDialogs
-          teile[#teile + 1] = "Notiz-Popup=" .. tostring(type(dialogs) == "table" and dialogs.SET_GUILDPLAYERNOTE ~= nil)
+          local popupKeys = Compat.NotePopupDataKeys("GUILD")
+          teile[#teile + 1] = "Notiz-Popup=" .. (popupKeys and ("liest data." .. (#popupKeys > 0 and table.concat(popupKeys, ",") or "(nichts)")) or "keins")
           local frames = Compat.GuildFrameNames()
           teile[#teile + 1] = "Rahmen=" .. (#frames > 0 and table.concat(frames, "+") or "keiner")
           teile[#teile + 1] = "Taste=" .. (Compat.GuildFrameKey() or "?")

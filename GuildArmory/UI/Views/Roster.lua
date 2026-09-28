@@ -617,7 +617,7 @@ function View:OpenNotePopup(kind)
     local member = self:Selected()
     if not member then return end
     local current = kind == "public" and member.publicNote or member.officerNote
-    local key, grund, dialog = Compat.OpenBlizzardNotePopup(kind == "officer" and "OFFICER" or "GUILD", member.guid, current)
+    local key, grund, dialog = Compat.OpenBlizzardNotePopup(kind == "officer" and "OFFICER" or "GUILD", member.guid, current, member.name)
     if not key then
         GA.Core.Debug:Info(L.ROSTER_NOTE_POPUP_NONE, tostring(grund))
         return
@@ -628,7 +628,8 @@ function View:OpenNotePopup(kind)
             local pending = View.popupNote
             if not pending or frame.which ~= pending.key then return end
             View.popupNote = nil
-            local text = frame.editBox and frame.editBox:GetText() or nil
+            local box = frame.EditBox or frame.editBox
+            local text = box and box:GetText() or nil
             if type(text) ~= "string" then return end
             text = trim(text)
             if text == trim(pending.current) then return end
