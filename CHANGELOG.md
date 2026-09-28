@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.19
+
+In progress.
+
 ## 0.1.18
 
 A roster tab that does what the game's guild window does — with guild chat — and the achievements' category chips wrap.
