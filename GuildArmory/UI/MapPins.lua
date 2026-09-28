@@ -253,6 +253,13 @@ function MapPins.Cluster(points, radius, minimum)
         ziel.members[#ziel.members + 1] = point
     end
 
+    -- DER EIGENE PUNKT ZAEHLT MIT, WIRD ABER NICHT GEZEICHNET. Gemessen
+    -- 28.09.2026: Vier standen beisammen, einer davon der Spieler selbst,
+    -- und es wurde nicht gebuendelt — der eigene Punkt war vorher gar nicht
+    -- erst gesammelt, also waren es fuer die Buendelung drei. Wer "vier
+    -- Leute" sieht, zaehlt sich mit. Ein Buendel traegt ihn also in Zahl
+    -- und Liste; bleibt die Gruppe darunter, faellt er weg, denn seinen
+    -- Pfeil zeichnet Blizzard.
     local out = {}
     for _, gruppe in ipairs(gruppen) do
         if #gruppe.members >= (minimum or 4) then
@@ -264,7 +271,9 @@ function MapPins.Cluster(points, radius, minimum)
             out[#out + 1] = { cluster = true, members = entries,
                 px = sx / #gruppe.members, py = sy / #gruppe.members }
         else
-            for _, point in ipairs(gruppe.members) do out[#out + 1] = point end
+            for _, point in ipairs(gruppe.members) do
+                if not point.own then out[#out + 1] = point end
+            end
         end
     end
     return out
@@ -333,10 +342,10 @@ function MapPins:Refresh()
     -- zeichnet, kann nicht wissen, ob an derselben Stelle noch drei kommen.
     local punkte = {}
     for _, entry in ipairs(Positions:All()) do
-      -- DIE EIGENE NADEL BLEIBT DRAUSSEN. Siehe Dateikopf: Blizzard zeichnet
-      -- den Pfeil, und zwei Markierungen an derselben Stelle sind eine zu
-      -- viel.
-      if not entry.own then
+      -- DIE EIGENE NADEL WIRD NICHT GEZEICHNET (Blizzard zeichnet den
+      -- Pfeil), aber sie wird GESAMMELT: Fuer die Buendelung zaehlt der
+      -- Spieler mit, siehe MapPins.Cluster.
+      do
         -- AUF DIE ANGEZEIGTE KARTE UMRECHNEN. Gespeichert ist die Position
         -- auf der Zonenkarte; wer die Kontinentkarte aufzieht, saehe sonst
         -- gar nichts, obwohl alle Daten da sind.
@@ -355,7 +364,7 @@ function MapPins:Refresh()
         -- Massstab ist eine Nadel PIN_SIZE breit — der Umkreis der
         -- Buendelung.
         if x then
-            punkte[#punkte + 1] = { entry = entry,
+            punkte[#punkte + 1] = { entry = entry, own = entry.own or nil,
                 px = (x * breite) / massstab, py = (y * hoehe) / massstab }
         end
       end
