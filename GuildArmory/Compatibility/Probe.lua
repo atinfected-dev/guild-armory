@@ -551,6 +551,10 @@ Probe.CHECKS = {
           teile[#teile + 1] = "Gildenfenster-Aufruf=" .. tostring(hooks)
           local mode, source = Compat.SecureClickMode()
           teile[#teile + 1] = "Klick=" .. mode .. " (" .. source .. ")"
+          teile[#teile + 1] = "Notizweg=" .. (Compat.GuildNotePath() or "keiner")
+          local frames = Compat.GuildFrameNames()
+          teile[#teile + 1] = "Rahmen=" .. (#frames > 0 and table.concat(frames, "+") or "keiner")
+          teile[#teile + 1] = "Taste=" .. (Compat.GuildFrameKey() or "?")
           local motd = Compat.GetGuildMOTD()
           local text = table.concat(teile, ", ")
           if motd == nil and not ranks then return Probe.NO, text .. " — weder MOTD noch Raenge lesbar" end

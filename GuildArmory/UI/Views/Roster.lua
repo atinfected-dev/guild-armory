@@ -116,6 +116,10 @@ function View:Create(parent)
     self.guildMeta:SetWordWrap(false)
 
     self.blizzardButton = Widgets.Button(head, L.ROSTER_BLIZZARD, function()
+        -- Dieser Knopf WILL Blizzards Fenster: der Haken am Fenster laesst
+        -- es dann durch, statt es wieder hierher zu lenken.
+        View.openingBlizzard = true
+        Compat.After(1, function() View.openingBlizzard = nil end)
         local weg = Compat.OpenBlizzardGuildFrame()
         if not weg then GA.Core.Debug:Info("%s", L.ROSTER_BLIZZARD_NONE) end
     end)
@@ -562,8 +566,8 @@ function View:SaveNote(kind, text)
     end
     local index = Compat.FindGuildMemberIndex(member.name)
     local ok, weg
-    if kind == "public" then ok, weg = Compat.SetGuildPublicNote(index, text)
-    else ok, weg = Compat.SetGuildOfficerNote(index, text) end
+    if kind == "public" then ok, weg = Compat.SetGuildPublicNote(index, text, member.guid)
+    else ok, weg = Compat.SetGuildOfficerNote(index, text, member.guid) end
     GA.Core.Debug:Info(ok and L.ROSTER_NOTE_SAVED or L.ROSTER_NOTE_FAILED, member.name, tostring(weg))
     Compat.RequestGuildRoster()
 end
@@ -766,6 +770,18 @@ function View:Refresh()
     end
     self.guildMeta:SetText(table.concat(teile, " · "))
 
+    -- Die Nachricht des Tages beginnt rechts vom Gildennamen und seiner
+    -- Zeile — nicht an fester Stelle (dort lief sie in den Gildenmeister,
+    -- gesehen 28.09.2026). Hoechstens die halbe Kopfbreite; laengere
+    -- Zeilen links werden abgeschnitten.
+    local headWidth = self.head:GetWidth()
+    if not headWidth or headWidth < 200 then headWidth = 900 end
+    local breite = math.max(self.guildName:GetStringWidth() or 0, self.guildMeta:GetStringWidth() or 0)
+    local links = math.min(math.max(250, 14 + breite + 24), math.floor(headWidth * 0.5))
+    self.motd:SetPoint("TOPLEFT", self.head, "TOPLEFT", links, -8)
+    self.guildName:SetWidth(links - 14 - 12)
+    self.guildMeta:SetWidth(links - 14 - 12)
+
     local motd = Compat.GetGuildMOTD()
     local darfMotd = Compat.CanEditMOTD()
     self.motdHead:SetText(string.upper(L.ROSTER_MOTD) .. (darfMotd == true and ("  |cff6f6753" .. L.ROSTER_MOTD_EDIT .. "|r") or ""))
@@ -808,25 +824,36 @@ end, "RosterView")
 -- unseres. Nicht im Kampf — dort ist das Oeffnen und Schliessen von
 -- Blizzards Rahmen geschuetzt, und ein Haken, der dann wirft, macht die
 -- J-Taste kaputt.
-GA.Core.Callbacks:On("ADDON_READY", function()
-    View.hooked = Compat.HookGuildFrameToggle(function()
-        if not GA.Core.Config:Get("guildKeyOpensAddon") then return end
-        if Compat.InCombat() then return end
-        -- ENTPRELLT. Gemessen 28.09.2026: Beide Aufruffunktionen existieren
-        -- ("Gildenfenster-Aufruf=2"), und die eine ruft die andere — ein
-        -- Tastendruck kaeme hier zweimal an. Der erste gewinnt, der zweite
-        -- im selben Takt tut nichts.
-        if View.togglePending then return end
-        View.togglePending = true
-        if GA.UI.MainFrame.frame and GA.UI.MainFrame.frame:IsShown()
-            and GA.UI.MainFrame.current == "roster" then
-            return
-        end
-        Compat.After(0, function()
-            View.togglePending = nil
-            Compat.HideBlizzardGuildFrame()
-            GA.UI.MainFrame:Show()
-            GA.UI.MainFrame:ShowView("roster")
-        end)
+local function redirectToRoster()
+    if not GA.Core.Config:Get("guildKeyOpensAddon") then return end
+    if Compat.InCombat() then return end
+    if View.openingBlizzard then return end
+    -- ENTPRELLT. Gemessen 28.09.2026: Beide Aufruffunktionen existieren
+    -- ("Gildenfenster-Aufruf=2"), und die eine ruft die andere — ein
+    -- Tastendruck kaeme hier zweimal an, und das Fenster meldet sich
+    -- obendrein. Der erste gewinnt, der Rest im selben Takt tut nichts.
+    if View.togglePending then return end
+    View.togglePending = true
+    Compat.After(0, function()
+        View.togglePending = nil
+        Compat.HideBlizzardGuildFrame()
+        local main = GA.UI.MainFrame
+        if main.frame and main.frame:IsShown() and main.current == "roster" then return end
+        main:Show()
+        main:ShowView("roster")
     end)
+end
+
+-- Zwei Haken: an den Funktionen, die das Fenster oeffnen, UND am Fenster
+-- selbst — gemessen 28.09.2026 fing der Funktionshaken die J-Taste nicht.
+-- Blizzards Gildenmodule laden bei Bedarf; ihr Rahmen bekommt den Haken,
+-- sobald er da ist.
+GA.Core.Callbacks:On("ADDON_READY", function()
+    View.hooked = Compat.HookGuildFrameToggle(redirectToRoster)
+    View.hookedFrames = Compat.HookGuildFrameShow(redirectToRoster)
+    GA.Core.Events:Register("ADDON_LOADED", function(_, name)
+        if name == "Blizzard_GuildUI" or name == "Blizzard_Communities" then
+            View.hookedFrames = Compat.HookGuildFrameShow(redirectToRoster)
+        end
+    end, "RosterView")
 end, "RosterView")

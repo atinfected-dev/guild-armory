@@ -2785,14 +2785,48 @@ function Compat.FindGuildMemberIndex(name)
     return nil
 end
 
-function Compat.SetGuildPublicNote(index, text)
-    if not index or not isFunction(_G.GuildRosterSetPublicNote) then return false, "noapi" end
-    return pcall(GuildRosterSetPublicNote, index, tostring(text or "")), "GuildRosterSetPublicNote"
+--- Die GUID eines Rosterplatzes — der neuere Notizweg will sie statt des
+--- Platzes. GetGuildRosterInfo gibt sie als 17. Wert zurueck, wo es sie gibt.
+local function rosterGuid(index)
+    if not index or not has.guildRoster then return nil end
+    local ok, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, guid = pcall(GetGuildRosterInfo, index)
+    if ok and type(guid) == "string" and guid ~= "" then return guid end
+    return nil
 end
 
-function Compat.SetGuildOfficerNote(index, text)
-    if not index or not isFunction(_G.GuildRosterSetOfficerNote) then return false, "noapi" end
-    return pcall(GuildRosterSetOfficerNote, index, tostring(text or "")), "GuildRosterSetOfficerNote"
+--- Notizen setzen — ZWEI WEGE. GEMESSEN 28.09.2026: GuildRosterSetPublicNote
+--- fehlt auf diesem Client ("noapi"); die neuere Linie hat stattdessen
+--- C_GuildInfo.SetNote(guid, text, isPublic). Der alte Weg zuerst, dann der
+--- neue mit der GUID aus dem Roster (oder der mitgegebenen).
+--- @return boolean ok, string weg
+local function setNote(index, text, guid, oldName, isPublic)
+    text = tostring(text or "")
+    if index and isFunction(_G[oldName]) then
+        return pcall(_G[oldName], index, text), oldName
+    end
+    local api = _G.C_GuildInfo
+    if isTable(api) and isFunction(api.SetNote) then
+        guid = guid or rosterGuid(index)
+        if not guid then return false, "noguid" end
+        return pcall(api.SetNote, guid, text, isPublic), "C_GuildInfo.SetNote"
+    end
+    return false, "noapi"
+end
+
+function Compat.SetGuildPublicNote(index, text, guid)
+    return setNote(index, text, guid, "GuildRosterSetPublicNote", true)
+end
+
+function Compat.SetGuildOfficerNote(index, text, guid)
+    return setNote(index, text, guid, "GuildRosterSetOfficerNote", false)
+end
+
+--- Welcher Notizweg da ist — fuer /ga probe.
+function Compat.GuildNotePath()
+    if isFunction(_G.GuildRosterSetPublicNote) then return "GuildRosterSetPublicNote" end
+    local api = _G.C_GuildInfo
+    if isTable(api) and isFunction(api.SetNote) then return "C_GuildInfo.SetNote" end
+    return nil
 end
 
 --- Befoerdern, degradieren, entfernen — GEMESSEN 28.09.2026: GESCHUETZT.
@@ -2869,17 +2903,61 @@ function Compat.HideBlizzardGuildFrame()
     return geschlossen
 end
 
---- Haengt sich an die Taste, die Blizzards Gildenfenster oeffnet.
+--- Haengt sich an die Funktionen, die Blizzards Gildenfenster oeffnen.
+--- GEMESSEN 28.09.2026: Der Haken an ToggleGuildFrame allein fing die
+--- J-Taste auf diesem Client nicht — was die Taste ruft, ist je Linie
+--- anders. Darum breiter: mehr Funktionsnamen, und dazu das Fenster
+--- selbst (HookGuildFrameShow), das sich beim Erscheinen meldet, egal
+--- wer es geoeffnet hat.
 --- @return table die Namen der Funktionen, an denen der Haken sitzt
 function Compat.HookGuildFrameToggle(callback)
     local hooked = {}
     if not isFunction(_G.hooksecurefunc) then return hooked end
-    for _, name in ipairs({ "ToggleGuildFrame", "ToggleCommunitiesFrame" }) do
+    for _, name in ipairs({ "ToggleGuildFrame", "ToggleCommunitiesFrame", "GuildFrame_Toggle", "GuildFrame_LoadUI" }) do
         if isFunction(_G[name]) and pcall(hooksecurefunc, name, callback) then
             hooked[#hooked + 1] = name
         end
     end
     return hooked
+end
+
+--- Die Namen, unter denen Blizzards Gildenfenster laeuft — je Linie anders.
+local GUILD_FRAMES = { "GuildFrame", "CommunitiesFrame" }
+local guildFrameHooked = {}
+
+--- Haengt sich an das Erscheinen von Blizzards Gildenfenster. Mehrfach
+--- aufrufbar (nach ADDON_LOADED der Blizzard-Module noch einmal): jeder
+--- Rahmen bekommt den Haken genau einmal.
+--- @return table die Namen der Rahmen, die JETZT einen Haken haben
+function Compat.HookGuildFrameShow(callback)
+    local hooked = {}
+    for _, name in ipairs(GUILD_FRAMES) do
+        local frame = _G[name]
+        if isTable(frame) and isFunction(frame.HookScript) and not guildFrameHooked[name] then
+            if pcall(frame.HookScript, frame, "OnShow", callback) then guildFrameHooked[name] = true end
+        end
+        if guildFrameHooked[name] then hooked[#hooked + 1] = name end
+    end
+    return hooked
+end
+
+--- Welche Gildenfenster-Rahmen es gerade gibt — fuer /ga probe.
+function Compat.GuildFrameNames()
+    local names = {}
+    for _, name in ipairs(GUILD_FRAMES) do
+        if isTable(_G[name]) then names[#names + 1] = name end
+    end
+    return names
+end
+
+--- Die Taste, die das Gildenfenster oeffnet — fuer /ga probe.
+function Compat.GuildFrameKey()
+    if not isFunction(_G.GetBindingKey) then return nil end
+    for _, action in ipairs({ "TOGGLEGUILDTAB", "TOGGLESOCIAL" }) do
+        local ok, key = pcall(GetBindingKey, action)
+        if ok and type(key) == "string" and key ~= "" then return key .. "=" .. action end
+    end
+    return nil
 end
 
 -- ============================================================ Charakterfenster
