@@ -555,6 +555,9 @@ Probe.CHECKS = {
           local frames = Compat.GuildFrameNames()
           teile[#teile + 1] = "Rahmen=" .. (#frames > 0 and table.concat(frames, "+") or "keiner")
           teile[#teile + 1] = "Taste=" .. (Compat.GuildFrameKey() or "?")
+          teile[#teile + 1] = "Umbelegung=" .. (Compat.guildKeyOverride or "aus")
+          local blocked = GA.Core.Config:Get("guildNoteBlocked")
+          teile[#teile + 1] = "Notiz-geschuetzt=" .. (blocked and tostring(blocked) or "nicht gesehen")
           local motd = Compat.GetGuildMOTD()
           local text = table.concat(teile, ", ")
           if motd == nil and not ranks then return Probe.NO, text .. " — weder MOTD noch Raenge lesbar" end

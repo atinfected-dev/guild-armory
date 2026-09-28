@@ -25,7 +25,8 @@ with the neighbouring ranks' names, enabled only when the game says your
 rank may; **three notes** — public, officers, and one that stays on this
 client, because a note that looks like the others but never leaves your
 machine needs to say so; the last three roster history entries; whisper,
-invite, equipment; and "remove from the guild" as a two-press button.
+invite, equipment. No "remove from the guild" here: that stays the game's
+window — a button that does it from a directory is pressed too easily.
 
 **Guild chat** under the list: guild and officer channels, lines with time
 and name in class colour, item links that answer to a click, an input line
@@ -38,16 +39,29 @@ hand out shows as "not measurable", never as "no" — `/ga probe` has an
 entry ("guildManage") for the whole set: notes, ranks, MOTD, guild info,
 the toggle function of the game's window.
 
-**Promote, demote and remove run as the game's own macros.** Measured on
-the first try: GuildPromote from addon code is blocked by the game even
-with the right rank. The three buttons are secure action buttons now — the
-click is yours, and it runs /gpromote, /gdemote or /gremove with the
-member's name, set on the button before the click, never during it. Remove
-stays two presses: the first reveals the secure one.
+**Promote and demote run as the game's own macros.** Measured on the
+first try: GuildPromote from addon code is blocked by the game even with
+the right rank. The two arrows are secure action buttons now — the click
+is yours, and it runs /gpromote or /gdemote with the member's name, set on
+the button before the click, never during it, on the edge (press or
+release) the client's own setting expects. The rank sits between the
+arrows as a chip in its colour; the line below names the neighbouring
+ranks; the tooltip says where each arrow leads.
 
-**The J key**, off by default, in the settings: the game's guild window
-leads to this roster instead. Not in combat — the game's frames are
-protected there.
+**Notes: what the game blocks, the roster says.** Writing public and
+officer notes is protected on this client — the game throws the call away
+after the fact. The first time that happens the roster remembers it, the
+two fields go read-only and their captions say the game's window edits
+them. `/ga probe` (guildManage) shows the note path, whether a block was
+seen, the frame names, the key and its override.
+
+**The J key**, off by default, in the settings: the key the game binds to
+its guild window is overridden while the setting is on, so the game's
+window never opens — the key toggles this roster. Any other way into the
+game's window (the micro menu, a link) is caught when the frame appears
+and led here as well; our own "Game's guild window" button is let through.
+Not in combat — bindings and the game's frames are protected there; the
+override is applied once the fight ends.
 
 ### Achievements: the category chips wrap
 

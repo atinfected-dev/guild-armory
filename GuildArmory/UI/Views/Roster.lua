@@ -416,24 +416,9 @@ function View:BuildDetail(parent, fonts)
         d.history[index] = line
     end
 
-    -- Entfernen: klein, rechts ueber der Knopfreihe, ohne Fuellung — eine
-    -- seltene Handlung braucht keinen grossen roten Knopf. Zwei Druecken:
-    -- der erste (flacher Knopf) deckt den zweiten auf — den sicheren, der
-    -- es wirklich tut, in Gold, mit dem Namen.
-    d.remove = Widgets.FlatButton(d, L.ROSTER_REMOVE, function() self:RemoveMember() end)
-    d.remove:SetHeight(18)
-    d.remove:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 44)
-
-    d.removeNow = macroButton(L.ROSTER_REMOVE, "primary")
-    d.removeNow:SetHeight(18)
-    d.removeNow:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 44)
-    d.removeNow.onAfter = function()
-        View.removePending = nil
-        d.removeNow:Hide()
-        d.remove:Show()
-        Compat.After(0.5, function() Compat.RequestGuildRoster() end)
-    end
-    d.removeNow:Hide()
+    -- KEIN ENTFERNEN HIER (28.09.2026, Wunsch der Gilde): Wer jemanden aus
+    -- der Gilde wirft, oeffnet dafuer Blizzards Fenster. Ein Knopf, der
+    -- das in einem Verzeichnis tut, ist zu leicht gedrueckt.
 
     d.whisper = Widgets.Button(d, L.QH_WHISPER, function()
         local member = self:Selected()
@@ -572,31 +557,6 @@ function View:SaveNote(kind, text)
     Compat.RequestGuildRoster()
 end
 
---- Entfernen, erster Druck: deckt den sicheren Knopf auf, der es tut.
---- Nach zehn Sekunden ohne zweiten Druck verschwindet er wieder.
-function View:RemoveMember()
-    local member = self:Selected()
-    if not member then return end
-    local d = self.detail
-    if not d.secure then
-        GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE)
-        return
-    end
-    self.removePending = member.name
-    d.removeNow:SetLabel(string.format(L.ROSTER_REMOVE_CONFIRM, member.name))
-    d.removeNow:SetMacro("/gremove " .. member.name)
-    d.removeNow:SetEnabledState(true)
-    d.remove:Hide()
-    d.removeNow:Show()
-    Compat.After(10, function()
-        if View.removePending == member.name then
-            View.removePending = nil
-            d.removeNow:Hide()
-            d.remove:Show()
-        end
-    end)
-end
-
 function View:EditMOTD()
     if Compat.CanEditMOTD() ~= true then
         GA.Core.Debug:Info("%s", L.ROSTER_MOTD_LOCKED)
@@ -647,7 +607,7 @@ function View:RefreshDetail(member)
     local d = self.detail
     local widgets = { d.crest, d.name, d.meta, d.since, d.rankHead, d.promote, d.rankNow, d.demote, d.rankHint,
         d.notesHead, d.publicBox, d.publicCaption, d.officerBox, d.officerCaption, d.ownBox, d.ownCaption,
-        d.historyHead, d.remove, d.whisper, d.invite, d.gear }
+        d.historyHead, d.whisper, d.invite, d.gear }
     for _, line in ipairs(d.history) do widgets[#widgets + 1] = line end
     if not member then
         for _, w in ipairs(widgets) do w:Hide() end
@@ -705,11 +665,16 @@ function View:RefreshDetail(member)
         or (darfRunter == false and L.ROSTER_NO_RIGHT or (darfRunter == nil and L.ROSTER_UNMEASURED or L.ROSTER_BOTTOM)))
 
     -- Notizen: laden, ohne dass das Laden speichert.
+    -- Hat das Spiel das Schreiben einmal geblockt (ADDON_ACTION_BLOCKED,
+    -- gemessen 28.09.2026), bleiben die Felder lesbar und sagen es.
+    local noteBlocked = GA.Core.Config:Get("guildNoteBlocked")
     d.publicBox:Load(member.publicNote or "")
-    d.publicBox:SetEnabled(Compat.CanEditPublicNote() == true)
+    d.publicBox:SetEnabled(Compat.CanEditPublicNote() == true and not noteBlocked)
+    d.publicCaption:SetText(noteBlocked and (L.ROSTER_NOTE_PUBLIC .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_PUBLIC)
     local officer = Compat.CanViewOfficerNote()
     d.officerBox:Load(member.officerNote or "")
-    d.officerBox:SetEnabled(Compat.CanEditOfficerNote() == true)
+    d.officerBox:SetEnabled(Compat.CanEditOfficerNote() == true and not noteBlocked)
+    d.officerCaption:SetText(noteBlocked and (L.ROSTER_NOTE_OFFICER .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_OFFICER)
     d.officerBox:SetShown(officer ~= false)
     d.officerCaption:SetShown(officer ~= false)
     d.ownBox:Load(member.guid and GA.Modules.Notes:GetNote(member.guid) or "")
@@ -735,13 +700,6 @@ function View:RefreshDetail(member)
     end
 
     local eigen = GA.Core.Comm and GA.Core.Comm:IsSelf(member.name)
-    local darfWeg = Compat.CanGuildRemove()
-    d.remove:SetEnabledState(darfWeg == true and not eigen,
-        eigen and L.ROSTER_SELF or (darfWeg == false and L.ROSTER_NO_RIGHT or L.ROSTER_UNMEASURED))
-    if self.removePending ~= member.name then
-        d.removeNow:Hide()
-        d.remove:Show()
-    end
     d.invite:SetEnabledState(member.online == true and not eigen, L.ROSTER_OFFLINE)
     d.whisper:SetEnabledState(not eigen, L.ROSTER_SELF)
 end
@@ -828,6 +786,10 @@ local function redirectToRoster()
     if not GA.Core.Config:Get("guildKeyOpensAddon") then return end
     if Compat.InCombat() then return end
     if View.openingBlizzard then return end
+    -- SOFORT schliessen, noch im selben Takt — sonst blitzt Blizzards
+    -- Fenster einen Takt lang auf (gesehen 28.09.2026). Der zweite Aufruf
+    -- unten faengt, was erst danach aufgeht.
+    Compat.HideBlizzardGuildFrame()
     -- ENTPRELLT. Gemessen 28.09.2026: Beide Aufruffunktionen existieren
     -- ("Gildenfenster-Aufruf=2"), und die eine ruft die andere — ein
     -- Tastendruck kaeme hier zweimal an, und das Fenster meldet sich
@@ -844,6 +806,39 @@ local function redirectToRoster()
     end)
 end
 
+--- Der Knopf, den die umbelegte J-Taste klickt: Verzeichnis auf, oder zu,
+--- wenn es schon offen ist — wie die Taste sich anfuehlen soll.
+local function guildKeyButton()
+    if View.keyButton then return View.keyButton end
+    local button = CreateFrame("Button", "GuildArmoryGuildKeyButton", UIParent)
+    button:Hide()
+    button:SetScript("OnClick", function()
+        local main = GA.UI.MainFrame
+        if main.frame and main.frame:IsShown() and main.current == "roster" then
+            main:Hide()
+        else
+            main:Show()
+            main:ShowView("roster")
+        end
+    end)
+    View.keyButton = button
+    return button
+end
+
+--- Die Umbelegung nach der Einstellung setzen oder loesen. Im Kampf geht
+--- beides nicht — dann noch einmal, sobald der Kampf vorbei ist.
+function View:ApplyGuildKey()
+    if GA.Core.Config:Get("guildKeyOpensAddon") then
+        local button = guildKeyButton()
+        local ok, weg = Compat.OverrideGuildKey(button:GetName())
+        View.keyPending = (weg == "combat") or nil
+        return ok, weg
+    end
+    local ok = Compat.ClearGuildKeyOverride()
+    View.keyPending = (not ok and Compat.InCombat()) or nil
+    return ok
+end
+
 -- Zwei Haken: an den Funktionen, die das Fenster oeffnen, UND am Fenster
 -- selbst — gemessen 28.09.2026 fing der Funktionshaken die J-Taste nicht.
 -- Blizzards Gildenmodule laden bei Bedarf; ihr Rahmen bekommt den Haken,
@@ -856,4 +851,32 @@ GA.Core.Callbacks:On("ADDON_READY", function()
             View.hookedFrames = Compat.HookGuildFrameShow(redirectToRoster)
         end
     end, "RosterView")
+
+    -- Die Taste selbst: umbelegt, solange die Einstellung an ist. Neu
+    -- gesetzt, wenn der Spieler seine Tasten aendert, und nachgeholt,
+    -- wenn der Kampf es eben verboten hat.
+    View:ApplyGuildKey()
+    GA.Core.Events:Register("UPDATE_BINDINGS", function() View:ApplyGuildKey() end, "RosterView")
+    GA.Core.Events:Register("PLAYER_REGEN_ENABLED", function()
+        if View.keyPending then View:ApplyGuildKey() end
+    end, "RosterView")
+
+    -- Notizen: Blockt das Spiel das Schreiben, sagt es das hier — nicht
+    -- als Fehler im Chat, sondern als Messwert, der bleibt.
+    for _, event in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do
+        GA.Core.Events:Register(event, function(_, addon, func)
+            if addon ~= "GuildArmory" or type(func) ~= "string" then return end
+            if func:find("SetNote", 1, true) or func:find("Note", 1, true) and func:find("GuildRoster", 1, true) then
+                if not GA.Core.Config:Get("guildNoteBlocked") then
+                    GA.Core.Config:Set("guildNoteBlocked", func)
+                    GA.Core.Debug:Info(L.ROSTER_NOTE_BLOCKED, func)
+                end
+                if View.frame and View.frame:IsVisible() then View:Refresh() end
+            end
+        end, "RosterView")
+    end
+end, "RosterView")
+
+GA.Core.Callbacks:On("CONFIG_CHANGED", function(key)
+    if key == "guildKeyOpensAddon" then View:ApplyGuildKey() end
 end, "RosterView")

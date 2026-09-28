@@ -239,6 +239,11 @@ Schema.ACCOUNT_DEFAULTS = {
         -- es will: Es biegt eine Erwartung von zehn Jahren um.
         guildKeyOpensAddon = false,
 
+        -- GEMESSEN 28.09.2026: Das Schreiben von Gildennotizen ist auf
+        -- manchen Clients geschuetzt. Sobald das Spiel es einmal geblockt
+        -- hat, steht hier der Funktionsname, und die Felder bleiben lesbar.
+        guildNoteBlocked = false,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die

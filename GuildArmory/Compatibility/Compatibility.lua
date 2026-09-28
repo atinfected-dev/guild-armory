@@ -2798,6 +2798,12 @@ end
 --- fehlt auf diesem Client ("noapi"); die neuere Linie hat stattdessen
 --- C_GuildInfo.SetNote(guid, text, isPublic). Der alte Weg zuerst, dann der
 --- neue mit der GUID aus dem Roster (oder der mitgegebenen).
+---
+--- UND GEMESSEN DANACH, 28.09.2026: C_GuildInfo.SetNote ist auf diesem
+--- Client GESCHUETZT ("blocked by Blizzard") — der Aufruf geht durch, und
+--- das Spiel wirft ihn als ADDON_ACTION_BLOCKED weg. Ein Makro dafuer gibt
+--- es nicht. Wer das Ereignis sieht (Roster hoert darauf), merkt es sich:
+--- Die Felder werden dann nur lesbar, und die Notiz bleibt Blizzards Fenster.
 --- @return boolean ok, string weg
 local function setNote(index, text, guid, oldName, isPublic)
     text = tostring(text or "")
@@ -2948,6 +2954,52 @@ function Compat.GuildFrameNames()
         if isTable(_G[name]) then names[#names + 1] = name end
     end
     return names
+end
+
+--- DIE J-TASTE SELBST BELEGEN. Gemessen 28.09.2026: Der Haken am Fenster
+--- schliesst es erst, nachdem es einen Takt lang da war — es blitzt auf.
+--- Eine Override-Belegung der Tasten, die das Spiel fuer TOGGLEGUILDTAB
+--- kennt, laesst Blizzards Fenster gar nicht erst aufgehen: Sie klickt
+--- unseren Knopf. Nicht gespeichert, nicht im Kampf, wieder weg, wenn die
+--- Einstellung aus ist.
+--- @return boolean ok, string weg|grund
+local keyOwner
+function Compat.OverrideGuildKey(buttonName)
+    if not isFunction(_G.SetOverrideBindingClick) or not isFunction(_G.GetBindingKey)
+        or not isFunction(_G.ClearOverrideBindings) then
+        Compat.guildKeyOverride = "noapi"
+        return false, "noapi"
+    end
+    if Compat.InCombat() then return false, "combat" end
+    keyOwner = keyOwner or CreateFrame("Frame", "GuildArmoryGuildKeyOwner")
+    pcall(ClearOverrideBindings, keyOwner)
+    local keys = {}
+    local ok, k1, k2 = pcall(GetBindingKey, "TOGGLEGUILDTAB")
+    if ok then
+        if type(k1) == "string" and k1 ~= "" then keys[#keys + 1] = k1 end
+        if type(k2) == "string" and k2 ~= "" then keys[#keys + 1] = k2 end
+    end
+    if #keys == 0 then
+        Compat.guildKeyOverride = "nokey"
+        return false, "nokey"
+    end
+    local gesetzt = {}
+    for _, key in ipairs(keys) do
+        if pcall(SetOverrideBindingClick, keyOwner, true, key, buttonName) then gesetzt[#gesetzt + 1] = key end
+    end
+    if #gesetzt == 0 then
+        Compat.guildKeyOverride = "failed"
+        return false, "failed"
+    end
+    Compat.guildKeyOverride = table.concat(gesetzt, "+")
+    return true, Compat.guildKeyOverride
+end
+
+function Compat.ClearGuildKeyOverride()
+    if not keyOwner or Compat.InCombat() or not isFunction(_G.ClearOverrideBindings) then return false end
+    pcall(ClearOverrideBindings, keyOwner)
+    Compat.guildKeyOverride = nil
+    return true
 end
 
 --- Die Taste, die das Gildenfenster oeffnet — fuer /ga probe.
