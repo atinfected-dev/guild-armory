@@ -4,6 +4,12 @@
 
 In progress.
 
+**Map clusters count you too.** Four on one spot, one of them you, made
+no cluster: your own position was never collected, so the cluster saw
+three. It is counted now; the cluster shows the number and the list
+with you in it, and below four your own pin is still not drawn — the
+game draws your arrow.
+
 ## 0.1.18
 
 A roster tab that does what the game's guild window does — with guild chat — and the achievements' category chips wrap.
