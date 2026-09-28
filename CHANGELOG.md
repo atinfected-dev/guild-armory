@@ -38,6 +38,13 @@ hand out shows as "not measurable", never as "no" — `/ga probe` has an
 entry ("guildManage") for the whole set: notes, ranks, MOTD, guild info,
 the toggle function of the game's window.
 
+**Promote, demote and remove run as the game's own macros.** Measured on
+the first try: GuildPromote from addon code is blocked by the game even
+with the right rank. The three buttons are secure action buttons now — the
+click is yours, and it runs /gpromote, /gdemote or /gremove with the
+member's name, set on the button before the click, never during it. Remove
+stays two presses: the first reveals the secure one.
+
 **The J key**, off by default, in the settings: the game's guild window
 leads to this roster instead. Not in combat — the game's frames are
 protected there.

@@ -338,7 +338,21 @@ function View:BuildDetail(parent, fonts)
     d.rankHead = Theme.Label(d, string.upper(L.ROSTER_COL_RANK), fonts.heading, Theme.color.goldDim)
     d.rankHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -70)
 
-    d.promote = Widgets.Button(d, "", function() self:ChangeRank(-1) end)
+    -- SICHERE KNOEPFE: Befoerdern, Degradieren, Entfernen laufen als Makro
+    -- des Spiels aus dem Klick des Spielers (Widgets.SecureMacroButton) —
+    -- GuildPromote aus Addon-Code wird geblockt (gemessen 28.09.2026).
+    -- Kennt der Client die Vorlage nicht, bleiben normale Knoepfe, die
+    -- sagen, dass es nur in Blizzards Fenster geht.
+    local function macroButton(text)
+        local button = Widgets.SecureMacroButton(d, text)
+        if button then
+            button.onAfter = function() Compat.After(0.5, function() Compat.RequestGuildRoster() end) end
+            return button, true
+        end
+        button = Widgets.Button(d, text, function() GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE) end)
+        return button, false
+    end
+    d.promote, d.secure = macroButton("")
     d.promote:SetHeight(20)
     d.promote:SetPoint("TOPLEFT", d.rankHead, "BOTTOMLEFT", 0, -4)
     d.promote:SetWidth(72)
@@ -350,7 +364,7 @@ function View:BuildDetail(parent, fonts)
     d.rankText = Theme.Label(d.rankNow, "", fonts.small, Theme.color.text)
     d.rankText:SetPoint("CENTER", d.rankNow, "CENTER", 0, 0)
 
-    d.demote = Widgets.Button(d, "", function() self:ChangeRank(1) end)
+    d.demote = macroButton("")
     d.demote:SetHeight(20)
     d.demote:SetPoint("LEFT", d.rankNow, "RIGHT", 4, 0)
     d.demote:SetWidth(72)
@@ -389,11 +403,24 @@ function View:BuildDetail(parent, fonts)
         d.history[index] = line
     end
 
-    -- Handlungen unten.
+    -- Handlungen unten. Entfernen in zwei Druecken: der erste (normaler
+    -- Knopf) deckt den zweiten auf — den sicheren, der es wirklich tut.
     d.remove = Widgets.Button(d, L.ROSTER_REMOVE, function() self:RemoveMember() end)
     d.remove:SetHeight(22)
     d.remove:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 10)
     d.remove:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 10)
+
+    d.removeNow = macroButton(L.ROSTER_REMOVE)
+    d.removeNow:SetHeight(22)
+    d.removeNow:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 10)
+    d.removeNow:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 10)
+    d.removeNow.onAfter = function()
+        View.removePending = nil
+        d.removeNow:Hide()
+        d.remove:Show()
+        Compat.After(0.5, function() Compat.RequestGuildRoster() end)
+    end
+    d.removeNow:Hide()
 
     d.whisper = Widgets.Button(d, L.QH_WHISPER, function()
         local member = self:Selected()
@@ -512,17 +539,10 @@ function View:Selected()
     return nil
 end
 
---- Rang aendern: -1 = hoch, +1 = runter. Der Server prueft die Rechte;
---- die Knoepfe fragen sie vorher, damit niemand ins Leere drueckt.
-function View:ChangeRank(richtung)
-    local member = self:Selected()
-    if not member then return end
-    local ok, weg
-    if richtung < 0 then ok, weg = Compat.GuildPromote(member.name)
-    else ok, weg = Compat.GuildDemote(member.name) end
-    GA.Core.Debug:Info(ok and L.ROSTER_RANK_SENT or L.ROSTER_RANK_FAILED, member.name, tostring(weg))
-    Compat.RequestGuildRoster()
-end
+--- Rang aendern geschieht NICHT hier: Der Klick auf den sicheren Knopf
+--- fuehrt "/gpromote Name" bzw. "/gdemote Name" aus, gesetzt in
+--- RefreshDetail. Hier gibt es nichts zu tun, und das ist der Punkt —
+--- aus Addon-Code wird der Aufruf geblockt (gemessen 28.09.2026).
 
 function View:SaveNote(kind, text)
     local member = self:Selected()
@@ -539,26 +559,29 @@ function View:SaveNote(kind, text)
     Compat.RequestGuildRoster()
 end
 
---- Entfernen: zwei Druecke, wie ueberall, wo etwas nicht rueckgaengig ist.
+--- Entfernen, erster Druck: deckt den sicheren Knopf auf, der es tut.
+--- Nach zehn Sekunden ohne zweiten Druck verschwindet er wieder.
 function View:RemoveMember()
     local member = self:Selected()
     if not member then return end
-    if self.removePending ~= member.name then
-        self.removePending = member.name
-        self.detail.remove:SetLabel(string.format(L.ROSTER_REMOVE_CONFIRM, member.name))
-        Compat.After(10, function()
-            if View.removePending == member.name then
-                View.removePending = nil
-                View.detail.remove:SetLabel(L.ROSTER_REMOVE)
-            end
-        end)
+    local d = self.detail
+    if not d.secure then
+        GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE)
         return
     end
-    self.removePending = nil
-    self.detail.remove:SetLabel(L.ROSTER_REMOVE)
-    local ok, weg = Compat.GuildUninvite(member.name)
-    GA.Core.Debug:Info(ok and L.ROSTER_REMOVED or L.ROSTER_REMOVE_FAILED, member.name, tostring(weg))
-    Compat.RequestGuildRoster()
+    self.removePending = member.name
+    d.removeNow:SetLabel(string.format(L.ROSTER_REMOVE_CONFIRM, member.name))
+    d.removeNow:SetMacro("/gremove " .. member.name)
+    d.removeNow:SetEnabledState(true)
+    d.remove:Hide()
+    d.removeNow:Show()
+    Compat.After(10, function()
+        if View.removePending == member.name then
+            View.removePending = nil
+            d.removeNow:Hide()
+            d.remove:Show()
+        end
+    end)
 end
 
 function View:EditMOTD()
@@ -654,12 +677,20 @@ function View:RefreshDetail(member)
     d.promote:SetWidth(72)
     d.demote:SetLabel("▼ " .. (tiefer or ""))
     d.demote:SetWidth(72)
+    -- Die Makros VOR dem Klick setzen — im Klick ist der Knopf Blizzards.
+    if d.secure then
+        d.promote:SetMacro("/gpromote " .. member.name)
+        d.demote:SetMacro("/gdemote " .. member.name)
+    end
     local darfHoch = Compat.CanGuildPromote()
     local darfRunter = Compat.CanGuildDemote()
-    d.promote:SetEnabledState(darfHoch == true and index ~= nil and index > 1,
-        darfHoch == false and L.ROSTER_NO_RIGHT or (darfHoch == nil and L.ROSTER_UNMEASURED or L.ROSTER_TOP))
-    d.demote:SetEnabledState(darfRunter == true and tiefer ~= nil,
-        darfRunter == false and L.ROSTER_NO_RIGHT or (darfRunter == nil and L.ROSTER_UNMEASURED or L.ROSTER_BOTTOM))
+    local eigenRang = GA.Core.Comm and GA.Core.Comm:IsSelf(member.name)
+    d.promote:SetEnabledState(d.secure and darfHoch == true and index ~= nil and index > 1 and not eigenRang,
+        eigenRang and L.ROSTER_SELF or (not d.secure and L.ROSTER_SECURE_NONE)
+        or (darfHoch == false and L.ROSTER_NO_RIGHT or (darfHoch == nil and L.ROSTER_UNMEASURED or L.ROSTER_TOP)))
+    d.demote:SetEnabledState(d.secure and darfRunter == true and tiefer ~= nil and not eigenRang,
+        eigenRang and L.ROSTER_SELF or (not d.secure and L.ROSTER_SECURE_NONE)
+        or (darfRunter == false and L.ROSTER_NO_RIGHT or (darfRunter == nil and L.ROSTER_UNMEASURED or L.ROSTER_BOTTOM)))
 
     -- Notizen: laden, ohne dass das Laden speichert.
     d.publicBox:Load(member.publicNote or "")
@@ -695,7 +726,10 @@ function View:RefreshDetail(member)
     local darfWeg = Compat.CanGuildRemove()
     d.remove:SetEnabledState(darfWeg == true and not eigen,
         eigen and L.ROSTER_SELF or (darfWeg == false and L.ROSTER_NO_RIGHT or L.ROSTER_UNMEASURED))
-    if self.removePending ~= member.name then d.remove:SetLabel(L.ROSTER_REMOVE) end
+    if self.removePending ~= member.name then
+        d.removeNow:Hide()
+        d.remove:Show()
+    end
     d.invite:SetEnabledState(member.online == true and not eigen, L.ROSTER_OFFLINE)
     d.whisper:SetEnabledState(not eigen, L.ROSTER_SELF)
 end

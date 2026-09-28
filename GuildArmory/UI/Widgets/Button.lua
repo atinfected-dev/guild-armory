@@ -645,3 +645,101 @@ function Widgets.InputDialog(title, hintText, onAccept)
 
     return frame
 end
+
+-- ------------------------------------------------------- Sicherer Knopf -----
+
+--- Ein Knopf, dessen Klick ein MAKRO des Spiels ausfuehrt — fuer Aufrufe,
+--- die Addons nicht tun duerfen.
+---
+--- GEMESSEN 28.09.2026: GuildPromote lief aus dem Klick eines normalen
+--- Knopfs und wurde vom Spiel geblockt ("blocked by Blizzard"), obwohl
+--- CanGuildPromote ja sagte. Die Rechte hatte der Spieler; den Aufruf
+--- darf nur Blizzards Code machen. Ein SecureActionButton ist Blizzards
+--- Code: Der Klick darauf ist der des Spielers, und "/gpromote Name" als
+--- Makrotext laeuft so, als haette er es eingetippt.
+---
+--- DAS MAKRO WIRD VOR DEM KLICK GESETZT, nicht beim Klick — im Klick ist
+--- der Knopf nicht mehr unser Code. Und nicht im Kampf: Dort sind die
+--- Attribute eines sicheren Rahmens gesperrt; SetMacro merkt sich den
+--- Text dann und sagt es mit false.
+---
+--- NUR "AnyUp". Wer Down UND Up anmeldet, laesst das Makro zweimal laufen —
+--- und "/gpromote" zweimal ist zwei Raenge.
+---
+--- @return Button|nil  nil, wenn dieser Client die Vorlage nicht kennt
+function Widgets.SecureMacroButton(parent, text, variant)
+    local fonts = Theme.Fonts()
+    local isPrimary = variant == "primary"
+
+    local ok, button = pcall(CreateFrame, "Button", nil, parent, "SecureActionButtonTemplate")
+    if not ok or type(button) ~= "table" or type(button.SetAttribute) ~= "function" then return nil end
+
+    button:SetHeight(20)
+    local background = Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
+    local lines = Theme.Outline(button, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+    local label = Theme.Label(button, string.upper(text or ""), fonts.small,
+        isPrimary and Theme.color.goldBright or Theme.color.goldMid)
+    label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    button:SetWidth(label:GetStringWidth() + 22)
+    button.label = label
+
+    pcall(button.RegisterForClicks, button, "AnyUp")
+    pcall(button.SetAttribute, button, "type", "macro")
+
+    local function inCombat()
+        return type(_G.InCombatLockdown) == "function" and InCombatLockdown() and true or false
+    end
+
+    button:SetScript("OnEnter", function(self)
+        if self.enabled ~= false then
+            Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep)
+            label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
+        end
+        if self.tooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(self.tooltip, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end)
+    button:SetScript("OnLeave", function(self)
+        Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
+        if self.enabled ~= false then
+            local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+            label:SetTextColor(color[1], color[2], color[3])
+        end
+        GameTooltip:Hide()
+    end)
+    -- Nach dem Klick — das Makro ist dann gelaufen — darf unser Code wieder.
+    button:SetScript("PostClick", function(self)
+        if self.onAfter then self.onAfter(self) end
+    end)
+
+    function button:SetMacro(macrotext)
+        self.macro = macrotext
+        if inCombat() then return false end
+        pcall(self.SetAttribute, self, "macrotext", macrotext or "")
+        return true
+    end
+
+    function button:SetEnabledState(enabled, reason)
+        self.enabled = enabled and true or false
+        if inCombat() then return end
+        if enabled then
+            pcall(self.Enable, self)
+            local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+            label:SetTextColor(color[1], color[2], color[3])
+            self.tooltip = nil
+        else
+            pcall(self.Disable, self)
+            label:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+            self.tooltip = reason
+        end
+    end
+
+    function button:SetLabel(newText)
+        label:SetText(string.upper(newText or ""))
+        self:SetWidth(label:GetStringWidth() + 22)
+    end
+
+    return button
+end

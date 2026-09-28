@@ -2775,9 +2775,12 @@ function Compat.SetGuildOfficerNote(index, text)
     return pcall(GuildRosterSetOfficerNote, index, tostring(text or "")), "GuildRosterSetOfficerNote"
 end
 
---- Befoerdern, degradieren, entfernen: geschuetzt im Sinne der Rechte,
---- nicht der Hardware — sie laufen aus einem Klick, und der Server prueft
---- den Rang.
+--- Befoerdern, degradieren, entfernen — GEMESSEN 28.09.2026: GESCHUETZT.
+--- Aus Addon-Code geblockt ("blocked by Blizzard"), auch aus einem Klick,
+--- auch mit CanGuildPromote=ja. Der Weg ist ein SecureActionButton mit
+--- "/gpromote Name" als Makro (Widgets.SecureMacroButton); diese drei
+--- bleiben fuer Linien, auf denen der Aufruf offen ist, und fuer die
+--- Sonde.
 function Compat.GuildPromote(name)
     if not name or not isFunction(_G.GuildPromote) then return false, "noapi" end
     return pcall(GuildPromote, name), "GuildPromote"
