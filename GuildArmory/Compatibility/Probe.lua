@@ -541,6 +541,7 @@ Probe.CHECKS = {
               "OffNotiz=" .. ja(Compat.CanEditOfficerNote()),
               "Befoerdern=" .. ja(Compat.CanGuildPromote()),
               "Entfernen=" .. ja(Compat.CanGuildRemove()),
+              "Einladen=" .. ja(Compat.CanGuildInvite()),
           }
           local ranks = Compat.GetGuildRanks()
           teile[#teile + 1] = "Raenge=" .. (ranks and tostring(#ranks) or "?")

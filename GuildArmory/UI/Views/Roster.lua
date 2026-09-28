@@ -64,6 +64,17 @@ local function offsets()
 end
 
 --- Ein Eingabefeld, das beim Enter speichert und bei Escape verwirft.
+local function trim(text)
+    return (tostring(text or "")):match("^%s*(.-)%s*$")
+end
+
+--- Die Fehlertexte, mit denen das Spiel einen geschuetzten Aufruf abweist.
+local function looksBlocked(err)
+    local s = string.lower(tostring(err or ""))
+    return s:find("blocked", 1, true) or s:find("protected", 1, true)
+        or s:find("forbidden", 1, true) or s:find("secure", 1, true) or false
+end
+
 local function editBox(parent, width, onSave)
     local box = Theme.CreateNative("EditBox", nil, parent, "InputBoxTemplate")
     if not box then
@@ -128,10 +139,13 @@ function View:Create(parent)
     self.infoButton = Widgets.Button(head, L.ROSTER_INFO, function() self:EditGuildInfo() end)
     self.infoButton:SetPoint("RIGHT", self.blizzardButton, "LEFT", -6, 0)
 
+    self.inviteButton = Widgets.Button(head, L.ROSTER_INVITE, function() self:ShowInvite() end)
+    self.inviteButton:SetPoint("RIGHT", self.infoButton, "LEFT", -6, 0)
+
     -- Die Nachricht des Tages: ein Knopf, weil Klick bearbeitet.
     self.motd = CreateFrame("Button", nil, head)
     self.motd:SetPoint("TOPLEFT", head, "TOPLEFT", 250, -8)
-    self.motd:SetPoint("BOTTOMRIGHT", self.infoButton, "BOTTOMLEFT", -14, 0)
+    self.motd:SetPoint("BOTTOMRIGHT", self.inviteButton, "BOTTOMLEFT", -14, 0)
     self.motd:SetPoint("BOTTOM", head, "BOTTOM", 0, 8)
     self.motdHead = Theme.Label(self.motd, "", fonts.heading, Theme.color.goldDim)
     self.motdHead:SetPoint("TOPLEFT", self.motd, "TOPLEFT", 0, -2)
@@ -550,11 +564,152 @@ function View:SaveNote(kind, text)
         return
     end
     local index = Compat.FindGuildMemberIndex(member.name)
-    local ok, weg
-    if kind == "public" then ok, weg = Compat.SetGuildPublicNote(index, text, member.guid)
-    else ok, weg = Compat.SetGuildOfficerNote(index, text, member.guid) end
-    GA.Core.Debug:Info(ok and L.ROSTER_NOTE_SAVED or L.ROSTER_NOTE_FAILED, member.name, tostring(weg))
+    local ok, weg, err
+    if kind == "public" then ok, weg, err = Compat.SetGuildPublicNote(index, text, member.guid)
+    else ok, weg, err = Compat.SetGuildOfficerNote(index, text, member.guid) end
+    -- Blockt das Spiel den Aufruf als Lua-Fehler, faengt pcall den Text.
+    if not ok and err and looksBlocked(err) then
+        self:MarkNoteBlocked(weg .. ": " .. err)
+        return
+    end
+    GA.Core.Debug:Info(ok and L.ROSTER_NOTE_SAVED or L.ROSTER_NOTE_FAILED, member.name, tostring(err or weg))
+    if not ok then return end
+    -- AM ERGEBNIS GEMESSEN: Der Aufruf ging durch, aber ob die Notiz steht,
+    -- sagt erst das naechste Roster. Kommt es und traegt sie nicht, hat das
+    -- Spiel sie verworfen — dann sind die Felder ab jetzt nur lesbar. Das
+    -- Roster laesst sich nicht oefter als alle zehn Sekunden anfordern,
+    -- darum die lange Frist, bevor wir ohne Roster urteilen.
+    self.noteCheck = { name = member.name, kind = kind, text = trim(text), weg = weg, ts = GA.Core.Util.Now() }
     Compat.RequestGuildRoster()
+    Compat.After(15, function() View:VerifyNote(true) end)
+end
+
+--- Vergleicht die zuletzt abgeschickte Notiz mit dem, was das Roster
+--- traegt. Steht sie: Sperre weg, falls eine war. Steht sie nicht und die
+--- Frist ist um: gesperrt, mit dem Weg als Grund.
+function View:VerifyNote(final)
+    local check = self.noteCheck
+    if not check then return end
+    local member
+    for _, m in ipairs(GA.Modules.Guild:List()) do
+        if m.name == check.name then member = m break end
+    end
+    if not member then self.noteCheck = nil return end
+    local ist = trim(check.kind == "public" and member.publicNote or member.officerNote)
+    if ist == check.text then
+        self.noteCheck = nil
+        if GA.Core.Config:Get("guildNoteBlocked") then
+            GA.Core.Config:Set("guildNoteBlocked", false)
+            if self.frame and self.frame:IsVisible() then self:Refresh() end
+        end
+        return
+    end
+    if final then
+        self.noteCheck = nil
+        self:MarkNoteBlocked(check.weg .. " " .. L.ROSTER_NOTE_NOEFFECT)
+    end
+end
+
+--- Merkt sich, dass das Spiel Notizen aus dem Addon verwirft — dauerhaft,
+--- bis eine spaetere Notiz doch im Roster steht.
+function View:MarkNoteBlocked(reason)
+    if not GA.Core.Config:Get("guildNoteBlocked") then
+        GA.Core.Config:Set("guildNoteBlocked", reason)
+        GA.Core.Debug:Info(L.ROSTER_NOTE_BLOCKED, reason)
+    end
+    if self.frame and self.frame:IsVisible() then self:Refresh() end
+end
+
+-- ============================================================= Einladen -----
+--
+-- Ein kleines Fenster: Name eintippen, Knopf druecken. Der Knopf ist ein
+-- sicherer Knopf des Spiels mit "/ginvite Name" — GuildInvite aus Addon-
+-- Code ist auf dieser Linie so geschuetzt wie GuildPromote (gemessen
+-- 28.09.2026), und ein sicherer Knopf laesst sich nicht per Enter
+-- druecken; das sagt der Hinweis im Fenster.
+
+function View:ShowInvite(prefill)
+    local frame = self.inviteFrame
+    if not frame then
+        local fonts = Theme.Fonts()
+        frame = CreateFrame("Frame", "GuildArmoryInviteDialog", UIParent)
+        frame:SetWidth(380)
+        frame:SetHeight(170)
+        frame:SetPoint("CENTER")
+        frame:SetFrameStrata("DIALOG")
+        frame:SetMovable(true)
+        frame:EnableMouse(true)
+        frame:RegisterForDrag("LeftButton")
+        frame:SetScript("OnDragStart", frame.StartMoving)
+        frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+        frame:SetClampedToScreen(true)
+        Theme.Fill(frame, Theme.color.windowBg)
+        Theme.DoubleFrame(frame)
+
+        local title = Theme.Label(frame, string.upper(L.ROSTER_INVITE), fonts.title, Theme.color.heading)
+        title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
+
+        local hint = Theme.Label(frame, L.ROSTER_INVITE_HINT, fonts.small, Theme.color.textDim)
+        hint:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -34)
+        hint:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+        hint:SetJustifyH("LEFT")
+
+        local caption = Theme.Label(frame, L.ROSTER_INVITE_NAME, fonts.small, Theme.color.textDim)
+        caption:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -82)
+
+        frame.edit = editBox(frame, 220, nil)
+        frame.edit:SetPoint("TOPLEFT", caption, "BOTTOMLEFT", 6, -3)
+        frame.edit:SetScript("OnTextChanged", function() View:UpdateInvite() end)
+        frame.edit:SetScript("OnEscapePressed", function() frame:Hide() end)
+
+        frame.status = Theme.Label(frame, "", fonts.small, Theme.color.jade)
+        frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16, 20)
+        frame.status:SetPoint("RIGHT", frame, "RIGHT", -170, 0)
+        frame.status:SetJustifyH("LEFT")
+        frame.status:SetWordWrap(false)
+
+        local cancel = Widgets.Button(frame, L.BTN_CANCEL, function() frame:Hide() end)
+        cancel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 14)
+
+        local send = Widgets.SecureMacroButton(frame, L.ROSTER_INVITE_SEND, "primary")
+        if send then
+            send.onAfter = function()
+                local name = trim(frame.edit:GetText())
+                frame.status:SetText(string.format(L.ROSTER_INVITE_SENT, name))
+                frame.edit:SetText("")
+                Compat.After(1, function() Compat.RequestGuildRoster() end)
+            end
+            frame.secure = true
+        else
+            send = Widgets.Button(frame, L.ROSTER_INVITE_SEND, function()
+                GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE)
+            end, "primary")
+        end
+        send:SetHeight(22)
+        send:SetPoint("BOTTOMRIGHT", cancel, "BOTTOMLEFT", -6, 0)
+        frame.send = send
+
+        frame:Hide()
+        if type(_G.UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GuildArmoryInviteDialog") end
+        self.inviteFrame = frame
+    end
+    frame.status:SetText("")
+    frame.edit:SetText(prefill or "")
+    frame:Show()
+    frame.edit:SetFocus()
+    self:UpdateInvite()
+end
+
+--- Das Makro folgt dem Namen im Feld — VOR dem Klick, nie im Kampf.
+function View:UpdateInvite()
+    local frame = self.inviteFrame
+    if not frame or not frame.secure then return end
+    local name = trim(frame.edit:GetText())
+    local darf = Compat.CanGuildInvite()
+    local combat = Compat.InCombat()
+    frame.send:SetMacro(name ~= "" and ("/ginvite " .. name) or "")
+    frame.send:SetEnabledState(name ~= "" and darf ~= false and not combat,
+        name == "" and L.ROSTER_INVITE_EMPTY or (darf == false and L.ROSTER_NO_RIGHT or L.ROSTER_INVITE_COMBAT))
 end
 
 function View:EditMOTD()
@@ -867,14 +1022,15 @@ GA.Core.Callbacks:On("ADDON_READY", function()
         GA.Core.Events:Register(event, function(_, addon, func)
             if addon ~= "GuildArmory" or type(func) ~= "string" then return end
             if func:find("SetNote", 1, true) or func:find("Note", 1, true) and func:find("GuildRoster", 1, true) then
-                if not GA.Core.Config:Get("guildNoteBlocked") then
-                    GA.Core.Config:Set("guildNoteBlocked", func)
-                    GA.Core.Debug:Info(L.ROSTER_NOTE_BLOCKED, func)
-                end
-                if View.frame and View.frame:IsVisible() then View:Refresh() end
+                View.noteCheck = nil
+                View:MarkNoteBlocked(func)
             end
         end, "RosterView")
     end
+    -- Das naechste Roster nach einer Notiz sagt, ob sie steht.
+    GA.Core.Events:Register("GUILD_ROSTER_UPDATE", function()
+        if View.noteCheck then Compat.After(0.5, function() View:VerifyNote(false) end) end
+    end, "RosterView")
 end, "RosterView")
 
 GA.Core.Callbacks:On("CONFIG_CHANGED", function(key)

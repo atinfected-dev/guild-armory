@@ -2721,6 +2721,7 @@ function Compat.CanViewOfficerNote() return askGuildInfo("CanViewOfficerNote") e
 function Compat.CanGuildPromote() return askBool(_G.CanGuildPromote) end
 function Compat.CanGuildDemote() return askBool(_G.CanGuildDemote) end
 function Compat.CanGuildRemove() return askBool(_G.CanGuildRemove) end
+function Compat.CanGuildInvite() return askBool(_G.CanGuildInvite) end
 
 --- Auf welcher Flanke ein sicherer Knopf sein Makro ausfuehrt.
 ---
@@ -2805,16 +2806,19 @@ end
 --- es nicht. Wer das Ereignis sieht (Roster hoert darauf), merkt es sich:
 --- Die Felder werden dann nur lesbar, und die Notiz bleibt Blizzards Fenster.
 --- @return boolean ok, string weg
+--- @return boolean ok, string weg, string|nil fehler  (der Text, den pcall fing)
 local function setNote(index, text, guid, oldName, isPublic)
     text = tostring(text or "")
     if index and isFunction(_G[oldName]) then
-        return pcall(_G[oldName], index, text), oldName
+        local ok, err = pcall(_G[oldName], index, text)
+        return ok, oldName, (not ok) and tostring(err) or nil
     end
     local api = _G.C_GuildInfo
     if isTable(api) and isFunction(api.SetNote) then
         guid = guid or rosterGuid(index)
         if not guid then return false, "noguid" end
-        return pcall(api.SetNote, guid, text, isPublic), "C_GuildInfo.SetNote"
+        local ok, err = pcall(api.SetNote, guid, text, isPublic)
+        return ok, "C_GuildInfo.SetNote", (not ok) and tostring(err) or nil
     end
     return false, "noapi"
 end
