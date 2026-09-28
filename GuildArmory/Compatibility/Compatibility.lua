@@ -2486,6 +2486,206 @@ function Compat.GetProfessionIcon(lineID)
     return nil
 end
 
+-- ================================================================== Questlog --
+--
+-- ZWEI WEGE, BEIDE UNGEMESSEN AUF FOREVER (28.09.2026). Der neuere Client
+-- hat C_QuestLog mit Tabellen je Eintrag; der aeltere GetQuestLogTitle mit
+-- neun Rueckgabewerten. Welcher hier traegt, sagt /ga probe ("questLog").
+-- Beide werden versucht, der erste, der etwas HERGIBT, gewinnt — nicht der
+-- erste, der existiert.
+
+--- Die Questart als eigenes Kennwort, gleich auf beiden Wegen.
+local QUEST_TAG_BY_ID = {
+    [1] = "GROUP", [81] = "DUNGEON", [62] = "RAID", [88] = "RAID", [89] = "RAID",
+    [85] = "HEROIC", [41] = "PVP",
+}
+local QUEST_TAG_BY_NAME = {
+    group = "GROUP", gruppe = "GROUP", dungeon = "DUNGEON", elite = "ELITE",
+    raid = "RAID", schlachtzug = "RAID", pvp = "PVP", heroic = "HEROIC", heroisch = "HEROIC",
+}
+
+local function questTag(questID, tagName)
+    if type(tagName) == "string" and tagName ~= "" then
+        local key = QUEST_TAG_BY_NAME[string.lower(tagName)]
+        if key then return key end
+    end
+    local api = _G.C_QuestLog
+    if questID and isTable(api) and isFunction(api.GetQuestTagInfo) then
+        local ok, info = pcall(api.GetQuestTagInfo, questID)
+        if ok and isTable(info) then
+            local key = QUEST_TAG_BY_ID[tonumber(info.tagID or 0)]
+            if key then return key end
+            if type(info.tagName) == "string" then
+                return QUEST_TAG_BY_NAME[string.lower(info.tagName)]
+            end
+        end
+    end
+    return nil
+end
+
+--- Das eigene Questlog: eine Liste aus { index, questID, title, level,
+--- tag, header, complete }. header = die Ueberschrift darueber (auf
+--- Vanilla die Zone).
+---
+--- @return table|nil list, string|nil way  nil = kein Weg gibt etwas her
+function Compat.GetQuestLog()
+    local api = _G.C_QuestLog
+    if isTable(api) and isFunction(api.GetNumQuestLogEntries) and isFunction(api.GetInfo) then
+        local ok, count = pcall(api.GetNumQuestLogEntries)
+        if ok and type(count) == "number" and count > 0 then
+            local out, header = {}, nil
+            for index = 1, count do
+                local okInfo, info = pcall(api.GetInfo, index)
+                if okInfo and isTable(info) then
+                    if info.isHeader then
+                        header = info.title
+                    elseif tonumber(info.questID) and tonumber(info.questID) > 0 then
+                        out[#out + 1] = {
+                            index = index, questID = tonumber(info.questID),
+                            title = info.title, level = tonumber(info.level),
+                            tag = questTag(tonumber(info.questID), nil),
+                            header = header, complete = info.isComplete and true or false,
+                        }
+                    end
+                end
+            end
+            if #out > 0 then return out, "C_QuestLog" end
+        end
+    end
+
+    if isFunction(_G.GetNumQuestLogEntries) and isFunction(_G.GetQuestLogTitle) then
+        local ok, count = pcall(GetNumQuestLogEntries)
+        if ok and type(count) == "number" and count > 0 then
+            local out, header = {}, nil
+            for index = 1, count do
+                local okT, title, level, tagName, isHeader, _, isComplete, _, questID =
+                    pcall(GetQuestLogTitle, index)
+                if okT and type(title) == "string" then
+                    if isHeader then
+                        header = title
+                    else
+                        out[#out + 1] = {
+                            index = index, questID = tonumber(questID),
+                            title = title, level = tonumber(level),
+                            tag = questTag(tonumber(questID), tagName),
+                            header = header, complete = isComplete and true or false,
+                        }
+                    end
+                end
+            end
+            if #out > 0 then return out, "GetQuestLogTitle" end
+        end
+    end
+    return nil
+end
+
+--- Die Ziele einer Quest aus dem eigenen Log: { { text, finished } }.
+--- @return table|nil  nil = nicht lesbar
+function Compat.GetQuestObjectives(index, questID)
+    local api = _G.C_QuestLog
+    if questID and isTable(api) and isFunction(api.GetQuestObjectives) then
+        local ok, list = pcall(api.GetQuestObjectives, questID)
+        if ok and isTable(list) and #list > 0 then
+            local out = {}
+            for _, entry in ipairs(list) do
+                if isTable(entry) and type(entry.text) == "string" and entry.text ~= "" then
+                    out[#out + 1] = { text = entry.text, finished = entry.finished and true or false }
+                end
+            end
+            if #out > 0 then return out end
+        end
+    end
+
+    if index and isFunction(_G.GetNumQuestLeaderBoards) and isFunction(_G.GetQuestLogLeaderBoard) then
+        local ok, count = pcall(GetNumQuestLeaderBoards, index)
+        if ok and type(count) == "number" and count > 0 then
+            local out = {}
+            for i = 1, count do
+                local okB, text, _, finished = pcall(GetQuestLogLeaderBoard, i, index)
+                if okB and type(text) == "string" and text ~= "" then
+                    out[#out + 1] = { text = text, finished = finished and true or false }
+                end
+            end
+            if #out > 0 then return out end
+        end
+    end
+    return nil
+end
+
+--- Der Questlink. Der neuere Client nimmt die Questkennung, der aeltere den
+--- Platz im Log; beides wird versucht, und nur ein Link zaehlt.
+function Compat.GetQuestLink(index, questID)
+    if not isFunction(_G.GetQuestLink) then return nil end
+    for _, arg in ipairs({ questID, index }) do
+        if arg then
+            local ok, link = pcall(GetQuestLink, arg)
+            if ok and type(link) == "string" and string.find(link, "|Hquest:", 1, true) then
+                return link
+            end
+        end
+    end
+    return nil
+end
+
+--- Haengt einen Alt-Klick an die Quests im Questlog. Der Rueckruf bekommt
+--- (questID, index) — was der geklickte Knopf davon hergibt.
+---
+--- Zwei Rahmen, je Linie einer: QuestMapLogTitleButton (die Karte mit
+--- Questlog), QuestLogTitleButton (das alte Questlog). Welcher traegt, sagt
+--- der Rueckgabewert — und /ga probe.
+--- @return string|nil  der Weg, der sich anhaengen liess
+function Compat.HookQuestLogClicks(callback)
+    if not isFunction(_G.hooksecurefunc) or not isFunction(_G.IsAltKeyDown) then return nil end
+
+    local function onClick(button)
+        local okAlt, alt = pcall(IsAltKeyDown)
+        if not okAlt or not alt or not isTable(button) then return end
+        local questID = tonumber(button.questID)
+        local index = tonumber(button.questLogIndex)
+        if not index and isFunction(button.GetID) then
+            local okId, id = pcall(button.GetID, button)
+            if okId and tonumber(id) and tonumber(id) > 0 then index = tonumber(id) end
+        end
+        if questID or index then callback(questID, index) end
+    end
+
+    for _, name in ipairs({ "QuestMapLogTitleButton_OnClick", "QuestLogTitleButton_OnClick" }) do
+        if isFunction(_G[name]) then
+            local ok = pcall(hooksecurefunc, name, onClick)
+            if ok then return name end
+        end
+    end
+    return nil
+end
+
+--- Laedt jemanden in die Gruppe ein. Geschuetzt: nur aus einem Klick heraus.
+--- @return boolean ok, string|nil reason
+function Compat.InviteUnit(name)
+    if type(name) ~= "string" or name == "" then return false, "noname" end
+    local party = _G.C_PartyInfo
+    if isTable(party) and isFunction(party.InviteUnit) then
+        local ok = pcall(party.InviteUnit, name)
+        if ok then return true, "C_PartyInfo" end
+    end
+    if isFunction(_G.InviteUnit) then
+        local ok = pcall(InviteUnit, name)
+        if ok then return true, "InviteUnit" end
+    end
+    return false, "noapi"
+end
+
+--- Oeffnet die Chatzeile mit "/w Name " — wie ein Klick auf einen Namen.
+function Compat.OpenWhisper(name)
+    if type(name) ~= "string" or name == "" then return false end
+    if isFunction(_G.ChatFrame_SendTell) then
+        return pcall(ChatFrame_SendTell, name) and true or false
+    end
+    if isFunction(_G.ChatFrame_OpenChat) then
+        return pcall(ChatFrame_OpenChat, "/w " .. name .. " ") and true or false
+    end
+    return false
+end
+
 -- ============================================================ Charakterfenster
 
 --- Der Name eines Ausruestungsplatzes in der Sprache des Clients.

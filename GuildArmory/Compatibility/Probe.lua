@@ -529,6 +529,22 @@ Probe.CHECKS = {
           return Probe.YES, text
       end },
 
+    { key = "questLog", was = "Questlog lesbar, Ziele, Link, Alt-Klick",
+      fuer = "Questhub: Gesuche aus dem eigenen Log",
+      run = function()
+          local Compat = GA.Core.Compat
+          local log, weg = Compat.GetQuestLog()
+          if not log then return Probe.NO, "kein Weg gibt das Questlog her" end
+          local ziele, links = 0, 0
+          for _, entry in ipairs(log) do
+              if Compat.GetQuestObjectives(entry.index, entry.questID) then ziele = ziele + 1 end
+              if Compat.GetQuestLink(entry.index, entry.questID) then links = links + 1 end
+          end
+          local hook = GA.Modules.Questhub and GA.Modules.Questhub.hookPath
+          return Probe.YES, string.format("%d Quests ueber %s, %d mit Zielen, %d mit Link, Alt-Klick: %s",
+              #log, tostring(weg), ziele, links, tostring(hook or "kein Weg"))
+      end },
+
     { key = "tradeSkill", was = "Berufsfenster-API",
       fuer = "Berufeseite, GA-166, GA-167 Rezepte zaehlen",
       run = function()

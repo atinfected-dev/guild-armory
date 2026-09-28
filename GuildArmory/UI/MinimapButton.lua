@@ -133,6 +133,13 @@ function MinimapButton:Create()
     end
 
     button:SetScript("OnClick", function(_, mouseButton)
+        -- UMSCHALT + KLICK: die Meldungsablage (28.09.2026). Der Zaehler am
+        -- Knopf sagt, dass es etwas gibt; dieser Klick zeigt es.
+        local okShift, shift = pcall(IsShiftKeyDown)
+        if okShift and shift and GA.UI.Notifications then
+            GA.UI.Notifications:Toggle()
+            return
+        end
         if mouseButton == "RightButton" then
             GA.UI.MainFrame:Show()
             GA.UI.MainFrame:ShowView("settings")
@@ -140,6 +147,18 @@ function MinimapButton:Create()
             GA.UI.MainFrame:Toggle()
         end
     end)
+
+    -- Der Zaehler: ungelesene Meldungen, oben rechts am Knopf.
+    local badge = CreateFrame("Frame", nil, button)
+    badge:SetWidth(16) badge:SetHeight(16)
+    badge:SetPoint("CENTER", button, "TOPRIGHT", -2, -2)
+    badge:SetFrameLevel(button:GetFrameLevel() + 2)
+    Theme.Fill(badge, Theme.color.warn)
+    Theme.Outline(badge, { 0.04, 0.05, 0.04, 1 })
+    badge.text = Theme.Label(badge, "", Theme.Fonts().small, { 0.03, 0.05, 0.04 })
+    badge.text:SetPoint("CENTER", badge, "CENTER", 0, 0)
+    badge:Hide()
+    button.badge = badge
 
     button:SetScript("OnEnter", function(self) MinimapButton:ShowTooltip(self) end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -162,6 +181,17 @@ end
 -- ================================================================ Position ----
 
 --- Setzt den Knopf auf den gespeicherten Winkel.
+--- Zeigt die Zahl ungelesener Meldungen am Knopf — oder nichts bei null.
+function MinimapButton:SetBadge(count)
+    local badge = self.button and self.button.badge
+    if not badge then return end
+    count = tonumber(count) or 0
+    if count <= 0 then badge:Hide() return end
+    badge.text:SetText(count > 9 and "9+" or tostring(count))
+    badge:SetWidth(count > 9 and 22 or 16)
+    badge:Show()
+end
+
 function MinimapButton:UpdatePosition()
     if not self.button then return end
 
@@ -229,6 +259,7 @@ function MinimapButton:ShowTooltip(owner)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(L.MINIMAP_LEFT, 0.9, 0.8, 0.5)
     GameTooltip:AddLine(L.MINIMAP_RIGHT, 0.9, 0.8, 0.5)
+    GameTooltip:AddLine(L.MINIMAP_SHIFT, 0.9, 0.8, 0.5)
     GameTooltip:AddLine(L.MINIMAP_DRAG, 0.44, 0.40, 0.33)
     GameTooltip:Show()
 end

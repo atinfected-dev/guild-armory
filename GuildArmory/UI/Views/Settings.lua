@@ -247,6 +247,19 @@ function Settings:Create(parent)
     self.levelUpHint = Theme.Label(camp.content, L.SET_LEVELUP_HINT,
         fonts.small, Theme.color.textDim)
 
+    -- DIE MELDUNGEN AN DER MINIMAP (28.09.2026), je Art ein Schalter. Aus
+    -- heisst: weder Streifen noch Ablage. Erfolge sind aus, bis jemand sie
+    -- will — ein Gildenerster ist eine Behauptung, keine Nachricht.
+    self.notifyBoxes = {}
+    for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
+        local box = Widgets.CheckBox(camp.content, L["SET_NOTIFY_" .. string.upper(key)], function(checked)
+            GA.Core.Config:Set("notify" .. key, checked)
+        end)
+        local hint = Theme.Label(camp.content, L["SET_NOTIFY_" .. string.upper(key) .. "_HINT"],
+            fonts.small, Theme.color.textDim)
+        self.notifyBoxes[#self.notifyBoxes + 1] = { key = key, box = box, hint = hint }
+    end
+
     -- HIER STAND EIN LEBENSBALKEN. Er ist wieder heraus, weil dieser Client
     -- keine lesbaren Lebenswerte herausgibt — gemessen am 24.09.2026 ueber
     -- beide Wege, UnitHealth und Blizzards eigene Leiste, und beide Male
@@ -484,6 +497,9 @@ function Settings:RelayoutCamp()
         { self.mapLabelBox, self.mapLabelHint },
         { self.levelUpBox, self.levelUpHint },
     }
+    for _, entry in ipairs(self.notifyBoxes or {}) do
+        paare[#paare + 1] = { entry.box, entry.hint }
+    end
 
     for index, paar in ipairs(paare) do
         local box, hint = paar[1], paar[2]
@@ -617,6 +633,12 @@ function Settings:Refresh()
     self.mapLabelHint:SetText(L.SET_MAP_LABELS_HINT)
     self.levelUpBox:SetChecked(GA.Core.Config:Get("levelUpAnnounce") and true or false)
     self.levelUpHint:SetText(L.SET_LEVELUP_HINT)
+    for _, entry in ipairs(self.notifyBoxes or {}) do
+        local wert = GA.Core.Config:Get("notify" .. entry.key)
+        if wert == nil then wert = entry.key ~= "Achievements" end
+        entry.box:SetChecked(wert and true or false)
+        entry.hint:SetText(L["SET_NOTIFY_" .. string.upper(entry.key) .. "_HINT"])
+    end
 
     local seen = {}
     local measured = GA.Core.Database.account.measured

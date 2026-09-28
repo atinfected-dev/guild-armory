@@ -70,6 +70,10 @@ local SECTIONS = {
         { key = "achievements", label = "NAV_ACHIEVEMENTS" },
     } },
 
+    { key = "questhub", label = "NAV_QUESTHUB", views = {
+        { key = "questhub", label = "NAV_QUESTHUB" },
+    } },
+
     { key = "loot", label = "NAV_LOOT", views = {
         { key = "lootcouncil", label = "NAV_SESSION" },
         { key = "loothistory", label = "NAV_LOOTHISTORY" },

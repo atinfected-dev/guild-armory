@@ -61,6 +61,7 @@ Camp\Catalog.lua
 Camp\Camp.lua
 Professions\Crafting.lua
 Map\Positions.lua
+Quests\Questhub.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -83,6 +84,7 @@ UI\Widgets\ScrollList.lua
 UI\Widgets\Dropdown.lua
 UI\MainFrame.lua
 UI\MinimapButton.lua
+UI\Notifications.lua
 UI\MapPins.lua
 UI\BidFrame.lua
 UI\CampFrame.lua
@@ -91,6 +93,7 @@ UI\ImportDialog.lua
 UI\GrantDialog.lua
 UI\AchievementIcons.lua
 UI\Views\Dashboard.lua
+UI\Views\Questhub.lua
 UI\Views\Armory.lua
 UI\Views\Characters.lua
 UI\Views\LootCouncil.lua

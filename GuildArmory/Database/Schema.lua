@@ -227,6 +227,14 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Stufe will, setzt das hier.
         levelUpEveryLevel = false,
 
+        -- MELDUNGEN AN DER MINIMAP (28.09.2026): Zaehler am Knopf, ein
+        -- Streifen fuer sechs Sekunden, die Ablage auf Umschalt-Klick. Je
+        -- Art ein Schalter. Erfolge aus, bis jemand sie will.
+        notifyTradables = true,
+        notifyQuesthub = true,
+        notifyCamp = true,
+        notifyAchievements = false,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die

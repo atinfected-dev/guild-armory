@@ -2,7 +2,54 @@
 
 ## 0.1.16
 
-The characters page as a family tree, the achievements as a trophy hall, and map pins that bundle up when a crowd stands on one spot.
+The characters page as a family tree, the achievements as a trophy hall, map pins that bundle up when a crowd stands on one spot, a Questhub for finding people for a quest, and notifications at the minimap.
+
+### Questhub: who is looking for people for which quest
+
+A new tab. Alt-click a quest in your log and it stands on the board for the
+guild: title, level, kind (group, dungeon, elite), the zone heading from
+your log, and up to three of your objectives with their state. It stays two
+hours, or until you take it back (alt-click again, or the button) or turn
+the quest in. Others can say "I am looking too"; that stands at the request
+as a count and a list.
+
+The board is a table, because the question there is "is it worth the walk"
+and a row answers it without a click: kind, quest with the seeker's
+objectives, zone, level (green when within five of yours), who seeks and
+how many want in, since when. Filters: all, my zone, my level, group,
+dungeon. Pick a row and the right side shows the seeker's objectives —
+theirs, from their log, not yours — who else is seeking, and what you have
+to do with it: whether the quest is in your own log and how far you are.
+One button sends the game's group invitation to the seeker; the addon forms
+no group by itself. "I am looking too", "Withdraw" for your own, "Quest in
+chat" with the quest link where the client gives one.
+
+"Quest from the log" swaps the right side for your own quest log with a
+Post button per quest — the way without alt-click. Whether alt-click
+attaches on this client, whether the log can be read at all and by which of
+two API paths, whether objectives and links come back: `/ga probe` has an
+entry ("questLog"). Nothing of it is assumed; both paths are tried and the
+one that hands something back wins.
+
+### Notifications at the minimap
+
+Things happen while the window is closed: somebody offers a bind-on-equip
+item, somebody looks for people for a quest, somebody lights a campfire in
+your zone, somebody reports a guild first. Three pieces:
+
+- A **counter** on the minimap button: how many are unread.
+- A **strip** under the minimap: the newest one, six seconds, no buttons.
+  A click on it opens the tray. In combat it waits until the fight is over.
+- The **tray**, shift-click on the button: the last notifications, new ones
+  highlighted, each with one button that does the obvious thing — ask for
+  the item, open the Questhub, open the map, open the achievements.
+
+Nothing stacks over the world; whoever ignores the counter is not disturbed
+again. Each kind has a switch in the settings; guild firsts are off until
+somebody wants them — a guild first is a claim until the guild confirms it.
+The first twenty seconds after login report nothing: the sync brings the
+whole guild's offers in at once, and each as a notification would be a
+fireworks of old news.
 
 ### Map pins bundle up
 
