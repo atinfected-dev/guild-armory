@@ -734,10 +734,12 @@ function Widgets.SecureMacroButton(parent, text, variant)
             pcall(self.Enable, self)
             local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
             label:SetTextColor(color[1], color[2], color[3])
-            self.tooltip = nil
+            if self.icon then self.icon:SetAlpha(1) end
+            self.tooltip = self.hint
         else
             pcall(self.Disable, self)
             label:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+            if self.icon then self.icon:SetAlpha(0.3) end
             self.tooltip = reason
         end
     end
@@ -745,6 +747,25 @@ function Widgets.SecureMacroButton(parent, text, variant)
     function button:SetLabel(newText)
         label:SetText(string.upper(newText or ""))
         self:SetWidth(label:GetStringWidth() + 22)
+    end
+
+    --- Ein Bild statt Schrift — nur, wenn die Textur WIRKLICH laedt; sonst
+    --- bleibt der Ersatztext stehen, und der Knopf sagt es mit false.
+    function button:SetIcon(path, size, fallbackText)
+        size = size or 12
+        if not Theme.TextureExists(path) then
+            label:SetText(fallbackText or "")
+            return false
+        end
+        if not self.icon then
+            self.icon = self:CreateTexture(nil, "ARTWORK")
+            self.icon:SetPoint("CENTER", self, "CENTER", 0, 0)
+        end
+        self.icon:SetTexture(path)
+        self.icon:SetSize(size, size)
+        self.icon:SetAlpha(self.enabled == false and 0.3 or 1)
+        label:SetText("")
+        return true
     end
 
     return button

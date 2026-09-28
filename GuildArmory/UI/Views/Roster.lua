@@ -343,8 +343,8 @@ function View:BuildDetail(parent, fonts)
     -- GuildPromote aus Addon-Code wird geblockt (gemessen 28.09.2026).
     -- Kennt der Client die Vorlage nicht, bleiben normale Knoepfe, die
     -- sagen, dass es nur in Blizzards Fenster geht.
-    local function macroButton(text)
-        local button = Widgets.SecureMacroButton(d, text)
+    local function macroButton(text, variant)
+        local button = Widgets.SecureMacroButton(d, text, variant)
         if button then
             button.onAfter = function() Compat.After(0.5, function() Compat.RequestGuildRoster() end) end
             return button, true
@@ -352,27 +352,34 @@ function View:BuildDetail(parent, fonts)
         button = Widgets.Button(d, text, function() GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE) end)
         return button, false
     end
+    -- Die Zeile: [Pfeil hoch] [aktueller Rang als breiter Chip] [Pfeil runter],
+    -- darunter die Namen der Nachbarstufen. Die Pfeile sind Texturen des
+    -- Spiels — "▲" als Schrift rendert die Spielschrift als Kaestchen
+    -- (gesehen 28.09.2026); fehlt die Textur, steht "+" bzw. "-" da.
+    local ARROW = 22
     d.promote, d.secure = macroButton("")
-    d.promote:SetHeight(20)
+    d.promote:SetSize(ARROW, ARROW)
     -- Am Frame verankert, nicht an der Ueberschrift: ein geschuetzter
     -- Knopf darf nicht an einer Region haengen (gemessen 28.09.2026).
     d.promote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -86)
-    d.promote:SetWidth(72)
+    if d.promote.SetIcon then d.promote:SetIcon("Interface\\Buttons\\Arrow-Up-Up", 14, "+") end
 
     d.rankNow = CreateFrame("Frame", nil, d)
-    d.rankNow:SetHeight(20)
+    d.rankNow:SetHeight(ARROW)
+    d.rankNow:SetWidth(DETAIL_W - 24 - 2 * (ARROW + 4))
     d.rankNow:SetPoint("LEFT", d.promote, "RIGHT", 4, 0)
+    d.rankFill = Theme.Fill(d.rankNow, { 0, 0, 0, 0 })
     d.rankLines = Theme.Outline(d.rankNow, Theme.color.border)
-    d.rankText = Theme.Label(d.rankNow, "", fonts.small, Theme.color.text)
+    d.rankText = Theme.Label(d.rankNow, "", fonts.rowBold, Theme.color.text)
     d.rankText:SetPoint("CENTER", d.rankNow, "CENTER", 0, 0)
 
     d.demote = macroButton("")
-    d.demote:SetHeight(20)
+    d.demote:SetSize(ARROW, ARROW)
     d.demote:SetPoint("LEFT", d.rankNow, "RIGHT", 4, 0)
-    d.demote:SetWidth(72)
+    if d.demote.SetIcon then d.demote:SetIcon("Interface\\Buttons\\Arrow-Down-Up", 14, "-") end
 
-    d.rankHint = Theme.Label(d, L.ROSTER_RANK_HINT, fonts.small, Theme.color.textFaint)
-    d.rankHint:SetPoint("TOPLEFT", d.promote, "BOTTOMLEFT", 0, -3)
+    d.rankHint = Theme.Label(d, "", fonts.small, Theme.color.textFaint)
+    d.rankHint:SetPoint("TOPLEFT", d.promote, "BOTTOMLEFT", 0, -4)
     d.rankHint:SetPoint("RIGHT", d, "RIGHT", -10, 0)
     d.rankHint:SetJustifyH("LEFT")
     d.rankHint:SetWordWrap(false)
@@ -405,17 +412,17 @@ function View:BuildDetail(parent, fonts)
         d.history[index] = line
     end
 
-    -- Handlungen unten. Entfernen in zwei Druecken: der erste (normaler
-    -- Knopf) deckt den zweiten auf — den sicheren, der es wirklich tut.
-    d.remove = Widgets.Button(d, L.ROSTER_REMOVE, function() self:RemoveMember() end)
-    d.remove:SetHeight(22)
-    d.remove:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 10)
-    d.remove:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 10)
+    -- Entfernen: klein, rechts ueber der Knopfreihe, ohne Fuellung — eine
+    -- seltene Handlung braucht keinen grossen roten Knopf. Zwei Druecken:
+    -- der erste (flacher Knopf) deckt den zweiten auf — den sicheren, der
+    -- es wirklich tut, in Gold, mit dem Namen.
+    d.remove = Widgets.FlatButton(d, L.ROSTER_REMOVE, function() self:RemoveMember() end)
+    d.remove:SetHeight(18)
+    d.remove:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 44)
 
-    d.removeNow = macroButton(L.ROSTER_REMOVE)
-    d.removeNow:SetHeight(22)
-    d.removeNow:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 10)
-    d.removeNow:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 10)
+    d.removeNow = macroButton(L.ROSTER_REMOVE, "primary")
+    d.removeNow:SetHeight(18)
+    d.removeNow:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -12, 44)
     d.removeNow.onAfter = function()
         View.removePending = nil
         d.removeNow:Hide()
@@ -429,7 +436,7 @@ function View:BuildDetail(parent, fonts)
         if member then Compat.OpenWhisper(member.name) end
     end)
     d.whisper:SetHeight(22)
-    d.whisper:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 38)
+    d.whisper:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 12, 12)
     d.whisper:SetWidth(72)
 
     d.invite = Widgets.Button(d, L.QH_INVITE, function()
@@ -671,14 +678,13 @@ function View:RefreshDetail(member)
     d.rankText:SetText(string.upper(member.rankName or "?"))
     d.rankText:SetTextColor(farbe[1], farbe[2], farbe[3])
     for _, line in ipairs(d.rankLines) do Theme.Paint(line, farbe) end
-    d.rankNow:SetWidth(math.min(90, d.rankText:GetStringWidth() + 14))
+    Theme.Paint(d.rankFill, { farbe[1], farbe[2], farbe[3], 0.12 })
 
     local hoeher = ranks and index and index > 0 and ranks[index] or nil
     local tiefer = ranks and index and ranks[index + 2] or nil
-    d.promote:SetLabel("▲ " .. (hoeher or ""))
-    d.promote:SetWidth(72)
-    d.demote:SetLabel("▼ " .. (tiefer or ""))
-    d.demote:SetWidth(72)
+    d.rankHint:SetText(string.format(L.ROSTER_RANK_HINT, hoeher or "—", tiefer or "—"))
+    d.promote.hint = hoeher and string.format(L.ROSTER_PROMOTE_TO, hoeher) or nil
+    d.demote.hint = tiefer and string.format(L.ROSTER_DEMOTE_TO, tiefer) or nil
     -- Die Makros VOR dem Klick setzen — im Klick ist der Knopf Blizzards.
     if d.secure then
         d.promote:SetMacro("/gpromote " .. member.name)
