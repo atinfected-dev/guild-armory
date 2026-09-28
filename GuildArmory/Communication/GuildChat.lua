@@ -128,6 +128,13 @@ function GuildChat:RequestHistory(force)
     self.lastRequest = now
     Compat.RequestClubChatHistory("GUILD", self.REQUEST)
     Compat.RequestClubChatHistory("OFFICER", self.REQUEST)
+    -- Die Antwort kommt spaeter, und nicht immer mit einem Ereignis, das
+    -- dieser Client kennt (28.09.2026: voller Speicher, kein Zug). Also
+    -- zweimal nachlesen, nach zwei und nach sechs Sekunden.
+    if type(Compat.After) == "function" then
+        Compat.After(2, function() GuildChat:PullHistory(true) end)
+        Compat.After(6, function() GuildChat:PullHistory(true) end)
+    end
     return true
 end
 
@@ -306,7 +313,10 @@ function GuildChat:OnEnable()
             GuildChat:PullHistory(true)
         end)
     end, "GuildChat")
-    for _, event in ipairs({ "CLUB_MESSAGE_HISTORY_RECEIVED", "CLUB_STREAMS_LOADED" }) do
+    -- Mehr Namen als noetig: Was der Client nicht kennt, weist Register
+    -- still ab, und welcher Name die Lieferung meldet, ist nicht gemessen.
+    for _, event in ipairs({ "CLUB_MESSAGE_HISTORY_RECEIVED", "CLUB_STREAMS_LOADED", "CLUB_MESSAGE_ADDED",
+        "CLUB_MESSAGE_UPDATED", "CLUB_UPDATED", "CLUB_STREAM_SUBSCRIBED" }) do
         Events:Register(event, function()
             if type(Compat.After) == "function" then
                 Compat.After(0.5, function() GuildChat:PullHistory() end)

@@ -2847,10 +2847,18 @@ end
 --- Ein Bereich ohne Nachrichten traegt Platzhalter statt Kennungen:
 --- oldest = 2^53, newest = 0 (gemessen 28.09.2026, /ga clubchat). Der
 --- ist keine Kennung und darf weder gelesen noch dem Server als "davor"
---- geschickt werden.
+--- geschickt werden. ABER: oldest = 0 mit echtem newest ist ein voller
+--- Bereich "vom Anfang an" (gemessen danach: 0/0 bis heute, 1924
+--- Nachrichten) — als Untergrenze gueltig, als Kennung zum Nachladen
+--- nicht.
 local function realMessageId(id)
     local epoch = isTable(id) and tonumber(id.epoch) or nil
     return epoch ~= nil and epoch > 0 and epoch < 9e15
+end
+
+local function lowerBoundOk(id)
+    local epoch = isTable(id) and tonumber(id.epoch) or nil
+    return epoch ~= nil and epoch >= 0 and epoch < 9e15
 end
 
 --- Die Zeilen eines Kanals, wie das Spiel sie haelt — aelteste zuerst.
@@ -2865,7 +2873,7 @@ function Compat.GetClubChatHistory(kind)
     local out = {}
     for _, range in ipairs(ranges) do
         local okM, messages = false, nil
-        if isTable(range) and realMessageId(range.oldestMessageId) and realMessageId(range.newestMessageId) then
+        if isTable(range) and lowerBoundOk(range.oldestMessageId) and realMessageId(range.newestMessageId) then
             okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, range.oldestMessageId, range.newestMessageId)
         end
         if okM and isTable(messages) then
