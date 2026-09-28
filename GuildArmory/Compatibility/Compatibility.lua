@@ -2844,7 +2844,13 @@ function Compat.GetClubChatHistory(kind)
         if okM and isTable(messages) then
             for _, m in ipairs(messages) do
                 local id = isTable(m) and isTable(m.messageId) and m.messageId or nil
-                if id and not m.destroyed and type(m.content) == "string" and m.content ~= "" and tonumber(id.epoch) then
+                -- "Unknown" (gesehen 28.09.2026, ganze Bildschirme davon) ist
+                -- kein Text, sondern der Platzhalter des Spiels fuer einen
+                -- Inhalt, den es nicht geladen hat. Der bleibt draussen;
+                -- nachgeladen wird er ueber RequestClubChatHistory.
+                local content = isTable(m) and m.content or nil
+                local placeholder = content == "" or content == _G.UNKNOWN or content == "Unknown"
+                if id and not m.destroyed and type(content) == "string" and not placeholder and tonumber(id.epoch) then
                     local author = isTable(m.author) and m.author or {}
                     out[#out + 1] = {
                         id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
@@ -2863,11 +2869,27 @@ end
 
 --- Bittet das Spiel um aeltere Zeilen. Die Antwort kommt als Ereignis
 --- (CLUB_MESSAGE_HISTORY_RECEIVED); danach liest GetClubChatHistory mehr.
+--- Die Anfrage nennt die AELTESTE bekannte Kennung: Ohne sie laedt das
+--- Spiel nichts nach, und die aelteren Zeilen bleiben "Unknown".
 function Compat.RequestClubChatHistory(kind, count)
     local clubId, streamId = guildStream(kind)
     local club = _G.C_Club
     if not clubId or not isFunction(club.RequestMoreMessagesBefore) then return false end
-    return pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) and true or false
+    local oldest
+    if isFunction(club.GetMessageRanges) then
+        local ok, ranges = pcall(club.GetMessageRanges, clubId, streamId)
+        if ok and isTable(ranges) then
+            for _, range in ipairs(ranges) do
+                local id = isTable(range) and range.oldestMessageId or nil
+                if isTable(id) and tonumber(id.epoch) and (not oldest or tonumber(id.epoch) < tonumber(oldest.epoch)) then
+                    oldest = id
+                end
+            end
+        end
+    end
+    local ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count or 200)
+    if not ok and oldest then ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) end
+    return ok and true or false
 end
 
 --- Der Platz eines Mitglieds im Roster — die Notizfunktionen wollen ihn.

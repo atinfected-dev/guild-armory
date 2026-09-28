@@ -8,9 +8,11 @@
     dort ein "Club" mit Verlauf, und Blizzards Gildenfenster zeigt ihn —
     auch, was vor dem Login gesagt wurde. Compat.GetClubChatHistory liest
     dieselben Zeilen, und SOBALD DER VERLAUF DA IST, IST ER DIE EINZIGE
-    QUELLE: Mitgehoerte Zeilen werden dann nicht mehr gespeichert, schon
-    gespeicherte fallen weg. Zwei Quellen fuer dieselbe Nachricht liessen
-    sich nicht sauber zusammenfuehren (Doppel gesehen 28.09.2026). Wo es
+    QUELLE fuer alles, was er wirklich liefert. Eine mitgehoerte Zeile
+    wird erst nach einem Blick in den Verlauf gespeichert — und nur, wenn
+    der ihren Text nicht hat. Denn der Verlauf hat Luecken: Fuer aeltere
+    Nachrichten liefert das Spiel den Platzhalter "Unknown" statt des
+    Inhalts (gesehen 28.09.2026), und der wird nicht uebernommen. Wo es
     den Verlauf nicht gibt (aeltere Linien), bleibt es beim Mitgehoerten,
     und das Modul erfindet nichts.
 
@@ -27,6 +29,8 @@ GA.Modules.GuildChat = GuildChat
 
 local Util = GA.Core.Util
 local Compat = GA.Core.Compat
+
+local sameLine -- unten definiert; OnMessage braucht sie schon
 
 GuildChat.LIMIT = 500
 GuildChat.PULL_EVERY = 5
@@ -56,19 +60,34 @@ end
 function GuildChat:OnMessage(channel, text, sender, guid)
     local lines = store()
     if not lines or type(text) ~= "string" or text == "" then return nil end
-    -- Mit Verlauf des Spiels: nicht speichern, sondern gleich nachlesen —
-    -- die Zeile kommt aus der einen Quelle, mit Kennung und Sendezeit.
-    if self:HasHistory() then
-        if type(Compat.After) == "function" then
-            Compat.After(0.5, function() GuildChat:PullHistory(true) end)
-        end
-        return nil
-    end
     local line = {
         channel = channel, text = text,
         who = Util.ShortName(sender or "?"), class = klasseVon(sender, guid),
         ts = Util.Now(),
     }
+    -- Mit Verlauf des Spiels: erst nachlesen. Liefert der Verlauf den Text
+    -- (Absender, Text, binnen zwei Minuten), ist die Zeile schon da und
+    -- die mitgehoerte ueberfluessig. Liefert er ihn nicht — Platzhalter,
+    -- Luecke —, bleibt die mitgehoerte Zeile die Quelle.
+    if self:HasHistory() and type(Compat.After) == "function" then
+        Compat.After(1, function()
+            GuildChat:PullHistory(true)
+            for _, other in ipairs(store() or {}) do
+                if other.id and other.channel == channel and sameLine(other, line.who, line.text, line.ts) then
+                    return
+                end
+            end
+            GuildChat:Store(line)
+        end)
+        return nil
+    end
+    return self:Store(line)
+end
+
+--- Traegt eine Zeile ein und haelt das Limit.
+function GuildChat:Store(line)
+    local lines = store()
+    if not lines then return nil end
     lines[#lines + 1] = line
     while #lines > self.LIMIT do table.remove(lines, 1) end
     GA.Core.Callbacks:Fire("GUILD_CHAT", line)
@@ -82,7 +101,7 @@ end
 --- @return number wie viele Zeilen neu dazukamen
 GuildChat.SAME_WINDOW = 120
 
-local function sameLine(line, who, text, ts)
+function sameLine(line, who, text, ts)
     return string.lower(line.who or "") == string.lower(who) and line.text == text
         and math.abs((line.ts or 0) - (ts or 0)) <= GuildChat.SAME_WINDOW
 end
@@ -196,20 +215,7 @@ function GuildChat:PullHistory(force)
         local entries, weg = Compat.GetClubChatHistory(channel)
         self.source = self.source or {}
         self.source[channel] = weg
-        if entries then
-            -- Der Verlauf ist da: Was dieser Kanal an mitgehoerten Zeilen
-            -- (ohne Kennung) noch traegt, geht — der Verlauf hat sie alle.
-            local lines = store() or {}
-            local dropped = 0
-            for index = #lines, 1, -1 do
-                if lines[index].channel == channel and not lines[index].id then
-                    table.remove(lines, index)
-                    dropped = dropped + 1
-                end
-            end
-            added = added + self:MergeHistory(channel, entries)
-            if dropped > 0 and added == 0 then GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", 0) end
-        end
+        if entries then added = added + self:MergeHistory(channel, entries) end
     end
     return added
 end
