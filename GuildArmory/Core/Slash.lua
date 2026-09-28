@@ -1038,7 +1038,13 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local pairs_ = GuildChat and GuildChat:Duplicates() or {}
         raw[#raw + 1] = ""
         raw[#raw + 1] = #pairs_ == 0 and L.CHATDUPES_NONE or ("Paare: " .. table.concat(pairs_, "\n"))
-        GA.UI.Widgets.CopyDialog(L.CHATDUPES_TITLE, table.concat(raw, "\n"))
+        -- ZWEI WEGE: ins Chatfenster UND in den Dialog. Der Dialog blieb
+        -- leer (28.09.2026), vermutlich an einem "|" aus einem Chatlink,
+        -- das die Eingabebox als Steuerzeichen liest — darum maskiert.
+        for _, zeile in ipairs(raw) do
+            if zeile ~= "" then Debug:Info("%s", (zeile:gsub("|", "||"))) end
+        end
+        GA.UI.Widgets.CopyDialog(L.CHATDUPES_TITLE, (table.concat(raw, "\n"):gsub("|", "||")))
     elseif command == "probe" then
         -- WAS GIBT DIESER CLIENT FUER DIE OFFENEN ERFOLGE HER?
         --
