@@ -572,8 +572,9 @@ Probe.CHECKS = {
           local Compat = GA.Core.Compat
           local guild, weg = Compat.GetClubChatHistory("GUILD")
           if not guild then return Probe.NO, "Grund: " .. tostring(weg) end
+          local schritte = "Anfrage=" .. tostring(Compat.clubRequestSteps or "noch keine")
           local officer = Compat.GetClubChatHistory("OFFICER")
-          local text = string.format("Gilde=%d Zeilen, Offiziere=%s", #guild, officer and tostring(#officer) or "?")
+          local text = string.format("Gilde=%d Zeilen, Offiziere=%s, %s", #guild, officer and tostring(#officer) or "?", schritte)
           if #guild == 0 then return Probe.EMPTY, text .. " — nach Gildenchat erneut pruefen" end
           local aelteste, neueste = guild[1].ts or 0, guild[#guild].ts or 0
           return Probe.YES, text .. ", aelteste " .. GA.Core.Util.TimeAgo(aelteste)

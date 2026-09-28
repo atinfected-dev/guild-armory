@@ -2962,32 +2962,44 @@ end
 function Compat.RequestClubChatHistory(kind, count)
     local clubId, streamId = guildStream(kind)
     local club = _G.C_Club
-    if not clubId or not isFunction(club.RequestMoreMessagesBefore) then return false end
-    local oldest
+    if not clubId or not isFunction(club.RequestMoreMessagesBefore) then return false, "noapi" end
+    count = count or 200
+
+    -- WIE BLIZZARDS FENSTER, Schritt fuer Schritt — gemessen 28.09.2026:
+    -- Fokus allein liess den Speicher leer; mit Blizzards Fenster offen
+    -- war er voll (1919 Nachrichten). Sein Chat abonniert den Club, setzt
+    -- den Fokus und bittet um Nachrichten VOR DER NEUESTEN Kennung, nicht
+    -- vor der aeltesten. Alles davon, was der Client kennt, pcall-gesichert.
+    local steps = {}
+    if isFunction(club.SetClubPresenceSubscription) and pcall(club.SetClubPresenceSubscription, clubId) then
+        steps[#steps + 1] = "presence"
+    end
+    if isFunction(club.FocusStream) and pcall(club.FocusStream, clubId, streamId) then
+        steps[#steps + 1] = "focus"
+    end
+
+    local oldest, newest
     if isFunction(club.GetMessageRanges) then
         local ok, ranges = pcall(club.GetMessageRanges, clubId, streamId)
         if ok and isTable(ranges) then
             for _, range in ipairs(ranges) do
-                local id = isTable(range) and range.oldestMessageId or nil
-                if realMessageId(id) and (not oldest or tonumber(id.epoch) < tonumber(oldest.epoch)) then
-                    oldest = id
-                end
+                local o = isTable(range) and range.oldestMessageId or nil
+                local n = isTable(range) and range.newestMessageId or nil
+                if realMessageId(o) and (not oldest or tonumber(o.epoch) < tonumber(oldest.epoch)) then oldest = o end
+                if realMessageId(n) and (not newest or tonumber(n.epoch) > tonumber(newest.epoch)) then newest = n end
             end
         end
     end
-    -- FOKUSSIEREN, wie Blizzards Fenster es tut: Erst fuer einen fokussierten
-    -- Kanal liefert der Server die Inhalte nach — ohne Fokus bleiben
-    -- Nachrichten aus der eigenen Abwesenheit "Unknown" (Vermutung nach
-    -- Beobachtung 28.09.2026: ab dem Ausloggen nur noch Platzhalter).
-    -- BEI JEDER ANFRAGE: Blizzards Fenster hebt den Fokus beim Schliessen
-    -- auf (UnfocusStream), und danach ist der Speicher leer — gesehen
-    -- 28.09.2026: voll, solange sein Fenster offen war, leer danach. Der
-    -- leere Speicher nach wiederholtem Fokussieren lag an der Platzhalter-
-    -- Kennung, die damals mitging, nicht am Fokus.
-    if isFunction(club.FocusStream) then pcall(club.FocusStream, clubId, streamId) end
-    local ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count or 200)
-    if not ok and oldest then ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) end
-    return ok and true or false
+    -- Leer: ohne Kennung bitten. Voll: vor der neuesten (die erste Ladung,
+    -- wie Blizzard) und vor der aeltesten (noch weiter zurueck).
+    if not newest then
+        if pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count) then steps[#steps + 1] = "before:nil" end
+    else
+        if pcall(club.RequestMoreMessagesBefore, clubId, streamId, newest, count) then steps[#steps + 1] = "before:newest" end
+        if oldest and pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count) then steps[#steps + 1] = "before:oldest" end
+    end
+    Compat.clubRequestSteps = table.concat(steps, ",")
+    return #steps > 0, Compat.clubRequestSteps
 end
 
 --- Der Platz eines Mitglieds im Roster — die Notizfunktionen wollen ihn.
