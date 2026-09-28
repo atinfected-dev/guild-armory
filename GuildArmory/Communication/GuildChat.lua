@@ -4,13 +4,15 @@
     Kein UI. Hoert CHAT_MSG_GUILD und CHAT_MSG_OFFICER mit und bewahrt die
     letzten fuenfhundert Zeilen auf — auch ueber einen Reload, in der Datei.
 
-    Was VOR dem Login gesagt wurde, hat auf der neueren Linie das Spiel
-    selbst: Die Gilde ist dort ein "Club" mit Chatverlauf, und Blizzards
-    Gildenfenster zeigt ihn. Compat.GetClubChatHistory liest dieselben
-    Zeilen; PullHistory fuehrt sie hier mit den mitgehoerten zusammen —
-    eine Nachricht, die beide Wege liefern, steht einmal da. Wo es den
-    Verlauf nicht gibt (aeltere Linien), bleibt es beim Mitgehoerten, und
-    das Modul erfindet nichts.
+    Auf der neueren Linie hat das Spiel den Chat selbst: Die Gilde ist
+    dort ein "Club" mit Verlauf, und Blizzards Gildenfenster zeigt ihn —
+    auch, was vor dem Login gesagt wurde. Compat.GetClubChatHistory liest
+    dieselben Zeilen, und SOBALD DER VERLAUF DA IST, IST ER DIE EINZIGE
+    QUELLE: Mitgehoerte Zeilen werden dann nicht mehr gespeichert, schon
+    gespeicherte fallen weg. Zwei Quellen fuer dieselbe Nachricht liessen
+    sich nicht sauber zusammenfuehren (Doppel gesehen 28.09.2026). Wo es
+    den Verlauf nicht gibt (aeltere Linien), bleibt es beim Mitgehoerten,
+    und das Modul erfindet nichts.
 
     Senden geht ueber Compat.SendChatMessage in den Gildenkanal, der fuer
     Addons offen ist. Die eigene Zeile kommt danach wie jede andere ueber
@@ -54,6 +56,14 @@ end
 function GuildChat:OnMessage(channel, text, sender, guid)
     local lines = store()
     if not lines or type(text) ~= "string" or text == "" then return nil end
+    -- Mit Verlauf des Spiels: nicht speichern, sondern gleich nachlesen —
+    -- die Zeile kommt aus der einen Quelle, mit Kennung und Sendezeit.
+    if self:HasHistory() then
+        if type(Compat.After) == "function" then
+            Compat.After(0.5, function() GuildChat:PullHistory(true) end)
+        end
+        return nil
+    end
     local line = {
         channel = channel, text = text,
         who = Util.ShortName(sender or "?"), class = klasseVon(sender, guid),
@@ -186,7 +196,20 @@ function GuildChat:PullHistory(force)
         local entries, weg = Compat.GetClubChatHistory(channel)
         self.source = self.source or {}
         self.source[channel] = weg
-        if entries then added = added + self:MergeHistory(channel, entries) end
+        if entries then
+            -- Der Verlauf ist da: Was dieser Kanal an mitgehoerten Zeilen
+            -- (ohne Kennung) noch traegt, geht — der Verlauf hat sie alle.
+            local lines = store() or {}
+            local dropped = 0
+            for index = #lines, 1, -1 do
+                if lines[index].channel == channel and not lines[index].id then
+                    table.remove(lines, index)
+                    dropped = dropped + 1
+                end
+            end
+            added = added + self:MergeHistory(channel, entries)
+            if dropped > 0 and added == 0 then GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", 0) end
+        end
     end
     return added
 end
