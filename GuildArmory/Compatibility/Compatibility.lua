@@ -2818,6 +2818,17 @@ local function guildStream(kind)
     return nil, nil, "nostream"
 end
 
+--- Ein Zeitstempel des Clubs in Sekunden. Die Einheit wird an der GROESSE
+--- erkannt, nicht geglaubt: 2026 hat rund 1,8e9 Sekunden, 1,8e12 Milli-,
+--- 1,8e15 Mikrosekunden. Doppelte Zeilen (28.09.2026) zeigten, dass die
+--- Stempel des Verlaufs und die des Mithoerens nicht zusammenlagen.
+function Compat.EpochToSeconds(epoch)
+    epoch = tonumber(epoch) or 0
+    if epoch > 1e14 then return math.floor(epoch / 1000000) end
+    if epoch > 1e11 then return math.floor(epoch / 1000) end
+    return math.floor(epoch)
+end
+
 --- Die Zeilen eines Kanals, wie das Spiel sie haelt — aelteste zuerst.
 --- @return table|nil zeilen {id, ts, who, class, text}, string weg|grund
 function Compat.GetClubChatHistory(kind)
@@ -2837,7 +2848,7 @@ function Compat.GetClubChatHistory(kind)
                     local author = isTable(m.author) and m.author or {}
                     out[#out + 1] = {
                         id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
-                        ts = math.floor(tonumber(id.epoch) / 1000000),
+                        ts = Compat.EpochToSeconds(tonumber(id.epoch)),
                         who = type(author.name) == "string" and author.name or "?",
                         class = classFileFromId(author.classID),
                         text = m.content,

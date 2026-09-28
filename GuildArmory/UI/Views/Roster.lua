@@ -31,7 +31,7 @@ local L = GA.L
 View.titleKey = "NAV_ROSTER"
 
 local DETAIL_W = 250
-local CHAT_H = 180
+local CHAT_H = 260
 local FILTERS = { "ALL", "ONLINE", "OFFICERS", "NONOTE" }
 
 --- Farbe je Rangstufe: die ersten drei tragen Farbe, der Rest ist grau.
@@ -405,6 +405,17 @@ function View:BuildDetail(parent, fonts)
     -- Notizen: drei Felder, drei Reichweiten.
     d.notesHead = Theme.Label(d, string.upper(L.ROSTER_NOTES), fonts.heading, Theme.color.goldDim)
     d.notesHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -128)
+    -- Sperrt das Spiel die Notizen (gemessen 28.09.2026), fuehrt ein Knopf
+    -- neben der Ueberschrift dorthin, wo sie sich schreiben lassen.
+    d.notesOpen = Widgets.FlatButton(d, L.ROSTER_NOTE_OPEN, function()
+        View.openingBlizzard = true
+        Compat.After(1, function() View.openingBlizzard = nil end)
+        if not Compat.OpenBlizzardGuildFrame() then GA.Core.Debug:Info("%s", L.ROSTER_BLIZZARD_NONE) end
+    end)
+    d.notesOpen:SetHeight(16)
+    d.notesOpen:SetPoint("RIGHT", d, "RIGHT", -10, 0)
+    d.notesOpen:SetPoint("TOP", d.notesHead, "TOP", 0, 2)
+    d.notesOpen:Hide()
 
     local function feld(y, label, onSave)
         local caption = Theme.Label(d, label, fonts.small, Theme.color.textDim)
@@ -768,6 +779,7 @@ function View:RefreshDetail(member)
     for _, line in ipairs(d.history) do widgets[#widgets + 1] = line end
     if not member then
         for _, w in ipairs(widgets) do w:Hide() end
+        d.notesOpen:Hide()
         d.none:Show()
         return
     end
@@ -825,6 +837,7 @@ function View:RefreshDetail(member)
     -- Hat das Spiel das Schreiben einmal geblockt (ADDON_ACTION_BLOCKED,
     -- gemessen 28.09.2026), bleiben die Felder lesbar und sagen es.
     local noteBlocked = GA.Core.Config:Get("guildNoteBlocked")
+    d.notesOpen:SetShown(noteBlocked and true or false)
     d.publicBox:Load(member.publicNote or "")
     d.publicBox:SetEnabled(Compat.CanEditPublicNote() == true and not noteBlocked)
     d.publicCaption:SetText(noteBlocked and (L.ROSTER_NOTE_PUBLIC .. "  |cff6f6753" .. L.ROSTER_NOTE_LOCKED .. "|r") or L.ROSTER_NOTE_PUBLIC)

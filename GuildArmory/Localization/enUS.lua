@@ -1129,6 +1129,7 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_NOTE_OWN    = "Only on this client",
     ROSTER_NOTE_SAVED  = "Note for %s sent (%s).",
     ROSTER_NOTE_LOCKED = "the game's window edits it",
+    ROSTER_NOTE_OPEN   = "Edit in the game's window",
     ROSTER_NOTE_NOEFFECT = "went through, but the roster never showed the note",
     ROSTER_INVITE      = "Invite to the guild",
     ROSTER_INVITE_HINT = "Type the character's name, then click Invite. The button is the game's own — it runs /ginvite, so Enter cannot press it for you.",

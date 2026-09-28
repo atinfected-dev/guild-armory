@@ -67,8 +67,37 @@ end
 
 --- Fuehrt Zeilen aus dem Verlauf des Spiels mit den mitgehoerten zusammen.
 --- Doppelt ist, was dieselbe Kennung traegt — oder denselben Absender und
---- Text binnen zehn Sekunden (die mitgehoerte Zeile hat keine Kennung).
+--- Text binnen zwei Minuten (die mitgehoerte Zeile hat keine Kennung, und
+--- ihr Stempel ist der Empfang, nicht das Senden).
 --- @return number wie viele Zeilen neu dazukamen
+GuildChat.SAME_WINDOW = 120
+
+local function sameLine(line, who, text, ts)
+    return string.lower(line.who or "") == string.lower(who) and line.text == text
+        and math.abs((line.ts or 0) - (ts or 0)) <= GuildChat.SAME_WINDOW
+end
+
+--- Raeumt auf, was ein frueherer, engerer Vergleich doppelt liegen liess:
+--- Eine mitgehoerte Zeile ohne Kennung, die eine Zeile aus dem Verlauf
+--- spiegelt, geht — der Verlauf ist die Quelle des Spiels.
+local function dropShadowed(lines)
+    local removed = 0
+    for index = #lines, 1, -1 do
+        local line = lines[index]
+        if not line.id then
+            for _, other in ipairs(lines) do
+                if other ~= line and other.id and other.channel == line.channel
+                    and sameLine(other, line.who or "", line.text, line.ts) then
+                    table.remove(lines, index)
+                    removed = removed + 1
+                    break
+                end
+            end
+        end
+    end
+    return removed
+end
+
 function GuildChat:MergeHistory(channel, entries)
     local lines = store()
     if not lines or type(entries) ~= "table" then return 0 end
@@ -80,9 +109,9 @@ function GuildChat:MergeHistory(channel, entries)
             for _, line in ipairs(lines) do
                 if line.channel == channel then
                     if entry.id and line.id == entry.id then doppelt = true break end
-                    if line.who == who and line.text == entry.text
-                        and math.abs((line.ts or 0) - (entry.ts or 0)) <= 10 then
-                        line.id = line.id or entry.id
+                    if not line.id and sameLine(line, who, entry.text, entry.ts) then
+                        line.id = entry.id
+                        line.ts = entry.ts or line.ts
                         doppelt = true
                         break
                     end
@@ -98,7 +127,8 @@ function GuildChat:MergeHistory(channel, entries)
             end
         end
     end
-    if added > 0 then
+    local removed = dropShadowed(lines)
+    if added > 0 or removed > 0 then
         for index, line in ipairs(lines) do line.order = index end
         table.sort(lines, function(a, b)
             if (a.ts or 0) ~= (b.ts or 0) then return (a.ts or 0) < (b.ts or 0) end
