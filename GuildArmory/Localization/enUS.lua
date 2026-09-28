@@ -1105,7 +1105,7 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_MOTD        = "Message of the day",
     ROSTER_MOTD_EDIT   = "click to edit",
     ROSTER_MOTD_EMPTY  = "(none set)",
-    ROSTER_MOTD_HINT   = "The new message of the day. Everybody sees it at login.",
+    ROSTER_MOTD_HINT   = "Guild Armory's own message of the day: everyone with the addon sees it in the roster, and it reaches them within seconds. Empty removes it.",
     ROSTER_MOTD_LOCKED = "Your rank cannot edit the message of the day.",
     ROSTER_INFO        = "Guild info",
     ROSTER_INFO_NONE   = "No guild info set.",

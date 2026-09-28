@@ -1091,7 +1091,7 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_MOTD        = "Nachricht des Tages",
     ROSTER_MOTD_EDIT   = "Klick bearbeitet",
     ROSTER_MOTD_EMPTY  = "(keine gesetzt)",
-    ROSTER_MOTD_HINT   = "Die neue Nachricht des Tages. Jeder sieht sie beim Einloggen.",
+    ROSTER_MOTD_HINT   = "Die Nachricht des Tages von Guild Armory: Alle mit dem Addon sehen sie im Roster, binnen Sekunden. Leer entfernt sie.",
     ROSTER_MOTD_LOCKED = "Dein Rang darf die Nachricht des Tages nicht aendern.",
     ROSTER_INFO        = "Gildeninfo",
     ROSTER_INFO_NONE   = "Keine Gildeninfo gesetzt.",

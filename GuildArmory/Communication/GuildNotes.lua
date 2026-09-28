@@ -33,6 +33,8 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 
 GuildNotes.MAX = 120          -- Zeichen je Notiz: passt mit Kopf in eine Nachricht
+GuildNotes.MAX_MOTD = 180     -- die Nachricht des Tages darf laenger sein; ohne Namen im Paket
+GuildNotes.MOTD_KEY = "@motd" -- kein Mitglied hat diesen Schluessel
 GuildNotes.REPLY_EVERY = 60   -- Sekunden: hoechstens so oft auf GNOTEQ antworten
 GuildNotes.SEEN_TTL = 30      -- Sekunden: so lange gilt "das sah ich schon"
 
@@ -47,12 +49,16 @@ local function comm() return GA.Core.Comm end
 
 --- Schneidet zu und entfernt, was eine Zeile sprengt: Trennzeichen des
 --- Protokolls, Farbcodes, Zeilenumbrueche.
-local function clean(text)
+local function clean(text, limit)
     if type(text) ~= "string" then return "" end
     text = string.gsub(text, "|", "")
     text = string.gsub(text, "%s+", " ")
     text = string.gsub(text, "^%s*(.-)%s*$", "%1")
-    return string.sub(text, 1, GuildNotes.MAX)
+    return string.sub(text, 1, limit or GuildNotes.MAX)
+end
+
+local function limitFor(key)
+    return key == GuildNotes.MOTD_KEY and GuildNotes.MAX_MOTD or GuildNotes.MAX
 end
 
 --- Der Schluessel eines Mitglieds: die GUID, wo der Client sie nennt,
@@ -77,17 +83,37 @@ function GuildNotes:CanEdit()
     return Compat.CanEditPublicNote() ~= false
 end
 
+-- ============================================================ Nachricht des Tages
+
+--- DIE NACHRICHT DES TAGES UEBER DAS ADDON (28.09.2026): GuildSetMOTD ist
+--- auf diesem Client aus einem Addon geblockt wie die Notizen. Also ist
+--- sie ein Sondereintrag derselben Verteilung — Schluessel "@motd", das
+--- Recht dazu ist das, das im Spiel fuer die Nachricht des Tages gilt.
+function GuildNotes:CanEditMOTD()
+    return Compat.CanEditMOTD() ~= false
+end
+
+--- @return string|nil text, table|nil eintrag {text, by, ts}
+function GuildNotes:GetMOTD()
+    return self:Get(self.MOTD_KEY)
+end
+
+function GuildNotes:SetMOTD(text)
+    if not self:CanEditMOTD() then return false, "noright" end
+    return self:Set(nil, nil, text, self.MOTD_KEY)
+end
+
 -- ================================================================== Schreiben -
 
 --- Setzt die Notiz und verteilt sie. Leer heisst loeschen — auch das
 --- wandert, sonst kaeme die alte Notiz vom naechsten Client zurueck.
 --- @return boolean ok, string|nil grund
-function GuildNotes:Set(guid, name, text)
-    local key = GuildNotes.Key(guid, name)
+function GuildNotes:Set(guid, name, text, key)
+    key = key or GuildNotes.Key(guid, name)
     local notes = store()
     if not key or not notes then return false, "nokey" end
-    if not self:CanEdit() then return false, "noright" end
-    text = clean(text)
+    if key ~= self.MOTD_KEY and not self:CanEdit() then return false, "noright" end
+    text = clean(text, limitFor(key))
     local identity = Compat.GetPlayerIdentity and Compat.GetPlayerIdentity() or nil
     local by = identity and identity.name and Util.ShortName(identity.name) or "?"
     local entry = { text = text, by = by, ts = Util.Now() }
@@ -116,7 +142,7 @@ end
 function GuildNotes:OnNote(sender, fields)
     if comm() and comm():IsSelf(sender) then return false end
     local key, ts = fields[1], tonumber(fields[3])
-    local text = clean(fields[4])
+    local text = clean(fields[4], limitFor(key))
     if type(key) ~= "string" or key == "" or not ts then return false end
     local notes = store()
     if not notes then return false end

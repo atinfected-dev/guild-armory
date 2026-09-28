@@ -661,15 +661,18 @@ function View:UpdateInvite()
         name == "" and L.ROSTER_INVITE_EMPTY or (darf == false and L.ROSTER_NO_RIGHT or L.ROSTER_INVITE_COMBAT))
 end
 
+--- Die Nachricht des Tages: die des Addons (Communication/GuildNotes),
+--- nicht die des Spiels — GuildSetMOTD ist hier geblockt (28.09.2026).
 function View:EditMOTD()
-    if Compat.CanEditMOTD() ~= true then
+    local GuildNotes = GA.Modules.GuildNotes
+    if not GuildNotes:CanEditMOTD() then
         GA.Core.Debug:Info("%s", L.ROSTER_MOTD_LOCKED)
         return
     end
     Widgets.InputDialog(L.ROSTER_MOTD, L.ROSTER_MOTD_HINT, function(text)
-        local ok, weg = Compat.SetGuildMOTD(text)
-        if ok then Compat.After(1, function() View:Refresh() end) end
-        return ok, ok and nil or tostring(weg)
+        local ok, grund = GuildNotes:SetMOTD(text)
+        if ok then View:Refresh() end
+        return ok, ok and nil or (grund == "noright" and L.ROSTER_MOTD_LOCKED or tostring(grund))
     end)
 end
 
@@ -838,10 +841,15 @@ function View:Refresh()
     self.guildName:SetWidth(links - 14 - 12)
     self.guildMeta:SetWidth(links - 14 - 12)
 
-    local motd = Compat.GetGuildMOTD()
-    local darfMotd = Compat.CanEditMOTD()
-    self.motdHead:SetText(string.upper(L.ROSTER_MOTD) .. (darfMotd == true and ("  |cff6f6753" .. L.ROSTER_MOTD_EDIT .. "|r") or ""))
-    self.motdText:SetText(motd and motd ~= "" and motd or (motd and L.ROSTER_MOTD_EMPTY or L.ROSTER_UNMEASURED))
+    local GuildNotes = GA.Modules.GuildNotes
+    local motd, motdEntry = GuildNotes:GetMOTD()
+    local kopf = string.upper(L.ROSTER_MOTD)
+    if motdEntry and motdEntry.by and motdEntry.ts and motd then
+        kopf = kopf .. "  |cff6f6753" .. string.format(L.ROSTER_NOTE_BY, motdEntry.by, Util.TimeAgo(motdEntry.ts)) .. "|r"
+    end
+    if GuildNotes:CanEditMOTD() then kopf = kopf .. "  |cff6f6753" .. L.ROSTER_MOTD_EDIT .. "|r" end
+    self.motdHead:SetText(kopf)
+    self.motdText:SetText(motd or L.ROSTER_MOTD_EMPTY)
 
     local gefiltert = self:Filtered(list)
     self.rows:SetData(gefiltert)

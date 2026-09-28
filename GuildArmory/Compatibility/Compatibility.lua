@@ -2751,11 +2751,10 @@ function Compat.GetGuildMOTD()
     return text
 end
 
-function Compat.SetGuildMOTD(text)
-    if not isFunction(_G.GuildSetMOTD) then return false, "noapi" end
-    local ok = pcall(GuildSetMOTD, tostring(text or ""))
-    return ok, ok and "GuildSetMOTD" or "throws"
-end
+-- DIE NACHRICHT DES TAGES SETZT DIESES ADDON NICHT: GuildSetMOTD ist auf
+-- diesem Client aus Addon-Code geblockt (gemessen 28.09.2026), wie die
+-- Notizen. Das Roster fuehrt eine eigene, ueber die Gilde verteilte
+-- (Communication/GuildNotes, Schluessel "@motd").
 
 function Compat.GetGuildInfoText()
     if not isFunction(_G.GetGuildInfoText) then return nil end
