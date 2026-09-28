@@ -2931,83 +2931,15 @@ function Compat.SetGuildOfficerNote(index, text, guid)
     return setNote(index, text, guid, "GuildRosterSetOfficerNote", false)
 end
 
---- Blizzards eigenes Notizfenster ("Set Player Note:") — das StaticPopup,
---- das sein Gildenfenster oeffnet. Der Aufruf darin ist Blizzards Code;
---- die GUID geben wir mit, und ob das Spiel den Klick auf "Akzeptieren"
---- dann noch als unseren zaehlt, sagt nur die Messung am Ergebnis
---- (Roster: VerifyNote). Kein Versprechen — ein Versuch, der sichtbar
---- ausgeht.
---- @return string|nil weg, string|nil grund
---- Ein Objekt, das jeden Zugriff schluckt: jedes Feld ist es selbst, jeder
---- Aufruf gibt es zurueck. Damit laeuft fremder Code, der ein Fenster
---- erwartet, ohne eines zu haben — bis zu seinem ersten Rechenschritt.
-local function swallowAll()
-    local u = {}
-    setmetatable(u, {
-        __index = function() return u end,
-        __call = function() return u end,
-        __concat = function() return "" end,
-        __tostring = function() return "" end,
-        __len = function() return 0 end,
-    })
-    return u
-end
-
---- WAS DAS NOTIZ-POPUP IN "data" LIEST — gemessen, nicht geraten.
---- GEMESSEN 28.09.2026: Mit der nackten GUID als data warf das Popup beim
---- Anzeigen ("bad argument #1 to 'SetText'") — es liest also ein Feld aus
---- data. Welches, verraet OnShow selbst: Aufgerufen mit einem Fenster, das
---- alles schluckt, und einem data, das jeden Feldzugriff aufschreibt.
---- @return table|nil keys  die gelesenen Feldnamen, in Reihenfolge; nil ohne Popup
-function Compat.NotePopupDataKeys(kind)
-    local dialogs = _G.StaticPopupDialogs
-    local key = kind == "OFFICER" and "SET_GUILDOFFICERNOTE" or "SET_GUILDPLAYERNOTE"
-    local def = isTable(dialogs) and dialogs[key] or nil
-    if not isTable(def) or not isFunction(def.OnShow) then return nil end
-    local keys, seen = {}, {}
-    local u = swallowAll()
-    local data = setmetatable({}, { __index = function(_, k)
-        k = tostring(k)
-        if not seen[k] then seen[k] = true keys[#keys + 1] = k end
-        return u
-    end })
-    pcall(def.OnShow, u, data)
-    return keys
-end
-
---- Blizzards eigenes Notizfenster oeffnen. Die Form von data folgt der
---- Messung oben: Liest OnShow Felder, bekommt es eine Tabelle mit GUID und
---- Notiz unter allen Namen, die dafuer ueblich sind; liest es keine, die
---- nackte GUID (aeltere Definition).
-function Compat.OpenBlizzardNotePopup(kind, guid, current, name)
-    local dialogs = _G.StaticPopupDialogs
-    if not isTable(dialogs) or not isFunction(_G.StaticPopup_Show) then return nil, "nopopup" end
-    local key = kind == "OFFICER" and "SET_GUILDOFFICERNOTE" or "SET_GUILDPLAYERNOTE"
-    if not isTable(dialogs[key]) then return nil, "nodialog:" .. key end
-    if not guid then return nil, "noguid" end
-    local keys = Compat.NotePopupDataKeys(kind) or {}
-    Compat.notePopupKeys = #keys > 0 and table.concat(keys, ",") or "-"
-    local data = guid
-    if #keys > 0 then
-        current = tostring(current or "")
-        data = {
-            guid = guid, playerGUID = guid, memberGUID = guid, name = name,
-            note = current, text = current, memberNote = current, publicNote = current,
-            officerNote = current, officernote = current, currentNote = current,
-        }
-        for _, k in ipairs(keys) do
-            if data[k] == nil then data[k] = current end
-        end
-    end
-    local ok, dialog = pcall(StaticPopup_Show, key, nil, nil, data)
-    if not ok or not isTable(dialog) then return nil, "noshow" end
-    local box = isTable(dialog.EditBox) and dialog.EditBox or dialog.editBox
-    if isTable(box) and isFunction(box.SetText) then
-        pcall(box.SetText, box, tostring(current or ""))
-        pcall(box.HighlightText, box)
-    end
-    return key, nil, dialog
-end
+-- BLIZZARDS NOTIZ-POPUP IST KEIN WEG. GEMESSEN 28.09.2026, dreistufig:
+-- (1) StaticPopup_Show("SET_GUILDPLAYERNOTE") mit der nackten GUID warf
+-- beim Anzeigen — die Definition dieses Clients liest ein Feld aus data;
+-- (2) mit einer Tabelle als data ging das Fenster auf und nahm den Text;
+-- (3) der Klick auf "Akzeptieren" darin wurde vom Spiel geblockt. Der
+-- Grund ist die GUID: Sie kommt aus Addon-Code, und was Blizzards Code
+-- daraus liest, macht seinen Aufruf zu unserem. Ein Popup, das von uns
+-- geoeffnet wird, ist also so wenig ein Weg wie der direkte Aufruf. Was
+-- bleibt, ist Blizzards Gildenfenster — OpenBlizzardGuildFrame.
 
 --- Welcher Notizweg da ist — fuer /ga probe.
 function Compat.GuildNotePath()
