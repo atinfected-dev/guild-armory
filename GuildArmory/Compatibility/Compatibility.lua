@@ -2705,8 +2705,19 @@ end
 function Compat.CanEditMOTD() return askBool(_G.CanEditMOTD) end
 function Compat.CanEditGuildInfo() return askBool(_G.CanEditGuildInfo) end
 function Compat.CanEditPublicNote() return askBool(_G.CanEditPublicNote) end
-function Compat.CanEditOfficerNote() return askBool(_G.CanEditOfficerNote) end
-function Compat.CanViewOfficerNote() return askBool(_G.CanViewOfficerNote) end
+--- Die Offiziersnotiz hat auf der neueren Linie ein eigenes Namensfeld.
+--- GEMESSEN 28.09.2026: CanEditMOTD, CanEditPublicNote, CanGuildPromote
+--- antworteten, CanEditOfficerNote nicht ("OffNotiz=?") — die Funktion
+--- heisst dort C_GuildInfo.CanEditOfficerNote. Erst das alte Feld, dann
+--- das neue; die Sonde sagt, welches traegt.
+local function askGuildInfo(name)
+    local alt = askBool(_G[name])
+    if alt ~= nil then return alt end
+    local api = _G.C_GuildInfo
+    return isTable(api) and askBool(api[name]) or nil
+end
+function Compat.CanEditOfficerNote() return askGuildInfo("CanEditOfficerNote") end
+function Compat.CanViewOfficerNote() return askGuildInfo("CanViewOfficerNote") end
 function Compat.CanGuildPromote() return askBool(_G.CanGuildPromote) end
 function Compat.CanGuildDemote() return askBool(_G.CanGuildDemote) end
 function Compat.CanGuildRemove() return askBool(_G.CanGuildRemove) end

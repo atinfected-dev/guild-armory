@@ -770,11 +770,18 @@ GA.Core.Callbacks:On("ADDON_READY", function()
     View.hooked = Compat.HookGuildFrameToggle(function()
         if not GA.Core.Config:Get("guildKeyOpensAddon") then return end
         if Compat.InCombat() then return end
+        -- ENTPRELLT. Gemessen 28.09.2026: Beide Aufruffunktionen existieren
+        -- ("Gildenfenster-Aufruf=2"), und die eine ruft die andere — ein
+        -- Tastendruck kaeme hier zweimal an. Der erste gewinnt, der zweite
+        -- im selben Takt tut nichts.
+        if View.togglePending then return end
+        View.togglePending = true
         if GA.UI.MainFrame.frame and GA.UI.MainFrame.frame:IsShown()
             and GA.UI.MainFrame.current == "roster" then
             return
         end
         Compat.After(0, function()
+            View.togglePending = nil
             Compat.HideBlizzardGuildFrame()
             GA.UI.MainFrame:Show()
             GA.UI.MainFrame:ShowView("roster")
