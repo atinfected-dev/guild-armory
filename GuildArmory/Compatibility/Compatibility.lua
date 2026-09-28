@@ -2829,6 +2829,21 @@ function Compat.EpochToSeconds(epoch)
     return math.floor(epoch)
 end
 
+--- Ob ein Text der Platzhalter des Spiels fuer "nicht geladen" ist —
+--- unabhaengig von Farbcodes, Leerraum, Steuerzeichen und Schreibung,
+--- denn byteweise "Unknown" blieb stehen (gemessen 28.09.2026).
+function Compat.IsChatPlaceholder(text)
+    if type(text) ~= "string" then return true end
+    local bare = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H.-|h", ""):gsub("|h", "")
+    bare = bare:gsub("[%s%c]", "")
+    if bare == "" then return true end
+    bare = string.lower(bare)
+    if bare == "unknown" then return true end
+    local unknown = _G.UNKNOWN
+    if type(unknown) == "string" and bare == string.lower((unknown:gsub("[%s%c]", ""))) then return true end
+    return false
+end
+
 --- Ein Bereich ohne Nachrichten traegt Platzhalter statt Kennungen:
 --- oldest = 2^53, newest = 0 (gemessen 28.09.2026, /ga clubchat). Der
 --- ist keine Kennung und darf weder gelesen noch dem Server als "davor"
@@ -2861,7 +2876,7 @@ function Compat.GetClubChatHistory(kind)
                 -- Inhalt, den es nicht geladen hat. Der bleibt draussen;
                 -- nachgeladen wird er ueber RequestClubChatHistory.
                 local content = isTable(m) and m.content or nil
-                local placeholder = content == "" or content == _G.UNKNOWN or content == "Unknown"
+                local placeholder = Compat.IsChatPlaceholder(content)
                 if id and not m.destroyed and type(content) == "string" and not placeholder and tonumber(id.epoch) then
                     local author = isTable(m.author) and m.author or {}
                     out[#out + 1] = {
