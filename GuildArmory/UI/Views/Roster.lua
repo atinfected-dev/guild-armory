@@ -532,11 +532,13 @@ function View:RefreshChat()
     local GuildChat = GA.Modules.GuildChat
     if not GuildChat then return end
     for _, chip in ipairs(self.chatChips) do chip:SetPressed(chip.channel == self.chatChannel) end
+    GuildChat:PullHistory()
     local lines = GuildChat:List(self.chatChannel)
     self.chatLines:SetData(lines)
     -- Ans Ende: Chat liest man von unten.
     if self.chatLines.Scroll then self.chatLines:Scroll(-#lines) end
-    self.chatState:SetText(string.format(L.ROSTER_CHAT_STATE, #lines))
+    self.chatState:SetText(string.format(L.ROSTER_CHAT_STATE, #lines,
+        GuildChat:HasHistory() and L.ROSTER_CHAT_SRC_CLUB or string.format(L.ROSTER_CHAT_SRC_LIVE, GuildChat.LIMIT)))
     local darf = self.chatChannel ~= "OFFICER" or Compat.CanViewOfficerNote() ~= false
     self.chatInput:SetShown(darf)
     self.chatSend:SetShown(darf)
@@ -925,6 +927,10 @@ for _, event in ipairs({ "GUILD_UPDATED", "NOTES_CHANGED", "GUILD_HISTORY" }) do
         if View.frame and View.frame:IsVisible() then View:Refresh() end
     end, "RosterView")
 end
+GA.Core.Callbacks:On("GUILD_CHAT_HISTORY", function()
+    if View.frame and View.frame:IsVisible() then View:RefreshChat() end
+end, "RosterView")
+
 GA.Core.Callbacks:On("GUILD_CHAT", function()
     if View.frame and View.frame:IsVisible() then View:RefreshChat() end
 end, "RosterView")

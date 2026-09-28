@@ -566,6 +566,19 @@ Probe.CHECKS = {
           return Probe.YES, text
       end },
 
+    { key = "clubChat", was = "Gildenchat-Verlauf des Spiels (C_Club)",
+      fuer = "Roster-Chat: auch, was vor dem Login gesagt wurde",
+      run = function()
+          local Compat = GA.Core.Compat
+          local guild, weg = Compat.GetClubChatHistory("GUILD")
+          if not guild then return Probe.NO, "Grund: " .. tostring(weg) end
+          local officer = Compat.GetClubChatHistory("OFFICER")
+          local text = string.format("Gilde=%d Zeilen, Offiziere=%s", #guild, officer and tostring(#officer) or "?")
+          if #guild == 0 then return Probe.EMPTY, text .. " — nach Gildenchat erneut pruefen" end
+          local aelteste = guild[1].ts or 0
+          return Probe.YES, text .. ", aelteste " .. GA.Core.Util.TimeAgo(aelteste)
+      end },
+
     { key = "questLog", was = "Questlog lesbar, Ziele, Link, Alt-Klick",
       fuer = "Questhub: Gesuche aus dem eigenen Log",
       run = function()

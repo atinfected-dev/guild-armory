@@ -2770,6 +2770,95 @@ function Compat.SetGuildInfoText(text)
     return ok, ok and "SetGuildInfoText" or "throws"
 end
 
+-- ============================================================ Club-Chat --
+--
+-- Der Gildenchat, wie das Spiel ihn SELBST aufbewahrt. Die neuere Linie
+-- fuehrt die Gilde als "Club" (C_Club) mit Kanaelen ("Streams"): einem
+-- fuer die Gilde, einem fuer die Offiziere. Blizzards Gildenfenster zeigt
+-- daraus den Verlauf — auch von vor dem Login. Dieselben Zeilen holt
+-- dieser Block: Bereiche (GetMessageRanges), darin die Nachrichten
+-- (GetMessagesInRange), aeltere auf Anfrage (RequestMoreMessagesBefore).
+-- Der Zeitstempel einer Nachricht kommt in MIKROSEKUNDEN seit 1970.
+-- Fehlt die Schnittstelle (aeltere Linien), gibt es nil und den Grund —
+-- kein Verlauf wird erfunden.
+
+local function classFileFromId(classID)
+    if not classID then return nil end
+    local api = _G.C_CreatureInfo
+    if isTable(api) and isFunction(api.GetClassInfo) then
+        local ok, info = pcall(api.GetClassInfo, classID)
+        if ok and isTable(info) and type(info.classFile) == "string" then return info.classFile end
+    end
+    if isFunction(_G.GetClassInfo) then
+        local ok, _, file = pcall(GetClassInfo, classID)
+        if ok and type(file) == "string" then return file end
+    end
+    return nil
+end
+
+--- Club und Kanal der eigenen Gilde.
+--- @param kind string "GUILD" | "OFFICER"
+--- @return number|nil clubId, number|nil streamId, string weg|grund
+local function guildStream(kind)
+    local club = _G.C_Club
+    if not isTable(club) or not isFunction(club.GetGuildClubId) or not isFunction(club.GetStreams) then
+        return nil, nil, "noapi"
+    end
+    local ok, clubId = pcall(club.GetGuildClubId)
+    if not ok or clubId == nil then return nil, nil, "noclub" end
+    local ok2, streams = pcall(club.GetStreams, clubId)
+    if not ok2 or not isTable(streams) then return nil, nil, "nostreams" end
+    local enum = isTable(_G.Enum) and isTable(_G.Enum.ClubStreamType) and _G.Enum.ClubStreamType or nil
+    local wanted = kind == "OFFICER" and (enum and enum.Officer or 2) or (enum and enum.Guild or 1)
+    for _, stream in ipairs(streams) do
+        if isTable(stream) and stream.streamType == wanted and stream.streamId ~= nil then
+            return clubId, stream.streamId, "C_Club"
+        end
+    end
+    return nil, nil, "nostream"
+end
+
+--- Die Zeilen eines Kanals, wie das Spiel sie haelt — aelteste zuerst.
+--- @return table|nil zeilen {id, ts, who, class, text}, string weg|grund
+function Compat.GetClubChatHistory(kind)
+    local clubId, streamId, weg = guildStream(kind)
+    if not clubId then return nil, weg end
+    local club = _G.C_Club
+    if not isFunction(club.GetMessageRanges) or not isFunction(club.GetMessagesInRange) then return nil, "noapi" end
+    local okR, ranges = pcall(club.GetMessageRanges, clubId, streamId)
+    if not okR or not isTable(ranges) then return nil, "noranges" end
+    local out = {}
+    for _, range in ipairs(ranges) do
+        local okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, range.oldestMessageId, range.newestMessageId)
+        if okM and isTable(messages) then
+            for _, m in ipairs(messages) do
+                local id = isTable(m) and isTable(m.messageId) and m.messageId or nil
+                if id and not m.destroyed and type(m.content) == "string" and m.content ~= "" and tonumber(id.epoch) then
+                    local author = isTable(m.author) and m.author or {}
+                    out[#out + 1] = {
+                        id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
+                        ts = math.floor(tonumber(id.epoch) / 1000000),
+                        who = type(author.name) == "string" and author.name or "?",
+                        class = classFileFromId(author.classID),
+                        text = m.content,
+                    }
+                end
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.ts < b.ts or (a.ts == b.ts and a.id < b.id) end)
+    return out, "C_Club"
+end
+
+--- Bittet das Spiel um aeltere Zeilen. Die Antwort kommt als Ereignis
+--- (CLUB_MESSAGE_HISTORY_RECEIVED); danach liest GetClubChatHistory mehr.
+function Compat.RequestClubChatHistory(kind, count)
+    local clubId, streamId = guildStream(kind)
+    local club = _G.C_Club
+    if not clubId or not isFunction(club.RequestMoreMessagesBefore) then return false end
+    return pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) and true or false
+end
+
 --- Der Platz eines Mitglieds im Roster — die Notizfunktionen wollen ihn.
 --- Namen werden ohne Realm verglichen (siehe Util.ShortName).
 function Compat.FindGuildMemberIndex(name)

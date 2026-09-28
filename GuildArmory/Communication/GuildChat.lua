@@ -2,9 +2,15 @@
     Communication/GuildChat — der Gildenchat, wie er beim Client ankommt.
 
     Kein UI. Hoert CHAT_MSG_GUILD und CHAT_MSG_OFFICER mit und bewahrt die
-    letzten hundert Zeilen auf — auch ueber einen Reload, in der Datei. Was
-    VOR dem Login gesagt wurde, gibt es nicht: Das Spiel liefert keine
-    Historie, und dieses Modul erfindet keine.
+    letzten fuenfhundert Zeilen auf — auch ueber einen Reload, in der Datei.
+
+    Was VOR dem Login gesagt wurde, hat auf der neueren Linie das Spiel
+    selbst: Die Gilde ist dort ein "Club" mit Chatverlauf, und Blizzards
+    Gildenfenster zeigt ihn. Compat.GetClubChatHistory liest dieselben
+    Zeilen; PullHistory fuehrt sie hier mit den mitgehoerten zusammen —
+    eine Nachricht, die beide Wege liefern, steht einmal da. Wo es den
+    Verlauf nicht gibt (aeltere Linien), bleibt es beim Mitgehoerten, und
+    das Modul erfindet nichts.
 
     Senden geht ueber Compat.SendChatMessage in den Gildenkanal, der fuer
     Addons offen ist. Die eigene Zeile kommt danach wie jede andere ueber
@@ -20,7 +26,9 @@ GA.Modules.GuildChat = GuildChat
 local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 
-GuildChat.LIMIT = 100
+GuildChat.LIMIT = 500
+GuildChat.PULL_EVERY = 5
+GuildChat.REQUEST = 300
 
 local function store()
     local account = GA.Core.Database and GA.Core.Database.account
@@ -57,6 +65,75 @@ function GuildChat:OnMessage(channel, text, sender, guid)
     return line
 end
 
+--- Fuehrt Zeilen aus dem Verlauf des Spiels mit den mitgehoerten zusammen.
+--- Doppelt ist, was dieselbe Kennung traegt — oder denselben Absender und
+--- Text binnen zehn Sekunden (die mitgehoerte Zeile hat keine Kennung).
+--- @return number wie viele Zeilen neu dazukamen
+function GuildChat:MergeHistory(channel, entries)
+    local lines = store()
+    if not lines or type(entries) ~= "table" then return 0 end
+    local added = 0
+    for _, entry in ipairs(entries) do
+        if type(entry.text) == "string" and entry.text ~= "" then
+            local who = Util.ShortName(entry.who or "?")
+            local doppelt = false
+            for _, line in ipairs(lines) do
+                if line.channel == channel then
+                    if entry.id and line.id == entry.id then doppelt = true break end
+                    if line.who == who and line.text == entry.text
+                        and math.abs((line.ts or 0) - (entry.ts or 0)) <= 10 then
+                        line.id = line.id or entry.id
+                        doppelt = true
+                        break
+                    end
+                end
+            end
+            if not doppelt then
+                lines[#lines + 1] = {
+                    channel = channel, text = entry.text, who = who,
+                    class = entry.class or klasseVon(entry.who), ts = entry.ts or Util.Now(),
+                    id = entry.id, history = true,
+                }
+                added = added + 1
+            end
+        end
+    end
+    if added > 0 then
+        for index, line in ipairs(lines) do line.order = index end
+        table.sort(lines, function(a, b)
+            if (a.ts or 0) ~= (b.ts or 0) then return (a.ts or 0) < (b.ts or 0) end
+            return a.order < b.order
+        end)
+        for _, line in ipairs(lines) do line.order = nil end
+        while #lines > self.LIMIT do table.remove(lines, 1) end
+        GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", added)
+    end
+    return added
+end
+
+--- Holt den Verlauf des Spiels fuer beide Kanaele — nicht oefter als alle
+--- paar Sekunden, denn jeder Aufruf liest alles neu.
+--- @return number neu dazugekommene Zeilen
+function GuildChat:PullHistory(force)
+    if type(Compat.GetClubChatHistory) ~= "function" then return 0 end
+    local now = Util.Now()
+    if not force and self.lastPull and now - self.lastPull < self.PULL_EVERY then return 0 end
+    self.lastPull = now
+    local added = 0
+    for _, channel in ipairs({ "GUILD", "OFFICER" }) do
+        local entries, weg = Compat.GetClubChatHistory(channel)
+        self.source = self.source or {}
+        self.source[channel] = weg
+        if entries then added = added + self:MergeHistory(channel, entries) end
+    end
+    return added
+end
+
+--- Ob der Verlauf des Spiels hier ankommt — fuer die Anzeige.
+function GuildChat:HasHistory()
+    return self.source ~= nil and self.source.GUILD == "C_Club"
+end
+
 --- Die Zeilen eines Kanals, aelteste zuerst.
 function GuildChat:List(channel)
     local out = {}
@@ -86,4 +163,19 @@ function GuildChat:OnEnable()
     Events:Register("CHAT_MSG_OFFICER", function(_, text, sender, _, _, _, _, _, _, _, _, _, guid)
         GuildChat:OnMessage("OFFICER", text, sender, guid)
     end, "GuildChat")
+
+    -- Der Verlauf des Spiels: beim Betreten der Welt um aeltere Zeilen
+    -- bitten, und lesen, wann immer das Spiel welche liefert.
+    Events:Register("PLAYER_ENTERING_WORLD", function()
+        Compat.After(3, function()
+            if type(Compat.RequestClubChatHistory) == "function" then
+                Compat.RequestClubChatHistory("GUILD", GuildChat.REQUEST)
+                Compat.RequestClubChatHistory("OFFICER", GuildChat.REQUEST)
+            end
+            GuildChat:PullHistory(true)
+        end)
+    end, "GuildChat")
+    for _, event in ipairs({ "CLUB_MESSAGE_HISTORY_RECEIVED", "CLUB_STREAMS_LOADED", "CLUB_MESSAGE_ADDED" }) do
+        Events:Register(event, function() Compat.After(0.5, function() GuildChat:PullHistory() end) end, "GuildChat")
+    end
 end

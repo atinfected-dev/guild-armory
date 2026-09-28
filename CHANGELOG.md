@@ -30,8 +30,16 @@ window — a button that does it from a directory is pressed too easily.
 
 **Guild chat** under the list: guild and officer channels, lines with time
 and name in class colour, item links that answer to a click, an input line
-that sends. The last hundred lines survive a reload; what was said before
-login the game does not hand out, and the panel does not pretend it does.
+that sends. On clients that keep the guild as a "club" (C_Club) the panel
+reads the game's own history — the same lines the game's guild window
+shows, including what was said before login — and merges it with what it
+heard itself, each message once. Where the game keeps no history the
+panel shows what it heard and says so. The last five hundred lines
+survive a reload. `/ga probe` has an entry ("clubChat") for the source.
+
+**Invite to the guild**, in the head: a small dialog with the character's
+name and a secure button that runs /ginvite with it — the button is the
+game's own, so Enter cannot press it, and the hint says so.
 
 Everything that changes the guild asks the game's own Can* question first
 and says in the tooltip why a button is off. What this client does not
