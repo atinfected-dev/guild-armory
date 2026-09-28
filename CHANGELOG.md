@@ -2,7 +2,45 @@
 
 ## 0.1.18
 
-In progress.
+A roster tab that does what the game's guild window does — with guild chat — and the achievements' category chips wrap.
+
+### Roster: the game's guild window, here
+
+A new tab under Guild, first in the row. Two directions were drawn; the
+guild picked the directory. Across the top the guild with members, online
+and guild master, the **message of the day** — click edits it when your
+rank may — and buttons for the guild info and for the game's own window,
+which stays the place for the bank and for rank permissions: no addon
+replaces those.
+
+The list: crest, name with the nickname you gave them, level, zone while
+online, rank as a coloured chip, public note, and "last" — online in green,
+otherwise how long ago the roster saw them. Offline rows step back. Filters
+all, online, officers, without note; search over name, note, zone and
+nickname.
+
+To the right the selected member: class, level, online and zone, joined
+when (from the roster history) and item level; the rank between ▲ and ▼
+with the neighbouring ranks' names, enabled only when the game says your
+rank may; **three notes** — public, officers, and one that stays on this
+client, because a note that looks like the others but never leaves your
+machine needs to say so; the last three roster history entries; whisper,
+invite, equipment; and "remove from the guild" as a two-press button.
+
+**Guild chat** under the list: guild and officer channels, lines with time
+and name in class colour, item links that answer to a click, an input line
+that sends. The last hundred lines survive a reload; what was said before
+login the game does not hand out, and the panel does not pretend it does.
+
+Everything that changes the guild asks the game's own Can* question first
+and says in the tooltip why a button is off. What this client does not
+hand out shows as "not measurable", never as "no" — `/ga probe` has an
+entry ("guildManage") for the whole set: notes, ranks, MOTD, guild info,
+the toggle function of the game's window.
+
+**The J key**, off by default, in the settings: the game's guild window
+leads to this roster instead. Not in combat — the game's frames are
+protected there.
 
 ### Achievements: the category chips wrap
 

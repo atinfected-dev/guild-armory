@@ -65,6 +65,7 @@ local SECTIONS = {
     } },
 
     { key = "guild", label = "NAV_GUILD", views = {
+        { key = "roster",       label = "NAV_ROSTER" },
         { key = "armory",       label = "NAV_EQUIPMENT" },
         { key = "characters",   label = "NAV_CHARACTERS" },
         { key = "achievements", label = "NAV_ACHIEVEMENTS" },

@@ -2686,6 +2686,168 @@ function Compat.OpenWhisper(name)
     return false
 end
 
+-- ============================================================ Gildenverwaltung
+--
+-- Was Blizzards Gildenfenster tut, tun diese Funktionen — soweit der Client
+-- sie OFFEN anbietet. Rangrechte bearbeiten und die Gildenbank sind es
+-- nicht; dafuer bleibt Blizzards Fenster (OpenBlizzardGuildFrame). Alles
+-- hier ist UNGEMESSEN auf Forever (28.09.2026): /ga probe "guildManage"
+-- sagt, was da ist und was die Can*-Fragen antworten.
+
+--- Ruft eine Ja/Nein-Funktion des Clients. nil = gibt es nicht oder wirft.
+local function askBool(fn)
+    if not isFunction(fn) then return nil end
+    local ok, value = pcall(fn)
+    if not ok then return nil end
+    return value and true or false
+end
+
+function Compat.CanEditMOTD() return askBool(_G.CanEditMOTD) end
+function Compat.CanEditGuildInfo() return askBool(_G.CanEditGuildInfo) end
+function Compat.CanEditPublicNote() return askBool(_G.CanEditPublicNote) end
+function Compat.CanEditOfficerNote() return askBool(_G.CanEditOfficerNote) end
+function Compat.CanViewOfficerNote() return askBool(_G.CanViewOfficerNote) end
+function Compat.CanGuildPromote() return askBool(_G.CanGuildPromote) end
+function Compat.CanGuildDemote() return askBool(_G.CanGuildDemote) end
+function Compat.CanGuildRemove() return askBool(_G.CanGuildRemove) end
+
+--- Die Nachricht des Tages. Leer ist eine Auskunft, nil ist keine.
+function Compat.GetGuildMOTD()
+    if not isFunction(_G.GetGuildRosterMOTD) then return nil end
+    local ok, text = pcall(GetGuildRosterMOTD)
+    if not ok or type(text) ~= "string" then return nil end
+    return text
+end
+
+function Compat.SetGuildMOTD(text)
+    if not isFunction(_G.GuildSetMOTD) then return false, "noapi" end
+    local ok = pcall(GuildSetMOTD, tostring(text or ""))
+    return ok, ok and "GuildSetMOTD" or "throws"
+end
+
+function Compat.GetGuildInfoText()
+    if not isFunction(_G.GetGuildInfoText) then return nil end
+    local ok, text = pcall(GetGuildInfoText)
+    if not ok or type(text) ~= "string" then return nil end
+    return text
+end
+
+function Compat.SetGuildInfoText(text)
+    if not isFunction(_G.SetGuildInfoText) then return false, "noapi" end
+    local ok = pcall(SetGuildInfoText, tostring(text or ""))
+    return ok, ok and "SetGuildInfoText" or "throws"
+end
+
+--- Der Platz eines Mitglieds im Roster — die Notizfunktionen wollen ihn.
+--- Namen werden ohne Realm verglichen (siehe Util.ShortName).
+function Compat.FindGuildMemberIndex(name)
+    if not name or not has.guildRoster then return nil end
+    local wanted = string.lower(GA.Core.Util.ShortName(name))
+    local count = Compat.GetNumGuildMembers() or 0
+    for index = 1, count do
+        local ok, rosterName = pcall(GetGuildRosterInfo, index)
+        if ok and type(rosterName) == "string"
+            and string.lower(GA.Core.Util.ShortName(rosterName)) == wanted then
+            return index
+        end
+    end
+    return nil
+end
+
+function Compat.SetGuildPublicNote(index, text)
+    if not index or not isFunction(_G.GuildRosterSetPublicNote) then return false, "noapi" end
+    return pcall(GuildRosterSetPublicNote, index, tostring(text or "")), "GuildRosterSetPublicNote"
+end
+
+function Compat.SetGuildOfficerNote(index, text)
+    if not index or not isFunction(_G.GuildRosterSetOfficerNote) then return false, "noapi" end
+    return pcall(GuildRosterSetOfficerNote, index, tostring(text or "")), "GuildRosterSetOfficerNote"
+end
+
+--- Befoerdern, degradieren, entfernen: geschuetzt im Sinne der Rechte,
+--- nicht der Hardware — sie laufen aus einem Klick, und der Server prueft
+--- den Rang.
+function Compat.GuildPromote(name)
+    if not name or not isFunction(_G.GuildPromote) then return false, "noapi" end
+    return pcall(GuildPromote, name), "GuildPromote"
+end
+
+function Compat.GuildDemote(name)
+    if not name or not isFunction(_G.GuildDemote) then return false, "noapi" end
+    return pcall(GuildDemote, name), "GuildDemote"
+end
+
+function Compat.GuildUninvite(name)
+    if not name or not isFunction(_G.GuildUninvite) then return false, "noapi" end
+    return pcall(GuildUninvite, name), "GuildUninvite"
+end
+
+--- Die Raenge der Gilde, Platz 1 = Gildenmeister (rankIndex 0).
+--- @return table|nil { name, ... }
+function Compat.GetGuildRanks()
+    if not isFunction(_G.GuildControlGetNumRanks) or not isFunction(_G.GuildControlGetRankName) then
+        return nil
+    end
+    local ok, count = pcall(GuildControlGetNumRanks)
+    if not ok or type(count) ~= "number" or count <= 0 then return nil end
+    local out = {}
+    for index = 1, count do
+        local okName, name = pcall(GuildControlGetRankName, index)
+        out[index] = (okName and type(name) == "string" and name ~= "") and name or tostring(index)
+    end
+    return out
+end
+
+--- Wie lange ein Mitglied weg ist, in Sekunden. nil = online oder unbekannt.
+function Compat.GetGuildMemberLastOnline(index)
+    if not index or not isFunction(_G.GetGuildRosterLastOnline) then return nil end
+    local ok, years, months, days, hours = pcall(GetGuildRosterLastOnline, index)
+    if not ok or type(hours) ~= "number" then return nil end
+    return ((tonumber(years) or 0) * 365 + (tonumber(months) or 0) * 30 + (tonumber(days) or 0)) * 86400
+        + hours * 3600
+end
+
+--- Oeffnet Blizzards Gildenfenster — je Linie eine andere Funktion.
+--- @return string|nil der Weg, der lief
+function Compat.OpenBlizzardGuildFrame()
+    for _, name in ipairs({ "ToggleGuildFrame", "ToggleCommunitiesFrame" }) do
+        if isFunction(_G[name]) then
+            if pcall(_G[name]) then return name end
+        end
+    end
+    if isFunction(_G.ToggleFriendsFrame) and pcall(ToggleFriendsFrame, 3) then return "ToggleFriendsFrame" end
+    return nil
+end
+
+--- Versteckt Blizzards Gildenfenster wieder — fuer die Umleitung der J-Taste.
+function Compat.HideBlizzardGuildFrame()
+    local geschlossen = false
+    for _, name in ipairs({ "GuildFrame", "CommunitiesFrame" }) do
+        local frame = _G[name]
+        if isTable(frame) and isFunction(frame.IsShown) then
+            local ok, shown = pcall(frame.IsShown, frame)
+            if ok and shown then
+                if isFunction(_G.HideUIPanel) and pcall(HideUIPanel, frame) then geschlossen = true
+                elseif isFunction(frame.Hide) and pcall(frame.Hide, frame) then geschlossen = true end
+            end
+        end
+    end
+    return geschlossen
+end
+
+--- Haengt sich an die Taste, die Blizzards Gildenfenster oeffnet.
+--- @return table die Namen der Funktionen, an denen der Haken sitzt
+function Compat.HookGuildFrameToggle(callback)
+    local hooked = {}
+    if not isFunction(_G.hooksecurefunc) then return hooked end
+    for _, name in ipairs({ "ToggleGuildFrame", "ToggleCommunitiesFrame" }) do
+        if isFunction(_G[name]) and pcall(hooksecurefunc, name, callback) then
+            hooked[#hooked + 1] = name
+        end
+    end
+    return hooked
+end
+
 -- ============================================================ Charakterfenster
 
 --- Der Name eines Ausruestungsplatzes in der Sprache des Clients.

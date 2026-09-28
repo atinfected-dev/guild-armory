@@ -250,6 +250,14 @@ function Settings:Create(parent)
     -- DIE MELDUNGEN AN DER MINIMAP (28.09.2026), je Art ein Schalter. Aus
     -- heisst: weder Streifen noch Ablage. Erfolge sind aus, bis jemand sie
     -- will — ein Gildenerster ist eine Behauptung, keine Nachricht.
+    -- DIE J-TASTE (28.09.2026): Blizzards Gildenfenster fuehrt zum
+    -- Verzeichnis. Aus, bis jemand es will — es biegt eine Erwartung von
+    -- zehn Jahren um.
+    self.guildKeyBox = Widgets.CheckBox(camp.content, L.SET_GUILDKEY, function(checked)
+        GA.Core.Config:Set("guildKeyOpensAddon", checked)
+    end)
+    self.guildKeyHint = Theme.Label(camp.content, L.SET_GUILDKEY_HINT, fonts.small, Theme.color.textDim)
+
     self.notifyBoxes = {}
     for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
         local box = Widgets.CheckBox(camp.content, L["SET_NOTIFY_" .. string.upper(key)], function(checked)
@@ -497,6 +505,7 @@ function Settings:RelayoutCamp()
         { self.mapLabelBox, self.mapLabelHint },
         { self.levelUpBox, self.levelUpHint },
     }
+    if self.guildKeyBox then paare[#paare + 1] = { self.guildKeyBox, self.guildKeyHint } end
     for _, entry in ipairs(self.notifyBoxes or {}) do
         paare[#paare + 1] = { entry.box, entry.hint }
     end
@@ -633,6 +642,8 @@ function Settings:Refresh()
     self.mapLabelHint:SetText(L.SET_MAP_LABELS_HINT)
     self.levelUpBox:SetChecked(GA.Core.Config:Get("levelUpAnnounce") and true or false)
     self.levelUpHint:SetText(L.SET_LEVELUP_HINT)
+    self.guildKeyBox:SetChecked(GA.Core.Config:Get("guildKeyOpensAddon") and true or false)
+    self.guildKeyHint:SetText(L.SET_GUILDKEY_HINT)
     for _, entry in ipairs(self.notifyBoxes or {}) do
         local wert = GA.Core.Config:Get("notify" .. entry.key)
         if wert == nil then wert = entry.key ~= "Achievements" end

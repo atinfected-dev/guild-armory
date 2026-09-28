@@ -529,6 +529,33 @@ Probe.CHECKS = {
           return Probe.YES, text
       end },
 
+    { key = "guildManage", was = "Gildenverwaltung: Notizen, Raenge, MOTD, Chat",
+      fuer = "Roster-Tab statt Blizzards Gildenfenster",
+      run = function()
+          local Compat = GA.Core.Compat
+          local function ja(v) if v == nil then return "?" end return v and "ja" or "nein" end
+          local teile = {
+              "MOTD=" .. ja(Compat.CanEditMOTD()),
+              "Info=" .. ja(Compat.CanEditGuildInfo()),
+              "Notiz=" .. ja(Compat.CanEditPublicNote()),
+              "OffNotiz=" .. ja(Compat.CanEditOfficerNote()),
+              "Befoerdern=" .. ja(Compat.CanGuildPromote()),
+              "Entfernen=" .. ja(Compat.CanGuildRemove()),
+          }
+          local ranks = Compat.GetGuildRanks()
+          teile[#teile + 1] = "Raenge=" .. (ranks and tostring(#ranks) or "?")
+          local hooks = 0
+          for _, name in ipairs({ "ToggleGuildFrame", "ToggleCommunitiesFrame" }) do
+              if type(_G[name]) == "function" then hooks = hooks + 1 end
+          end
+          teile[#teile + 1] = "Gildenfenster-Aufruf=" .. tostring(hooks)
+          local motd = Compat.GetGuildMOTD()
+          local text = table.concat(teile, ", ")
+          if motd == nil and not ranks then return Probe.NO, text .. " — weder MOTD noch Raenge lesbar" end
+          if motd == nil or not ranks then return Probe.EMPTY, text end
+          return Probe.YES, text
+      end },
+
     { key = "questLog", was = "Questlog lesbar, Ziele, Link, Alt-Klick",
       fuer = "Questhub: Gesuche aus dem eigenen Log",
       run = function()

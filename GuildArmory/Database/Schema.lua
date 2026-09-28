@@ -235,6 +235,10 @@ Schema.ACCOUNT_DEFAULTS = {
         notifyCamp = true,
         notifyAchievements = false,
 
+        -- DIE J-TASTE FUEHRT ZUM VERZEICHNIS (28.09.2026). Aus, bis jemand
+        -- es will: Es biegt eine Erwartung von zehn Jahren um.
+        guildKeyOpensAddon = false,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die

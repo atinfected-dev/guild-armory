@@ -78,6 +78,7 @@ function Guild:Rebuild()
             entry.zone = member.zone
             entry.online = member.online
             entry.publicNote = member.publicNote
+            entry.officerNote = member.officerNote
             if member.online then entry.lastOnlineTs = Util.Now() end
             db.members[key] = entry
 
