@@ -663,7 +663,10 @@ end
 --- Attribute eines sicheren Rahmens gesperrt; SetMacro merkt sich den
 --- Text dann und sagt es mit false.
 ---
---- NUR "AnyUp". Wer Down UND Up anmeldet, laesst das Makro zweimal laufen —
+--- GENAU EINE FLANKE, die der Client erwartet (Compat.SecureClickMode):
+--- "AnyUp" allein tat auf diesem Client nichts (gemessen 28.09.2026),
+--- weil die Vorlage per Einstellung auf "Down" hoert. Wer Down UND Up
+--- anmeldet, laesst das Makro auf aelteren Vorlagen zweimal laufen —
 --- und "/gpromote" zweimal ist zwei Raenge.
 ---
 --- @return Button|nil  nil, wenn dieser Client die Vorlage nicht kennt
@@ -683,8 +686,11 @@ function Widgets.SecureMacroButton(parent, text, variant)
     button:SetWidth(label:GetStringWidth() + 22)
     button.label = label
 
-    pcall(button.RegisterForClicks, button, "AnyUp")
+    local clickMode = GA.Core.Compat.SecureClickMode()
+    pcall(button.RegisterForClicks, button, clickMode)
+    pcall(button.SetAttribute, button, "useOnKeyDown", clickMode == "AnyDown")
     pcall(button.SetAttribute, button, "type", "macro")
+    button.clickMode = clickMode
 
     local function inCombat()
         return type(_G.InCombatLockdown) == "function" and InCombatLockdown() and true or false

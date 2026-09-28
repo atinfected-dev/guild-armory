@@ -2722,6 +2722,26 @@ function Compat.CanGuildPromote() return askBool(_G.CanGuildPromote) end
 function Compat.CanGuildDemote() return askBool(_G.CanGuildDemote) end
 function Compat.CanGuildRemove() return askBool(_G.CanGuildRemove) end
 
+--- Auf welcher Flanke ein sicherer Knopf sein Makro ausfuehrt.
+---
+--- GEMESSEN 28.09.2026: "AnyUp" allein tat auf diesem Client nichts. Die
+--- neuere Vorlage des Spiels liest die Einstellung ActionButtonUseKeyDown
+--- und laesst einen Klick, der auf der anderen Flanke kommt, still fallen.
+--- Also: die Einstellung lesen und GENAU DIE Flanke anmelden — nie beide,
+--- denn eine aeltere Vorlage ohne diese Pruefung liefe dann zweimal.
+---
+--- @return string  "AnyDown" oder "AnyUp"
+--- @return string  woher: "cvar=1", "cvar=0" oder "keine cvar"
+function Compat.SecureClickMode()
+    local get = (type(_G.C_CVar) == "table" and type(_G.C_CVar.GetCVar) == "function" and _G.C_CVar.GetCVar)
+        or (type(_G.GetCVar) == "function" and _G.GetCVar) or nil
+    if not get then return "AnyUp", "keine cvar" end
+    local ok, value = pcall(get, "ActionButtonUseKeyDown")
+    if not ok or value == nil then return "AnyUp", "keine cvar" end
+    if tostring(value) == "1" then return "AnyDown", "cvar=1" end
+    return "AnyUp", "cvar=0"
+end
+
 --- Die Nachricht des Tages. Leer ist eine Auskunft, nil ist keine.
 function Compat.GetGuildMOTD()
     if not isFunction(_G.GetGuildRosterMOTD) then return nil end

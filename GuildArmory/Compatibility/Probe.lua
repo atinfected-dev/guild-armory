@@ -549,6 +549,8 @@ Probe.CHECKS = {
               if type(_G[name]) == "function" then hooks = hooks + 1 end
           end
           teile[#teile + 1] = "Gildenfenster-Aufruf=" .. tostring(hooks)
+          local mode, source = Compat.SecureClickMode()
+          teile[#teile + 1] = "Klick=" .. mode .. " (" .. source .. ")"
           local motd = Compat.GetGuildMOTD()
           local text = table.concat(teile, ", ")
           if motd == nil and not ranks then return Probe.NO, text .. " — weder MOTD noch Raenge lesbar" end
