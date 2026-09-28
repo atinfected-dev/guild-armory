@@ -2863,36 +2863,55 @@ end
 
 --- Die Zeilen eines Kanals, wie das Spiel sie haelt — aelteste zuerst.
 --- @return table|nil zeilen {id, ts, who, class, text}, string weg|grund
-function Compat.GetClubChatHistory(kind)
+--- @param limit number|nil  hoechstens so viele, die NEUESTEN (Vorgabe 300)
+function Compat.GetClubChatHistory(kind, limit)
     local clubId, streamId, weg = guildStream(kind)
     if not clubId then return nil, weg end
     local club = _G.C_Club
     if not isFunction(club.GetMessageRanges) or not isFunction(club.GetMessagesInRange) then return nil, "noapi" end
     local okR, ranges = pcall(club.GetMessageRanges, clubId, streamId)
     if not okR or not isTable(ranges) then return nil, "noranges" end
+    limit = limit or 300
+    -- VON HINTEN, MIT GRENZE. Gemessen 28.09.2026: 1924 Nachrichten, jede
+    -- mit einer Autor-Tabelle von zwanzig Feldern, bei jedem Zug neu vom
+    -- Client gebaut — ein Ruckler beim Oeffnen und 70 MB. Gebraucht werden
+    -- die neuesten paar hundert; aeltere Bereiche werden gar nicht erst
+    -- angefasst, sobald die Grenze steht.
+    local classCache = {}
+    local function classOf(classID)
+        if classID == nil then return nil end
+        local hit = classCache[classID]
+        if hit == nil then
+            hit = classFileFromId(classID) or false
+            classCache[classID] = hit
+        end
+        return hit or nil
+    end
     local out = {}
-    for _, range in ipairs(ranges) do
+    for r = #ranges, 1, -1 do
+        if #out >= limit then break end
+        local range = ranges[r]
         local okM, messages = false, nil
         if isTable(range) and lowerBoundOk(range.oldestMessageId) and realMessageId(range.newestMessageId) then
             okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, range.oldestMessageId, range.newestMessageId)
         end
         if okM and isTable(messages) then
-            for _, m in ipairs(messages) do
+            for i = #messages, 1, -1 do
+                if #out >= limit then break end
+                local m = messages[i]
                 local id = isTable(m) and isTable(m.messageId) and m.messageId or nil
-                -- "Unknown" (gesehen 28.09.2026, ganze Bildschirme davon) ist
-                -- kein Text, sondern der Platzhalter des Spiels fuer einen
-                -- Inhalt, den es nicht geladen hat. Der bleibt draussen;
-                -- nachgeladen wird er ueber RequestClubChatHistory.
+                -- "Unknown" ist kein Text, sondern der Platzhalter des Spiels
+                -- fuer einen Inhalt, den es nicht geladen hat; der bleibt draussen.
                 local content = isTable(m) and m.content or nil
-                local placeholder = Compat.IsChatPlaceholder(content)
-                if id and not m.destroyed and type(content) == "string" and not placeholder and tonumber(id.epoch) then
+                if id and not m.destroyed and type(content) == "string" and tonumber(id.epoch)
+                    and not Compat.IsChatPlaceholder(content) then
                     local author = isTable(m.author) and m.author or {}
                     out[#out + 1] = {
                         id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
                         ts = Compat.EpochToSeconds(tonumber(id.epoch)),
                         who = type(author.name) == "string" and author.name or "?",
-                        class = classFileFromId(author.classID),
-                        text = m.content,
+                        class = classOf(author.classID),
+                        text = content,
                     }
                 end
             end

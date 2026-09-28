@@ -132,8 +132,8 @@ function GuildChat:RequestHistory(force)
     -- dieser Client kennt (28.09.2026: voller Speicher, kein Zug). Also
     -- zweimal nachlesen, nach zwei und nach sechs Sekunden.
     if type(Compat.After) == "function" then
-        Compat.After(2, function() GuildChat:PullHistory(true) end)
-        Compat.After(6, function() GuildChat:PullHistory(true) end)
+        Compat.After(2, function() GuildChat:PullHistory("timer") end)
+        Compat.After(6, function() GuildChat:PullHistory("timer") end)
     end
     return true
 end
@@ -142,10 +142,16 @@ end
 --- Beginn gesagt wurde, und nur, was nicht schon als gespeicherter Text
 --- daliegt (derselbe Absender binnen SAME_WINDOW).
 --- @return number neu dazugekommene Zeilen
-function GuildChat:PullHistory(force)
+--- @param reason string|nil  nil = Anzeige, "timer" = nach der Anfrage,
+---   "event" = das Spiel meldet Neues. Ist der Verlauf einmal geladen,
+---   liest nur noch "event" — die Anzeige und die Timer lesen sonst bei
+---   jedem Oeffnen 1924 Nachrichten neu (gemessen 28.09.2026: Ruckler).
+function GuildChat:PullHistory(reason)
     if type(Compat.GetClubChatHistory) ~= "function" then return 0 end
+    if reason == true then reason = "timer" end
+    if self.loaded and reason ~= "event" then return 0 end
     local now = Util.Now()
-    if not force and self.lastPull and now - self.lastPull < self.PULL_EVERY then return 0 end
+    if not reason and self.lastPull and now - self.lastPull < self.PULL_EVERY then return 0 end
     self.lastPull = now
 
     -- Altlasten: Schluessel, die eine fruehere Fassung speicherte, zeigen
@@ -160,37 +166,49 @@ function GuildChat:PullHistory(force)
         end
     end
 
+    -- Nachschlagen statt suchen: Kennungen der Sitzung, und die
+    -- gespeicherten Zeilen je Kanal und Absender.
+    self.sessionIds = self.sessionIds or {}
+    local stored = {}
+    for _, line in ipairs(lines) do
+        local key = tostring(line.channel) .. "/" .. string.lower(line.who or "")
+        stored[key] = stored[key] or {}
+        table.insert(stored[key], line.ts or 0)
+    end
+
     local start = self:SessionStart()
     local added = 0
     self.source = self.source or {}
     for _, channel in ipairs({ "GUILD", "OFFICER" }) do
-        local entries, weg = Compat.GetClubChatHistory(channel)
+        local entries, weg = Compat.GetClubChatHistory(channel, self.LIMIT)
         self.source[channel] = weg
+        if entries and #entries > 0 then self.loaded = true end
         for _, entry in ipairs(entries or {}) do
-            if entry.ts and entry.ts < start and type(entry.text) == "string" and entry.text ~= "" then
+            if entry.ts and entry.ts < start and type(entry.text) == "string" and entry.text ~= ""
+                and not self.sessionIds[entry.id] then
+                local who = Util.ShortName(entry.who or "?")
                 local known = false
-                for _, line in ipairs(self.session) do
-                    if line.id == entry.id then known = true break end
+                for _, ts in ipairs(stored[channel .. "/" .. string.lower(who)] or {}) do
+                    if math.abs(ts - entry.ts) <= self.SAME_WINDOW then known = true break end
                 end
                 if not known then
-                    local who = Util.ShortName(entry.who or "?")
-                    for _, line in ipairs(lines) do
-                        if line.channel == channel and sameWho(line.who, who)
-                            and math.abs((line.ts or 0) - entry.ts) <= self.SAME_WINDOW then
-                            known = true
-                            break
-                        end
-                    end
-                end
-                if not known then
+                    self.sessionIds[entry.id] = true
                     self.session[#self.session + 1] = {
                         channel = channel, text = entry.text,
-                        who = Util.ShortName(entry.who or "?"), class = entry.class or klasseVon(entry.who),
+                        who = who, class = entry.class or klasseVon(entry.who),
                         ts = entry.ts, id = entry.id, history = true,
                     }
                     added = added + 1
                 end
             end
+        end
+    end
+    -- Die Sitzung haelt hoechstens LIMIT Zeilen: die aeltesten gehen.
+    if #self.session > self.LIMIT then
+        table.sort(self.session, function(a, b) return (a.ts or 0) < (b.ts or 0) end)
+        while #self.session > self.LIMIT do
+            local gone = table.remove(self.session, 1)
+            if gone and gone.id then self.sessionIds[gone.id] = nil end
         end
     end
     if added > 0 or dropped > 0 then GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", added) end
@@ -230,6 +248,8 @@ function GuildChat:Clear()
     local lines = store()
     local count = #self.session
     self.session = {}
+    self.sessionIds = {}
+    self.loaded = nil
     if lines then
         count = count + #lines
         for index = #lines, 1, -1 do lines[index] = nil end
@@ -310,7 +330,7 @@ function GuildChat:OnEnable()
         if type(Compat.After) ~= "function" then return end
         Compat.After(3, function()
             GuildChat:RequestHistory(true)
-            GuildChat:PullHistory(true)
+            GuildChat:PullHistory("timer")
         end)
     end, "GuildChat")
     -- Mehr Namen als noetig: Was der Client nicht kennt, weist Register
@@ -319,7 +339,7 @@ function GuildChat:OnEnable()
         "CLUB_MESSAGE_UPDATED", "CLUB_UPDATED", "CLUB_STREAM_SUBSCRIBED" }) do
         Events:Register(event, function()
             if type(Compat.After) == "function" then
-                Compat.After(0.5, function() GuildChat:PullHistory() end)
+                Compat.After(0.5, function() GuildChat:PullHistory("event") end)
             end
         end, "GuildChat")
     end
