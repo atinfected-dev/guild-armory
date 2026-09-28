@@ -210,6 +210,17 @@ function GuildChat:PullHistory(force)
     local now = Util.Now()
     if not force and self.lastPull and now - self.lastPull < self.PULL_EVERY then return 0 end
     self.lastPull = now
+    -- Platzhalter, die eine fruehere Fassung als Text uebernahm (28.09.2026),
+    -- gehen beim naechsten Zug: Sie sind keine Zeilen.
+    local lines = store() or {}
+    local dropped = 0
+    for index = #lines, 1, -1 do
+        local text = lines[index].text
+        if text == "Unknown" or (type(_G.UNKNOWN) == "string" and text == _G.UNKNOWN) then
+            table.remove(lines, index)
+            dropped = dropped + 1
+        end
+    end
     local added = 0
     for _, channel in ipairs({ "GUILD", "OFFICER" }) do
         local entries, weg = Compat.GetClubChatHistory(channel)
@@ -217,6 +228,7 @@ function GuildChat:PullHistory(force)
         self.source[channel] = weg
         if entries then added = added + self:MergeHistory(channel, entries) end
     end
+    if dropped > 0 and added == 0 then GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", 0) end
     return added
 end
 
