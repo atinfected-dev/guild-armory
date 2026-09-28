@@ -1132,6 +1132,7 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_NOTE_OPEN   = "Edit in the game's window",
     CHATDUPES_TITLE    = "Guild chat: lines that look doubled",
     CHATDUPES_NONE     = "No doubled lines in the guild chat.",
+    CHATCLEAR_DONE     = "Guild chat cleared: %d stored lines removed. What comes now is collected afresh.",
     ROSTER_NOTE_NOEFFECT = "went through, but the roster never showed the note",
     ROSTER_INVITE      = "Invite to the guild",
     ROSTER_INVITE_HINT = "Type the character's name, then click Invite. The button is the game's own — it runs /ginvite, so Enter cannot press it for you.",

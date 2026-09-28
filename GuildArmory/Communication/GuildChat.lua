@@ -147,6 +147,19 @@ local function dropShadowed(lines)
     return removed
 end
 
+--- Leert den gespeicherten Chat — fuer /ga chatclear, wenn Altlasten
+--- stehen, die keine Routine erkennt. Was danach kommt, wird neu gesammelt.
+--- @return number wie viele Zeilen weg sind
+function GuildChat:Clear()
+    local lines = store()
+    if not lines then return 0 end
+    local count = #lines
+    for index = count, 1, -1 do lines[index] = nil end
+    self.lastPull = nil
+    GA.Core.Callbacks:Fire("GUILD_CHAT_HISTORY", 0)
+    return count
+end
+
 --- Die letzten Zeilen ROH, ohne jeden Vergleich — fuer /ga chatdupes.
 --- Gemessen 28.09.2026: Der Paarfinder unten fand nichts, waehrend die
 --- Anzeige zwei gleiche Zeilen zeigte. Was gleich aussieht und nicht

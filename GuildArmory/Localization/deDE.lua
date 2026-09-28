@@ -1118,6 +1118,7 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_NOTE_OPEN   = "In Blizzards Fenster bearbeiten",
     CHATDUPES_TITLE    = "Gildenchat: Zeilen, die doppelt aussehen",
     CHATDUPES_NONE     = "Keine doppelten Zeilen im Gildenchat.",
+    CHATCLEAR_DONE     = "Gildenchat geleert: %d gespeicherte Zeilen entfernt. Was jetzt kommt, wird neu gesammelt.",
     ROSTER_NOTE_NOEFFECT = "ging durch, aber das Roster zeigte die Notiz nie",
     ROSTER_INVITE      = "In die Gilde einladen",
     ROSTER_INVITE_HINT = "Namen des Charakters eintippen, dann auf Einladen klicken. Der Knopf ist einer des Spiels — er fuehrt /ginvite aus, darum kann Enter ihn nicht fuer dich druecken.",

@@ -1024,6 +1024,12 @@ SlashCmdList["GUILDARMORY"] = function(input)
         -- Anzeige "Unknown" zeigt und die Frage ist, aus welchem Feld.
         local lines = GA.Core.Compat.DumpClubChat(rest == "officer" and "OFFICER" or "GUILD", 12)
         GA.UI.Widgets.CopyDialog("Club chat (raw)", table.concat(lines, "\n"))
+    elseif command == "chatclear" then
+        -- DEN GESPEICHERTEN GILDENCHAT LEEREN — fuer Altlasten, die keine
+        -- Routine erkennt (28.09.2026: "Unknown"-Zeilen, die blieben).
+        local GuildChat = GA.Modules.GuildChat
+        local count = GuildChat and GuildChat:Clear() or 0
+        Debug:Info(L.CHATCLEAR_DONE, count)
     elseif command == "chatdupes" then
         -- ZWEI GLEICHE ZEILEN IM GILDENCHAT, die der Abgleich nicht als eine
         -- sieht: hier stehen beide mit allen Feldern, Bytezahlen inklusive.
