@@ -84,10 +84,21 @@ function GuildChat:OnMessage(channel, text, sender, guid)
     return self:Store(line)
 end
 
---- Traegt eine Zeile ein und haelt das Limit.
+--- Traegt eine Zeile ein und haelt das Limit. NICHT ZWEIMAL DIESELBE:
+--- Liegt dieselbe mitgehoerte Zeile (Kanal, Absender, Text) binnen fuenf
+--- Sekunden schon da, ist das dasselbe Ereignis, nicht dieselbe Aussage
+--- noch einmal — Doppel gesehen 28.09.2026 bei leerem Verlauf.
 function GuildChat:Store(line)
     local lines = store()
     if not lines then return nil end
+    for index = #lines, math.max(1, #lines - 20), -1 do
+        local other = lines[index]
+        if other.channel == line.channel and not other.id
+            and string.lower(other.who or "") == string.lower(line.who or "")
+            and other.text == line.text and math.abs((other.ts or 0) - (line.ts or 0)) <= 5 then
+            return other
+        end
+    end
     lines[#lines + 1] = line
     while #lines > self.LIMIT do table.remove(lines, 1) end
     GA.Core.Callbacks:Fire("GUILD_CHAT", line)

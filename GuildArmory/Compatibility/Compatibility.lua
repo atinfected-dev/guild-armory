@@ -2829,6 +2829,15 @@ function Compat.EpochToSeconds(epoch)
     return math.floor(epoch)
 end
 
+--- Ein Bereich ohne Nachrichten traegt Platzhalter statt Kennungen:
+--- oldest = 2^53, newest = 0 (gemessen 28.09.2026, /ga clubchat). Der
+--- ist keine Kennung und darf weder gelesen noch dem Server als "davor"
+--- geschickt werden.
+local function realMessageId(id)
+    local epoch = isTable(id) and tonumber(id.epoch) or nil
+    return epoch ~= nil and epoch > 0 and epoch < 9e15
+end
+
 --- Die Zeilen eines Kanals, wie das Spiel sie haelt — aelteste zuerst.
 --- @return table|nil zeilen {id, ts, who, class, text}, string weg|grund
 function Compat.GetClubChatHistory(kind)
@@ -2840,7 +2849,10 @@ function Compat.GetClubChatHistory(kind)
     if not okR or not isTable(ranges) then return nil, "noranges" end
     local out = {}
     for _, range in ipairs(ranges) do
-        local okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, range.oldestMessageId, range.newestMessageId)
+        local okM, messages = false, nil
+        if isTable(range) and realMessageId(range.oldestMessageId) and realMessageId(range.newestMessageId) then
+            okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, range.oldestMessageId, range.newestMessageId)
+        end
         if okM and isTable(messages) then
             for _, m in ipairs(messages) do
                 local id = isTable(m) and isTable(m.messageId) and m.messageId or nil
@@ -2942,7 +2954,7 @@ function Compat.RequestClubChatHistory(kind, count)
         if ok and isTable(ranges) then
             for _, range in ipairs(ranges) do
                 local id = isTable(range) and range.oldestMessageId or nil
-                if isTable(id) and tonumber(id.epoch) and (not oldest or tonumber(id.epoch) < tonumber(oldest.epoch)) then
+                if realMessageId(id) and (not oldest or tonumber(id.epoch) < tonumber(oldest.epoch)) then
                     oldest = id
                 end
             end
@@ -2952,7 +2964,14 @@ function Compat.RequestClubChatHistory(kind, count)
     -- Kanal liefert der Server die Inhalte nach — ohne Fokus bleiben
     -- Nachrichten aus der eigenen Abwesenheit "Unknown" (Vermutung nach
     -- Beobachtung 28.09.2026: ab dem Ausloggen nur noch Platzhalter).
-    if isFunction(club.FocusStream) then pcall(club.FocusStream, clubId, streamId) end
+    -- EINMAL je Kanal und Sitzung: Ein zweiter Fokus koennte den Speicher
+    -- neu aufsetzen — nach wiederholtem Fokussieren war er leer (28.09.).
+    Compat.clubFocused = Compat.clubFocused or {}
+    local focusKey = tostring(clubId) .. ":" .. tostring(streamId)
+    if isFunction(club.FocusStream) and not Compat.clubFocused[focusKey] then
+        Compat.clubFocused[focusKey] = true
+        pcall(club.FocusStream, clubId, streamId)
+    end
     local ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count or 200)
     if not ok and oldest then ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) end
     return ok and true or false
