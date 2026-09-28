@@ -1022,8 +1022,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
     elseif command == "clubchat" then
         -- DIE ROHEN NACHRICHTEN DES CLUB-SPEICHERS, ungedeutet — wenn die
         -- Anzeige "Unknown" zeigt und die Frage ist, aus welchem Feld.
+        -- PIPES MASKIERT: Mit vollem Speicher blieb der Dialog leer
+        -- (28.09.2026) — ein "|" aus einem Chatlink im Inhalt, das die
+        -- Eingabebox als Steuerzeichen nimmt. Als "||" steht es da.
         local lines = GA.Core.Compat.DumpClubChat(rest == "officer" and "OFFICER" or "GUILD", 12)
-        GA.UI.Widgets.CopyDialog("Club chat (raw)", table.concat(lines, "\n"))
+        GA.UI.Widgets.CopyDialog("Club chat (raw)", (table.concat(lines, "\n"):gsub("|", "||")))
     elseif command == "chatclear" then
         -- DEN GESPEICHERTEN GILDENCHAT LEEREN — fuer Altlasten, die keine
         -- Routine erkennt (28.09.2026: "Unknown"-Zeilen, die blieben).

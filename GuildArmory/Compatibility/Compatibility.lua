@@ -2979,14 +2979,12 @@ function Compat.RequestClubChatHistory(kind, count)
     -- Kanal liefert der Server die Inhalte nach — ohne Fokus bleiben
     -- Nachrichten aus der eigenen Abwesenheit "Unknown" (Vermutung nach
     -- Beobachtung 28.09.2026: ab dem Ausloggen nur noch Platzhalter).
-    -- EINMAL je Kanal und Sitzung: Ein zweiter Fokus koennte den Speicher
-    -- neu aufsetzen — nach wiederholtem Fokussieren war er leer (28.09.).
-    Compat.clubFocused = Compat.clubFocused or {}
-    local focusKey = tostring(clubId) .. ":" .. tostring(streamId)
-    if isFunction(club.FocusStream) and not Compat.clubFocused[focusKey] then
-        Compat.clubFocused[focusKey] = true
-        pcall(club.FocusStream, clubId, streamId)
-    end
+    -- BEI JEDER ANFRAGE: Blizzards Fenster hebt den Fokus beim Schliessen
+    -- auf (UnfocusStream), und danach ist der Speicher leer — gesehen
+    -- 28.09.2026: voll, solange sein Fenster offen war, leer danach. Der
+    -- leere Speicher nach wiederholtem Fokussieren lag an der Platzhalter-
+    -- Kennung, die damals mitging, nicht am Fokus.
+    if isFunction(club.FocusStream) then pcall(club.FocusStream, clubId, streamId) end
     local ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count or 200)
     if not ok and oldest then ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) end
     return ok and true or false
