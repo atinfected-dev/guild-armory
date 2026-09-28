@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.16
+## 0.1.17
 
-The characters page as a family tree, the achievements as a trophy hall, map pins that bundle up when a crowd stands on one spot, a Questhub for finding people for a quest, and notifications at the minimap.
+A Questhub for finding people for a quest, and notifications at the minimap.
 
 ### Questhub: who is looking for people for which quest
 
@@ -50,6 +50,10 @@ somebody wants them — a guild first is a claim until the guild confirms it.
 The first twenty seconds after login report nothing: the sync brings the
 whole guild's offers in at once, and each as a notification would be a
 fireworks of old news.
+
+## 0.1.16
+
+The characters page as a family tree, the achievements as a trophy hall, and map pins that bundle up when a crowd stands on one spot.
 
 ### Map pins bundle up
 
