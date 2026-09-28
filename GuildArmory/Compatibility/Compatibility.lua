@@ -2867,6 +2867,67 @@ function Compat.GetClubChatHistory(kind)
     return out, "C_Club"
 end
 
+--- DIE ROHEN NACHRICHTEN DES CLUB-SPEICHERS, Feld fuer Feld — fuer
+--- /ga clubchat, wenn die Anzeige etwas zeigt, das keine Zeile ist
+--- ("Unknown", 28.09.2026), und niemand weiss, aus welchem Feld es kam.
+--- Nichts wird gedeutet: jeder Schluessel, jeder Typ, jede Zeichenkette
+--- mit Laenge, verschachtelt eine Ebene tief.
+function Compat.DumpClubChat(kind, count)
+    local out = {}
+    local function say(fmt, ...) out[#out + 1] = string.format(fmt, ...) end
+    local function show(value)
+        local t = type(value)
+        if t == "string" then return string.format("%q (%d)", value, #value) end
+        return t .. ":" .. tostring(value)
+    end
+    local clubId, streamId, weg = guildStream(kind)
+    say("stream %s: club=%s stream=%s weg=%s UNKNOWN=%s", tostring(kind), tostring(clubId), tostring(streamId), tostring(weg), show(_G.UNKNOWN))
+    if not clubId then return out end
+    local club = _G.C_Club
+    local okR, ranges = pcall(club.GetMessageRanges, clubId, streamId)
+    say("ranges ok=%s n=%s", tostring(okR), isTable(ranges) and tostring(#ranges) or type(ranges))
+    if not okR or not isTable(ranges) then return out end
+    local shown = 0
+    for r = #ranges, 1, -1 do
+        local range = ranges[r]
+        local o, n = range.oldestMessageId, range.newestMessageId
+        say("range %d: oldest=%s/%s newest=%s/%s", r,
+            tostring(isTable(o) and o.epoch), tostring(isTable(o) and o.position),
+            tostring(isTable(n) and n.epoch), tostring(isTable(n) and n.position))
+        local okM, messages = pcall(club.GetMessagesInRange, clubId, streamId, o, n)
+        say("  messages ok=%s n=%s", tostring(okM), isTable(messages) and tostring(#messages) or show(messages))
+        if okM and isTable(messages) then
+            for i = #messages, 1, -1 do
+                if shown >= (count or 12) then break end
+                shown = shown + 1
+                local m = messages[i]
+                say("  [%d]", i)
+                if isTable(m) then
+                    for k, v in pairs(m) do
+                        if isTable(v) then
+                            local parts = {}
+                            for k2, v2 in pairs(v) do parts[#parts + 1] = tostring(k2) .. "=" .. show(v2) end
+                            table.sort(parts)
+                            say("    %s = { %s }", tostring(k), table.concat(parts, ", "))
+                        else
+                            say("    %s = %s", tostring(k), show(v))
+                        end
+                    end
+                else
+                    say("    %s", show(m))
+                end
+            end
+        end
+        if shown >= (count or 12) then break end
+    end
+    if isFunction(club.GetMessageInfo) and shown > 0 then
+        local range = ranges[#ranges]
+        local okI, info = pcall(club.GetMessageInfo, clubId, streamId, range.newestMessageId)
+        say("GetMessageInfo(newest) ok=%s content=%s", tostring(okI), isTable(info) and show(info.content) or show(info))
+    end
+    return out
+end
+
 --- Bittet das Spiel um aeltere Zeilen. Die Antwort kommt als Ereignis
 --- (CLUB_MESSAGE_HISTORY_RECEIVED); danach liest GetClubChatHistory mehr.
 --- Die Anfrage nennt die AELTESTE bekannte Kennung: Ohne sie laedt das
@@ -2887,6 +2948,11 @@ function Compat.RequestClubChatHistory(kind, count)
             end
         end
     end
+    -- FOKUSSIEREN, wie Blizzards Fenster es tut: Erst fuer einen fokussierten
+    -- Kanal liefert der Server die Inhalte nach — ohne Fokus bleiben
+    -- Nachrichten aus der eigenen Abwesenheit "Unknown" (Vermutung nach
+    -- Beobachtung 28.09.2026: ab dem Ausloggen nur noch Platzhalter).
+    if isFunction(club.FocusStream) then pcall(club.FocusStream, clubId, streamId) end
     local ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, oldest, count or 200)
     if not ok and oldest then ok = pcall(club.RequestMoreMessagesBefore, clubId, streamId, nil, count or 200) end
     return ok and true or false

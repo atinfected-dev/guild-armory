@@ -1019,6 +1019,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
         Debug:Info(L.SLASH_COMBATLOG,
             GA.Core.Config:Get("autoCombatLog") and L.SLASH_ON or L.SLASH_OFF,
             running == nil and L.UNKNOWN or (running and L.SLASH_ON or L.SLASH_OFF))
+    elseif command == "clubchat" then
+        -- DIE ROHEN NACHRICHTEN DES CLUB-SPEICHERS, ungedeutet — wenn die
+        -- Anzeige "Unknown" zeigt und die Frage ist, aus welchem Feld.
+        local lines = GA.Core.Compat.DumpClubChat(rest == "officer" and "OFFICER" or "GUILD", 12)
+        GA.UI.Widgets.CopyDialog("Club chat (raw)", table.concat(lines, "\n"))
     elseif command == "chatdupes" then
         -- ZWEI GLEICHE ZEILEN IM GILDENCHAT, die der Abgleich nicht als eine
         -- sieht: hier stehen beide mit allen Feldern, Bytezahlen inklusive.

@@ -545,6 +545,7 @@ function View:RefreshChat()
     local GuildChat = GA.Modules.GuildChat
     if not GuildChat then return end
     for _, chip in ipairs(self.chatChips) do chip:SetPressed(chip.channel == self.chatChannel) end
+    GuildChat:RequestHistory()
     GuildChat:PullHistory()
     local lines = GuildChat:List(self.chatChannel)
     self.chatLines:SetData(lines)

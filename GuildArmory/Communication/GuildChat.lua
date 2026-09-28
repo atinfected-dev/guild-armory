@@ -205,6 +205,18 @@ end
 --- Holt den Verlauf des Spiels fuer beide Kanaele — nicht oefter als alle
 --- paar Sekunden, denn jeder Aufruf liest alles neu.
 --- @return number neu dazugekommene Zeilen
+--- Bittet das Spiel um Inhalte und aeltere Zeilen — hoechstens alle
+--- halbe Minute, denn die Antwort kommt als Ereignis und braucht ihre Zeit.
+function GuildChat:RequestHistory(force)
+    if type(Compat.RequestClubChatHistory) ~= "function" then return false end
+    local now = Util.Now()
+    if not force and self.lastRequest and now - self.lastRequest < 30 then return false end
+    self.lastRequest = now
+    Compat.RequestClubChatHistory("GUILD", self.REQUEST)
+    Compat.RequestClubChatHistory("OFFICER", self.REQUEST)
+    return true
+end
+
 function GuildChat:PullHistory(force)
     if type(Compat.GetClubChatHistory) ~= "function" then return 0 end
     local now = Util.Now()
@@ -271,10 +283,7 @@ function GuildChat:OnEnable()
     -- bitten, und lesen, wann immer das Spiel welche liefert.
     Events:Register("PLAYER_ENTERING_WORLD", function()
         Compat.After(3, function()
-            if type(Compat.RequestClubChatHistory) == "function" then
-                Compat.RequestClubChatHistory("GUILD", GuildChat.REQUEST)
-                Compat.RequestClubChatHistory("OFFICER", GuildChat.REQUEST)
-            end
+            GuildChat:RequestHistory(true)
             GuildChat:PullHistory(true)
         end)
     end, "GuildChat")
