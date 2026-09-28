@@ -147,6 +147,25 @@ local function dropShadowed(lines)
     return removed
 end
 
+--- Die letzten Zeilen ROH, ohne jeden Vergleich — fuer /ga chatdupes.
+--- Gemessen 28.09.2026: Der Paarfinder unten fand nichts, waehrend die
+--- Anzeige zwei gleiche Zeilen zeigte. Was gleich aussieht und nicht
+--- gleich ist, unterscheidet sich in Bytes, und die stehen hier: Text in
+--- %q (Steuerzeichen sichtbar), Laenge, Absender, Stempel, Kennung, Kanal.
+function GuildChat:Raw(count)
+    local lines = store() or {}
+    local out = {}
+    for index = math.max(1, #lines - (count or 12) + 1), #lines do
+        local line = lines[index]
+        out[#out + 1] = string.format("#%d %s ts=%s who=%q(%d) text=%q(%d) id=%s hist=%s",
+            index, tostring(line.channel), tostring(line.ts),
+            tostring(line.who), #tostring(line.who or ""),
+            tostring(line.text), #tostring(line.text or ""),
+            tostring(line.id), tostring(line.history))
+    end
+    return out
+end
+
 --- Doppelte Paare mit allen Feldern — fuer /ga chatdupes, wenn die Augen
 --- zwei gleiche Zeilen sehen und der Vergleich sie nicht. Zeigt Laengen
 --- in Bytes, denn ein unsichtbares Zeichen ist der uebliche Grund.

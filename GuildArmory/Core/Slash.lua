@@ -1028,12 +1028,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
         -- ZWEI GLEICHE ZEILEN IM GILDENCHAT, die der Abgleich nicht als eine
         -- sieht: hier stehen beide mit allen Feldern, Bytezahlen inklusive.
         local GuildChat = GA.Modules.GuildChat
+        local raw = GuildChat and GuildChat:Raw(14) or {}
         local pairs_ = GuildChat and GuildChat:Duplicates() or {}
-        if #pairs_ == 0 then
-            Debug:Info(L.CHATDUPES_NONE)
-        else
-            GA.UI.Widgets.CopyDialog(L.CHATDUPES_TITLE, table.concat(pairs_, "\n"))
-        end
+        raw[#raw + 1] = ""
+        raw[#raw + 1] = #pairs_ == 0 and L.CHATDUPES_NONE or ("Paare: " .. table.concat(pairs_, "\n"))
+        GA.UI.Widgets.CopyDialog(L.CHATDUPES_TITLE, table.concat(raw, "\n"))
     elseif command == "probe" then
         -- WAS GIBT DIESER CLIENT FUER DIE OFFENEN ERFOLGE HER?
         --
