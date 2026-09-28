@@ -4,19 +4,6 @@
 
 In progress.
 
-**Opening the roster no longer stutters.** Measured: 1924 history
-messages were read from the club store on every open, each with a
-twenty-field author table the client builds fresh, and compared against
-every loaded line — a stutter and 70 MB. The reader now walks from the
-newest end and stops at five hundred, reads fully once and afterwards
-only when the game reports a club event.
-
-**The message of the day is Guild Armory's own.** Setting the game's is
-blocked from addon code on this client like the notes. So the roster
-carries one of its own, distributed like the shared note (key "@motd",
-up to 180 characters); the head shows it with who set it and when, and
-click edits it when your rank may set the game's.
-
 ## 0.1.18
 
 A roster tab that does what the game's guild window does — with guild chat — and the achievements' category chips wrap.
@@ -103,6 +90,19 @@ override is applied once the fight ends.
 ### Achievements: the category chips wrap
 
 Fourteen category chips in one chain ran off the right edge of the window at 1000 wide (seen in a screenshot). They wrap now: as many per row as fit, the bar grows with the rows, and the cards below move down.
+
+**Opening the roster no longer stutters.** Measured: 1924 history
+messages were read from the club store on every open, each with a
+twenty-field author table the client builds fresh, and compared against
+every loaded line — a stutter and 70 MB. The reader now walks from the
+newest end and stops at five hundred, reads fully once and afterwards
+only when the game reports a club event.
+
+**The message of the day is Guild Armory's own.** Setting the game's is
+blocked from addon code on this client like the notes. So the roster
+carries one of its own, distributed like the shared note (key "@motd",
+up to 180 characters); the head shows it with who set it and when, and
+click edits it when your rank may set the game's.
 
 ## 0.1.17
 
