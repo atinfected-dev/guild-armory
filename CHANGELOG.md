@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.18
+
+In progress.
+
 ## 0.1.17
 
 A Questhub for finding people for a quest, and notifications at the minimap.
