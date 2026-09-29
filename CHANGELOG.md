@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.19
+## 0.1.20
 
 In progress.
+
+## 0.1.19
+
+Settings as a register with round switches, loot rules as four steps with a summary rail, the window closes in combat again, map clusters count you, and the roster stutter is gone.
 
 ### Loot rules: four steps and a rail
 
