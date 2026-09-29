@@ -1239,6 +1239,8 @@ GA.Core.Locale:Register("deDE", {
     NOTIFY_QUEST       = "sucht Leute fuer",
     NOTIFY_QUEST_HAVE  = "du hast die Quest",
     NOTIFY_ACT_QUEST   = "Questhub",
+    MAP_FIRE_TIP       = "Lagerfeuer von %s",
+    MAP_FIRE_AGO       = "entzuendet %s · brennt etwa fuenf Minuten",
     NOTIFY_CAMP        = "hat ein Lagerfeuer entzuendet in",
     NOTIFY_CAMP_SUB    = "die Karte hat einen Pin",
     NOTIFY_ACT_MAP     = "Karte",

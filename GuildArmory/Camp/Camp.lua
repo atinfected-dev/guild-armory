@@ -88,6 +88,42 @@ local STALE = 1800
 --- schickt jemanden womoeglich zu einem Platz, an dem nichts mehr steht.
 local FRESH = 60
 
+--- Wie lange ein Lagerfeuer auf der Karte steht. Ein Feuer im Spiel brennt
+--- rund fuenf Minuten; danach fuehrt die Nadel Leute zu Asche.
+local FIRE_LIFE = 300
+
+--- Die Feuer, die gerade brennen: je Aufsteller eines. Eigene wie fremde;
+--- die Karte zeichnet sie (UI/MapPins), das Verfallsdatum raeumt sie ab.
+Camp.fires = {}
+
+--- Merkt ein Feuer und sagt der Karte Bescheid.
+local function rememberFire(feuer)
+    Camp.fires[feuer.name] = feuer
+    GA.Core.Callbacks:Fire("CAMP_FIRES")
+    if type(Compat.After) == "function" then
+        Compat.After(FIRE_LIFE + 1, function()
+            if Camp.fires[feuer.name] == feuer then
+                Camp.fires[feuer.name] = nil
+                GA.Core.Callbacks:Fire("CAMP_FIRES")
+            end
+        end)
+    end
+end
+
+--- Die Feuer, die noch brennen, aelteste zuerst.
+function Camp:Fires()
+    local out = {}
+    local now = Compat.Now()
+    for name, feuer in pairs(self.fires) do
+        if feuer.ts and now - feuer.ts <= FIRE_LIFE then out[#out + 1] = feuer
+        else self.fires[name] = nil end
+    end
+    table.sort(out, function(a, b) return (a.ts or 0) < (b.ts or 0) end)
+    return out
+end
+
+Camp.FIRE_LIFE = FIRE_LIFE
+
 --- Streuung fuer Antworten auf eine Anfrage. Ohne sie antworten alle in
 --- derselben Zone im selben Augenblick.
 local ANSWER_SPREAD = 5
@@ -487,6 +523,10 @@ function Camp:AnnouncePlacement(itemID)
         return false, "nopos"
     end
 
+    -- Das eigene Feuer steht auch auf der eigenen Karte.
+    rememberFire({ name = self:OwnName(), zone = zone, mapID = mapID, x = x, y = y,
+        itemID = itemID, ts = math.floor(Compat.Now()), own = true })
+
     -- Nicht gebuendelt: Die Meldung ist nur fuer eine Minute etwas wert.
     return Comm:Send("CPLACE", {
         zone, mapID,
@@ -536,7 +576,7 @@ function Camp:OnPlaced(sender, fields)
         return
     end
 
-    GA.Core.Callbacks:Fire("CAMP_PLACED", {
+    local feuer = {
         name = Util.ShortName(sender),
         zone = zone,
         mapID = mapID,
@@ -544,7 +584,9 @@ function Camp:OnPlaced(sender, fields)
         y = y / 10000,
         itemID = itemID,
         ts = stamp,
-    })
+    }
+    rememberFire(feuer)
+    GA.Core.Callbacks:Fire("CAMP_PLACED", feuer)
 end
 
 -- ================================================================== Liste ----

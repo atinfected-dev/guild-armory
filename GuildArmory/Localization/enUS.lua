@@ -1254,6 +1254,8 @@ GA.Core.Locale:Register("enUS", {
     NOTIFY_QUEST       = "looks for people for",
     NOTIFY_QUEST_HAVE  = "you have the quest",
     NOTIFY_ACT_QUEST   = "Questhub",
+    MAP_FIRE_TIP       = "%s's campfire",
+    MAP_FIRE_AGO       = "lit %s · burns about five minutes",
     NOTIFY_CAMP        = "lit a campfire in",
     NOTIFY_CAMP_SUB    = "the map has a pin",
     NOTIFY_ACT_MAP     = "Map",

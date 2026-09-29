@@ -463,10 +463,83 @@ function MapPins:Refresh()
         self.pins[index]:Hide()
     end
     self.shown = sichtbar
+
+    self:RefreshFires(canvas, mapID, breite, hoehe, massstab)
+end
+
+-- ================================================================== Feuer -----
+--
+-- EINE NADEL JE LAGERFEUER (Wunsch 29.09.2026): das Symbol des Feuers auf
+-- einer dunklen runden Scheibe, ohne Beschriftung, nie gebuendelt — ein
+-- Feuer steht, wo es steht. Der Tooltip sagt, wessen es ist und wie lange
+-- es schon brennt. Das Symbol kommt vom Gegenstand selbst (Compat
+-- .GetItemIcon), ersatzweise die Feuerkunst des Spiels.
+
+local FIRE_SIZE = 24
+local FIRE_FALLBACK = "Interface\\Icons\\Spell_Fire_Fire"
+local DISC = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
+function MapPins:FirePin(index)
+    self.firePins = self.firePins or {}
+    if self.firePins[index] then return self.firePins[index] end
+
+    local pin = CreateFrame("Button", nil, self.canvas)
+    pin:SetSize(FIRE_SIZE, FIRE_SIZE)
+    pin:SetFrameStrata("HIGH")
+    pin.disc = pin:CreateTexture(nil, "BACKGROUND")
+    pin.disc:SetAllPoints(pin)
+    if Theme.TextureExists(DISC) then pin.disc:SetTexture(DISC) end
+    Theme.Paint(pin.disc, { 0.05, 0.07, 0.05, 0.9 })
+    pin.icon = pin:CreateTexture(nil, "ARTWORK")
+    pin.icon:SetPoint("TOPLEFT", pin, "TOPLEFT", 4, -4)
+    pin.icon:SetPoint("BOTTOMRIGHT", pin, "BOTTOMRIGHT", -4, 4)
+    pin.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    pin:SetScript("OnEnter", function(self)
+        local feuer = self.feuer
+        if not feuer then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(string.format(L.MAP_FIRE_TIP, feuer.name or "?"), 1, 0.84, 0.5)
+        GameTooltip:AddLine(string.format(L.MAP_FIRE_AGO, Util.TimeAgo(feuer.ts or 0)), 0.66, 0.61, 0.52)
+        GameTooltip:Show()
+    end)
+    pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    self.firePins[index] = pin
+    return pin
+end
+
+--- Zeichnet die brennenden Feuer auf die angezeigte Karte.
+function MapPins:RefreshFires(canvas, mapID, breite, hoehe, massstab)
+    local Camp = GA.Modules.Camp
+    local feuer = Camp and Camp.Fires and Camp:Fires() or {}
+    local sichtbar = 0
+    for _, f in ipairs(feuer) do
+        local x, y = f.x, f.y
+        if f.mapID ~= mapID then
+            x, y = Compat.TranslateMapPosition(f.mapID, f.x, f.y, mapID)
+        end
+        if x and y then
+            sichtbar = sichtbar + 1
+            local pin = self:FirePin(sichtbar)
+            pin.feuer = f
+            local icon = Compat.GetItemIcon(f.itemID) or FIRE_FALLBACK
+            pin.icon:SetTexture(icon)
+            pin:SetParent(canvas)
+            pin:SetScale(massstab)
+            pin:ClearAllPoints()
+            pin:SetPoint("CENTER", canvas, "TOPLEFT", (x * breite) / massstab, -(y * hoehe) / massstab)
+            pin:Show()
+        end
+    end
+    for index = sichtbar + 1, #(self.firePins or {}) do
+        self.firePins[index]:Hide()
+    end
 end
 
 function MapPins:HideAll()
     for _, pin in ipairs(self.pins or {}) do pin:Hide() end
+    for _, pin in ipairs(self.firePins or {}) do pin:Hide() end
     self.shown = 0
 end
 
@@ -533,6 +606,9 @@ function MapPins:Attach()
     self.ticker = ticker
 
     GA.Core.Callbacks:On("POSITIONS_CHANGED", function()
+        if Compat.IsWorldMapShown() then MapPins:Refresh() end
+    end, "MapPins")
+    GA.Core.Callbacks:On("CAMP_FIRES", function()
         if Compat.IsWorldMapShown() then MapPins:Refresh() end
     end, "MapPins")
 

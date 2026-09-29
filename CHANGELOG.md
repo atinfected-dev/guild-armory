@@ -4,6 +4,12 @@
 
 In progress.
 
+**Campfires on the map.** When somebody in the guild lights a campfire,
+the people in that zone already got a notification; now the world map
+shows the fire too: the item's own icon on a dark disc where it stands,
+the tooltip naming whose it is and when it was lit. Your own fire shows
+as well. A pin burns five minutes, like the fire, then goes.
+
 ## 0.1.20
 
 The window closes in combat: the secure rank buttons no longer hang on anything inside it.
