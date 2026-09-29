@@ -458,14 +458,35 @@ function Dungeonhub:Get(id) return id and self.runs[id] or nil end
 
 --- Einladungen des Spiels an alle Mitglieder ausser mir — aus dem Klick
 --- des Leiters heraus.
+--- Wer laut Roster OFFLINE ist, wird nicht eingeladen: Das Spiel sagt
+--- sonst "Cannot find player" (gesehen 29.09.2026) — eine Fehlermeldung
+--- fuer etwas, das das Roster vorher weiss. Der Name geht so hinaus, wie
+--- das Roster ihn fuehrt, mit Leerzeichen; das ist auf diesem Realm der
+--- Name. Unbekannt im Roster heisst nicht offline: dann wird eingeladen.
+--- @return number eingeladen, table offline (Namen)
 function Dungeonhub:InviteAll(run)
-    if not run then return 0 end
+    if not run then return 0, {} end
     local me = ownName()
-    local n = 0
-    for name in pairs(run.members or {}) do
-        if name ~= me and Compat.InviteUnit(name) then n = n + 1 end
+    local online = {}
+    local Guild = GA.Modules.Guild
+    if Guild and Guild.List then
+        for _, member in ipairs(Guild:List()) do
+            if member.name then online[string.lower(Util.ShortName(member.name))] = member.online and true or false end
+        end
     end
-    return n
+    local n, offline = 0, {}
+    for name in pairs(run.members or {}) do
+        if name ~= me then
+            local known = online[string.lower(name)]
+            if known == false then
+                offline[#offline + 1] = name
+            elseif Compat.InviteUnit(name) then
+                n = n + 1
+            end
+        end
+    end
+    table.sort(offline)
+    return n, offline
 end
 
 -- ================================================================== Start ----

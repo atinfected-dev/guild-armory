@@ -397,7 +397,14 @@ function View:FillCard(card, run)
     if run.own then
         card.action:SetText("")
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
-        place(2, L.DH_INVITE, function() Hub:InviteAll(run) end, b)
+        place(2, L.DH_INVITE, function()
+            local n, offline = Hub:InviteAll(run)
+            if #offline > 0 then
+                GA.Core.Debug:Info(L.DH_INVITED_OFFLINE, n, table.concat(offline, ", "))
+            else
+                GA.Core.Debug:Info(L.DH_INVITED, n)
+            end
+        end, b)
     elseif mine then
         card.action:SetText("")
         place(1, L.DH_LEAVE, function()

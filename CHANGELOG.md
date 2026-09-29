@@ -4,6 +4,12 @@
 
 In progress.
 
+**Invite all skips the offline.** The game answered "Cannot find
+player" for a member who had signed up and logged off since. The
+button checks the roster first: whoever is offline is not invited but
+named in the chat line, whoever is unknown to the roster is invited
+anyway. The name goes out as the roster spells it, space included.
+
 ## 0.1.23
 
 Class crests in the Dungeonhub's places, everything round that should be round, and the loot rules page named in its header.
