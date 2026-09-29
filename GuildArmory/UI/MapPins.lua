@@ -60,6 +60,20 @@ local L = GA.L
 -- Aufloesung und jede Zoomstufe gleich. Vorher waere sie nur fuer einen
 -- Bildschirm richtig gewesen.
 local PIN_SIZE = 22
+local PIN_MIN, PIN_MAX = 12, 40
+local CIRCLE_TEXTURE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
+--- Die eingestellte Nadelgroesse, in Grenzen.
+local function pinSize()
+    local size = tonumber(GA.Core.Config:Get("mapPinSize")) or PIN_SIZE
+    if size < PIN_MIN then size = PIN_MIN elseif size > PIN_MAX then size = PIN_MAX end
+    return size
+end
+
+--- "dot" oder "crest" — alles andere ist das Wappen.
+local function pinStyle()
+    return GA.Core.Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
+end
 
 --- Die Farbe des Rands um die Nadel.
 ---
@@ -371,9 +385,12 @@ function MapPins:Refresh()
     end
 
     local sichtbar = 0
-    for _, gruppe in ipairs(MapPins.Cluster(punkte, PIN_SIZE, CLUSTER_MIN)) do
+    local size = pinSize()
+    local style = pinStyle()
+    for _, gruppe in ipairs(MapPins.Cluster(punkte, size, CLUSTER_MIN)) do
         sichtbar = sichtbar + 1
         local pin = self:Pin(sichtbar)
+        pin:SetSize(size, size)
 
         if gruppe.cluster then
             -- EINE NADEL FUER ALLE: goldene Flaeche, weisser Rand, die Zahl
@@ -401,10 +418,30 @@ function MapPins:Refresh()
             -- Das Wappen traegt seine Farben selbst; eingefaerbt wird nur
             -- der Rand dahinter — dasselbe Wappen in Schwarz, also mit
             -- derselben Silhouette.
-            local rund = Theme.SetClassPortrait(pin.fill, entry.class)
-            pin.rund = rund
+            -- DER PUNKT IN KLASSENFARBE (Einstellung "dot", 29.09.2026):
+            -- der eigene Kreis, eingefaerbt, auf einem dunklen Kreis als
+            -- Rand — ohne Wappen. Sagt weniger, ist auf kleiner Groesse
+            -- aber lesbarer.
+            local rund
+            if style == "dot" and Theme.TextureExists(CIRCLE_TEXTURE) then
+                pin.fill:SetTexture(CIRCLE_TEXTURE)
+                pin.fill:SetTexCoord(0, 1, 0, 1)
+                pin.fill:SetVertexColor(r, g, b, 1)
+                pin.rand:SetTexture(CIRCLE_TEXTURE)
+                pin.rand:SetTexCoord(0, 1, 0, 1)
+                pin.rand:SetVertexColor(RAND_FARBE[1], RAND_FARBE[2], RAND_FARBE[3], RAND_FARBE[4])
+                pin.rand:Show()
+                for _, line in ipairs(pin.ring) do line:Hide() end
+                rund = true
+                pin.rund = rund
+            else
+                rund = Theme.SetClassPortrait(pin.fill, entry.class)
+                pin.rund = rund
+            end
 
-            if rund then
+            if style == "dot" and rund then
+                -- gesetzt
+            elseif rund then
                 pin.fill:SetVertexColor(1, 1, 1, 1)
                 if Theme.SetClassPortrait(pin.rand, entry.class) then
                     pin.rand:SetVertexColor(

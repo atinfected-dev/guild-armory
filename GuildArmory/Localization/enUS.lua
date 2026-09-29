@@ -1130,6 +1130,12 @@ GA.Core.Locale:Register("enUS", {
     LEVELUP_MESSAGE    = "Congratulations %s on reaching level %s!",
     SET_LEVELUP        = "Congratulate in guild chat",
     SET_LEVELUP_HINT   = "Writes a line in guild chat when somebody reaches a round level or the maximum. It happens once even if several people see it — the clients agree among themselves.",
+    SET_PIN_STYLE      = "Pin style",
+    SET_PIN_STYLE_HINT = "The class crest on a dark rim, or a plain dot in the class colour.",
+    SET_PIN_STYLE_CREST = "Class crest",
+    SET_PIN_STYLE_DOT  = "Coloured dot",
+    SET_PIN_SIZE       = "Pin size",
+    SET_PIN_SIZE_HINT  = "12 to 40 pixels. Pins that overlap at this size are bundled.",
     SET_MAP_LABELS      = "Name and level beside the pin",
     SET_MAP_LABELS_HINT = "Shows who is standing there next to each dot, without hovering. Off leaves only the dots; the tooltip still says everything.",
 

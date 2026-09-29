@@ -73,6 +73,9 @@ local SECTIONS = {
 
     { key = "questhub", label = "NAV_QUESTHUB", views = {
         { key = "questhub", label = "NAV_QUESTHUB" },
+    } },
+
+    { key = "dungeonhub", label = "NAV_DUNGEONHUB", views = {
         { key = "dungeonhub", label = "NAV_DUNGEONHUB" },
     } },
 

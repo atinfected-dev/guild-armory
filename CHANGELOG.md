@@ -4,9 +4,14 @@
 
 In progress.
 
+**Map pins, your way.** Under Settings · On screen: the pin is the
+class crest on a dark rim, or a plain dot in the class colour; and a
+slider sets its size from 12 to 40 pixels. Both apply to the open map
+at once, and pins that overlap at the chosen size are bundled.
+
 ### Dungeonhub
 
-A second tab beside the Questhub. A run is a dungeon, a day and time in
+Its own tab in the row, beside the Questhub. A run is a dungeon, a day and time in
 the next 24 hours, a leader, a note, and exactly five places: tank,
 healer, three damage. Anyone in the guild posts one — the form sits on
 the right: dungeon from the classic list, today or tomorrow, HH:MM,

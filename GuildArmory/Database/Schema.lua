@@ -210,6 +210,11 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Punkte will, bekommt nur Punkte — der Tooltip sagt dann weiterhin
         -- alles.
         mapPinLabels = true,
+        -- NADELN EINSTELLBAR (29.09.2026): "crest" ist das Klassenwappen
+        -- auf dunklem Rand, "dot" ein Punkt in Klassenfarbe. Die Groesse
+        -- in Pixeln des Rahmens, 12 bis 40; 22 war bis dahin fest.
+        mapPinStyle = "crest",
+        mapPinSize = 22,
 
         -- GLUECKWUNSCH IM GILDENCHAT BEI EINEM STUFENAUFSTIEG.
         --

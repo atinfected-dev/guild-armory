@@ -363,6 +363,37 @@ function Settings:Create(parent)
             GA.Core.Config:Set("mapPinLabels", on)
             if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
         end })
+    -- Die Nadel selbst: Wappen oder Punkt, und wie gross. Beides wirkt
+    -- sofort auf der offenen Karte.
+    self.pinStyleChips = {}
+    makeRow(onscreen, { label = L.SET_PIN_STYLE, hint = L.SET_PIN_STYLE_HINT, build = function(row)
+        local previous
+        for _, style in ipairs({ "crest", "dot" }) do
+            local chip = Widgets.Chip(row, L["SET_PIN_STYLE_" .. string.upper(style)], function()
+                GA.Core.Config:Set("mapPinStyle", style)
+                if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
+                Settings:Refresh()
+            end)
+            chip:SetHeight(20)
+            chip.style = style
+            if previous then chip:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else chip:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.pinStyleChips[#Settings.pinStyleChips + 1] = chip
+            previous = chip
+        end
+        return function() return 28 end
+    end })
+    makeRow(onscreen, { label = L.SET_PIN_SIZE, hint = L.SET_PIN_SIZE_HINT, build = function(row)
+        Settings.pinSize = Widgets.Slider(row, 12, 40, 2, function(value)
+            GA.Core.Config:Set("mapPinSize", value)
+            if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
+        end)
+        Settings.pinSize.format = "%d px"
+        Settings.pinSize:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 4, -10)
+        Settings.pinSize:SetWidth(180)
+        return function() return 30 end
+    end })
+
     -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT: Wer ihn anstellt, soll
     -- vorher wissen, dass die Gilde es liest.
     self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
@@ -511,6 +542,9 @@ function Settings:Refresh()
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
+    for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
+    self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)
     local notifyAll = Config:Get("notifyEnabled") ~= false
     self.rowNotifyAll.switch:SetChecked(notifyAll)
     for _, row in ipairs(self.notifyRows) do

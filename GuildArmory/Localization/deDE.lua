@@ -1118,6 +1118,12 @@ GA.Core.Locale:Register("deDE", {
     LEVELUP_MESSAGE    = "Glueckwunsch %s zu Stufe %s!",
     SET_LEVELUP        = "Glueckwunsch im Gildenchat",
     SET_LEVELUP_HINT   = "Schreibt eine Zeile in den Gildenchat, wenn jemand eine runde Stufe oder die Hoechststufe erreicht. Laeuft nur einmal, auch wenn mehrere die Nachricht sehen — die Clients sprechen sich ab.",
+    SET_PIN_STYLE      = "Nadelstil",
+    SET_PIN_STYLE_HINT = "Das Klassenwappen auf dunklem Rand, oder ein schlichter Punkt in Klassenfarbe.",
+    SET_PIN_STYLE_CREST = "Klassenwappen",
+    SET_PIN_STYLE_DOT  = "Farbpunkt",
+    SET_PIN_SIZE       = "Nadelgroesse",
+    SET_PIN_SIZE_HINT  = "12 bis 40 Pixel. Nadeln, die sich bei dieser Groesse ueberschneiden, werden gebuendelt.",
     SET_MAP_LABELS      = "Name und Stufe an der Nadel",
     SET_MAP_LABELS_HINT = "Zeigt neben jedem Punkt, wer dort steht — ohne den Mauszeiger darueber zu halten. Aus bleiben nur die Punkte; der Tooltip sagt weiterhin alles.",
 

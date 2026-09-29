@@ -729,6 +729,51 @@ function Widgets.Switch(parent, onToggle)
     return button
 end
 
+-- ------------------------------------------------------- Schieberegler -----
+
+--- Ein Schieberegler des Spiels (Frame-Typ Slider), in unserer Kleidung:
+--- schmale Rinne, goldener Knopf, der Wert daneben. Ohne Vorlage — der
+--- Typ selbst reicht, und eine Vorlage, die es auf einer Linie nicht gibt,
+--- waere ein Rahmen ohne Regler.
+--- @param onChange function(value)  bei jedem Rasterschritt
+function Widgets.Slider(parent, min, max, step, onChange)
+    local fonts = Theme.Fonts()
+    local slider = CreateFrame("Slider", nil, parent)
+    slider:SetOrientation("HORIZONTAL")
+    slider:SetHeight(16)
+    slider:SetMinMaxValues(min, max)
+    slider:SetValueStep(step or 1)
+    if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
+    local track = Theme.Fill(slider, Theme.color.border)
+    track:ClearAllPoints()
+    track:SetPoint("LEFT", slider, "LEFT", 0, 0)
+    track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
+    track:SetHeight(2)
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = slider:GetThumbTexture()
+    if thumb then
+        thumb:SetSize(10, 16)
+        thumb:SetVertexColor(Theme.color.goldMid[1], Theme.color.goldMid[2], Theme.color.goldMid[3], 1)
+    end
+    slider.value = Theme.Label(slider, "", fonts.body, Theme.color.goldMid)
+    slider.value:SetPoint("LEFT", slider, "RIGHT", 10, 0)
+    slider.format = "%d"
+    local quiet = false
+    slider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value / (step or 1) + 0.5) * (step or 1)
+        self.value:SetText(string.format(self.format, value))
+        if not quiet and onChange then onChange(value) end
+    end)
+    --- Setzt den Wert, ohne onChange auszuloesen — fuer Refresh.
+    function slider:SetQuiet(value)
+        quiet = true
+        self:SetValue(value)
+        self.value:SetText(string.format(self.format, value))
+        quiet = false
+    end
+    return slider
+end
+
 -- ------------------------------------------------------- Sicherer Knopf -----
 
 --- Ein Knopf, dessen Klick ein MAKRO des Spiels ausfuehrt — fuer Aufrufe,
