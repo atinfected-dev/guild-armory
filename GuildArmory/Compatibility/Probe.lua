@@ -563,6 +563,17 @@ Probe.CHECKS = {
           return Probe.YES, text
       end },
 
+    { key = "dungeonList", was = "Dungeons dieses Clients aus dem Kompendium",
+      fuer = "Dungeonhub: die Liste zum Auswaehlen, mit Forevers eigenen Instanzen",
+      run = function()
+          local Compat = GA.Core.Compat
+          local names, weg = Compat.GetDungeonNames()
+          if not names then return Probe.NO, "Grund: " .. tostring(weg) .. " — die feste Liste bleibt, tippen geht immer" end
+          local beispiele = {}
+          for index = 1, math.min(4, #names) do beispiele[index] = names[index] end
+          return Probe.YES, string.format("%d Instanzen (%s), z.B. %s", #names, tostring(weg), table.concat(beispiele, ", "))
+      end },
+
     { key = "clubChat", was = "Gildenchat-Verlauf des Spiels (C_Club)",
       fuer = "Roster-Chat: auch, was vor dem Login gesagt wurde",
       run = function()

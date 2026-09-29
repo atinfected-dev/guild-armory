@@ -89,19 +89,25 @@ function View:Create(parent)
     y = y - 26
 
     caption(L.DH_DUNGEON)
+    -- FREI EINTIPPBAR, die Liste ist ein Vorschlag: Forever hat Instanzen,
+    -- die keine feste Liste kennt (29.09.2026). Die Liste kommt aus dem
+    -- Kompendium des Clients, dahinter die klassische.
+    self.dungeonBox = editBox(form, FORM_W - 28 - 74, nil)
+    self.dungeonBox:SetPoint("TOPLEFT", form, "TOPLEFT", 18, y)
+    self.dungeonBox:SetMaxLetters(GA.Modules.Dungeonhub.DUNGEON_LEN)
     self.dungeonPick = Widgets.Dropdown(form, {
-        width = FORM_W - 28, placeholder = L.DH_DUNGEON_PH,
+        width = 70, placeholder = L.DH_DUNGEON_LIST,
         getOptions = function()
             local out = {}
-            for _, name in ipairs(GA.Modules.Dungeonhub.DUNGEONS) do out[#out + 1] = { text = name, value = name } end
+            for _, name in ipairs((GA.Modules.Dungeonhub:Dungeons())) do out[#out + 1] = { text = name, value = name } end
             return out
         end,
         onSelect = function(value)
-            View.dungeon = value
-            View.dungeonPick:SetDisplay(value, Theme.color.text)
+            View.dungeonBox:SetText(value)
+            View.dungeonPick:SetDisplay(L.DH_DUNGEON_LIST, Theme.color.textFaint)
         end,
     })
-    self.dungeonPick:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
+    self.dungeonPick:SetPoint("LEFT", self.dungeonBox, "RIGHT", 6, 0)
     y = y - 30
 
     caption(L.DH_DAY)
@@ -355,7 +361,8 @@ end
 function View:Post()
     local Hub = GA.Modules.Dungeonhub
     self.formError:SetText("")
-    if not self.dungeon or self.dungeon == "" then
+    local dungeon = (self.dungeonBox:GetText() or ""):gsub("^%s*(.-)%s*$", "%1")
+    if dungeon == "" then
         self.formError:SetText(L.DH_ERR_nodungeon)
         return
     end
@@ -363,7 +370,7 @@ function View:Post()
     if not hh then self.formError:SetText(L.DH_ERR_time) return end
     local at, grund = Hub.StartTime(self.dayOffset or 0, hh, mm)
     if not at then self.formError:SetText(L["DH_ERR_" .. tostring(grund)] or tostring(grund)) return end
-    local run, reason = Hub:Post(self.dungeon, at, self.noteBox:GetText(), self.role or "DPS")
+    local run, reason = Hub:Post(dungeon, at, self.noteBox:GetText(), self.role or "DPS")
     if not run then
         self.formError:SetText(L["DH_ERR_" .. tostring(reason)] or tostring(reason))
         return
@@ -376,7 +383,7 @@ end
 function View:RefreshForm()
     for _, chip in ipairs(self.dayChips) do chip:SetPressed(chip.offset == (self.dayOffset or 0)) end
     for _, chip in ipairs(self.roleChips) do chip:SetPressed(chip.role == self.role) end
-    if self.dungeon then self.dungeonPick:SetDisplay(self.dungeon, Theme.color.text) end
+    self.dungeonPick:SetDisplay(L.DH_DUNGEON_LIST, Theme.color.textFaint)
     local on = GA.Core.Config:Get("notifyEnabled") ~= false and GA.Core.Config:Get("notifyDungeon") ~= false
     self.notifyState:SetText(string.format(L.DH_NOTIFY_STATE, on and L.SET_ON or L.SET_OFF))
 end

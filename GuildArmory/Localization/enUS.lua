@@ -1068,6 +1068,7 @@ GA.Core.Locale:Register("enUS", {
     DH_POST_HEAD       = "Post a run",
     DH_DUNGEON         = "Dungeon",
     DH_DUNGEON_PH      = "pick a dungeon",
+    DH_DUNGEON_LIST    = "List…",
     DH_DAY             = "Day",
     DH_TIME            = "Time",
     DH_NOTE            = "Note (optional)",

@@ -1639,6 +1639,37 @@ end
 
 --- Das Symbol eines Gegenstands, ohne dass sein Name geladen sein muss.
 --- @return number|string|nil
+--- DIE DUNGEONS DIESES CLIENTS, aus dem Dungeonkompendium (Encounter
+--- Journal): je Stufe (EJ_GetNumTiers / EJ_SelectTier) die Instanzen
+--- (EJ_GetInstanceByIndex, isRaid = false), Namen eindeutig. Gemessen wird
+--- der Rueckgabewert; eine Linie ohne Kompendium gibt nil und den Grund.
+--- Warum: Die Liste im Dungeonhub war die klassische aus dem Kopf, und
+--- Forever hat eigene Instanzen (29.09.2026) — die kennt nur der Client.
+--- @return table|nil namen, string weg|grund
+function Compat.GetDungeonNames()
+    local tiers = isFunction(_G.EJ_GetNumTiers) and _G.EJ_GetNumTiers
+    local select = isFunction(_G.EJ_SelectTier) and _G.EJ_SelectTier
+    local byIndex = isFunction(_G.EJ_GetInstanceByIndex) and _G.EJ_GetInstanceByIndex
+    if not tiers or not select or not byIndex then return nil, "noapi" end
+    local okT, count = pcall(tiers)
+    if not okT or type(count) ~= "number" or count <= 0 then return nil, "notiers" end
+    local names, seen = {}, {}
+    for tier = 1, count do
+        if pcall(select, tier) then
+            for index = 1, 60 do
+                local ok, _, name = pcall(byIndex, index, false)
+                if not ok or type(name) ~= "string" or name == "" then break end
+                if not seen[name] then
+                    seen[name] = true
+                    names[#names + 1] = name
+                end
+            end
+        end
+    end
+    if #names == 0 then return nil, "empty" end
+    return names, "EncounterJournal"
+end
+
 function Compat.GetItemIcon(itemID)
     itemID = tonumber(itemID)
     if not itemID then return nil end

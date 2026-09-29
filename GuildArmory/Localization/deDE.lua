@@ -1056,6 +1056,7 @@ GA.Core.Locale:Register("deDE", {
     DH_POST_HEAD       = "Lauf eintragen",
     DH_DUNGEON         = "Dungeon",
     DH_DUNGEON_PH      = "Dungeon waehlen",
+    DH_DUNGEON_LIST    = "Liste…",
     DH_DAY             = "Tag",
     DH_TIME            = "Uhrzeit",
     DH_NOTE            = "Notiz (optional)",

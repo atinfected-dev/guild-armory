@@ -14,8 +14,9 @@ at once, and pins that overlap at the chosen size are bundled.
 Its own tab in the row, beside the Questhub. A run is a dungeon, a day and time in
 the next 24 hours, a leader, a note, and exactly five places: tank,
 healer, three damage. Anyone in the guild posts one — the form sits on
-the right: dungeon from the classic list, today or tomorrow, HH:MM,
-note, your own role. The runs stand as cards in two columns, today and
+the right: the dungeon typed freely or picked from a list the client
+itself provides (its dungeon journal, with the classic instances behind
+it), today or tomorrow, HH:MM, note, your own role. The runs stand as cards in two columns, today and
 tomorrow: time, dungeon, leader, the five places as boxes with names in
 class colour or "open" in the role's colour, and underneath "Join as"
 with only the roles that still have a place, "You are in as …" with

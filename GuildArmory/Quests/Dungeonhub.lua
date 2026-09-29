@@ -58,6 +58,23 @@ Dungeonhub.DUNGEONS = {
 
 Dungeonhub.runs = {}
 
+--- Die Liste zum Auswaehlen: was der Client im Kompendium hat, dahinter
+--- die feste Liste fuer alles, was er nicht nennt. Eindeutig, in dieser
+--- Reihenfolge. Frei eintippen geht daneben immer.
+function Dungeonhub:Dungeons()
+    local out, seen = {}, {}
+    local measured = type(Compat.GetDungeonNames) == "function" and Compat.GetDungeonNames() or nil
+    for _, list in ipairs({ measured or {}, self.DUNGEONS }) do
+        for _, name in ipairs(list) do
+            if not seen[name] then
+                seen[name] = true
+                out[#out + 1] = name
+            end
+        end
+    end
+    return out, measured ~= nil
+end
+
 local function store()
     local account = GA.Core.Database and GA.Core.Database.account
     if not account then return nil end
