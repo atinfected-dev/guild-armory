@@ -386,13 +386,17 @@ function View:BuildDetail(parent, fonts)
     d.promote:SetSize(ARROW, ARROW)
     -- Am Frame verankert, nicht an der Ueberschrift: ein geschuetzter
     -- Knopf darf nicht an einer Region haengen (gemessen 28.09.2026).
-    d.promote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -86)
+    -- AM TRAEGER verankert, nicht an d: Ein geschuetzter Knopf, der an
+    -- einem Rahmen des Fensters haengt, sperrt das Fenster im Kampf
+    -- (gemessen 29.09.2026). Der Traeger liegt deckungsgleich ueber d.
+    d.promote:SetPoint("TOPLEFT", carrier, "TOPLEFT", 12, -86)
     if d.promote.SetIcon then d.promote:SetIcon("Interface\\Buttons\\Arrow-Up-Up", 14, "+") end
 
     d.rankNow = CreateFrame("Frame", nil, d)
     d.rankNow:SetHeight(ARROW)
     d.rankNow:SetWidth(DETAIL_W - 24 - 2 * (ARROW + 4))
-    d.rankNow:SetPoint("LEFT", d.promote, "RIGHT", 4, 0)
+    -- An d, nicht am Pfeil: Nichts im Fenster haengt an einem geschuetzten Knopf.
+    d.rankNow:SetPoint("TOPLEFT", d, "TOPLEFT", 12 + ARROW + 4, -86)
     d.rankFill = Theme.Fill(d.rankNow, { 0, 0, 0, 0 })
     d.rankLines = Theme.Outline(d.rankNow, Theme.color.border)
     d.rankText = Theme.Label(d.rankNow, "", fonts.rowBold, Theme.color.text)
@@ -400,7 +404,7 @@ function View:BuildDetail(parent, fonts)
 
     d.demote = macroButton("")
     d.demote:SetSize(ARROW, ARROW)
-    d.demote:SetPoint("LEFT", d.rankNow, "RIGHT", 4, 0)
+    d.demote:SetPoint("TOPLEFT", carrier, "TOPLEFT", 12 + ARROW + 4 + (DETAIL_W - 24 - 2 * (ARROW + 4)) + 4, -86)
     if d.demote.SetIcon then d.demote:SetIcon("Interface\\Buttons\\Arrow-Down-Up", 14, "-") end
 
     d.rankHint = Theme.Label(d, "", fonts.small, Theme.color.textFaint)

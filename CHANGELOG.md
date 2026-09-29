@@ -4,6 +4,13 @@
 
 In progress.
 
+**The window really closes in combat now.** The secure rank buttons sat
+on their carrier but were still anchored to the roster detail, and a
+frame a protected button hangs on is locked in combat along with the
+window around it. The buttons hang on the carrier alone; the carrier
+lays itself over the detail from screen coordinates, following drags,
+resizes and scale.
+
 ## 0.1.19
 
 Settings as a register with round switches, loot rules as four steps with a summary rail, notifications for ten seconds with a master switch, the guild chat history that stays readable, the window that closes in combat again, map clusters that count you, and the roster stutter gone.

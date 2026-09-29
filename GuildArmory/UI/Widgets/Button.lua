@@ -759,14 +759,39 @@ function Widgets.SecureCarrier()
         return type(_G.InCombatLockdown) == "function" and InCombatLockdown() and true or false
     end
 
-    --- Folgt einem Rahmen: Sichtbarkeit und Ebene.
+    --- Folgt einem Rahmen: Sichtbarkeit, Ebene UND LAGE — berechnet, nicht
+    --- verankert. GEMESSEN 29.09.2026: Mit den Knoepfen am Detail-Rahmen
+    --- verankert blieb das Fenster im Kampf unschliessbar ("Interface
+    --- action failed because of an AddOn"): Ein Rahmen, an dem ein
+    --- geschuetzter Knopf haengt, darf im Kampf weder bewegt noch versteckt
+    --- werden, und das Hauptfenster haengt an ihm. Darum haengen die Knoepfe
+    --- am Traeger, und der Traeger legt sich aus den Bildschirmkoordinaten
+    --- des Rahmens ueber ihn — mit dessen Massstab, damit Abstaende in den
+    --- Knoepfen dieselben Zahlen sind wie im Rahmen.
     function carrier:Follow(frame)
         local function sync()
             if inCombat() then return end
             pcall(self.SetFrameStrata, self, frame:GetFrameStrata())
             pcall(self.SetFrameLevel, self, frame:GetFrameLevel() + 20)
+            local left, top = frame:GetLeft(), frame:GetTop()
+            local scale = frame:GetEffectiveScale()
+            local parentScale = UIParent:GetEffectiveScale()
+            if left and top and scale and parentScale and parentScale > 0 then
+                pcall(self.SetScale, self, scale / parentScale)
+                pcall(self.SetSize, self, math.max(1, frame:GetWidth() or 1), math.max(1, frame:GetHeight() or 1))
+                self:ClearAllPoints()
+                pcall(self.SetPoint, self, "TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+            end
         end
         self.sync = sync
+        frame:HookScript("OnSizeChanged", function() sync() end)
+        local main = frame:GetParent()
+        while main and main:GetParent() and main:GetParent() ~= UIParent do main = main:GetParent() end
+        if main and main ~= frame and type(main.HookScript) == "function" then
+            main:HookScript("OnDragStop", function() sync() end)
+            main:HookScript("OnSizeChanged", function() sync() end)
+            main:HookScript("OnShow", function() sync() end)
+        end
         frame:HookScript("OnShow", function()
             if inCombat() then return end
             sync()
