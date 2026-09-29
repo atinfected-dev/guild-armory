@@ -377,7 +377,7 @@ function Settings:Create(parent)
     self.rowNotifyAll = makeRow(notify, { label = L.SET_NOTIFY_ALL, hint = L.SET_NOTIFY_ALL_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("notifyEnabled", on) end })
     self.notifyRows = {}
-    for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
+    for _, key in ipairs({ "Tradables", "Questhub", "Dungeon", "Camp", "Achievements" }) do
         local row = makeRow(notify, { label = L["SET_NOTIFY_" .. string.upper(key)],
             hint = L["SET_NOTIFY_" .. string.upper(key) .. "_HINT"], control = "switch",
             set = function(on) GA.Core.Config:Set("notify" .. key, on) end })

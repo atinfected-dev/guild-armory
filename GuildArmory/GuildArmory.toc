@@ -62,6 +62,7 @@ Camp\Camp.lua
 Professions\Crafting.lua
 Map\Positions.lua
 Quests\Questhub.lua
+Quests\Dungeonhub.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -96,6 +97,7 @@ UI\GrantDialog.lua
 UI\AchievementIcons.lua
 UI\Views\Dashboard.lua
 UI\Views\Questhub.lua
+UI\Views\Dungeonhub.lua
 UI\Views\Roster.lua
 UI\Views\Armory.lua
 UI\Views\Characters.lua

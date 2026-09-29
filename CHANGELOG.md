@@ -4,6 +4,26 @@
 
 In progress.
 
+### Dungeonhub
+
+A second tab beside the Questhub. A run is a dungeon, a day and time in
+the next 24 hours, a leader, a note, and exactly five places: tank,
+healer, three damage. Anyone in the guild posts one — the form sits on
+the right: dungeon from the classic list, today or tomorrow, HH:MM,
+note, your own role. The runs stand as cards in two columns, today and
+tomorrow: time, dungeon, leader, the five places as boxes with names in
+class colour or "open" in the role's colour, and underneath "Join as"
+with only the roles that still have a place, "You are in as …" with
+Leave, or for the leader Withdraw and Invite the group, which sends the
+game's invitations. Your last role is remembered.
+
+Runs travel over the guild channel (DHUB, DJOIN, DMEMB, DHUBX, DREQ);
+the leader's client is the source of the line-up and answers every
+join with it, so late arrivals see the same five boxes. A run vanishes
+24 hours after posting, an hour after its start, or when the leader
+withdraws it. A new run raises a notification ("Dungeon runs" under
+Notifications, on by default).
+
 ## 0.1.21
 
 Campfires as pins on the world map, and in combat the window closes itself instead of getting stuck.

@@ -44,6 +44,7 @@ local ROW_H = 40
 Notifications.KINDS = {
     TRADE = { color = "gold", setting = "notifyTradables" },
     QUEST = { color = "warn", setting = "notifyQuesthub" },
+    DUNGEON = { color = "gold", setting = "notifyDungeon" },
     CAMP  = { color = "jade", setting = "notifyCamp" },
     ACH   = { color = "epic", setting = "notifyAchievements" },
 }
@@ -363,6 +364,17 @@ function Notifications:OnEnable()
             text = L.NOTIFY_QUEST, object = request.title, objectColor = Theme.color.goldBright,
             sub = (request.zone or "") .. (eigene and (" · " .. L.NOTIFY_QUEST_HAVE) or ""),
             action = { label = L.NOTIFY_ACT_QUEST, view = "questhub" },
+        })
+    end, "Notifications")
+
+    -- Dungeonhub: ein neuer Lauf eines anderen.
+    Callbacks:On("DUNGEONHUB_CHANGED", function(kind, run)
+        if kind ~= "new" or not run or run.own then return end
+        Notifications:Push({
+            kind = "DUNGEON", who = run.leader, class = run.class,
+            text = L.NOTIFY_DUNGEON, object = run.dungeon, objectColor = Theme.color.goldBright,
+            sub = date("%H:%M", run.at or 0) .. (run.note and run.note ~= "" and (" · " .. run.note) or ""),
+            action = { label = L.NOTIFY_ACT_DUNGEON, view = "dungeonhub" },
         })
     end, "Notifications")
 

@@ -233,6 +233,7 @@ Schema.ACCOUNT_DEFAULTS = {
         notifyEnabled = true,
         notifyTradables = true,
         notifyQuesthub = true,
+        notifyDungeon = true,
         notifyCamp = true,
         notifyAchievements = false,
 
