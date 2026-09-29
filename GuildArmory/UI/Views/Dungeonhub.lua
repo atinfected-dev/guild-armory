@@ -244,6 +244,23 @@ function View:Card(index)
         end
         slot.letter = Theme.Label(slot, "", fonts.small, Theme.color.windowBg)
         slot.letter:SetPoint("CENTER", slot.disc, "CENTER", 0, 0)
+        -- DAS KLASSENWAPPEN fuer einen belegten Platz (Wunsch 29.09.2026),
+        -- rund wie im Roster; die Rolle bleibt als kleiner Buchstabe in
+        -- der Ecke. Ohne gemeldete Klasse bleibt die Rollenscheibe.
+        slot.crest = slot:CreateTexture(nil, "ARTWORK")
+        slot.crest:SetSize(22, 22)
+        slot.crest:SetPoint("TOP", slot, "TOP", 0, -3)
+        slot.crest:Hide()
+        slot.badge = slot:CreateTexture(nil, "OVERLAY")
+        slot.badge:SetSize(11, 11)
+        slot.badge:SetPoint("CENTER", slot.crest, "BOTTOMRIGHT", -2, 2)
+        if Theme.TextureExists("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga") then
+            slot.badge:SetTexture("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga")
+        end
+        slot.badge:Hide()
+        slot.badgeLetter = Theme.Label(slot, "", fonts.pin or fonts.small, Theme.color.windowBg)
+        slot.badgeLetter:SetPoint("CENTER", slot.badge, "CENTER", 0, 0)
+        slot.badgeLetter:Hide()
         slot.name = Theme.Label(slot, "", fonts.small, Theme.color.text)
         slot.name:SetPoint("TOP", slot.disc, "BOTTOM", 0, -3)
         slot.name:SetPoint("LEFT", slot, "LEFT", 2, 0)
@@ -262,11 +279,21 @@ function View:Card(index)
         button:Hide()
         card.buttons[i] = button
     end
-    card.whisper = Widgets.FlatButton(card, L.DH_WHISPER, function()
-        if card.run then Compat.OpenWhisper(card.run.leader) end
+    -- Der Leitername fluestert: Klick darauf oeffnet das Fluestern. Ein
+    -- eigener Knopf dafuer nahm der Handlungszeile den Platz.
+    card.whisper = CreateFrame("Button", nil, card)
+    card.whisper:SetPoint("TOPLEFT", card.leader, "TOPLEFT", -4, 2)
+    card.whisper:SetPoint("BOTTOMRIGHT", card.leader, "BOTTOMRIGHT", 4, -2)
+    card.whisper:SetScript("OnClick", function()
+        if card.run and not card.run.own then Compat.OpenWhisper(card.run.leader) end
     end)
-    card.whisper:SetHeight(18)
-    card.whisper:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -12, 12)
+    card.whisper:SetScript("OnEnter", function(self)
+        if not card.run or card.run.own then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.DH_WHISPER, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    card.whisper:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     self.cards[index] = card
     return card
@@ -295,8 +322,26 @@ function View:FillCard(card, run)
         local color = ROLE_COLOR[slot.role]
         box.letter:SetText(ROLE_LETTER[slot.role])
         if slot.name then
-            Theme.Paint(box.disc, color)
-            box.letter:SetTextColor(Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3])
+            -- Wappen, wenn der Client eines hergibt; sonst die Scheibe.
+            local crest = Theme.SetClassPortrait(box.crest, slot.class)
+            if crest then
+                box.crest:SetVertexColor(1, 1, 1, 1)
+                box.crest:Show()
+                box.disc:Hide()
+                box.letter:Hide()
+                Theme.Paint(box.badge, color)
+                box.badge:Show()
+                box.badgeLetter:SetText(ROLE_LETTER[slot.role])
+                box.badgeLetter:Show()
+            else
+                box.crest:Hide()
+                box.badge:Hide()
+                box.badgeLetter:Hide()
+                box.disc:Show()
+                box.letter:Show()
+                Theme.Paint(box.disc, color)
+                box.letter:SetTextColor(Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3])
+            end
             local me = Compat.GetPlayerIdentity().name
             local mine = me and Util.ShortName(me) == slot.name
             box.name:SetText(mine and L.DH_YOU or slot.name)
@@ -306,6 +351,11 @@ function View:FillCard(card, run)
             for _, line in ipairs(box.lines) do Theme.Paint(line, mine and Theme.color.goldDim or Theme.color.border) end
             Theme.Paint(box.fill, mine and Theme.color.goldDeep or Theme.color.rowAltBg)
         else
+            box.crest:Hide()
+            box.badge:Hide()
+            box.badgeLetter:Hide()
+            box.disc:Show()
+            box.letter:Show()
             Theme.Paint(box.disc, { color[1] * 0.45, color[2] * 0.45, color[3] * 0.45 })
             box.letter:SetTextColor(color[1], color[2], color[3])
             box.name:SetText(L.DH_OPEN)
@@ -320,13 +370,16 @@ function View:FillCard(card, run)
     local me = Compat.GetPlayerIdentity().name
     me = me and Util.ShortName(me)
     local mine = Hub:MyRole(run)
+    -- VON RECHTS: Der erste Knopf sitzt am rechten Rand, jeder weitere
+    -- links daneben — so laeuft keiner ueber die Kante (gesehen 29.09.2026
+    -- bei "Withdraw"). Der Text der Zeile steht links davon.
     local function place(index, text, onClick, anchorTo)
         local button = card.buttons[index]
         button:SetLabel(text)
         button:SetScript("OnClick", onClick)
         button:ClearAllPoints()
-        if anchorTo then button:SetPoint("LEFT", anchorTo, "RIGHT", 4, 0)
-        else button:SetPoint("LEFT", card.action, "RIGHT", 8, 0) end
+        if anchorTo then button:SetPoint("RIGHT", anchorTo, "LEFT", -4, 0)
+        else button:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -12, 12) end
         button:Show()
         return button
     end
@@ -356,7 +409,7 @@ function View:FillCard(card, run)
             end
         end
     end
-    card.whisper:SetShown(not run.own)
+    card.whisper:EnableMouse(not run.own)
 end
 
 -- ================================================================== Inhalt ----

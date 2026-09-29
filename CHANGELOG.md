@@ -4,6 +4,12 @@
 
 In progress.
 
+**Dungeonhub: class crests in the places.** A taken place shows the
+member's class crest, round as in the roster, with the role letter as a
+small badge in its corner; an open place keeps the role disc. The
+action buttons sit at the card's right edge, and the leader's name is
+the whisper button.
+
 ## 0.1.22
 
 The Dungeonhub — runs with five role places for the next 24 hours, on its own tab — and map pins that choose crest or dot and a size.
