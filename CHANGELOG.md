@@ -4,6 +4,16 @@
 
 In progress.
 
+**Guild chat history stays readable.** The game's keys for history
+lines are reissued when its window focuses the stream; the panel had
+read them once and kept the dead ones, so yesterday showed "Unknown"
+again. It re-reads every minute now and renews a line whose key changed.
+
+**Notifications: ten seconds, once, and a master switch.** The strip
+beside the minimap stays ten seconds instead of six and never repeats;
+"Show notifications" at the top of the Notifications settings turns
+strip and tray off altogether, and the per-kind switches grey out.
+
 ## 0.1.19
 
 Settings as a register with round switches, loot rules as four steps with a summary rail, the window closes in combat again, map clusters count you, and the roster stutter is gone.

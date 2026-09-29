@@ -374,6 +374,8 @@ function Settings:Create(parent)
     -- Ablage. Erfolge sind aus, bis jemand sie will — ein Gildenerster ist
     -- eine Behauptung, keine Nachricht.
     local notify = self.pages.notify
+    self.rowNotifyAll = makeRow(notify, { label = L.SET_NOTIFY_ALL, hint = L.SET_NOTIFY_ALL_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("notifyEnabled", on) end })
     self.notifyRows = {}
     for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
         local row = makeRow(notify, { label = L["SET_NOTIFY_" .. string.upper(key)],
@@ -509,10 +511,13 @@ function Settings:Refresh()
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    local notifyAll = Config:Get("notifyEnabled") ~= false
+    self.rowNotifyAll.switch:SetChecked(notifyAll)
     for _, row in ipairs(self.notifyRows) do
         local wert = Config:Get("notify" .. row.notifyKey)
         if wert == nil then wert = row.notifyKey ~= "Achievements" end
         row.switch:SetChecked(wert and true or false)
+        row.switch:SetEnabledState(notifyAll, L.SET_NOTIFY_ALL_OFF)
     end
 
     local threshold = Config:Get("lootThresholdQuality") or 3

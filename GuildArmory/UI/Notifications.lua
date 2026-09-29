@@ -34,7 +34,9 @@ local L = GA.L
 
 local LIMIT = 30
 local MAX_AGE = 2 * 3600
-local STRIP_SECONDS = 6
+-- Zehn Sekunden, einmal (Wunsch 29.09.2026): lang genug zum Lesen, und
+-- ein Streifen kommt nie zweimal — was danach kommt, steht in der Ablage.
+local STRIP_SECONDS = 10
 local TRAY_W = 300
 local ROW_H = 40
 
@@ -61,6 +63,8 @@ Notifications.queued = {}
 
 --- Ist diese Art eingeschaltet? Voreinstellung steht in Schema.lua.
 function Notifications:Enabled(kind)
+    -- Der Hauptschalter zuerst: aus heisst aus, fuer jede Art.
+    if GA.Core.Config:Get("notifyEnabled") == false then return false end
     local def = self.KINDS[kind]
     if not def then return false end
     local wert = GA.Core.Config:Get(def.setting)

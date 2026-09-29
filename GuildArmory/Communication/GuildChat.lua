@@ -41,6 +41,7 @@ local Compat = GA.Core.Compat
 
 GuildChat.LIMIT = 500          -- gespeicherte Zeilen
 GuildChat.PULL_EVERY = 5       -- Sekunden zwischen zwei Lesungen des Verlaufs
+GuildChat.RELOAD_EVERY = 60    -- Sekunden, nach denen ein geladener Verlauf neu gelesen wird
 GuildChat.REQUEST = 300        -- Zeilen je Anfrage an das Spiel
 GuildChat.SAME_WINDOW = 10     -- Sekunden: derselbe Absender = dieselbe Nachricht
 GuildChat.EVENT_WINDOW = 5     -- Sekunden: dasselbe Ereignis zweimal
@@ -149,8 +150,14 @@ end
 function GuildChat:PullHistory(reason)
     if type(Compat.GetClubChatHistory) ~= "function" then return 0 end
     if reason == true then reason = "timer" end
-    if self.loaded and reason ~= "event" then return 0 end
     local now = Util.Now()
+    -- Nach dem ersten vollen Zug liest die Anzeige nur noch jede Minute
+    -- nach — nicht nie mehr. GESEHEN 29.09.2026: "Unknown" fuer alles von
+    -- gestern, obwohl der Verlauf morgens noch stand. Die Schluessel des
+    -- Spiels (|Kw…|k) sind nicht stabil: Blizzards Fenster oder ein neuer
+    -- Fokus vergibt sie neu, und wer die alten haelt, zeigt Platzhalter.
+    -- Ein Zug je Minute ist billig (die neuesten 500, vom Ende her).
+    if self.loaded and reason ~= "event" and self.lastPull and now - self.lastPull < self.RELOAD_EVERY then return 0 end
     if not reason and self.lastPull and now - self.lastPull < self.PULL_EVERY then return 0 end
     self.lastPull = now
 
@@ -166,9 +173,12 @@ function GuildChat:PullHistory(reason)
         end
     end
 
-    -- Nachschlagen statt suchen: Kennungen der Sitzung, und die
+    -- Nachschlagen statt suchen: Kennungen der Sitzung (mit ihrer Zeile,
+    -- damit ein neuer Schluessel die alte Zeile erneuert), und die
     -- gespeicherten Zeilen je Kanal und Absender.
     self.sessionIds = self.sessionIds or {}
+    local byId = {}
+    for _, line in ipairs(self.session) do if line.id then byId[line.id] = line end end
     local stored = {}
     for _, line in ipairs(lines) do
         local key = tostring(line.channel) .. "/" .. string.lower(line.who or "")
@@ -183,7 +193,14 @@ function GuildChat:PullHistory(reason)
         local entries, weg = Compat.GetClubChatHistory(channel, self.LIMIT)
         self.source[channel] = weg
         if entries and #entries > 0 then self.loaded = true end
+        local renewed = 0
         for _, entry in ipairs(entries or {}) do
+            local known = byId[entry.id]
+            if known and type(entry.text) == "string" and entry.text ~= "" and known.text ~= entry.text then
+                -- Dieselbe Nachricht, neuer Schluessel: die Zeile folgt dem Spiel.
+                known.text = entry.text
+                renewed = renewed + 1
+            end
             if entry.ts and entry.ts < start and type(entry.text) == "string" and entry.text ~= ""
                 and not self.sessionIds[entry.id] then
                 local who = Util.ShortName(entry.who or "?")
@@ -202,6 +219,7 @@ function GuildChat:PullHistory(reason)
                 end
             end
         end
+        if renewed > 0 then added = added + renewed end
     end
     -- Die Sitzung haelt hoechstens LIMIT Zeilen: die aeltesten gehen.
     if #self.session > self.LIMIT then

@@ -230,6 +230,7 @@ Schema.ACCOUNT_DEFAULTS = {
         -- MELDUNGEN AN DER MINIMAP (28.09.2026): Zaehler am Knopf, ein
         -- Streifen fuer sechs Sekunden, die Ablage auf Umschalt-Klick. Je
         -- Art ein Schalter. Erfolge aus, bis jemand sie will.
+        notifyEnabled = true,
         notifyTradables = true,
         notifyQuesthub = true,
         notifyCamp = true,
