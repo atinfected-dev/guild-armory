@@ -334,6 +334,8 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Minimap-Knopf: Position als WINKEL, nicht als x/y — sonst wandert er,
         -- sobald jemand die Minimapgroesse aendert.
         minimap = { angle = 200, hidden = false },
+        -- Einstellungen: der zuletzt geoeffnete Abschnitt der Leiste (S1, 29.09.2026).
+        settings = { section = "language" },
         -- Lagerleiste: freischwebend, deshalb Punkt und Versatz wie beim
         -- Hauptfenster. `collapsed` ist die zugeklappte Kopfzeile, `hidden`
         -- der ausdrueckliche Wunsch, sie gar nicht zu sehen — zwei

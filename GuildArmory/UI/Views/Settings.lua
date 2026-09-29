@@ -1,9 +1,22 @@
 --[[----------------------------------------------------------------------------
-    Views/Settings — Fenster, Freigabe, Daten, Client-Faehigkeiten.
+    Views/Settings — Register links, eine Seite rechts (Entwurf S1, 29.09.2026).
 
-    Die Freigabe eigener Charakterdaten ist die wichtigste Einstellung hier
-    (Vorgabe, Abschnitt 4 und 14): Standard AUS. Solange sie aus ist, verlaesst
-    nichts ueber die eigenen Charaktere diesen Client.
+    Sechs Abschnitte: Sprache, Fenster, Am Bildschirm, Meldungen, Loot, Daten.
+    Links die Leiste mit den Abschnitten, darunter das, was dieser Client
+    gemessen hat. Rechts die Seite des gewaehlten Abschnitts: Titel,
+    Untertitel, und darunter die Zeilen — je Einstellung Titel, Hinweis und
+    rechts ein Schalter. Grau ist aus, gold ist an.
+
+    JEDE ZEILE MISST SICH SELBST. Ein umbrechender Hinweis hat keine feste
+    Hoehe; LayoutPage fragt jede Zeile, wie hoch sie bei der aktuellen Breite
+    ist, und setzt die naechste darunter (tools/test/settingslayout.test.js
+    stellt Texte verschiedener Laenge und prueft, dass nichts ineinander
+    laeuft — die Wette auf eine geratene Hoehe ging in dieser Datei schon
+    zweimal verloren).
+
+    Die Freigabe eigener Charakterdaten ist keine Einstellung mehr, sondern
+    eine Feststellung (Abschnitt Daten): Die Gilde hat entschieden, dass
+    Ausruestung geteilt wird; hier steht, was hinausgeht und was nicht.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -15,546 +28,447 @@ local L = GA.L
 
 Settings.titleKey = "NAV_SETTINGS"
 
-
---- Abstand zwischen zwei Bloecken.
-local PANEL_GAP = 8
-
---- Startwert fuer den Loot-Block, bis er sich selbst gemessen hat.
----
---- Er stand frueher fest auf 450 und war damit rund 90 Pixel zu klein —
---- was nicht hineinpasste, lief in das naechste Kaestchen. Jetzt rechnet
---- RelayoutLoot die Hoehe aus dem Inhalt aus; diese Zahl gilt nur fuer die
---- Augenblicke davor, in denen die Breite noch nicht feststeht.
-local LOOT_PANEL_HEIGHT = 450
-local LANGUAGE_PANEL_HEIGHT = 116
+local NAV_W = 190
+local ROW_PAD = 12          -- Innenabstand einer Zeile oben/unten
+local ROW_MIN = 44          -- eine Zeile ist nie flacher als ihr Schalter + Luft
+local CONTROL_GAP = 16      -- zwischen Text und Schalter
 
 --- Die Auswahl, in der Reihenfolge der Knoepfe. "auto" steht hinten: Es ist
 --- die Ausnahme, nicht der Normalfall (siehe Localization/Locale.lua).
 local LANGUAGES = { "enUS", "deDE", "auto" }
 
-function Settings:Create(parent)
+--- Die Abschnitte, in der Reihenfolge der Leiste.
+local SECTIONS = {
+    { key = "language", title = "SET_LANGUAGE", sub = "SET_SUB_LANGUAGE" },
+    { key = "window",   title = "SET_WINDOW",   sub = "SET_SUB_WINDOW" },
+    { key = "onscreen", title = "SET_ONSCREEN", sub = "SET_SUB_ONSCREEN" },
+    { key = "notify",   title = "SET_NOTIFY",   sub = "SET_SUB_NOTIFY" },
+    { key = "loot",     title = "SET_LOOT",     sub = "SET_SUB_LOOT" },
+    { key = "data",     title = "SET_DATA",     sub = "SET_SUB_DATA" },
+}
+
+-- ================================================================== Zeilen ----
+
+--- Eine Zeile: Titel, Hinweis (umbrechend), rechts ein Bedienelement.
+---
+--- @param page table  die Seite (page.box ist der Rahmen der Zeilen)
+--- @param spec table  { label, hint, control = "switch"|"none", get, set, build }
+---   build(row) darf eigene Elemente anlegen und MUSS dann eine Funktion
+---   measure(width) -> hoehe zurueckgeben, die sie setzt.
+local function makeRow(page, spec)
     local fonts = Theme.Fonts()
-    local pad, gap = 4, 8
+    local row = CreateFrame("Frame", nil, page.box)
+    row.spec = spec
 
-    local frame = CreateFrame("Frame", nil, parent)
-    frame:SetAllPoints(parent)
+    row.title = Theme.Label(row, spec.label or "", fonts.body, Theme.color.text)
+    row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 18, -ROW_PAD)
+    row.title:SetJustifyH("LEFT")
+    row.title:SetWordWrap(false)
 
-    -- Der ganze Bereich laeuft im Bildlauf: Die Bloecke haben feste Hoehen,
-    -- und die passten nur so lange in ein festes Fenster, bis eine Einstellung
-    -- dazukam. Mit dem Bildlauf ist die Frage gegenstandslos — auch dann, wenn
-    -- jemand das Fenster klein zieht.
-    local column = Widgets.ScrollArea(frame)
-    column:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -pad)
-    column:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
-    self.column = column
+    row.hint = Theme.Label(row, spec.hint or "", fonts.small, Theme.color.textDim)
+    row.hint:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -3)
+    row.hint:SetJustifyH("LEFT")
+    -- Keine feste Hoehe: siehe Dateikopf und tools/test/fixedheights.test.js.
 
-    -- Zwei Spalten ueber die volle Breite. Die Trennung laeuft ueber die
-    -- Mitte des Inhalts ("TOP"/"BOTTOM" als Ankerpunkt) statt ueber eine
-    -- gerechnete Breite: So folgt der Umbruch der Fensterbreite von selbst,
-    -- auch wenn der Spieler das Fenster zieht.
-    local columnA = CreateFrame("Frame", nil, column.content)
-    columnA:SetPoint("TOPLEFT", column.content, "TOPLEFT", 0, 0)
-    columnA:SetPoint("BOTTOMRIGHT", column.content, "BOTTOM", -gap, 0)
+    row.chip = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.chip:SetJustifyH("RIGHT")
+    row.chip:Hide()
 
-    local columnB = CreateFrame("Frame", nil, column.content)
-    columnB:SetPoint("TOPLEFT", column.content, "TOP", gap, 0)
-    columnB:SetPoint("BOTTOMRIGHT", column.content, "BOTTOMRIGHT", -8, 0)
-
-    -- ------------------------------------------------------------ Sprache ---
-    --
-    -- Ganz oben und als eigener Block: Wer die Sprache sucht, sucht sie nicht
-    -- unter "Fenster". Drei Knoepfe statt einer Auswahlliste — bei drei
-    -- Moeglichkeiten ist eine Liste ein Klick zu viel, und man sieht sofort,
-    -- was gerade gilt.
-    local language = Widgets.Panel(columnA, L.SET_LANGUAGE)
-    language:SetPoint("TOPLEFT", columnA, "TOPLEFT", 0, 0)
-    language:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
-    language:SetHeight(LANGUAGE_PANEL_HEIGHT)
-
-    self.languageButtons = {}
-    local previousLanguage
-    for _, choice in ipairs(LANGUAGES) do
-        local button = Widgets.Button(language.content, L["SET_LANGUAGE_" .. string.upper(choice)],
-            function() Settings:ChooseLanguage(choice) end)
-        button:SetHeight(20)
-        if previousLanguage then button:SetPoint("LEFT", previousLanguage, "RIGHT", 4, 0)
-        else button:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -2) end
-        button.choice = choice
-        self.languageButtons[#self.languageButtons + 1] = button
-        previousLanguage = button
-    end
-
-    local languageHint = Theme.Label(language.content, L.SET_LANGUAGE_HINT,
-        fonts.small, Theme.color.textDim)
-    languageHint:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -28)
-    languageHint:SetPoint("RIGHT", language.content, "RIGHT", 0, 0)
-    languageHint:SetJustifyH("LEFT")
-    -- Keine feste Hoehe: siehe tools/test/fixedheights.test.js. Der Text
-    -- ist auf Deutsch laenger als auf Englisch, und die Wette darauf, dass
-    -- zwei Zeilen reichen, ist genau die, die hier schon einmal verloren
-    -- ging.
-
-    -- DER HINWEIS STEHT ERST DA, WENN ER STIMMT.
-    --
-    -- Was schon im Fenster steht, wurde beim Bauen in der alten Sprache
-    -- geschrieben und aendert sich nicht mehr. Ein Hinweis, der immer
-    -- dastuende, waere aber Rauschen — er erscheint deshalb erst nach einer
-    -- Umstellung, zusammen mit dem Knopf, der sie abschliesst.
-    self.languageReload = Theme.Label(language.content, L.SET_LANGUAGE_RELOAD,
-        fonts.small, Theme.color.warn)
-    self.languageReload:SetPoint("TOPLEFT", language.content, "TOPLEFT", 0, -60)
-    self.languageReload:SetPoint("RIGHT", language.content, "RIGHT", -110, 0)
-    self.languageReload:SetJustifyH("LEFT")
-    self.languageReload:SetHeight(28)
-    self.languageReload:Hide()
-
-    self.reloadButton = Widgets.Button(language.content, L.BTN_RELOAD, function()
-        if type(_G.ReloadUI) == "function" then ReloadUI() end
-    end, "primary")
-    self.reloadButton:SetHeight(20)
-    self.reloadButton:SetPoint("TOPRIGHT", language.content, "TOPRIGHT", 0, -62)
-    self.reloadButton:Hide()
-
-    local left = Widgets.Panel(columnA, L.SET_WINDOW)
-    left:SetPoint("TOPLEFT", language, "BOTTOMLEFT", 0, -gap)
-    left:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
-    left:SetHeight(232)
-
-    self.scaleLabel = Theme.Label(left.content, "", fonts.row, Theme.color.text)
-    self.scaleLabel:SetPoint("TOPLEFT", left.content, "TOPLEFT", 0, -2)
-
-    local function setScale(delta)
-        GA.UI.MainFrame:SetScale((GA.Core.Config:GetUI("main").scale or 1) + delta)
-        Settings:Refresh()
-    end
-    local smaller = Widgets.Button(left.content, "-", function() setScale(-0.05) end)
-    smaller:SetWidth(24) smaller:SetPoint("TOPLEFT", left.content, "TOPLEFT", 0, -22)
-    local bigger = Widgets.Button(left.content, "+", function() setScale(0.05) end)
-    bigger:SetWidth(24) bigger:SetPoint("LEFT", smaller, "RIGHT", 4, 0)
-    local debug = Widgets.Button(left.content, L.SET_DEBUG, function()
-        GA.Core.Debug:Toggle() Settings:Refresh()
-    end)
-    debug:SetPoint("LEFT", bigger, "RIGHT", 10, 0)
-    self.debugState = Theme.Label(left.content, "", fonts.small, Theme.color.textFaint)
-    self.debugState:SetPoint("LEFT", debug, "RIGHT", 8, 0)
-
-    self.minimapBox = Widgets.CheckBox(left.content, L.SET_MINIMAP, function(checked)
-        GA.UI.MinimapButton:SetShown(checked)
-    end)
-    self.minimapBox:SetPoint("TOPLEFT", left.content, "TOPLEFT", -4, -46)
-
-    self.tooltipBox = Widgets.CheckBox(left.content, L.SET_TOOLTIPS, function(checked)
-        GA.Core.Config:Set("tooltipItems", checked)
-        GA.Core.Config:Set("tooltipPlayers", checked)
-    end)
-    self.tooltipBox:SetPoint("TOPLEFT", self.minimapBox, "BOTTOMLEFT", 0, -2)
-
-    local tooltipHint = Theme.Label(left.content, L.SET_TOOLTIPS_HINT, fonts.small, Theme.color.textDim)
-    tooltipHint:SetPoint("TOPLEFT", self.tooltipBox, "BOTTOMLEFT", 4, -2)
-    tooltipHint:SetPoint("RIGHT", left.content, "RIGHT", 0, 0)
-    tooltipHint:SetJustifyH("LEFT")
-
-    self.rotationBox = Widgets.CheckBox(left.content, L.ROTATION_ENABLED, function(checked)
-        GA.Core.Config:Set("rotationEnabled", checked)
-    end)
-    self.rotationBox:SetPoint("TOPLEFT", tooltipHint, "BOTTOMLEFT", -4, -6)
-
-    self.rotationAnnounceBox = Widgets.CheckBox(left.content, L.ROTATION_ANNOUNCE_OPT,
-        function(checked) GA.Core.Config:Set("rotationAnnounce", checked) end)
-    self.rotationAnnounceBox:SetPoint("TOPLEFT", self.rotationBox, "BOTTOMLEFT", 0, -2)
-
-    -- Freigabe
-    local publish = Widgets.Panel(columnA, L.SET_DATA)
-    publish:SetPoint("TOPLEFT", left, "BOTTOMLEFT", 0, -gap)
-    publish:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
-    publish:SetHeight(140)
-
-    -- KEIN SCHALTER, SONDERN EINE FESTSTELLUNG.
-    --
-    -- Bis 20.09.2026 stand hier ein Kaestchen mit dem Versprechen "nichts
-    -- verlaesst diesen Client, bis du es einschaltest". Die Gilde hat
-    -- entschieden, dass Ausruestungsdaten geteilt werden. Ein Kaestchen, das
-    -- man nicht mehr abwaehlen kann, waere eine Luege — also steht hier jetzt,
-    -- was tatsaechlich hinausgeht und was nicht.
-    local state = Theme.Label(publish.content, L.SET_PUBLISH_ON, fonts.body, Theme.color.jade)
-    state:SetPoint("TOPLEFT", publish.content, "TOPLEFT", 0, 0)
-
-    local hint = Theme.Label(publish.content, L.SET_PUBLISH_HINT, fonts.small, Theme.color.textDim)
-    hint:SetPoint("TOPLEFT", state, "BOTTOMLEFT", 0, -6)
-    hint:SetPoint("RIGHT", publish.content, "RIGHT", 0, 0)
-    hint:SetJustifyH("LEFT")
-
-    -- Abgleich: wer laeuft noch mit dem Addon, und gab es Widersprueche?
-    self.syncLine = Theme.Label(publish.content, "", fonts.small, Theme.color.textFaint)
-    self.syncLine:SetPoint("BOTTOMLEFT", publish.content, "BOTTOMLEFT", 0, 14)
-    self.syncLine:SetPoint("RIGHT", publish.content, "RIGHT", 0, 0)
-    self.syncLine:SetJustifyH("LEFT")
-
-    self.stats = Theme.Label(publish.content, "", fonts.small, Theme.color.textFaint)
-    self.stats:SetPoint("BOTTOMLEFT", publish.content, "BOTTOMLEFT", 0, 0)
-
-    -- Lager
-    --
-    -- EIGENES PANEL STATT EINER ZEILE WEITER OBEN. Die Erklaerung ist lang,
-    -- weil sie sagen muss, was dieser Client ueber einen verschickt — und die
-    -- Bloecke darueber haben feste Hoehen. Ein umbrechender Text in einem
-    -- Block fester Hoehe ist genau die Wette, die in dieser Datei schon
-    -- zweimal verloren gegangen ist. Hier misst er sich selbst.
-    local camp = Widgets.Panel(columnA, L.SET_ONSCREEN)
-    camp:SetPoint("TOPLEFT", publish, "BOTTOMLEFT", 0, -gap)
-    camp:SetPoint("RIGHT", columnA, "RIGHT", 0, 0)
-    camp:SetHeight(72)
-    self.campPanel = camp
-
-    self.campBox = Widgets.CheckBox(camp.content, L.SET_CAMP, function(checked)
-        GA.Core.Config:Set("campEnabled", checked)
-        if checked then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
-    end)
-    self.campHint = Theme.Label(camp.content, L.SET_CAMP_HINT, fonts.small, Theme.color.textDim)
-
-    self.mapBox = Widgets.CheckBox(camp.content, L.SET_MAP, function(checked)
-        GA.Core.Config:Set("mapShare", checked)
-        local Positions = GA.Modules.Positions
-        if not Positions then return end
-        if checked then
-            Positions:Publish(true)
-        else
-            -- Aus heisst aus: auch das, was schon hereingekommen ist,
-            -- verschwindet. Sonst blieben die Nadeln stehen, bis jemand
-            -- neu einloggt.
-            wipe(Positions.states)
-            if GA.UI.MapPins then GA.UI.MapPins:HideAll() end
-        end
-    end)
-    self.mapHint = Theme.Label(camp.content, L.SET_MAP_HINT, fonts.small, Theme.color.textDim)
-
-    -- Die Beschriftung ist eine ANZEIGEFRAGE, kein Datenschalter: Sie
-    -- aendert nichts daran, was gesendet oder empfangen wird, nur was auf
-    -- der Karte steht. Deshalb wirkt sie sofort und ohne Nebenwirkung.
-    self.mapLabelBox = Widgets.CheckBox(camp.content, L.SET_MAP_LABELS, function(checked)
-        GA.Core.Config:Set("mapPinLabels", checked)
-        if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
-    end)
-    self.mapLabelHint = Theme.Label(camp.content, L.SET_MAP_LABELS_HINT,
-        fonts.small, Theme.color.textDim)
-
-    -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT. Er steht deshalb nicht
-    -- zwischen den Anzeigeoptionen, sondern traegt seinen Hinweis: Wer ihn
-    -- anstellt, soll vorher wissen, dass die Gilde es liest.
-    self.levelUpBox = Widgets.CheckBox(camp.content, L.SET_LEVELUP, function(checked)
-        GA.Core.Config:Set("levelUpAnnounce", checked)
-    end)
-    self.levelUpHint = Theme.Label(camp.content, L.SET_LEVELUP_HINT,
-        fonts.small, Theme.color.textDim)
-
-    -- DIE MELDUNGEN AN DER MINIMAP (28.09.2026), je Art ein Schalter. Aus
-    -- heisst: weder Streifen noch Ablage. Erfolge sind aus, bis jemand sie
-    -- will — ein Gildenerster ist eine Behauptung, keine Nachricht.
-    -- DIE J-TASTE (28.09.2026): Blizzards Gildenfenster fuehrt zum
-    -- Verzeichnis. Aus, bis jemand es will — es biegt eine Erwartung von
-    -- zehn Jahren um.
-    self.guildKeyBox = Widgets.CheckBox(camp.content, L.SET_GUILDKEY, function(checked)
-        GA.Core.Config:Set("guildKeyOpensAddon", checked)
-    end)
-    self.guildKeyHint = Theme.Label(camp.content, L.SET_GUILDKEY_HINT, fonts.small, Theme.color.textDim)
-
-    self.notifyBoxes = {}
-    for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
-        local box = Widgets.CheckBox(camp.content, L["SET_NOTIFY_" .. string.upper(key)], function(checked)
-            GA.Core.Config:Set("notify" .. key, checked)
-        end)
-        local hint = Theme.Label(camp.content, L["SET_NOTIFY_" .. string.upper(key) .. "_HINT"],
-            fonts.small, Theme.color.textDim)
-        self.notifyBoxes[#self.notifyBoxes + 1] = { key = key, box = box, hint = hint }
-    end
-
-    -- HIER STAND EIN LEBENSBALKEN. Er ist wieder heraus, weil dieser Client
-    -- keine lesbaren Lebenswerte herausgibt — gemessen am 24.09.2026 ueber
-    -- beide Wege, UnitHealth und Blizzards eigene Leiste, und beide Male
-    -- werfen Rechnen UND Vergleichen. Ein Schalter, der nachweislich nie
-    -- etwas tun kann, macht die Liste laenger und wirft bei jedem, der ihn
-    -- findet, dieselbe Frage auf. `/ga probe` zeigt die beiden Zeilen.
-
-    camp.content:SetScript("OnSizeChanged", function() Settings:RelayoutCamp() end)
-
-    -- Die linke Spalte ist eine Kette fester Bloecke; das Lagerpanel und die
-    -- rechte Spalte tragen ihre Hoehe selbst ein, sobald sie gemessen haben.
-    self.columnAFixed = language:GetHeight() + gap + left:GetHeight()
-        + gap + publish:GetHeight() + gap
-    self.columnHeights = {
-        self.columnAFixed + camp:GetHeight(),
-        LOOT_PANEL_HEIGHT,
-    }
-    self:RelayoutCamp()
-
-    -- Loot-Erfassung
-    --
-    -- DIE HOEHEN WERDEN GEMESSEN, NICHT GESETZT.
-    --
-    -- Vorher hing hier eine Kette: jedes Kaestchen unter der Erklaerung des
-    -- vorigen, und zwei dieser Erklaerungen hatten eine feste Hoehe
-    -- (SetHeight(44) und SetHeight(28)). Das haelt genau so lange, wie der
-    -- Text in die geratene Hoehe passt. Er passte nicht: Auf Englisch
-    -- braucht die Combat-Log-Erklaerung fuenf Zeilen statt der
-    -- eingeplanten drei, und die restlichen 16 Pixel landeten im naechsten
-    -- Kaestchen.
-    --
-    -- Eine feste Hoehe fuer umbrechenden Text ist immer eine Wette auf
-    -- Sprache, Schriftgroesse und Fensterbreite — drei Dinge, die sich alle
-    -- aendern koennen. Deshalb sagt jetzt jede Erklaerung selbst, wie hoch
-    -- sie ist (GetStringHeight), und der naechste Eintrag setzt darunter
-    -- auf. Die Panelhoehe faellt hinten heraus, statt vorne geraten zu
-    -- werden.
-    local loot = Widgets.Panel(columnB, L.SET_LOOT)
-    loot:SetPoint("TOPLEFT", columnB, "TOPLEFT", 0, 0)
-    loot:SetPoint("RIGHT", columnB, "RIGHT", 0, 0)
-    loot:SetHeight(LOOT_PANEL_HEIGHT)
-    self.lootPanel = loot
-
-    self.thresholdLabel = Theme.Label(loot.content, "", fonts.row, Theme.color.text)
-
-    self.thresholdButtons = {}
-    for _, quality in ipairs({ 2, 3, 4 }) do
-        local button = Widgets.Button(loot.content, L["QUALITY_" .. quality], function()
-            GA.Core.Config:Set("lootThresholdQuality", quality)
+    if spec.control == "switch" then
+        row.switch = Widgets.Switch(row, function(checked)
+            if spec.set then spec.set(checked) end
             Settings:Refresh()
         end)
-        button:SetHeight(20)
-        button.quality = quality
-        self.thresholdButtons[#self.thresholdButtons + 1] = button
+        row.switch:SetPoint("RIGHT", row, "RIGHT", -18, 0)
+        row.chip:SetPoint("RIGHT", row.switch, "LEFT", -10, 0)
+    else
+        row.chip:SetPoint("RIGHT", row, "RIGHT", -18, 0)
     end
 
-    self.soloBox = Widgets.CheckBox(loot.content, L.SET_LOOT_SOLO, function(checked)
-        GA.Core.Config:Set("trackOutsideGroup", checked)
-    end)
-    self.soloHint = Theme.Label(loot.content, L.SET_LOOT_SOLO_HINT, fonts.small,
-        Theme.color.textDim)
+    if spec.build then row.measureCustom = spec.build(row) end
 
-    -- Ankuendigung im Gildenchat. Der einzige Weg, auf dem ein Addon etwas
-    -- nach draussen bringt — und damit auch nach Discord, wenn die Gilde eine
-    -- Bruecke am Gildenchat hat.
-    self.announceBox = Widgets.CheckBox(loot.content, L.SET_ANNOUNCE, function(checked)
-        GA.Core.Config:Set("announceLoot", checked)
-    end)
-    self.announceHint = Theme.Label(loot.content, L.SET_ANNOUNCE_HINT, fonts.small,
-        Theme.color.textDim)
-
-    -- Sammlerbetrieb. Steht bewusst hier unten und nicht prominent: Es ist
-    -- eine Einstellung fuer genau einen Client, nicht fuer jeden Spieler.
-    self.collectorBox = Widgets.CheckBox(loot.content, L.SET_COLLECTOR, function(checked)
-        GA.Core.Config:Set("collectorMode", checked)
-    end)
-    self.collectorHint = Theme.Label(loot.content, "", fonts.small, Theme.color.textDim)
-
-    -- Combat Log. Steht hier unten bei den Dingen, die etwas AUSSERHALB des
-    -- Spiels anlegen — und wie der Sammlerbetrieb ist es aus, bis jemand es
-    -- einschaltet.
-    self.combatLogBox = Widgets.CheckBox(loot.content, L.SET_COMBATLOG, function(checked)
-        GA.Core.Config:Set("autoCombatLog", checked)
-        Settings:Refresh()
-    end)
-    self.combatLogHint = Theme.Label(loot.content, L.SET_COMBATLOG_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.offerBox = Widgets.CheckBox(loot.content, L.SET_OFFER_NEW, function(checked)
-        GA.Core.Config:Set("offerNewFinds", checked)
-        if GA.Modules.Tradables then GA.Modules.Tradables:Refresh() end
-    end)
-    self.offerHint = Theme.Label(loot.content, L.SET_OFFER_NEW_HINT,
-        fonts.small, Theme.color.textDim)
-
-    -- Was dieser Client wirklich gesehen hat — nicht, was die API verspricht.
-    self.measured = Theme.Label(loot.content, "", fonts.small, Theme.color.textFaint)
-
-    -- Neu messen, sobald die Breite steht: Vorher ist GetStringHeight
-    -- wertlos, weil der Umbruch noch gar nicht feststeht.
-    loot.content:SetScript("OnSizeChanged", function() Settings:RelayoutLoot() end)
-    self:RelayoutLoot()
-
-
-
-    -- Kein eigenes layout() mehr: Die Breiten kamen frueher aus einer
-    -- Rechnung auf frame:GetWidth(). Seit die Bloecke links UND rechts
-    -- verankert sind, ist das ein Widerspruch — eine gesetzte Breite und zwei
-    -- Anker koennen nicht beide gelten. Die Anker gewinnen, die Rechnung war
-    -- ab da wirkungslos und stand nur noch im Weg.
-
-    self.frame = frame
-    return frame
+    page.rows[#page.rows + 1] = row
+    return row
 end
 
---- Setzt die rechte Spalte neu und misst dabei jede Erklaerung.
----
---- LAEUFT MEHRMALS UND MUSS DAS AUSHALTEN. Aufgerufen wird sie beim Bauen
---- (da ist die Breite oft noch 0), sobald die Breite steht, und nach jedem
---- Refresh — denn zwei der Texte aendern sich zur Laufzeit.
----
---- Ohne bekannte Breite wird NICHTS gesetzt: Ein Umbruch, der auf Breite 0
---- gerechnet wurde, ergibt eine sinnlose Hoehe, und die stuende dann fest,
---- bis jemand das Fenster in der Groesse aendert.
 -- LAYOUT ANFANG (herausgeschnitten von tools/test/settingslayout.test.js)
-function Settings:RelayoutLoot()
-    local panel = self.lootPanel
-    if not panel then return false end
 
-    local content = panel.content
-    local width = content:GetWidth() or 0
-    if width <= 1 then return false end
-
-    local y = 0
-
-    --- Setzt eine Erklaerung auf volle Breite und gibt ihre Hoehe zurueck.
-    local function hint(label, indent)
-        label:SetWidth(width - indent)
-        label:SetJustifyH("LEFT")
-        label:ClearAllPoints()
-        label:SetPoint("TOPLEFT", content, "TOPLEFT", indent, y)
-        -- GetStringHeight ist die Hoehe des UMGEBROCHENEN Textes, also das,
-        -- was wirklich Platz braucht. GetHeight waere die gesetzte Hoehe —
-        -- und die zu lesen, nachdem man sie selbst gesetzt hat, beweist
-        -- nichts.
-        local height = label:GetStringHeight() or 0
-        if height <= 0 then height = 12 end
-        label:SetHeight(height)
-        y = y - height
-    end
-
-    --- Setzt ein Kaestchen und rueckt um SEINE Hoehe weiter, nicht um eine
-    --- angenommene. Ein Kaestchen ist heute 26 Pixel hoch; das ist eine
-    --- Zahl aus Widgets.CheckBox und keine, die hier noch einmal geraten
-    --- werden sollte.
-    local function box(check, gapAbove)
-        y = y - (gapAbove or 8)
-        check:ClearAllPoints()
-        check:SetPoint("TOPLEFT", content, "TOPLEFT", -4, y)
-        y = y - (check:GetHeight() or 26)
-    end
-
-    -- Schwelle: Beschriftung, darunter die drei Knoepfe nebeneinander.
-    self.thresholdLabel:ClearAllPoints()
-    self.thresholdLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-    y = y - (self.thresholdLabel:GetStringHeight() or 14) - 6
-
-    local previous
-    for _, button in ipairs(self.thresholdButtons) do
-        button:ClearAllPoints()
-        if previous then
-            button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
-        else
-            button:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        end
-        previous = button
-    end
-    y = y - (self.thresholdButtons[1] and self.thresholdButtons[1]:GetHeight() or 20)
-
-    box(self.soloBox, 10)
-    hint(self.soloHint, 4)
-
-    box(self.announceBox)
-    hint(self.announceHint, 4)
-
-    box(self.collectorBox)
-    hint(self.collectorHint, 4)
-
-    box(self.combatLogBox)
-    hint(self.combatLogHint, 4)
-
-    box(self.offerBox)
-    hint(self.offerHint, 4)
-
-    y = y - 10
-    hint(self.measured, 0)
-
-    -- Die Panelhoehe faellt aus dem Inhalt heraus. Der Kopf und die
-    -- Innenraender des Panels kommen dazu: content ist um 8 Pixel je Seite
-    -- eingerueckt und sitzt unter einer 24 Pixel hohen Kopfleiste.
-    local needed = -y + 24 + 16
-    if math.abs((panel:GetHeight() or 0) - needed) > 0.5 then
-        panel:SetHeight(needed)
-    end
-
-    self.columnHeights = self.columnHeights or {}
-    self.columnHeights[2] = needed
-    self:UpdateColumnHeight()
-    return true
+--- Wie breit der Text einer Zeile sein darf: Breite minus Raender und Bedienelement.
+local function textWidth(row, width)
+    local reserved = 36
+    if row.switch then reserved = reserved + 44 + CONTROL_GAP end
+    if row.chip:IsShown() then reserved = reserved + (row.chip:GetStringWidth() or 0) + 10 end
+    return math.max(60, width - reserved)
 end
 
---- Dasselbe fuer das Lagerpanel: Kaestchen, darunter die gemessene
---- Erklaerung, und die Panelhoehe faellt hinten heraus.
+--- Misst eine Zeile bei gegebener Breite und setzt ihre Hoehe.
+--- @return number hoehe
+function Settings.MeasureRow(row, width)
+    local tw = textWidth(row, width)
+    row.title:SetWidth(tw)
+    local height = ROW_PAD + (row.title:GetStringHeight() or 14)
+    local hintText = row.hint:GetText()
+    if hintText and hintText ~= "" then
+        row.hint:SetWidth(tw)
+        row.hint:Show()
+        local h = row.hint:GetStringHeight() or 0
+        if h <= 0 then h = 12 end
+        -- GetStringHeight ist die Hoehe des UMGEBROCHENEN Textes; GetHeight
+        -- waere die gesetzte, und die zu lesen, nachdem man sie selbst
+        -- gesetzt hat, beweist nichts.
+        row.hint:SetHeight(h)
+        height = height + 3 + h
+    else
+        row.hint:Hide()
+    end
+    if row.measureCustom then
+        height = height + (row.measureCustom(tw) or 0)
+    end
+    height = height + ROW_PAD
+    if height < ROW_MIN then height = ROW_MIN end
+    row:SetHeight(height)
+    return height
+end
+
+--- Setzt die Zeilen einer Seite untereinander, mit Trennlinien, und traegt
+--- die Hoehe des Rahmens und des Bildlaufinhalts ein.
 ---
---- Die Erklaerung ist die laengste im ganzen Fenster — sie muss sagen, was
---- dieser Client ueber einen verschickt. Genau deshalb darf ihre Hoehe
---- nirgends geraten werden.
-function Settings:RelayoutCamp()
-    local panel = self.campPanel
-    if not panel then return false end
-
-    local content = panel.content
-    local width = content:GetWidth() or 0
+--- LAEUFT MEHRMALS UND MUSS DAS AUSHALTEN: beim Bauen (Breite oft noch 0),
+--- sobald die Breite steht, und nach jedem Refresh, denn Texte aendern
+--- sich zur Laufzeit. Ohne bekannte Breite wird NICHTS gesetzt.
+function Settings.LayoutPage(page)
+    local width = page.box:GetWidth() or 0
     if width <= 1 then return false end
-
     local y = 0
-
-    -- DIE PAARE, EINE SCHLEIFE. Jede Erklaerung misst sich selbst und
-    -- schiebt das naechste Kaestchen nach unten. Die Alternative waere
-    -- dreimal derselbe Block mit drei geratenen Abstaenden — und genau so
-    -- ist diese Spalte schon einmal ineinandergelaufen.
-    local paare = {
-        { self.campBox, self.campHint },
-        { self.mapBox, self.mapHint },
-        { self.mapLabelBox, self.mapLabelHint },
-        { self.levelUpBox, self.levelUpHint },
-    }
-    if self.guildKeyBox then paare[#paare + 1] = { self.guildKeyBox, self.guildKeyHint } end
-    for _, entry in ipairs(self.notifyBoxes or {}) do
-        paare[#paare + 1] = { entry.box, entry.hint }
+    local shown = 0
+    for _, row in ipairs(page.rows) do
+        -- Eine versteckte Zeile (der Reload-Hinweis vor der Umstellung)
+        -- nimmt keinen Platz und zieht keine Trennlinie.
+        if row:IsShown() then
+            shown = shown + 1
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", page.box, "TOPLEFT", 0, y)
+            row:SetPoint("RIGHT", page.box, "RIGHT", 0, 0)
+            local height = Settings.MeasureRow(row, width)
+            y = y - height
+        end
     end
-
-    for index, paar in ipairs(paare) do
-        local box, hint = paar[1], paar[2]
-        if index > 1 then y = y - 8 end
-
-        box:ClearAllPoints()
-        box:SetPoint("TOPLEFT", content, "TOPLEFT", -4, y)
-        y = y - (box:GetHeight() or 26)
-
-        hint:SetWidth(width - 4)
-        hint:SetJustifyH("LEFT")
-        hint:ClearAllPoints()
-        hint:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
-        local height = hint:GetStringHeight() or 0
-        if height <= 0 then height = 12 end
-        hint:SetHeight(height)
-        y = y - height
+    -- Trennlinien zwischen sichtbaren Zeilen, nicht unter der letzten.
+    local seen = 0
+    for _, row in ipairs(page.rows) do
+        if row:IsShown() then
+            seen = seen + 1
+            if row.separator then row.separator:SetShown(seen < shown) end
+        end
     end
-
-    local needed = -y + 24 + 16
-    if math.abs((panel:GetHeight() or 0) - needed) > 0.5 then
-        panel:SetHeight(needed)
-    end
-
-    self.columnHeights = self.columnHeights or {}
-    self.columnHeights[1] = (self.columnAFixed or 0) + needed
-    self:UpdateColumnHeight()
+    local boxHeight = math.max(1, -y)
+    page.box:SetHeight(boxHeight)
+    page.content:SetHeight((page.headHeight or 0) + boxHeight + 16)
+    if page.scroll and page.scroll.Refresh then page.scroll:Refresh() end
     return true
 end
 -- LAYOUT ENDE
 
---- Hoehe des Bildlaufinhalts nachfuehren.
----
---- Gerechnet, nicht gemessen: GetTop und GetBottom liefern nil, solange das
---- Fenster nicht sichtbar ist — und Refresh laeuft auch dann. Die Hoehen der
---- Bloecke stehen fest, also ist die Rechnung die zuverlaessigere Quelle.
-function Settings:UpdateColumnHeight()
-    if not self.column then return end
+-- ================================================================== Aufbau ----
 
-    local tallest = 0
-    for _, height in ipairs(self.columnHeights or {}) do
-        if height > tallest then tallest = height end
-    end
-    self.column.content:SetHeight(math.max(1, tallest + PANEL_GAP))
-    self.column:Refresh()
+--- Eine Seite: Bildlauf, Kopf (Titel + Untertitel), darunter der Rahmen
+--- mit den Zeilen.
+function Settings:Page(parent, section)
+    local fonts = Theme.Fonts()
+    local scroll = Widgets.ScrollArea(parent)
+    scroll:SetPoint("TOPLEFT", self.nav, "TOPRIGHT", 8, 0)
+    scroll:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -4, 4)
+    scroll:Hide()
+
+    local page = { key = section.key, scroll = scroll, content = scroll.content, rows = {} }
+
+    page.title = Theme.Label(scroll.content, L[section.title] or section.key, fonts.big, Theme.color.heading)
+    page.title:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 6, -10)
+    page.subtitle = Theme.Label(scroll.content, L[section.sub] or "", fonts.small, Theme.color.textDim)
+    page.subtitle:SetPoint("LEFT", page.title, "RIGHT", 12, -1)
+    page.subtitle:SetWordWrap(false)
+    page.headHeight = 44
+
+    page.box = Widgets.Inset(scroll.content)
+    page.box:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 0, -page.headHeight)
+    page.box:SetPoint("RIGHT", scroll.content, "RIGHT", -4, 0)
+    page.box:SetHeight(1)
+    page.box:SetScript("OnSizeChanged", function() Settings.LayoutPage(page) end)
+
+    self.pages[section.key] = page
+    return page
 end
+
+--- Ein Eintrag der Leiste links.
+function Settings:NavEntry(section, index)
+    local fonts = Theme.Fonts()
+    local button = CreateFrame("Button", nil, self.nav)
+    button:SetHeight(34)
+    button:SetPoint("TOPLEFT", self.nav, "TOPLEFT", 6, -10 - (index - 1) * 36)
+    button:SetPoint("RIGHT", self.nav, "RIGHT", -6, 0)
+    button.fill = Theme.Fill(button, { 0, 0, 0, 0 })
+    button.edge = Theme.Fill(button, Theme.color.goldMid)
+    button.edge:ClearAllPoints()
+    button.edge:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+    button.edge:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 0, 0)
+    button.edge:SetWidth(2)
+    button.label = Theme.Label(button, L[section.title] or section.key, fonts.body, Theme.color.textDim)
+    button.label:SetPoint("LEFT", button, "LEFT", 14, 0)
+    button.label:SetPoint("RIGHT", button, "RIGHT", -6, 0)
+    button.label:SetJustifyH("LEFT")
+    button.label:SetWordWrap(false)
+    button.key = section.key
+    button:SetScript("OnClick", function() Settings:ShowSection(section.key) end)
+    button:SetScript("OnEnter", function(self)
+        if Settings.current ~= self.key then Theme.Paint(self.fill, { 1, 1, 1, 0.04 }) end
+    end)
+    button:SetScript("OnLeave", function(self)
+        if Settings.current ~= self.key then Theme.Paint(self.fill, { 0, 0, 0, 0 }) end
+    end)
+    self.navButtons[#self.navButtons + 1] = button
+    return button
+end
+
+--- Wechselt den Abschnitt: Leiste und Seiten folgen.
+function Settings:ShowSection(key)
+    self.current = key
+    for _, button in ipairs(self.navButtons) do
+        local active = button.key == key
+        Theme.Paint(button.fill, active and { 1, 1, 1, 0.06 } or { 0, 0, 0, 0 })
+        button.edge:SetShown(active)
+        local color = active and Theme.color.goldBright or Theme.color.textDim
+        button.label:SetTextColor(color[1], color[2], color[3])
+    end
+    for pageKey, page in pairs(self.pages) do
+        page.scroll:SetShown(pageKey == key)
+    end
+    local page = self.pages[key]
+    if page then Settings.LayoutPage(page) end
+    GA.Core.Config:GetUI("settings").section = key
+end
+
+function Settings:Create(parent)
+    local fonts = Theme.Fonts()
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetAllPoints(parent)
+    self.frame = frame
+    self.pages = {}
+    self.navButtons = {}
+    self.switches = {}
+
+    -- ------------------------------------------------------------ Leiste ----
+    local nav = Widgets.Inset(frame)
+    nav:SetWidth(NAV_W)
+    nav:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -4)
+    nav:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4, 4)
+    self.nav = nav
+    for index, section in ipairs(SECTIONS) do self:NavEntry(section, index) end
+
+    -- Was dieser Client gemessen hat — unten in der Leiste, klein.
+    self.factsHead = Theme.Label(nav, string.upper(L.SET_NAV_FACTS), fonts.heading, Theme.color.goldDim)
+    self.factsHead:SetPoint("BOTTOMLEFT", nav, "BOTTOMLEFT", 14, 70)
+    self.facts = Theme.Label(nav, "", fonts.small, Theme.color.textFaint)
+    self.facts:SetPoint("TOPLEFT", self.factsHead, "BOTTOMLEFT", 0, -4)
+    self.facts:SetPoint("RIGHT", nav, "RIGHT", -10, 0)
+    self.facts:SetJustifyH("LEFT")
+    self.facts:SetSpacing(2)
+
+    for _, section in ipairs(SECTIONS) do self:Page(frame, section) end
+
+    -- ------------------------------------------------------------ Sprache ---
+    --
+    -- Drei Knoepfe statt einer Auswahlliste — bei drei Moeglichkeiten ist
+    -- eine Liste ein Klick zu viel, und man sieht sofort, was gerade gilt.
+    -- Der Hinweis auf /reload steht erst da, wenn er stimmt: nach einer
+    -- Umstellung, zusammen mit dem Knopf, der sie abschliesst.
+    local language = self.pages.language
+    self.languageButtons = {}
+    makeRow(language, { label = L.SET_LANGUAGE, hint = L.SET_LANGUAGE_HINT, build = function(row)
+        local previous
+        for _, choice in ipairs(LANGUAGES) do
+            local button = Widgets.Button(row, L["SET_LANGUAGE_" .. string.upper(choice)],
+                function() Settings:ChooseLanguage(choice) end)
+            button:SetHeight(20)
+            button.choice = choice
+            if previous then button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.languageButtons[#Settings.languageButtons + 1] = button
+            previous = button
+        end
+        return function() return 28 end
+    end })
+    self.reloadRow = makeRow(language, { label = "", hint = L.SET_LANGUAGE_RELOAD, build = function(row)
+        row.hint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+        Settings.reloadButton = Widgets.Button(row, L.BTN_RELOAD, function()
+            if type(_G.ReloadUI) == "function" then ReloadUI() end
+        end, "primary")
+        Settings.reloadButton:SetHeight(20)
+        Settings.reloadButton:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        return function() return 28 end
+    end })
+
+    -- ------------------------------------------------------------ Fenster ---
+    local window = self.pages.window
+    makeRow(window, { label = L.SET_SCALE_ROW, hint = L.SET_SCALE_HINT, build = function(row)
+        local function setScale(delta)
+            GA.UI.MainFrame:SetScale((GA.Core.Config:GetUI("main").scale or 1) + delta)
+            Settings:Refresh()
+        end
+        Settings.scaleValue = Theme.Label(row, "", fonts.body, Theme.color.goldMid)
+        Settings.scaleValue:SetPoint("RIGHT", row, "RIGHT", -18, 0)
+        local bigger = Widgets.Button(row, "+", function() setScale(0.05) end)
+        bigger:SetWidth(24) bigger:SetHeight(20)
+        bigger:SetPoint("RIGHT", Settings.scaleValue, "LEFT", -10, 0)
+        local smaller = Widgets.Button(row, "-", function() setScale(-0.05) end)
+        smaller:SetWidth(24) smaller:SetHeight(20)
+        smaller:SetPoint("RIGHT", bigger, "LEFT", -4, 0)
+        return function() return 0 end
+    end })
+    self.rowMinimap = makeRow(window, { label = L.SET_MINIMAP, hint = L.SET_MINIMAP_HINT, control = "switch",
+        set = function(on) GA.UI.MinimapButton:SetShown(on) end })
+    self.rowTooltips = makeRow(window, { label = L.SET_TOOLTIPS, hint = L.SET_TOOLTIPS_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("tooltipItems", on) GA.Core.Config:Set("tooltipPlayers", on) end })
+    -- DIE J-TASTE (28.09.2026): Blizzards Gildenfenster fuehrt zum
+    -- Verzeichnis. Aus, bis jemand es will — es biegt eine Erwartung von
+    -- zehn Jahren um.
+    self.rowGuildKey = makeRow(window, { label = L.SET_GUILDKEY, hint = L.SET_GUILDKEY_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("guildKeyOpensAddon", on) end })
+
+    -- ------------------------------------------------------ Am Bildschirm ---
+    local onscreen = self.pages.onscreen
+    self.rowCamp = makeRow(onscreen, { label = L.SET_CAMP, hint = L.SET_CAMP_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("campEnabled", on)
+            if on then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
+        end })
+    self.rowMap = makeRow(onscreen, { label = L.SET_MAP, hint = L.SET_MAP_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("mapShare", on)
+            local Positions = GA.Modules.Positions
+            if not Positions then return end
+            if on then
+                Positions:Publish(true)
+            else
+                -- Aus heisst aus: auch das, was schon hereingekommen ist,
+                -- verschwindet. Sonst blieben die Nadeln stehen, bis jemand
+                -- neu einloggt.
+                wipe(Positions.states)
+                if GA.UI.MapPins then GA.UI.MapPins:HideAll() end
+            end
+        end })
+    -- Die Beschriftung ist eine ANZEIGEFRAGE, kein Datenschalter: Sie
+    -- aendert nichts daran, was gesendet oder empfangen wird.
+    self.rowMapLabels = makeRow(onscreen, { label = L.SET_MAP_LABELS, hint = L.SET_MAP_LABELS_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("mapPinLabels", on)
+            if GA.UI.MapPins then GA.UI.MapPins:Refresh() end
+        end })
+    -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT: Wer ihn anstellt, soll
+    -- vorher wissen, dass die Gilde es liest.
+    self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("levelUpAnnounce", on) end })
+
+    -- ------------------------------------------------------------ Meldungen -
+    --
+    -- Je Art ein Schalter (28.09.2026). Aus heisst: weder Streifen noch
+    -- Ablage. Erfolge sind aus, bis jemand sie will — ein Gildenerster ist
+    -- eine Behauptung, keine Nachricht.
+    local notify = self.pages.notify
+    self.notifyRows = {}
+    for _, key in ipairs({ "Tradables", "Questhub", "Camp", "Achievements" }) do
+        local row = makeRow(notify, { label = L["SET_NOTIFY_" .. string.upper(key)],
+            hint = L["SET_NOTIFY_" .. string.upper(key) .. "_HINT"], control = "switch",
+            set = function(on) GA.Core.Config:Set("notify" .. key, on) end })
+        row.notifyKey = key
+        self.notifyRows[#self.notifyRows + 1] = row
+    end
+
+    -- ------------------------------------------------------------ Loot ------
+    local loot = self.pages.loot
+    self.thresholdButtons = {}
+    self.rowThreshold = makeRow(loot, { label = "", hint = L.SET_LOOT_THRESHOLD_HINT, build = function(row)
+        local previous
+        for _, quality in ipairs({ 2, 3, 4 }) do
+            local button = Widgets.Button(row, L["QUALITY_" .. quality], function()
+                GA.Core.Config:Set("lootThresholdQuality", quality)
+                Settings:Refresh()
+            end)
+            button:SetHeight(20)
+            button.quality = quality
+            if previous then button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.thresholdButtons[#Settings.thresholdButtons + 1] = button
+            previous = button
+        end
+        return function() return 28 end
+    end })
+    self.rowOffer = makeRow(loot, { label = L.SET_OFFER_NEW, hint = L.SET_OFFER_NEW_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("offerNewFinds", on)
+            if GA.Modules.Tradables then GA.Modules.Tradables:Refresh() end
+        end })
+    -- Ankuendigung im Gildenchat: der einzige Weg, auf dem ein Addon etwas
+    -- nach draussen bringt — und damit auch nach Discord, wenn die Gilde
+    -- eine Bruecke am Gildenchat hat.
+    self.rowAnnounce = makeRow(loot, { label = L.SET_ANNOUNCE, hint = L.SET_ANNOUNCE_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("announceLoot", on) end })
+    self.rowRotation = makeRow(loot, { label = L.ROTATION_ENABLED, hint = L.SET_ROTATION_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("rotationEnabled", on) end })
+    self.rowRotationAnnounce = makeRow(loot, { label = L.ROTATION_ANNOUNCE_OPT, hint = "", control = "switch",
+        set = function(on) GA.Core.Config:Set("rotationAnnounce", on) end })
+    self.rowSolo = makeRow(loot, { label = L.SET_LOOT_SOLO, hint = L.SET_LOOT_SOLO_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("trackOutsideGroup", on) end })
+    -- Combat Log: legt etwas AUSSERHALB des Spiels an — aus, bis jemand
+    -- es einschaltet. Der Hinweis sagt die Wahrheit ueber diesen Client:
+    -- Kann er es nicht, steht das da statt eines Schalters, hinter dem
+    -- nichts passiert.
+    self.rowCombatLog = makeRow(loot, { label = L.SET_COMBATLOG, hint = L.SET_COMBATLOG_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("autoCombatLog", on) end })
+    self.rowMeasured = makeRow(loot, { label = L.SET_MEASURED_ROW, hint = "" })
+
+    -- ------------------------------------------------------------ Daten -----
+    --
+    -- KEIN SCHALTER, SONDERN EINE FESTSTELLUNG. Bis 20.09.2026 stand hier
+    -- ein Kaestchen mit dem Versprechen "nichts verlaesst diesen Client,
+    -- bis du es einschaltest". Die Gilde hat entschieden, dass
+    -- Ausruestungsdaten geteilt werden. Ein Kaestchen, das man nicht mehr
+    -- abwaehlen kann, waere eine Luege — also steht hier, was hinausgeht.
+    local data = self.pages.data
+    self.rowPublish = makeRow(data, { label = L.SET_PUBLISH, hint = L.SET_PUBLISH_HINT, build = function(row)
+        row.chip:SetText(L.SET_PUBLISH_ON)
+        row.chip:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
+        row.chip:Show()
+        return function() return 0 end
+    end })
+    self.rowSync = makeRow(data, { label = L.SET_SYNC_ROW, hint = "" })
+    self.rowStats = makeRow(data, { label = L.SET_CLIENT, hint = "" })
+    -- Sammlerbetrieb: eine Einstellung fuer genau einen Client, nicht fuer
+    -- jeden Spieler — deshalb hier unten.
+    self.rowCollector = makeRow(data, { label = L.SET_COLLECTOR, hint = "", control = "switch",
+        set = function(on) GA.Core.Config:Set("collectorMode", on) end })
+    self.rowDebug = makeRow(data, { label = L.SET_DEBUG_ROW, hint = L.SET_DEBUG_HINT, control = "switch",
+        set = function(on)
+            local debugOn = GA.Core.Database.char.debug and true or false
+            if debugOn ~= on then GA.Core.Debug:Toggle() end
+        end })
+
+    -- Trennlinien zwischen den Zeilen, und Seiten, die sich selbst messen.
+    for _, page in pairs(self.pages) do
+        for _, row in ipairs(page.rows) do
+            row.separator = Theme.Fill(row, Theme.color.border)
+            row.separator:ClearAllPoints()
+            row.separator:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+            row.separator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+            row.separator:SetHeight(1)
+        end
+    end
+
+    local last = GA.Core.Config:GetUI("settings").section
+    self:ShowSection(self.pages[last] and last or SECTIONS[1].key)
+    return frame
+end
+
+-- ================================================================== Inhalt ----
 
 --- Stellt die Sprache um.
 ---
@@ -569,111 +483,98 @@ function Settings:ChooseLanguage(choice)
 end
 
 function Settings:Refresh()
+    local Config = GA.Core.Config
+
     local chosen = GA.Core.Database.account.language or GA.Core.Locale.DEFAULT
     for _, button in ipairs(self.languageButtons) do
         button:SetEnabledState(button.choice ~= chosen)
     end
-    if self.languageChanged then
-        self.languageReload:Show()
-        self.reloadButton:Show()
-    end
-
-    self.scaleLabel:SetText(string.format(L.SET_SCALE, GA.Core.Config:GetUI("main").scale or 1))
-    local debugOn = GA.Core.Database.char.debug
-    self.debugState:SetText(debugOn and L.SET_ON or L.SET_OFF)
-
-
-    self.minimapBox:SetChecked(not GA.Core.Config:GetUI("minimap").hidden)
-    self.tooltipBox:SetChecked(GA.Core.Config:Get("tooltipItems") and true or false)
-    self.rotationBox:SetChecked(GA.Core.Config:Get("rotationEnabled") and true or false)
-    self.rotationAnnounceBox:SetChecked(GA.Core.Config:Get("rotationAnnounce") and true or false)
-
-    -- Abgleich. Konflikte stehen in Warnfarbe: Sie bedeuten, dass zwei Clients
-    -- derselben Gilde etwas Widersprechendes gemeldet haben.
-    local Sync = GA.Modules.Sync
-    local conflicts = Sync.conflicts or 0
-    self.syncLine:SetText(string.format(L.SET_SYNC, Sync:PeerCount(), conflicts))
-    local syncColor = conflicts > 0 and Theme.color.warn or Theme.color.textFaint
-    self.syncLine:SetTextColor(syncColor[1], syncColor[2], syncColor[3])
-
-    local stats = GA.Core.Database:Stats()
-    local storage = GA.Core.Database.storage or {}
-    self.stats:SetText(string.format(L.SET_STATS,
-        stats.characters, stats.awards, stats.journal, tostring(stats.schemaVersion))
-        .. "  ·  " .. string.format(L.SET_STORAGE, tostring(storage.source)))
-    local storageColor = storage.accountLoaded and Theme.color.textFaint or Theme.color.warn
-    self.stats:SetTextColor(storageColor[1], storageColor[2], storageColor[3])
-
-    -- Loot-Erfassung
-    local threshold = GA.Core.Config:Get("lootThresholdQuality") or 3
-    self.thresholdLabel:SetText(string.format(L.SET_LOOT_THRESHOLD,
-        L["QUALITY_" .. threshold] or tostring(threshold)))
-    for _, button in ipairs(self.thresholdButtons) do
-        button:SetEnabledState(button.quality ~= threshold)
-    end
-    self.soloBox:SetChecked(GA.Core.Config:Get("trackOutsideGroup") and true or false)
-    self.announceBox:SetChecked(GA.Core.Config:Get("announceLoot") and true or false)
-    self.collectorBox:SetChecked(GA.Core.Config:Get("collectorMode") and true or false)
-
-    -- DER HINWEIS SAGT DIE WAHRHEIT UEBER DIESEN CLIENT, nicht ueber die
-    -- Absicht: Ist die Einstellung an und der Client kann es nicht, steht
-    -- das da — statt ein Haekchen zu zeigen, hinter dem nichts passiert.
-    local an = GA.Core.Config:Get("autoCombatLog") and true or false
-    self.combatLogBox:SetChecked(an)
-    self.offerBox:SetChecked(GA.Core.Config:Get("offerNewFinds") and true or false)
-    if an and GA.Modules.CombatLog and GA.Modules.CombatLog:Available() == false then
-        self.combatLogHint:SetText(L.COMBATLOG_UNAVAILABLE)
-        self.combatLogHint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+    self.reloadRow:SetShown(self.languageChanged and true or false)
+    if not self.languageChanged then
+        -- Eine versteckte Zeile nimmt keinen Platz: Hoehe null, kein Hinweis.
+        self.reloadRow.hint:SetText("")
     else
-        self.combatLogHint:SetText(L.SET_COMBATLOG_HINT)
-        self.combatLogHint:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+        self.reloadRow.hint:SetText(L.SET_LANGUAGE_RELOAD)
     end
-    self.collectorHint:SetText(string.format(L.SET_COLLECTOR_HINT,
-        tonumber(GA.Core.Config:Get("collectorMinutes")) or 60))
+
+    self.scaleValue:SetText(string.format("%.2f", Config:GetUI("main").scale or 1))
+    self.rowMinimap.switch:SetChecked(not Config:GetUI("minimap").hidden)
+    self.rowTooltips.switch:SetChecked(Config:Get("tooltipItems") and true or false)
+    self.rowGuildKey.switch:SetChecked(Config:Get("guildKeyOpensAddon") and true or false)
 
     -- ~= false, nicht "and true or false": Die Voreinstellung ist AN, und ein
     -- noch nie gesetzter Wert ist nil. Wer hier auf Wahrheit prueft, zeigt
-    -- beim ersten Oeffnen ein leeres Kaestchen fuer etwas, das laeuft.
-    self.campBox:SetChecked(GA.Core.Config:Get("campEnabled") ~= false)
-    self.campHint:SetText(L.SET_CAMP_HINT)
-    self.mapBox:SetChecked(GA.Core.Config:Get("mapShare") ~= false)
-    self.mapHint:SetText(L.SET_MAP_HINT)
-    self.mapLabelBox:SetChecked(GA.Core.Config:Get("mapPinLabels") ~= false)
-    self.mapLabelHint:SetText(L.SET_MAP_LABELS_HINT)
-    self.levelUpBox:SetChecked(GA.Core.Config:Get("levelUpAnnounce") and true or false)
-    self.levelUpHint:SetText(L.SET_LEVELUP_HINT)
-    self.guildKeyBox:SetChecked(GA.Core.Config:Get("guildKeyOpensAddon") and true or false)
-    self.guildKeyHint:SetText(L.SET_GUILDKEY_HINT)
-    for _, entry in ipairs(self.notifyBoxes or {}) do
-        local wert = GA.Core.Config:Get("notify" .. entry.key)
-        if wert == nil then wert = entry.key ~= "Achievements" end
-        entry.box:SetChecked(wert and true or false)
-        entry.hint:SetText(L["SET_NOTIFY_" .. string.upper(entry.key) .. "_HINT"])
+    -- beim ersten Oeffnen einen leeren Schalter fuer etwas, das laeuft.
+    self.rowCamp.switch:SetChecked(Config:Get("campEnabled") ~= false)
+    self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
+    self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
+    self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    for _, row in ipairs(self.notifyRows) do
+        local wert = Config:Get("notify" .. row.notifyKey)
+        if wert == nil then wert = row.notifyKey ~= "Achievements" end
+        row.switch:SetChecked(wert and true or false)
     end
 
+    local threshold = Config:Get("lootThresholdQuality") or 3
+    self.rowThreshold.title:SetText(string.format(L.SET_LOOT_THRESHOLD, L["QUALITY_" .. threshold] or tostring(threshold)))
+    for _, button in ipairs(self.thresholdButtons) do
+        button:SetEnabledState(button.quality ~= threshold)
+    end
+    self.rowOffer.switch:SetChecked(Config:Get("offerNewFinds") and true or false)
+    self.rowAnnounce.switch:SetChecked(Config:Get("announceLoot") and true or false)
+    self.rowRotation.switch:SetChecked(Config:Get("rotationEnabled") and true or false)
+    self.rowRotationAnnounce.switch:SetChecked(Config:Get("rotationAnnounce") and true or false)
+    self.rowSolo.switch:SetChecked(Config:Get("trackOutsideGroup") and true or false)
+    local logOn = Config:Get("autoCombatLog") and true or false
+    self.rowCombatLog.switch:SetChecked(logOn)
+    if logOn and GA.Modules.CombatLog and GA.Modules.CombatLog:Available() == false then
+        self.rowCombatLog.hint:SetText(L.COMBATLOG_UNAVAILABLE)
+        self.rowCombatLog.hint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+    else
+        self.rowCombatLog.hint:SetText(L.SET_COMBATLOG_HINT)
+        self.rowCombatLog.hint:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+    end
+
+    -- Was dieser Client wirklich gesehen hat — nicht, was die API verspricht.
     local seen = {}
     local measured = GA.Core.Database.account.measured
     for method in pairs((measured and measured.lootMethods) or {}) do
         seen[#seen + 1] = L["LOOT_" .. string.upper(method)] or method
     end
     table.sort(seen)
-    -- Beobachtete Lootmethoden und die Groesse des Itemverzeichnisses: beides
-    -- sagt, worauf dieser Client gerade tatsaechlich zurueckgreifen kann.
-    self.measured:SetText(string.format(L.SET_MEASURED,
-            #seen > 0 and table.concat(seen, ", ") or L.SET_MEASURED_NONE)
-        .. "\n"
-        .. string.format(L.SET_ITEMINDEX, GA.Modules.ItemIndex:Count()))
+    local seenText = #seen > 0 and table.concat(seen, ", ") or L.SET_MEASURED_NONE
+    self.rowMeasured.hint:SetText(string.format(L.SET_MEASURED, seenText)
+        .. "\n" .. string.format(L.SET_ITEMINDEX, GA.Modules.ItemIndex:Count()))
 
-    -- ERST NACH DEM SETZEN ALLER TEXTE NEU MESSEN.
-    --
-    -- Zwei Erklaerungen aendern sich hier oben: die des Combat Logs (sie
-    -- wird zur Warnung, wenn das Mitschreiben nicht geht) und die des
-    -- Sammlerbetriebs (sie traegt die eingestellten Minuten). Beide koennen
-    -- dabei laenger oder kuerzer werden — wer vorher misst, misst den alten
-    -- Text.
-    self:RelayoutLoot()
-    self:RelayoutCamp()
-    self:UpdateColumnHeight()
+    -- Abgleich. Konflikte stehen in Warnfarbe: Zwei Clients derselben Gilde
+    -- haben etwas Widersprechendes gemeldet.
+    local Sync = GA.Modules.Sync
+    local conflicts = Sync.conflicts or 0
+    self.rowSync.hint:SetText(string.format(L.SET_SYNC, Sync:PeerCount(), conflicts))
+    local syncColor = conflicts > 0 and Theme.color.warn or Theme.color.textDim
+    self.rowSync.hint:SetTextColor(syncColor[1], syncColor[2], syncColor[3])
+
+    local stats = GA.Core.Database:Stats()
+    local storage = GA.Core.Database.storage or {}
+    self.rowStats.hint:SetText(string.format(L.SET_STATS,
+        stats.characters, stats.awards, stats.journal, tostring(stats.schemaVersion))
+        .. "\n" .. string.format(L.SET_STORAGE, tostring(storage.source)))
+    local storageColor = storage.accountLoaded and Theme.color.textDim or Theme.color.warn
+    self.rowStats.hint:SetTextColor(storageColor[1], storageColor[2], storageColor[3])
+
+    self.rowCollector.switch:SetChecked(Config:Get("collectorMode") and true or false)
+    self.rowCollector.hint:SetText(string.format(L.SET_COLLECTOR_HINT, tonumber(Config:Get("collectorMinutes")) or 60))
+    self.rowDebug.switch:SetChecked(GA.Core.Database.char.debug and true or false)
+
+    -- Die Leiste: drei Messwerte, die man sonst suchen muesste.
+    local logState = L.SET_OFF
+    if GA.Modules.CombatLog and GA.Modules.CombatLog:Available() == false then logState = L.SET_NAV_NOLOG
+    elseif logOn then logState = L.SET_ON end
+    self.facts:SetText(string.format(L.SET_NAV_FACTS_LINE, logState, #seen, Sync:PeerCount()))
+
+    -- ERST NACH DEM SETZEN ALLER TEXTE NEU MESSEN: Mehrere Hinweise aendern
+    -- sich hier oben, und wer vorher misst, misst den alten Text.
+    for _, page in pairs(self.pages) do Settings.LayoutPage(page) end
 
     GA.UI.MainFrame:SetContext("v" .. GA.version)
 end

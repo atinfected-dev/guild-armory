@@ -4,6 +4,19 @@
 
 In progress.
 
+### Settings: a register
+
+Six sections in a column on the left — Language, Window, On screen,
+Notifications, Loot, Data — and one page on the right, remembered
+between openings. Every setting is a row: title, hint underneath, and a
+switch on the right instead of a checkbox — grey is off, gold is on.
+Rows measure themselves at the current width, so a long hint never runs
+into the next row (the layout test stands on the new function). The
+council rotation moved to Loot where it belongs; debug output is a
+switch under Data; the sharing row states that gear is shared and what
+never leaves. At the bottom of the column, three things this client
+measured: combat log, loot methods seen, other clients.
+
 **The window closes in combat again.** The secure rank buttons lived
 inside the main window, and a frame with protected children counts as
 protected in combat — so the window could not be hidden. They hang on

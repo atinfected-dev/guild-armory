@@ -646,6 +646,61 @@ function Widgets.InputDialog(title, hintText, onAccept)
     return frame
 end
 
+-- ------------------------------------------------------- Schalter -----------
+
+--- Ein Schalter: 44 x 24, grau ist aus, gold ist an, der Knopf wandert.
+--- Ersetzt in den Einstellungen das Kaestchen (Entwurf S1, 29.09.2026):
+--- Ein Kaestchen sagt "gesetzt"; ein Schalter sagt "laeuft".
+--- @param onToggle function(checked)
+function Widgets.Switch(parent, onToggle)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(44, 24)
+    local track = Theme.Fill(button, { 0, 0, 0, 0 })
+    local lines = Theme.Outline(button, Theme.color.borderLit)
+    local knob = button:CreateTexture(nil, "ARTWORK")
+    knob:SetSize(18, 18)
+    knob:SetPoint("LEFT", button, "LEFT", 3, 0)
+    Theme.Paint(knob, Theme.color.textFaint)
+    button.checked = false
+    button.enabled = true
+
+    local function paint(self)
+        local on = self.checked
+        Theme.Paint(track, on and Theme.color.goldMid or { 0, 0, 0, 0 })
+        for _, line in ipairs(lines) do Theme.Paint(line, on and Theme.color.goldMid or Theme.color.borderLit) end
+        knob:ClearAllPoints()
+        if on then knob:SetPoint("RIGHT", self, "RIGHT", -3, 0) else knob:SetPoint("LEFT", self, "LEFT", 3, 0) end
+        Theme.Paint(knob, on and Theme.color.windowBg or Theme.color.textFaint)
+        self:SetAlpha(self.enabled and 1 or 0.45)
+    end
+
+    function button:SetChecked(on)
+        self.checked = on and true or false
+        paint(self)
+    end
+    function button:GetChecked() return self.checked end
+    function button:SetEnabledState(enabled, reason)
+        self.enabled = enabled and true or false
+        self.tooltip = (not enabled) and reason or nil
+        if enabled then self:Enable() else self:Disable() end
+        paint(self)
+    end
+    button:SetScript("OnClick", function(self)
+        self:SetChecked(not self.checked)
+        if onToggle then onToggle(self.checked) end
+    end)
+    button:SetScript("OnEnter", function(self)
+        if self.tooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(self.tooltip, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end)
+    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    paint(button)
+    return button
+end
+
 -- ------------------------------------------------------- Traeger ------------
 
 --- DER TRAEGER FUER SICHERE KNOEPFE — NEBEN dem Hauptfenster, nicht darin.
