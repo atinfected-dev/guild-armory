@@ -47,13 +47,38 @@ Dungeonhub.REQUEST_COOLDOWN = 30
 Dungeonhub.ROLES = { "TANK", "HEAL", "DPS" }
 Dungeonhub.SLOTS = { TANK = 1, HEAL = 1, DPS = 3 }
 
---- Die Instanzen, in der Reihenfolge der Stufen — die Liste der Vorlage.
+--- Die Instanzen von WoW: Forever, in der Reihenfolge der Stufen — die
+--- neuen wie die klassischen, Fluegel einzeln, wie die Karte von
+--- mobalytics.gg sie fuehrt (Stand 26.09.2026; die Beta oeffnet sie nach
+--- und nach). Was der Client selbst im Kompendium nennt, steht davor
+--- (Dungeons()); was hier fehlt, tippt man ein.
 Dungeonhub.DUNGEONS = {
-    "Ragefire Chasm", "Wailing Caverns", "The Deadmines", "Shadowfang Keep",
-    "Blackfathom Deeps", "The Stockade", "Gnomeregan", "Razorfen Kraul",
-    "Scarlet Monastery", "Razorfen Downs", "Uldaman", "Zul'Farrak",
-    "Maraudon", "Sunken Temple", "Blackrock Depths", "Lower Blackrock Spire",
-    "Upper Blackrock Spire", "Scholomance", "Stratholme", "Dire Maul",
+    "Ragefire Chasm", "Hall of Thanes", "Ruins of Lordaeron", "Wailing Caverns",
+    "The Deadmines", "Shadowfang Keep", "Blackfathom Deeps", "The Stockade",
+    "Excavation Site", "City of Dalaran", "Gnomeregan", "Razorfen Kraul",
+    "Scarlet Monastery Graveyard", "Scarlet Monastery Library",
+    "The Drowned City", "Scarlet Monastery Armory", "Razorfen Downs",
+    "Scarlet Monastery Cathedral", "Krol'dok", "Uldaman", "Zul'Farrak",
+    "Maraudon", "Alcaz Prison", "The Temple of Atal'Hakkar", "Blackrock Depths",
+    "Dire Maul East", "Lower Blackrock Spire", "Blackmaw Hold",
+    "Dire Maul North", "Dire Maul West", "Scholomance", "Shaper's Terrace",
+    "Stratholme Main Gate", "Stratholme Service Gate", "Upper Blackrock Spire",
+}
+
+--- Die Stufen dazu, fuer die Liste — nicht fuer die Nachricht.
+Dungeonhub.LEVELS = {
+    ["Ragefire Chasm"] = "13–18", ["Hall of Thanes"] = "13–18", ["Ruins of Lordaeron"] = "15–20",
+    ["Wailing Caverns"] = "17–24", ["The Deadmines"] = "17–26", ["Shadowfang Keep"] = "22–30",
+    ["Blackfathom Deeps"] = "24–32", ["The Stockade"] = "24–32", ["Excavation Site"] = "24–29",
+    ["City of Dalaran"] = "28–33", ["Gnomeregan"] = "29–38", ["Razorfen Kraul"] = "29–38",
+    ["Scarlet Monastery Graveyard"] = "30–38", ["Scarlet Monastery Library"] = "33–41",
+    ["The Drowned City"] = "35–40", ["Scarlet Monastery Armory"] = "36–44", ["Razorfen Downs"] = "37–46",
+    ["Scarlet Monastery Cathedral"] = "38–46", ["Krol'dok"] = "40–45", ["Uldaman"] = "41–51",
+    ["Zul'Farrak"] = "44–54", ["Maraudon"] = "46–55", ["Alcaz Prison"] = "48–53",
+    ["The Temple of Atal'Hakkar"] = "50–60", ["Blackrock Depths"] = "52–60", ["Dire Maul East"] = "54–60",
+    ["Lower Blackrock Spire"] = "55–60", ["Blackmaw Hold"] = "55–60", ["Dire Maul North"] = "56–60",
+    ["Dire Maul West"] = "56–60", ["Scholomance"] = "58–60", ["Shaper's Terrace"] = "58–60",
+    ["Stratholme Main Gate"] = "58–60", ["Stratholme Service Gate"] = "58–60", ["Upper Blackrock Spire"] = "59–60",
 }
 
 Dungeonhub.runs = {}

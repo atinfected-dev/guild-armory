@@ -99,7 +99,10 @@ function View:Create(parent)
         width = 70, placeholder = L.DH_DUNGEON_LIST,
         getOptions = function()
             local out = {}
-            for _, name in ipairs((GA.Modules.Dungeonhub:Dungeons())) do out[#out + 1] = { text = name, value = name } end
+            local levels = GA.Modules.Dungeonhub.LEVELS
+            for _, name in ipairs((GA.Modules.Dungeonhub:Dungeons())) do
+                out[#out + 1] = { text = levels[name] and (name .. "  " .. levels[name]) or name, value = name }
+            end
             return out
         end,
         onSelect = function(value)
