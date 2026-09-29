@@ -4,6 +4,11 @@
 
 In progress.
 
+**Asking for a tradable item links the item.** The whisper and the
+guild-chat announcement carried the bare item string; now the client
+builds the real link from it, suffix included, and only falls back to
+the name when it does not know the item yet.
+
 ## 0.1.24
 
 Invite all in the Dungeonhub skips whoever is offline and says so.

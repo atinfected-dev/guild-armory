@@ -136,6 +136,20 @@ local function itemKey(link)
 end
 
 --- Baut aus der uebertragenen Kennung wieder einen Link.
+--- Ein Link FUER DEN CHAT: der volle (|Hitem:…|h[Name]|h), nie der nackte
+--- Itemstring. GESEHEN 29.09.2026: "Could I have item:5212:…?" im
+--- Fluestern — was hier als link lag, war der Itemstring aus der
+--- Nachricht (keyToLink), und der ist fuer den Chat nur Text. Der Client
+--- baut aus dem Itemstring den echten Link samt Suffix (GetItemInfo);
+--- erst wenn er ihn nicht kennt, bleibt der Name, dann die Kennung.
+local function chatLink(link, itemID)
+    if type(link) == "string" and string.find(link, "|H", 1, true) then return link end
+    local info = Compat.GetItemInfo(link or itemID)
+    if info and info.link then return info.link end
+    if info and info.name then return info.name end
+    return nil
+end
+
 local function keyToLink(itemString)
     if type(itemString) ~= "string" or itemString == "" then return nil end
     return "item:" .. itemString
@@ -517,8 +531,7 @@ function Tradables:Ask(itemID, owner, link)
         return false, "recent"
     end
 
-    local info = Compat.GetItemInfo(link or itemID)
-    local was = link or (info and info.link) or (info and info.name)
+    local was = chatLink(link, itemID)
         or string.format(GA.L.SLASH_ITEM_FALLBACK, tostring(itemID))
 
     local ok = Compat.SendChatMessage(string.format(GA.L.TRADE_ASK, was),
@@ -548,8 +561,7 @@ function Tradables:Announce()
         -- ID nachgeschlagener Link postet "Nomad Tunic" in den Gildenchat,
         -- und wer darauf klickt, sieht andere Werte als die, die du
         -- anbietest.
-        local info = Compat.GetItemInfo(item.link or item.itemID)
-        local text = item.link or (info and info.link) or (info and info.name)
+        local text = chatLink(item.link, item.itemID)
             or string.format(GA.L.SLASH_ITEM_FALLBACK, item.itemID)
         namen[#namen + 1] = text .. ((item.count or 1) > 1 and (" x" .. item.count) or "")
     end
