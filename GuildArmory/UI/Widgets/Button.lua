@@ -693,11 +693,18 @@ function Widgets.Switch(parent, onToggle)
     local function paint(self)
         local on = self.checked
         local color = on and Theme.color.good or Theme.color.bad
-        for _, t in ipairs({ left, middle, right }) do Theme.Paint(t, color) end
+        -- Kappen und Knopf tragen die runde Textur: TOENEN. Die Mitte ist
+        -- eine Flaeche ohne Textur: malen.
+        if round then
+            Theme.Tint(left, color)
+            Theme.Tint(right, color)
+        end
+        Theme.Paint(middle, color)
         knob:ClearAllPoints()
         local inset = (H - KNOB) / 2
         if on then knob:SetPoint("RIGHT", self, "RIGHT", -inset, 0) else knob:SetPoint("LEFT", self, "LEFT", inset, 0) end
-        Theme.Paint(knob, { 0.96, 0.94, 0.88, 1 })
+        if round then Theme.Tint(knob, { 0.96, 0.94, 0.88, 1 })
+        else Theme.Paint(knob, { 0.96, 0.94, 0.88, 1 }) end
         self:SetAlpha(self.enabled and 1 or 0.45)
     end
 

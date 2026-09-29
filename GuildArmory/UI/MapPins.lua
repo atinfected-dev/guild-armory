@@ -526,7 +526,8 @@ function MapPins:FirePin(index)
     pin.disc = pin:CreateTexture(nil, "BACKGROUND")
     pin.disc:SetAllPoints(pin)
     if Theme.RoundTexture() then pin.disc:SetTexture(Theme.RoundTexture()) end
-    Theme.Paint(pin.disc, { 0.05, 0.07, 0.05, 0.9 })
+    if Theme.RoundTexture() then Theme.Tint(pin.disc, { 0.05, 0.07, 0.05, 0.9 })
+    else Theme.Paint(pin.disc, { 0.05, 0.07, 0.05, 0.9 }) end
     pin.icon = pin:CreateTexture(nil, "ARTWORK")
     pin.icon:SetPoint("TOPLEFT", pin, "TOPLEFT", 4, -4)
     pin.icon:SetPoint("BOTTOMRIGHT", pin, "BOTTOMRIGHT", -4, 4)

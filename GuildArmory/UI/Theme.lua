@@ -342,11 +342,23 @@ local textureProbe
 --- runde Scheiben (die Anzeigen der Bereitschaftsabfrage, Indicator-*);
 --- die werden zuerst probiert, die eigene danach. Ergebnis gemerkt.
 --- @return string|nil pfad  nil, wenn nichts Rundes laedt
+--- TOENT eine Textur, statt sie zu uebermalen. GESEHEN 29.09.2026: Nach
+--- SetTexture(rund) kam Theme.Paint — und das setzt SetColorTexture, das
+--- die Datei durch eine einfarbige Flaeche ERSETZT. Der Kreis war da, er
+--- wurde uebermalt; darum blieben Scheiben, Marken und Schalter eckig.
+--- Fuer alles mit Textur gilt: Tint, nie Paint.
+function Theme.Tint(texture, color)
+    if not texture or not texture.SetVertexColor then return end
+    texture:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+end
+
 function Theme.RoundTexture()
     if Theme.roundTexture ~= nil then return Theme.roundTexture or nil end
+    -- Die eigene zuerst: flach weiss, damit die Toenung die Farbe ist.
+    -- Die Anzeige des Spiels ist schattiert und ein Rueckfall.
     for _, path in ipairs({
-        "Interface\\COMMON\\Indicator-Gray",
         "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga",
+        "Interface\\COMMON\\Indicator-Gray",
     }) do
         if Theme.TextureExists(path) then
             Theme.roundTexture = path

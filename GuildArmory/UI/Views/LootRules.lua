@@ -67,8 +67,12 @@ local function block(parent, number, title, subtitle)
     box.badge:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -8)
     local disc = box.badge:CreateTexture(nil, "BACKGROUND")
     disc:SetAllPoints(box.badge)
-    if Theme.RoundTexture() then disc:SetTexture(Theme.RoundTexture()) end
-    Theme.Paint(disc, Theme.color.heading)
+    if Theme.RoundTexture() then
+        disc:SetTexture(Theme.RoundTexture())
+        Theme.Tint(disc, Theme.color.heading)
+    else
+        Theme.Paint(disc, Theme.color.heading)
+    end
     box.number = Theme.Label(box.badge, tostring(number), fonts.title, Theme.color.windowBg)
     box.number:SetPoint("CENTER", box.badge, "CENTER", 0, 0)
 
