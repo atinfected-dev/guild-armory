@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.24
+## 0.1.25
 
 In progress.
+
+## 0.1.24
+
+Invite all in the Dungeonhub skips whoever is offline and says so.
 
 **Invite all skips the offline.** The game answered "Cannot find
 player" for a member who had signed up and logged off since. The
