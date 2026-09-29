@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.22
+## 0.1.23
 
 In progress.
+
+## 0.1.22
+
+The Dungeonhub — runs with five role places for the next 24 hours, on its own tab — and map pins that choose crest or dot and a size.
 
 **Map pins, your way.** Under Settings · On screen: the pin is the
 class crest on a dark rim, or a plain dot in the class colour; and a
