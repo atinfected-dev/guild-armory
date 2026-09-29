@@ -57,6 +57,8 @@ beside the minimap stays ten seconds instead of six and never repeats;
 "Show notifications" at the top of the Notifications settings turns
 strip and tray off altogether, and the per-kind switches grey out.
 
+
+
 ## 0.1.18
 
 A roster tab that does what the game's guild window does — with guild chat — and the achievements' category chips wrap.
