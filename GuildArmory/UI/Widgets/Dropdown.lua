@@ -50,6 +50,14 @@ local function buildPopup()
     popup:SetScript("OnHide", function(self)
         if self.owner then self.owner:SetOpen(false) end
         self.owner = nil
+        self.render = nil
+    end)
+
+    -- BILDLAUF PER MAUSRAD (29.09.2026): Die Dungeonliste hat 35 Eintraege,
+    -- und "die ersten zwoelf" war eine Liste, die die Haelfte verschwieg.
+    popup:EnableMouseWheel(true)
+    popup:SetScript("OnMouseWheel", function(self, delta)
+        if self.render then self.render((self.offset or 0) - delta * 3) end
     end)
 
     return popup
@@ -159,43 +167,64 @@ function Widgets.Dropdown(parent, options)
         end
 
         local shown = math.min(#entries, MAX_VISIBLE)
+        local maxOffset = math.max(0, #entries - shown)
 
-        for index = 1, math.max(#popup.items, shown) do
-            local item = popup.items[index]
-            if index <= shown then
-                item = getItem(index)
-                local entry = entries[index]
+        --- Zeichnet die Zeilen ab einem Versatz — beim Oeffnen und bei
+        --- jedem Mausrad-Schritt.
+        local function render(offset)
+            offset = math.max(0, math.min(maxOffset, offset or 0))
+            popup.offset = offset
+            for index = 1, math.max(#popup.items, shown) do
+                local item = popup.items[index]
+                if index <= shown then
+                    item = getItem(index)
+                    local entry = entries[index + offset]
 
-                item.label:SetText((entry.indent and "   " or "") .. (entry.text or ""))
-                local color = entry.color or
-                    (entry.disabled and Theme.color.textFaint or Theme.color.text)
-                item.label:SetTextColor(color[1], color[2], color[3])
+                    item.label:SetText((entry.indent and "   " or "") .. (entry.text or ""))
+                    local color = entry.color or
+                        (entry.disabled and Theme.color.textFaint or Theme.color.text)
+                    item.label:SetTextColor(color[1], color[2], color[3])
 
-                item:SetScript("OnClick", function()
-                    popup:Hide()
-                    if not entry.disabled and options.onSelect then
-                        options.onSelect(entry.value, entry)
-                    end
-                end)
-                item:Show()
-            elseif item then
-                item:Hide()
+                    item:SetScript("OnClick", function()
+                        popup:Hide()
+                        if not entry.disabled and options.onSelect then
+                            options.onSelect(entry.value, entry)
+                        end
+                    end)
+                    item:Show()
+                elseif item then
+                    item:Hide()
+                end
             end
+            -- Ein Hinweis unten, wenn es mehr gibt, als zu sehen ist.
+            if popup.more then
+                if maxOffset > 0 then
+                    popup.more:SetText(string.format("%d–%d / %d", offset + 1, offset + shown, #entries))
+                    popup.more:Show()
+                else
+                    popup.more:Hide()
+                end
+            end
+        end
+        if not popup.more then
+            popup.more = Theme.Label(popup, "", Theme.Fonts().small, Theme.color.textFaint)
+            popup.more:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -6, 3)
         end
 
         popup:SetWidth(math.max(self:GetWidth(), options.popupWidth or 0))
-        popup:SetHeight(shown * 18 + 2)
+        popup:SetHeight(shown * 18 + 2 + (maxOffset > 0 and 14 or 0))
         popup:ClearAllPoints()
-        popup:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -1)
+        if options.popupAnchor == "RIGHT" then
+            popup:SetPoint("TOPRIGHT", self, "BOTTOMRIGHT", 0, -1)
+        else
+            popup:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -1)
+        end
         popup.owner = self
+        popup.render = render
+        render(0)
         popup:Show()
 
         self:SetOpen(true)
-
-        if #entries > MAX_VISIBLE then
-            GA.Core.Debug:Print("ui", "Dropdown zeigt %d von %d Eintraegen",
-                MAX_VISIBLE, #entries)
-        end
     end)
 
     dropdown:SetDisplay(nil)

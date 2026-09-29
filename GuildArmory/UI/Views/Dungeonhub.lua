@@ -97,6 +97,7 @@ function View:Create(parent)
     self.dungeonBox:SetMaxLetters(GA.Modules.Dungeonhub.DUNGEON_LEN)
     self.dungeonPick = Widgets.Dropdown(form, {
         width = 70, placeholder = L.DH_DUNGEON_LIST,
+        popupWidth = FORM_W - 28, popupAnchor = "RIGHT",
         getOptions = function()
             local out = {}
             local levels = GA.Modules.Dungeonhub.LEVELS
