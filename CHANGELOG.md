@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.25
+## 0.1.26
 
 In progress.
+
+## 0.1.25
+
+Asking for a tradable item whispers the real item link.
 
 **Asking for a tradable item links the item.** The whisper and the
 guild-chat announcement carried the bare item string; now the client
