@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.20
+## 0.1.21
 
 In progress.
+
+## 0.1.20
+
+The window closes in combat: the secure rank buttons no longer hang on anything inside it.
 
 **The window really closes in combat now.** The secure rank buttons sat
 on their carrier but were still anchored to the roster detail, and a
