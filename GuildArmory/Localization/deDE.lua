@@ -23,6 +23,7 @@ GA.Core.Locale:Register("deDE", {
     SET_NATIVE       = "Fenstervorlagen",
     NAV_ANALYTICS    = "Statistik",
     NAV_SETTINGS     = "Einstellungen",
+    MAIN_COMBAT      = "Nicht im Kampf: Das Fenster traegt die Rang-Knoepfe des Spiels und bleibt zu, bis der Kampf vorbei ist.",
 
     BTN_CLOSE        = "Schliessen",
     BTN_REFRESH      = "Aktualisieren",

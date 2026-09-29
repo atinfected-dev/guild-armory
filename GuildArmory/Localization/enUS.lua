@@ -25,6 +25,7 @@ GA.Core.Locale:Register("enUS", {
     SET_NATIVE       = "Frame templates",
     NAV_ANALYTICS    = "Analytics",
     NAV_SETTINGS     = "Settings",
+    MAIN_COMBAT      = "Not in combat: the window holds the game's own rank buttons and stays closed until the fight ends.",
 
     -- Allgemein
     BTN_CLOSE        = "Close",

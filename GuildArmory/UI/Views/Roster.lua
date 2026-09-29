@@ -356,20 +356,15 @@ function View:BuildDetail(parent, fonts)
     -- GuildPromote aus Addon-Code wird geblockt (gemessen 28.09.2026).
     -- Kennt der Client die Vorlage nicht, bleiben normale Knoepfe, die
     -- sagen, dass es nur in Blizzards Fenster geht.
-    -- Die sicheren Knoepfe haengen NICHT an d, sondern am Traeger neben dem
-    -- Hauptfenster (Widgets.SecureCarrier) — sonst liesse sich das Fenster
-    -- im Kampf nicht schliessen (gemessen 28.09.2026). Verankert sind sie
-    -- weiter an d; der Traeger folgt d in Sichtbarkeit und Ebene.
-    local carrier = Widgets.SecureCarrier()
-    carrier:Follow(d)
-    local main = GA.UI.MainFrame and GA.UI.MainFrame.frame
-    if main and type(main.HookScript) == "function" then
-        -- Das Hauptfenster hebt sich beim Anklicken (SetToplevel); der
-        -- Traeger zieht nach, sonst laegen die Knoepfe darunter.
-        main:HookScript("OnMouseDown", function() if carrier.sync then carrier.sync() end end)
-    end
+    -- DIE SICHEREN KNOEPFE SIND KINDER VON d, und damit ist das Hauptfenster
+    -- im Kampf geschuetzt. Zwei Umwege sind gescheitert (28./29.09.2026):
+    -- ein Traeger neben dem Fenster, an d verankert, sperrte das Fenster
+    -- trotzdem; ein Traeger, der sich aus Bildschirmkoordinaten ueber d
+    -- legt, liess die Pfeile in der Landschaft haengen. Die Antwort ist
+    -- im Hauptfenster: Das Spiel versteckt es beim Kampfbeginn selbst
+    -- (Zustandssteuerung), und danach geht es wieder auf.
     local function macroButton(text, variant)
-        local button = Widgets.SecureMacroButton(carrier, text, variant)
+        local button = Widgets.SecureMacroButton(d, text, variant)
         if button then
             button.onAfter = function() Compat.After(0.5, function() Compat.RequestGuildRoster() end) end
             return button, true
@@ -386,10 +381,7 @@ function View:BuildDetail(parent, fonts)
     d.promote:SetSize(ARROW, ARROW)
     -- Am Frame verankert, nicht an der Ueberschrift: ein geschuetzter
     -- Knopf darf nicht an einer Region haengen (gemessen 28.09.2026).
-    -- AM TRAEGER verankert, nicht an d: Ein geschuetzter Knopf, der an
-    -- einem Rahmen des Fensters haengt, sperrt das Fenster im Kampf
-    -- (gemessen 29.09.2026). Der Traeger liegt deckungsgleich ueber d.
-    d.promote:SetPoint("TOPLEFT", carrier, "TOPLEFT", 12, -86)
+    d.promote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -86)
     if d.promote.SetIcon then d.promote:SetIcon("Interface\\Buttons\\Arrow-Up-Up", 14, "+") end
 
     d.rankNow = CreateFrame("Frame", nil, d)
@@ -404,7 +396,7 @@ function View:BuildDetail(parent, fonts)
 
     d.demote = macroButton("")
     d.demote:SetSize(ARROW, ARROW)
-    d.demote:SetPoint("TOPLEFT", carrier, "TOPLEFT", 12 + ARROW + 4 + (DETAIL_W - 24 - 2 * (ARROW + 4)) + 4, -86)
+    d.demote:SetPoint("LEFT", d.rankNow, "RIGHT", 4, 0)
     if d.demote.SetIcon then d.demote:SetIcon("Interface\\Buttons\\Arrow-Down-Up", 14, "-") end
 
     d.rankHint = Theme.Label(d, "", fonts.small, Theme.color.textFaint)
@@ -657,7 +649,7 @@ function View:ShowInvite(prefill)
         frame:Hide()
         if type(_G.UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GuildArmoryInviteDialog") end
         -- Der sichere Knopf macht das Fenster im Kampf unschliessbar; also
-        -- schliesst das Spiel es dort selbst (siehe Widgets.SecureCarrier).
+        -- schliesst das Spiel es dort selbst, wie das Hauptfenster (MainFrame).
         if type(_G.RegisterStateDriver) == "function" then
             pcall(RegisterStateDriver, frame, "visibility", "[combat]hide")
         end

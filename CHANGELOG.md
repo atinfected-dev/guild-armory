@@ -4,6 +4,13 @@
 
 In progress.
 
+**In combat the window closes itself.** The carrier for the rank
+buttons is gone — it left the arrows hanging in the landscape and the
+window unopenable. The arrows are back inside the roster, which makes
+the window protected in combat, so the game itself hides it when a
+fight starts and it opens again afterwards; trying to open it during a
+fight says why it stays closed.
+
 **Campfires on the map.** When somebody in the guild lights a campfire,
 the people in that zone already got a notification; now the world map
 shows the fire too: the item's own icon on a dark disc where it stands,

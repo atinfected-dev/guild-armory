@@ -145,6 +145,15 @@ function MainFrame:Create()
     frame:SetPoint(saved.point, UIParent, saved.point, saved.x, saved.y)
     frame:SetScale(saved.scale or 1)
     frame:SetFrameStrata("HIGH")
+    -- IM KAMPF VERSTECKT DAS SPIEL DAS FENSTER SELBST. Es traegt die
+    -- sicheren Rang-Knoepfe des Rosters und ist damit im Kampf geschuetzt:
+    -- Addon-Code darf es dann weder schliessen noch oeffnen. Die
+    -- Zustandssteuerung des Spiels darf — sie schliesst es beim
+    -- Kampfbeginn, und nach dem Kampf oeffnet man es wieder wie immer.
+    -- (Gemessen 28./29.09.2026; zwei Traeger-Umwege davor gescheitert.)
+    if type(_G.RegisterStateDriver) == "function" then
+        pcall(RegisterStateDriver, frame, "visibility", "[combat]hide")
+    end
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -559,6 +568,12 @@ function MainFrame:IsVisible() return self.frame and self.frame:IsShown() end
 
 function MainFrame:Show()
     self:Create()
+    if type(_G.InCombatLockdown) == "function" and InCombatLockdown() then
+        -- Ein Aufruf, der geblockt wuerde, wird gar nicht erst gemacht;
+        -- die Meldung sagt, warum das Fenster zu bleibt.
+        GA.Core.Debug:Info("%s", GA.L.MAIN_COMBAT)
+        return
+    end
     self.frame:Show()
     self:ShowView(self.current or Config:GetUI("main").lastView or "dashboard")
 end
