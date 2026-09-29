@@ -308,6 +308,14 @@ function View:FillCard(card, run)
     local teile = {}
     if run.note and run.note ~= "" then teile[#teile + 1] = run.note end
     teile[#teile + 1] = string.format(L.DH_POSTED_AGO, Util.TimeAgo(run.ts or 0))
+    -- Der eigene Stand steht HIER, in der Zeile unter dem Titel — unten
+    -- stehen nur die Knoepfe, und nichts wird mehr abgeschnitten (29.09.2026).
+    local meinStand = Hub:MyRole(run)
+    if run.own then
+        teile[#teile + 1] = string.format(L.DH_IN_AS, roleName(meinStand or "DPS")) .. " · " .. L.DH_LEADER
+    elseif meinStand then
+        teile[#teile + 1] = string.format(L.DH_IN_AS, roleName(meinStand))
+    end
     card.note:SetText(table.concat(teile, " · "))
 
     local width = (card:GetWidth() or 300) - 24
@@ -387,11 +395,11 @@ function View:FillCard(card, run)
     card.action:ClearAllPoints()
     card.action:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 12, 14)
     if run.own then
-        card.action:SetText(string.format(L.DH_IN_AS, roleName(mine or "DPS")) .. " · " .. L.DH_LEADER)
+        card.action:SetText("")
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
         place(2, L.DH_INVITE, function() Hub:InviteAll(run) end, b)
     elseif mine then
-        card.action:SetText(string.format(L.DH_IN_AS, roleName(mine)))
+        card.action:SetText("")
         place(1, L.DH_LEAVE, function()
             local ok, grund = Hub:Leave(run.id)
             if not ok then GA.Core.Debug:Info("%s", L["DH_ERR_" .. tostring(grund)] or tostring(grund)) end
