@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.21
+## 0.1.22
 
 In progress.
+
+## 0.1.21
+
+Campfires as pins on the world map, and in combat the window closes itself instead of getting stuck.
 
 **In combat the window closes itself.** The carrier for the rank
 buttons is gone — it left the arrows hanging in the landscape and the
