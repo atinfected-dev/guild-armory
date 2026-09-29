@@ -4,6 +4,16 @@
 
 In progress.
 
+### Loot rules: four steps and a rail
+
+The rules page reads top to bottom in four numbered blocks — how loot
+is distributed, the council, bidding, and what runs alongside — with
+chips for choices and round switches for on/off. On the right a rail
+says what the blocks add up to, one sentence per line (mode, soft
+reserves, plus one, seats, who bids and for how long), the warnings
+underneath, and at the foot who may change the rules and why. Every
+block measures its own height.
+
 ### Settings: a register
 
 Six sections in a column on the left — Language, Window, On screen,

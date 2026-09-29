@@ -1,21 +1,19 @@
 --[[----------------------------------------------------------------------------
-    UI/Views/LootRules — wie diese Gilde verteilt.
+    UI/Views/LootRules — wie diese Gilde verteilt (Entwurf LR2, 29.09.2026).
 
-    Alles, was eine Lootvergabe regelt, auf einer Seite: ob ein Council
-    abstimmt, wer abstimmen darf, ob Soft Reserves gelten, ob Plus Eins
-    mitlaeuft, welche Antworten die Bieter bekommen.
+    Vier nummerierte Bloecke von oben nach unten — Verteilart, Council,
+    Bieten, Nebenher — und rechts eine Schiene, die sagt, was die Bloecke
+    ZUSAMMEN ergeben: was heute Abend gilt, Satz fuer Satz, darunter die
+    Warnungen, darunter wer hier ueberhaupt aendern darf.
 
     WARUM EINE EIGENE SEITE UND NICHT DREI KAESTCHEN IN DEN EINSTELLUNGEN.
 
-    Diese Schalter ergeben ZUSAMMEN eine Regel. "Council aus" und "jeder
+    Diese Schalter ergeben zusammen eine Regel. "Council aus" und "jeder
     darf abstimmen" widersprechen sich; "Soft Reserves an" ohne offene
     Runde zeigt eine leere Liste, die nie jemand fuellt. Wer sie einzeln
     verstellt, ohne die anderen zu sehen, bekommt einen Abend, den niemand
-    erklaeren kann.
-
-    Deshalb steht unter jedem Block, was er BEWIRKT, und ganz unten eine
-    Zusammenfassung in einem Satz: was heute Abend gilt. Wer die liest,
-    muss die Schalter nicht im Kopf zusammensetzen.
+    erklaeren kann. Deshalb steht die Zusammenfassung DANEBEN, nicht
+    darunter: Sie aendert sich mit jedem Klick, und man sieht es.
 
     Die Hoehen werden GEMESSEN (Widgets.Stack), nicht gesetzt: Eine feste
     Hoehe fuer umbrechenden Text ist eine Wette auf Sprache und
@@ -32,10 +30,14 @@ local L = GA.L
 
 local Config = GA.Core.Config
 
---- Die drei Verteilarten, in der Reihenfolge der Knoepfe.
+local RAIL_W = 250
+local BLOCK_HEAD = 40
+local CIRCLE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
+--- Die vier Verteilarten, in der Reihenfolge der Chips.
 ---
---- In ALLEN dreien vergibt am Ende der Plündermeister. Das ist kein
---- Zufall, sondern der Grund, warum es eine Seite und nicht drei
+--- In ALLEN vieren vergibt am Ende der Plündermeister. Das ist kein
+--- Zufall, sondern der Grund, warum es eine Seite und nicht vier
 --- Verfahren gibt.
 local MODES = {
     { key = "COUNCIL", label = "LR_MODE_COUNCIL" },
@@ -44,12 +46,111 @@ local MODES = {
     { key = "DKP",     label = "LR_MODE_DKP" },
 }
 
---- Wer abstimmen darf, in der Reihenfolge der Knoepfe.
+--- Wer abstimmen darf, in der Reihenfolge der Chips.
 local VOTERS = {
     { key = "COUNCIL",    label = "LR_VOTE_COUNCIL" },
     { key = "LOOTMASTER", label = "LR_VOTE_LOOTMASTER" },
     { key = "ALL",        label = "LR_VOTE_ALL" },
 }
+
+-- ================================================================== Helfer ----
+
+--- Ein Block: Nummer im goldenen Kreis, Titel, Untertitel, darunter der
+--- Inhalt (block.content), dessen Hoehe Relayout misst.
+local function block(parent, number, title, subtitle)
+    local fonts = Theme.Fonts()
+    local box = Widgets.Inset(parent)
+    box:SetHeight(100)
+
+    box.badge = CreateFrame("Frame", nil, box)
+    box.badge:SetSize(26, 26)
+    box.badge:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -8)
+    local disc = box.badge:CreateTexture(nil, "BACKGROUND")
+    disc:SetAllPoints(box.badge)
+    if Theme.TextureExists(CIRCLE) then disc:SetTexture(CIRCLE) end
+    Theme.Paint(disc, Theme.color.heading)
+    box.number = Theme.Label(box.badge, tostring(number), fonts.title, Theme.color.windowBg)
+    box.number:SetPoint("CENTER", box.badge, "CENTER", 0, 0)
+
+    box.title = Theme.Label(box, title, fonts.title, Theme.color.heading)
+    box.title:SetPoint("LEFT", box.badge, "RIGHT", 10, 0)
+    box.subtitle = Theme.Label(box, subtitle or "", fonts.small, Theme.color.textDim)
+    box.subtitle:SetPoint("LEFT", box.title, "RIGHT", 10, -1)
+    box.subtitle:SetPoint("RIGHT", box, "RIGHT", -12, 0)
+    box.subtitle:SetJustifyH("LEFT")
+    box.subtitle:SetWordWrap(false)
+
+    box.content = CreateFrame("Frame", nil, box)
+    box.content:SetPoint("TOPLEFT", box, "TOPLEFT", 48, -BLOCK_HEAD)
+    box.content:SetPoint("RIGHT", box, "RIGHT", -14, 0)
+    box.content:SetHeight(1)
+    return box
+end
+
+--- Eine Zeile mit Schalter rechts: Beschriftung links, der Schalter am
+--- rechten Rand des Inhalts. Der Hinweis dazu ist eine eigene Beschriftung
+--- darunter (Relayout stellt sie mit stapel:Text).
+local function switchLine(parent, text, onToggle)
+    local fonts = Theme.Fonts()
+    local line = CreateFrame("Frame", nil, parent)
+    line:SetHeight(26)
+    line.label = Theme.Label(line, text, fonts.body, Theme.color.text)
+    line.label:SetPoint("LEFT", line, "LEFT", 0, 0)
+    line.label:SetJustifyH("LEFT")
+    line.label:SetWordWrap(false)
+    line.chip = Theme.Label(line, "", fonts.small, Theme.color.textFaint)
+    line.chip:SetJustifyH("RIGHT")
+    line.switch = Widgets.Switch(line, onToggle)
+    line.switch:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+    line.chip:SetPoint("RIGHT", line.switch, "LEFT", -10, 0)
+    line.label:SetPoint("RIGHT", line.chip, "LEFT", -8, 0)
+    function line:SetChecked(on) self.switch:SetChecked(on) end
+    function line:SetEnabledState(enabled, reason) self.switch:SetEnabledState(enabled, reason) end
+    return line
+end
+
+--- Chips mit ihrer natuerlichen Breite nebeneinander, umbrechend, wenn
+--- die Zeile voll ist. Widgets.Stack:Row verteilt gleichmaessig — bei
+--- "Loot master only" neben "All" saehe das nach Tabelle aus.
+local function chipRow(stapel, label, chips, abstand)
+    stapel.y = stapel.y - (abstand or 0)
+    local x = 0
+    local rowTop = stapel.y
+    local rowHeight = 0
+    if label then
+        stapel:Text(label, 0, 0)
+        stapel.y = stapel.y - 4
+        rowTop = stapel.y
+    end
+    for _, chip in ipairs(chips) do
+        local w = chip:GetWidth() or 60
+        if x > 0 and x + w > stapel.breite then
+            x = 0
+            rowTop = rowTop - rowHeight - 4
+            rowHeight = 0
+        end
+        chip:ClearAllPoints()
+        chip:SetPoint("TOPLEFT", stapel.content, "TOPLEFT", x, rowTop)
+        x = x + w + 4
+        rowHeight = math.max(rowHeight, chip:GetHeight() or 17)
+    end
+    stapel.y = rowTop - rowHeight
+end
+
+--- Eine Reihe von Chips, von denen genau einer gedrueckt ist.
+local function exclusiveChips(parent, entries, onPick)
+    local chips = {}
+    for _, entry in ipairs(entries) do
+        local chip = Widgets.Chip(parent, entry.text, function(_, self)
+            -- Ein gedrueckter Chip bleibt gedrueckt: Auswahl, kein Umschalter.
+            onPick(entry.key)
+        end)
+        chip:SetHeight(20)
+        chip.key = entry.key
+        chips[#chips + 1] = chip
+    end
+    return chips
+end
 
 -- ================================================================== Aufbau ----
 
@@ -57,213 +158,172 @@ function LootRules:Create(parent)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetAllPoints(parent)
     frame:Hide()
-
     local fonts = Theme.Fonts()
-    local pad, gap = 10, 8
+    local pad = 4
 
-    -- Eine Spalte mit Bildlauf: Die Seite waechst mit den Erklaerungen, und
-    -- die sind in manchen Sprachen deutlich laenger.
+    -- ------------------------------------------------------- Schiene rechts -
+    local rail = Widgets.Inset(frame)
+    rail:SetWidth(RAIL_W)
+    rail:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -pad, -pad)
+    rail:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+    self.rail = rail
+
+    self.railHead = Theme.Label(rail, string.upper(L.LR_SUMMARY), fonts.heading, Theme.color.goldDim)
+    self.railHead:SetPoint("TOPLEFT", rail, "TOPLEFT", 14, -14)
+
+    -- Die Saetze der Zusammenfassung: je einer mit goldener Kante. Ein
+    -- Vorrat, weil die Zahl der Saetze von den Schaltern abhaengt.
+    self.summaryLines = {}
+    for index = 1, 6 do
+        local line = CreateFrame("Frame", nil, rail)
+        line:SetHeight(20)
+        line.edge = Theme.Fill(line, Theme.color.goldMid)
+        line.edge:ClearAllPoints()
+        line.edge:SetPoint("TOPLEFT", line, "TOPLEFT", 0, 0)
+        line.edge:SetPoint("BOTTOMLEFT", line, "BOTTOMLEFT", 0, 0)
+        line.edge:SetWidth(2)
+        line.text = Theme.Label(line, "", fonts.body, Theme.color.goldBright)
+        line.text:SetPoint("TOPLEFT", line, "TOPLEFT", 10, -2)
+        line.text:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+        line.text:SetJustifyH("LEFT")
+        line:Hide()
+        self.summaryLines[index] = line
+    end
+
+    self.warnHead = Theme.Label(rail, string.upper(L.LR_WARNINGS), fonts.heading, Theme.color.warn)
+    self.warning = Theme.Label(rail, "", fonts.small, Theme.color.warn)
+    self.warning:SetJustifyH("LEFT")
+    self.warning:SetSpacing(2)
+
+    -- Wer aendern darf, steht unten in der Schiene — gesperrt oder nicht,
+    -- der Grund steht da. Ein ausgegrautes Fenster ohne Erklaerung sieht
+    -- aus wie ein Fehler.
+    self.permission = Theme.Label(rail, "", fonts.small, Theme.color.textDim)
+    self.permission:SetPoint("BOTTOMLEFT", rail, "BOTTOMLEFT", 14, 48)
+    self.permission:SetPoint("RIGHT", rail, "RIGHT", -12, 0)
+    self.permission:SetJustifyH("LEFT")
+    self.permission:SetSpacing(2)
+
+    -- DER WEG ZU DEN PUNKTEN. In der Schiene und nicht beim Modus-Chip: Man
+    -- oeffnet die Rangliste auch dann, wenn heute nicht mit DKP verteilt
+    -- wird — etwa um einen Nachtrag zu buchen.
+    self.dkpButton = Widgets.Button(rail, L.DKP_OPEN, function() GA.UI.DkpFrame:Toggle() end)
+    self.dkpButton:SetHeight(22)
+    self.dkpButton:SetPoint("BOTTOMLEFT", rail, "BOTTOMLEFT", 12, 12)
+    self.dkpButton:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -12, 12)
+
+    -- ------------------------------------------------------- Spalte links ---
     self.column = Widgets.ScrollArea(frame)
     self.column:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -pad)
-    self.column:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
-
+    self.column:SetPoint("BOTTOMRIGHT", rail, "BOTTOMLEFT", -8, 0)
     local inhalt = self.column.content
 
-    -- ------------------------------------------------------- Council --------
-    local council = Widgets.Panel(inhalt, L.LR_COUNCIL)
-    council:SetPoint("TOPLEFT", inhalt, "TOPLEFT", 0, 0)
-    council:SetPoint("RIGHT", inhalt, "RIGHT", 0, 0)
-    council:SetHeight(200)
-    self.councilPanel = council
+    -- 1 · Verteilart
+    self.modeBlock = block(inhalt, 1, L.LR_BLOCK_MODE, L.LR_BLOCK_MODE_SUB)
+    self.modeBlock:SetPoint("TOPLEFT", inhalt, "TOPLEFT", 0, 0)
+    self.modeBlock:SetPoint("RIGHT", inhalt, "RIGHT", -4, 0)
+    local modeEntries = {}
+    for _, entry in ipairs(MODES) do modeEntries[#modeEntries + 1] = { key = entry.key, text = L[entry.label] } end
+    self.modeChips = exclusiveChips(self.modeBlock.content, modeEntries, function(key)
+        Config:Set("lootMode", key)
+        -- Die alte Einstellung mitziehen, damit ein aelterer Client in
+        -- derselben Gilde nicht ploetzlich anders verteilt.
+        Config:Set("councilEnabled", key == "COUNCIL")
+        self:Refresh()
+    end)
+    self.modeHint = Theme.Label(self.modeBlock.content, "", fonts.small, Theme.color.textDim)
 
-    self.modeLabel = Theme.Label(council.content, "", fonts.row, Theme.color.text)
-    self.modeButtons = {}
-    for _, entry in ipairs(MODES) do
-        local button = Widgets.Button(council.content, L[entry.label], function()
-            Config:Set("lootMode", entry.key)
-            -- Die alte Einstellung mitziehen, damit ein aelterer Client in
-            -- derselben Gilde nicht ploetzlich anders verteilt.
-            Config:Set("councilEnabled", entry.key == "COUNCIL")
-            self:Refresh()
-        end)
-        button:SetHeight(20)
-        button.modeKey = entry.key
-        self.modeButtons[#self.modeButtons + 1] = button
-    end
-    self.permission = Theme.Label(council.content, "", fonts.small, Theme.color.warn)
-    self.councilHint = Theme.Label(council.content, L.LR_COUNCIL_HINT,
-        fonts.small, Theme.color.textDim)
+    -- 2 · Council
+    self.councilBlock = block(inhalt, 2, L.LR_BLOCK_COUNCIL, L.LR_BLOCK_COUNCIL_SUB)
+    self.councilBlock:SetPoint("TOPLEFT", self.modeBlock, "BOTTOMLEFT", 0, -8)
+    self.councilBlock:SetPoint("RIGHT", inhalt, "RIGHT", -4, 0)
+    self.voterLabel = Theme.Label(self.councilBlock.content, "", fonts.body, Theme.color.text)
+    local voterEntries = {}
+    for _, entry in ipairs(VOTERS) do voterEntries[#voterEntries + 1] = { key = entry.key, text = L[entry.label] } end
+    self.voterChips = exclusiveChips(self.councilBlock.content, voterEntries, function(key)
+        Config:Set("voteRole", key)
+        self:Refresh()
+    end)
+    self.voterHint = Theme.Label(self.councilBlock.content, L.LR_VOTE_HINT, fonts.small, Theme.color.textDim)
+    self.rotationLine = switchLine(self.councilBlock.content, L.LR_ROTATION, function(on)
+        Config:Set("rotationEnabled", on)
+        self:Refresh()
+    end)
+    self.rotationHint = Theme.Label(self.councilBlock.content, L.LR_ROTATION_HINT, fonts.small, Theme.color.textDim)
 
-    self.voterLabel = Theme.Label(council.content, "", fonts.row, Theme.color.text)
-    self.voterButtons = {}
-    for _, entry in ipairs(VOTERS) do
-        local button = Widgets.Button(council.content, L[entry.label], function()
-            Config:Set("voteRole", entry.key)
-            self:Refresh()
-        end)
-        button:SetHeight(20)
-        button.voteKey = entry.key
-        self.voterButtons[#self.voterButtons + 1] = button
-    end
-    self.voterHint = Theme.Label(council.content, L.LR_VOTE_HINT,
-        fonts.small, Theme.color.textDim)
-
-    -- WER UEBERHAUPT TEILNIMMT. Steht beim Council, weil es dieselbe Frage
-    -- ist wie "wer darf abstimmen" — nur eine Ebene davor.
-    self.scopeLabel = Theme.Label(council.content, "", fonts.row, Theme.color.text)
-    self.scopeButtons = {}
-    for _, key in ipairs({ "GUILD", "RAID" }) do
-        local button = Widgets.Button(council.content, L["LR_SCOPE_" .. key], function()
-            Config:Set("sessionScope", key)
-            self:Refresh()
-        end)
-        button:SetHeight(20)
-        button.scopeKey = key
-        self.scopeButtons[#self.scopeButtons + 1] = button
-    end
-    self.scopeHint = Theme.Label(council.content, "", fonts.small, Theme.color.textDim)
-
-    -- ------------------------------------------------------- Antworten ------
-    local antworten = Widgets.Panel(inhalt, L.LR_RESPONSES)
-    antworten:SetPoint("TOPLEFT", council, "BOTTOMLEFT", 0, -gap)
-    antworten:SetPoint("RIGHT", inhalt, "RIGHT", 0, 0)
-    antworten:SetHeight(200)
-    self.responsePanel = antworten
-
-    self.responseHint = Theme.Label(antworten.content, L.LR_RESPONSES_HINT,
-        fonts.small, Theme.color.textDim)
-
-    -- Ein Kaestchen je Antwort. "Pass" ist dabei, aber nicht abwaehlbar:
-    -- Wer nicht will, muss das sagen koennen — sonst bleibt nur Schweigen,
-    -- und das ist von "noch nicht geantwortet" nicht zu unterscheiden.
-    self.responseBoxes = {}
+    -- 3 · Bieten
+    self.bidBlock = block(inhalt, 3, L.LR_BLOCK_BIDDING, L.LR_BLOCK_BIDDING_SUB)
+    self.bidBlock:SetPoint("TOPLEFT", self.councilBlock, "BOTTOMLEFT", 0, -8)
+    self.bidBlock:SetPoint("RIGHT", inhalt, "RIGHT", -4, 0)
+    self.responseLabel = Theme.Label(self.bidBlock.content, L.LR_RESPONSES, fonts.body, Theme.color.text)
+    -- Ein Chip je Antwort. "Pass" ist dabei, aber nicht abwaehlbar: Wer
+    -- nicht will, muss das sagen koennen — sonst bleibt nur Schweigen, und
+    -- das ist von "noch nicht geantwortet" nicht zu unterscheiden.
+    self.responseChips = {}
     for _, entry in ipairs(GA.Data.Schema.DefaultResponses) do
-        local box = Widgets.CheckBox(antworten.content, entry.label,
-            function(checked)
-                local aktiv = Config:Get("activeResponses")
-                if type(aktiv) ~= "table" then
-                    aktiv = {}
-                    for _, e in ipairs(GA.Data.Schema.DefaultResponses) do
-                        aktiv[e.key] = true
-                    end
-                end
-                aktiv[entry.key] = checked or nil
-                Config:Set("activeResponses", aktiv)
-                self:Refresh()
-            end)
-        box.responseKey = entry.key
-        box.color = entry.color
-        self.responseBoxes[#self.responseBoxes + 1] = box
+        local chip = Widgets.Chip(self.bidBlock.content, entry.label, function(pressed)
+            if entry.key == "PASS" then return end
+            local aktiv = Config:Get("activeResponses")
+            if type(aktiv) ~= "table" then
+                aktiv = {}
+                for _, e in ipairs(GA.Data.Schema.DefaultResponses) do aktiv[e.key] = true end
+            end
+            aktiv[entry.key] = pressed or nil
+            Config:Set("activeResponses", aktiv)
+            self:Refresh()
+        end)
+        chip:SetHeight(20)
+        chip.responseKey = entry.key
+        self.responseChips[#self.responseChips + 1] = chip
     end
+    self.responseHint = Theme.Label(self.bidBlock.content, L.LR_RESPONSES_HINT, fonts.small, Theme.color.textDim)
 
-    -- ------------------------------------------------------- Verfahren ------
-    local verfahren = Widgets.Panel(inhalt, L.LR_RULES)
-    verfahren:SetPoint("TOPLEFT", antworten, "BOTTOMLEFT", 0, -gap)
-    verfahren:SetPoint("RIGHT", inhalt, "RIGHT", 0, 0)
-    verfahren:SetHeight(220)
-    self.rulesPanel = verfahren
-
-    self.softResBox = Widgets.CheckBox(verfahren.content, L.LR_SOFTRES,
-        function(checked)
-            Config:Set("softResEnabled", checked)
-            self:Refresh()
-        end)
-    self.softResHint = Theme.Label(verfahren.content, L.LR_SOFTRES_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.plusOneBox = Widgets.CheckBox(verfahren.content, L.LR_PLUSONE,
-        function(checked)
-            Config:Set("plusOneEnabled", checked)
-            self:Refresh()
-        end)
-    self.plusOneHint = Theme.Label(verfahren.content, L.LR_PLUSONE_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.rotationBox = Widgets.CheckBox(verfahren.content, L.LR_ROTATION,
-        function(checked)
-            Config:Set("rotationEnabled", checked)
-            self:Refresh()
-        end)
-    self.rotationHint = Theme.Label(verfahren.content, L.LR_ROTATION_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.autoTradeBox = Widgets.CheckBox(verfahren.content, L.LR_AUTOTRADE,
-        function(checked)
-            Config:Set("autoTrade", checked)
-            self:Refresh()
-        end)
-    self.autoTradeHint = Theme.Label(verfahren.content, L.LR_AUTOTRADE_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.quietBox = Widgets.CheckBox(verfahren.content, L.LR_QUIETROLLS,
-        function(checked)
-            Config:Set("quietRolls", checked)
-            self:Refresh()
-        end)
-    self.quietHint = Theme.Label(verfahren.content, L.LR_QUIETROLLS_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.outbidBox = Widgets.CheckBox(verfahren.content, L.LR_OUTBID,
-        function(checked)
-            Config:Set("dkpOutbidWhisper", checked)
-            self:Refresh()
-        end)
-    self.outbidHint = Theme.Label(verfahren.content, L.LR_OUTBID_HINT,
-        fonts.small, Theme.color.textDim)
+    -- WER UEBERHAUPT TEILNIMMT: dieselbe Frage wie "wer darf abstimmen",
+    -- nur eine Ebene davor.
+    self.scopeLabel = Theme.Label(self.bidBlock.content, "", fonts.body, Theme.color.text)
+    self.scopeChips = exclusiveChips(self.bidBlock.content,
+        { { key = "GUILD", text = L.LR_SCOPE_GUILD }, { key = "RAID", text = L.LR_SCOPE_RAID } },
+        function(key) Config:Set("sessionScope", key) self:Refresh() end)
+    self.scopeHint = Theme.Label(self.bidBlock.content, "", fonts.small, Theme.color.textDim)
 
     -- DIE GEBOTSFRIST. Feste Stufen statt eines Eingabefelds: Es gibt
     -- keinen Grund fuer 47 Sekunden, und eine Zahl, die man eintippt, ist
     -- eine, die man vertippen kann.
-    self.timerLabel = Theme.Label(verfahren.content, "", fonts.row, Theme.color.text)
-    self.timerButtons = {}
+    self.timerLabel = Theme.Label(self.bidBlock.content, "", fonts.body, Theme.color.text)
+    local timerEntries = {}
     for _, sekunden in ipairs({ 0, 60, 120, 180 }) do
-        local button = Widgets.Button(verfahren.content,
-            sekunden == 0 and L.LR_TIMER_OFF or string.format(L.LR_TIMER_SECONDS, sekunden),
-            function()
-                Config:Set("bidSeconds", sekunden)
-                self:Refresh()
-            end)
-        button:SetHeight(20)
-        button.seconds = sekunden
-        self.timerButtons[#self.timerButtons + 1] = button
+        timerEntries[#timerEntries + 1] = { key = sekunden,
+            text = sekunden == 0 and L.LR_TIMER_OFF or string.format(L.LR_TIMER_SECONDS, sekunden) }
     end
-    self.timerHint = Theme.Label(verfahren.content, L.LR_TIMER_HINT,
-        fonts.small, Theme.color.textDim)
-
-    self.sourceLabel = Theme.Label(verfahren.content, "", fonts.row, Theme.color.text)
-    self.sourceButtons = {}
-    for _, key in ipairs({ "MASTER", "CHAT" }) do
-        local button = Widgets.Button(verfahren.content, L["LR_ROLLSRC_" .. key], function()
-            Config:Set("rollSource", key)
-            self:Refresh()
-        end)
-        button:SetHeight(20)
-        button.sourceKey = key
-        self.sourceButtons[#self.sourceButtons + 1] = button
-    end
-    self.sourceHint = Theme.Label(verfahren.content, "", fonts.small, Theme.color.textDim)
-
-    -- ------------------------------------------------------- Ergebnis -------
-    local ergebnis = Widgets.Panel(inhalt, L.LR_SUMMARY)
-    ergebnis:SetPoint("TOPLEFT", verfahren, "BOTTOMLEFT", 0, -gap)
-    ergebnis:SetPoint("RIGHT", inhalt, "RIGHT", 0, 0)
-    ergebnis:SetHeight(110)
-    self.summaryPanel = ergebnis
-
-    -- WAS HEUTE ABEND GILT, in einem Satz. Die Schalter darueber ergeben
-    -- zusammen eine Regel; wer sie einzeln liest, setzt sie im Kopf falsch
-    -- zusammen.
-    -- DER WEG ZU DEN PUNKTEN. Er steht bei der Zusammenfassung und nicht
-    -- beim Modusknopf: Man oeffnet die Rangliste auch dann, wenn heute
-    -- gar nicht mit DKP verteilt wird — etwa um einen Nachtrag zu buchen.
-    self.dkpButton = Widgets.Button(ergebnis.content, L.DKP_OPEN, function()
-        GA.UI.DkpFrame:Toggle()
+    self.timerChips = exclusiveChips(self.bidBlock.content, timerEntries, function(key)
+        Config:Set("bidSeconds", key)
+        self:Refresh()
     end)
-    self.dkpButton:SetHeight(22)
-    self.dkpButton:SetWidth(180)
+    self.timerHint = Theme.Label(self.bidBlock.content, L.LR_TIMER_HINT, fonts.small, Theme.color.textDim)
 
-    self.summary = Theme.Label(ergebnis.content, "", fonts.body, Theme.color.text)
-    self.warning = Theme.Label(ergebnis.content, "", fonts.small, Theme.color.warn)
+    -- 4 · Nebenher
+    self.sideBlock = block(inhalt, 4, L.LR_BLOCK_ALONGSIDE, L.LR_BLOCK_ALONGSIDE_SUB)
+    self.sideBlock:SetPoint("TOPLEFT", self.bidBlock, "BOTTOMLEFT", 0, -8)
+    self.sideBlock:SetPoint("RIGHT", inhalt, "RIGHT", -4, 0)
+    local side = self.sideBlock.content
+    self.softResLine = switchLine(side, L.LR_SOFTRES, function(on) Config:Set("softResEnabled", on) self:Refresh() end)
+    self.softResHint = Theme.Label(side, L.LR_SOFTRES_HINT, fonts.small, Theme.color.textDim)
+    self.plusOneLine = switchLine(side, L.LR_PLUSONE, function(on) Config:Set("plusOneEnabled", on) self:Refresh() end)
+    self.plusOneHint = Theme.Label(side, L.LR_PLUSONE_HINT, fonts.small, Theme.color.textDim)
+    self.autoTradeLine = switchLine(side, L.LR_AUTOTRADE, function(on) Config:Set("autoTrade", on) self:Refresh() end)
+    self.autoTradeHint = Theme.Label(side, L.LR_AUTOTRADE_HINT, fonts.small, Theme.color.textDim)
+    self.outbidLine = switchLine(side, L.LR_OUTBID, function(on) Config:Set("dkpOutbidWhisper", on) self:Refresh() end)
+    self.outbidHint = Theme.Label(side, L.LR_OUTBID_HINT, fonts.small, Theme.color.textDim)
+    self.sourceLabel = Theme.Label(side, "", fonts.body, Theme.color.text)
+    self.sourceChips = exclusiveChips(side,
+        { { key = "MASTER", text = L.LR_ROLLSRC_MASTER }, { key = "CHAT", text = L.LR_ROLLSRC_CHAT } },
+        function(key) Config:Set("rollSource", key) self:Refresh() end)
+    self.sourceHint = Theme.Label(side, "", fonts.small, Theme.color.textDim)
+    self.quietLine = switchLine(side, L.LR_QUIETROLLS, function(on) Config:Set("quietRolls", on) self:Refresh() end)
+    self.quietHint = Theme.Label(side, L.LR_QUIETROLLS_HINT, fonts.small, Theme.color.textDim)
+
+    -- Neu messen, sobald die Breite steht.
+    inhalt:SetScript("OnSizeChanged", function() LootRules:Relayout() end)
 
     self.frame = frame
     return frame
@@ -272,165 +332,124 @@ end
 --- Darfst du diese Regeln aendern?
 ---
 --- Plündermeister und Administrator. Jeder andere sieht die Seite, kann
---- aber nichts verstellen.
----
---- WARUM UEBERHAUPT SPERREN, WENN ES OERTLICHE EINSTELLUNGEN SIND.
----
---- Weil eine Anzeige, die man verstellen kann, ohne dass es etwas bewirkt,
---- schlimmer ist als eine gesperrte. Massgeblich sind die Regeln DESSEN,
---- DER DIE SITZUNG FUEHRT — sie reisen mit der Ankuendigung. Wer hier
---- etwas umstellt, ohne Plündermeister zu sein, aendert nur sein eigenes
---- Bild und wundert sich dann, dass der Abend anders laeuft.
----
---- Die Sperre ist also keine Sicherheitsmassnahme — die waere auf einem
---- fremden Client ohnehin wertlos. Sie sagt die Wahrheit: Hier
---- entscheidest du nichts.
+--- aber nichts verstellen. Die Sperre ist keine Sicherheitsmassnahme —
+--- die waere auf einem fremden Client wertlos. Sie sagt die Wahrheit:
+--- Massgeblich sind die Regeln DESSEN, DER DIE SITZUNG FUEHRT; sie reisen
+--- mit der Ankuendigung. Wer hier etwas umstellt, ohne Plündermeister zu
+--- sein, aendert nur sein eigenes Bild.
 --- @return boolean darf, string|nil grund
 function LootRules:MayEdit()
     local identity = GA.Core.Compat.GetPlayerIdentity()
     if not identity.guid then return false, "noguid" end
-
     if GA.Core.Database:HasAtLeast(identity.guid, GA.const.ROLE_LOOTMASTER) then
         return true
     end
     return false, "role"
 end
 
---- Schaltet alle Bedienelemente scharf oder stumpf.
+--- Schaltet alle Bedienelemente stumpf, wenn man nicht darf.
+---
+--- EINE RECHTEPRUEFUNG NIMMT WEG, SIE GIBT NICHT: Darf man, bleibt stehen,
+--- was Refresh gesetzt hat (etwa der gedrueckte Chip).
 function LootRules:ApplyPermission()
     local darf, grund = self:MayEdit()
-
-    --- EINE RECHTEPRUEFUNG NIMMT WEG, SIE GIBT NICHT.
-    ---
-    --- Vorher setzte sie jedes Element auf "darf" — und loeschte damit,
-    --- was Refresh gerade entschieden hatte: dass der GEWAEHLTE Knopf aus
-    --- ist, weil er kein Ziel mehr ist. Wer darf, sah alle Knoepfe scharf
-    --- und konnte nicht erkennen, was eingestellt war.
-    ---
-    --- Also: Darf man nicht, wird gesperrt. Darf man, bleibt stehen, was
-    --- Refresh gesetzt hat.
     local function setze(element)
-        if not element then return end
-        if darf then return end
+        if not element or darf then return end
         if element.SetEnabledState then element:SetEnabledState(false)
         elseif element.Disable then element:Disable() end
     end
-
-    for _, liste in ipairs({ self.modeButtons, self.voterButtons, self.scopeButtons,
-                            self.sourceButtons, self.timerButtons,
-                            self.responseBoxes }) do
+    for _, liste in ipairs({ self.modeChips, self.voterChips, self.scopeChips,
+                            self.sourceChips, self.timerChips, self.responseChips }) do
         for _, element in ipairs(liste or {}) do setze(element) end
     end
-    for _, box in ipairs({ self.softResBox, self.plusOneBox, self.rotationBox,
-                           self.autoTradeBox, self.quietBox, self.outbidBox }) do
-        setze(box)
+    for _, line in ipairs({ self.rotationLine, self.softResLine, self.plusOneLine,
+                           self.autoTradeLine, self.outbidLine, self.quietLine }) do
+        setze(line)
     end
-
-    -- Der Grund steht DA, nicht nur die Sperre. Ein ausgegrautes Fenster
-    -- ohne Erklaerung sieht aus wie ein Fehler.
-    if self.permission then
-        if darf then
-            self.permission:SetText("")
-        else
-            self.permission:SetText(L["LR_LOCKED_" .. tostring(grund)] or L.LR_LOCKED_role)
-        end
+    if darf then
+        self.permission:SetText(L.LR_RAIL_HINT)
+    else
+        self.permission:SetText(L["LR_LOCKED_" .. tostring(grund)] or L.LR_LOCKED_role)
     end
-
     return darf
 end
 
 -- ================================================================== Layout ----
 
--- LOOTRULES LAYOUT ANFANG (herausgeschnitten von tools/test/lootrules.test.js)
-
---- Setzt alle vier Bloecke neu und misst dabei jede Erklaerung.
+--- Setzt die vier Bloecke und die Schiene neu und misst dabei jede
+--- Erklaerung. Laeuft mehrmals und muss das aushalten; ohne bekannte
+--- Breite wird nichts gesetzt.
 function LootRules:Relayout()
-    if not self.councilPanel then return false end
-    if not self:LayoutCouncil() then return false end
-    self:LayoutResponses()
-    self:LayoutRules()
-    self:LayoutSummary()
-    self:UpdateColumnHeight()
-    return true
-end
-
-function LootRules:LayoutCouncil()
-    local stapel = Widgets.Stack(self.councilPanel.content)
-    if not stapel then return false end
-
-    stapel:Text(self.permission, 0, 0)
-    stapel:Text(self.modeLabel, 0, 6)
-    stapel:Row(self.modeButtons, 0, 4)
-    stapel:Text(self.councilHint, 0, 6)
-    stapel:Text(self.voterLabel, 0, 10)
-    stapel:Row(self.voterButtons, 0, 4)
-    stapel:Text(self.voterHint, 0, 6)
-    stapel:Text(self.scopeLabel, 0, 10)
-    stapel:Row(self.scopeButtons, 0, 4)
-    stapel:Text(self.scopeHint, 0, 6)
-
-    self.councilPanel:SetHeight(stapel:Height() + 24 + 16)
-    return true
-end
-
-function LootRules:LayoutResponses()
-    local stapel = Widgets.Stack(self.responsePanel.content)
-    if not stapel then return end
-
-    stapel:Text(self.responseHint, 0, 0)
-    for _, box in ipairs(self.responseBoxes) do
-        stapel:Add(box, -4, 2)
+    if not self.modeBlock then return false end
+    local function settle(box, stapel)
+        box.content:SetHeight(math.max(1, stapel:Height()))
+        box:SetHeight(BLOCK_HEAD + stapel:Height() + 12)
     end
 
-    self.responsePanel:SetHeight(stapel:Height() + 24 + 16)
-end
+    local s = Widgets.Stack(self.modeBlock.content)
+    if not s then return false end
+    chipRow(s, nil, self.modeChips, 0)
+    s:Text(self.modeHint, 0, 6)
+    settle(self.modeBlock, s)
 
-function LootRules:LayoutRules()
-    local stapel = Widgets.Stack(self.rulesPanel.content)
-    if not stapel then return end
+    s = Widgets.Stack(self.councilBlock.content)
+    chipRow(s, self.voterLabel, self.voterChips, 0)
+    s:Text(self.voterHint, 0, 6)
+    self.rotationLine:SetWidth(s.breite)
+    s:Add(self.rotationLine, 0, 10)
+    s:Text(self.rotationHint, 0, 2)
+    settle(self.councilBlock, s)
 
-    stapel:Add(self.softResBox, -4, 0)
-    stapel:Text(self.softResHint, 4, 2)
-    stapel:Add(self.plusOneBox, -4, 8)
-    stapel:Text(self.plusOneHint, 4, 2)
-    stapel:Add(self.rotationBox, -4, 8)
-    stapel:Text(self.rotationHint, 4, 2)
-    stapel:Add(self.autoTradeBox, -4, 8)
-    stapel:Text(self.autoTradeHint, 4, 2)
-    stapel:Text(self.sourceLabel, 0, 10)
-    stapel:Row(self.sourceButtons, 0, 4)
-    stapel:Text(self.sourceHint, 0, 6)
-    stapel:Add(self.quietBox, -4, 8)
-    stapel:Text(self.quietHint, 4, 2)
-    stapel:Add(self.outbidBox, -4, 8)
-    stapel:Text(self.outbidHint, 4, 2)
-    stapel:Text(self.timerLabel, 0, 10)
-    stapel:Row(self.timerButtons, 0, 4)
-    stapel:Text(self.timerHint, 0, 6)
+    s = Widgets.Stack(self.bidBlock.content)
+    chipRow(s, self.responseLabel, self.responseChips, 0)
+    s:Text(self.responseHint, 0, 6)
+    chipRow(s, self.scopeLabel, self.scopeChips, 10)
+    s:Text(self.scopeHint, 0, 6)
+    chipRow(s, self.timerLabel, self.timerChips, 10)
+    s:Text(self.timerHint, 0, 6)
+    settle(self.bidBlock, s)
 
-    self.rulesPanel:SetHeight(stapel:Height() + 24 + 16)
-end
+    s = Widgets.Stack(self.sideBlock.content)
+    for index, paar in ipairs({
+        { self.softResLine, self.softResHint }, { self.plusOneLine, self.plusOneHint },
+        { self.autoTradeLine, self.autoTradeHint }, { self.outbidLine, self.outbidHint } }) do
+        paar[1]:SetWidth(s.breite)
+        s:Add(paar[1], 0, index > 1 and 10 or 0)
+        s:Text(paar[2], 0, 2)
+    end
+    chipRow(s, self.sourceLabel, self.sourceChips, 10)
+    s:Text(self.sourceHint, 0, 6)
+    self.quietLine:SetWidth(s.breite)
+    s:Add(self.quietLine, 0, 10)
+    s:Text(self.quietHint, 0, 2)
+    settle(self.sideBlock, s)
 
-function LootRules:LayoutSummary()
-    local stapel = Widgets.Stack(self.summaryPanel.content)
-    if not stapel then return end
-
-    stapel:Text(self.summary, 0, 0)
-    stapel:Text(self.warning, 0, 6)
-    stapel:Add(self.dkpButton, 0, 8)
-
-    self.summaryPanel:SetHeight(stapel:Height() + 24 + 16)
-end
-
-function LootRules:UpdateColumnHeight()
-    if not self.column then return end
-    local hoehe = self.councilPanel:GetHeight() + self.responsePanel:GetHeight()
-        + self.rulesPanel:GetHeight() + self.summaryPanel:GetHeight() + 4 * 8
-    self.column.content:SetHeight(math.max(1, hoehe))
+    local total = self.modeBlock:GetHeight() + self.councilBlock:GetHeight()
+        + self.bidBlock:GetHeight() + self.sideBlock:GetHeight() + 3 * 8 + 8
+    self.column.content:SetHeight(math.max(1, total))
     self.column:Refresh()
-end
 
--- LOOTRULES LAYOUT ENDE
+    -- Die Schiene: Saetze, dann Warnungen.
+    local y = -34
+    local railWidth = (self.rail:GetWidth() or RAIL_W) - 26
+    for _, line in ipairs(self.summaryLines) do
+        if line:IsShown() then
+            line:ClearAllPoints()
+            line:SetPoint("TOPLEFT", self.rail, "TOPLEFT", 14, y)
+            line:SetWidth(railWidth)
+            line.text:SetWidth(railWidth - 10)
+            local h = (line.text:GetStringHeight() or 14) + 6
+            line:SetHeight(h)
+            y = y - h - 6
+        end
+    end
+    self.warnHead:ClearAllPoints()
+    self.warnHead:SetPoint("TOPLEFT", self.rail, "TOPLEFT", 14, y - 8)
+    self.warning:ClearAllPoints()
+    self.warning:SetPoint("TOPLEFT", self.warnHead, "BOTTOMLEFT", 0, -4)
+    self.warning:SetWidth(railWidth)
+    return true
+end
 
 -- ================================================================== Refresh ---
 
@@ -441,18 +460,15 @@ local function aktiveAntworten()
     return aktiv
 end
 
---- Der Satz, der beschreibt, was heute Abend gilt.
----
---- Aus den Schaltern ZUSAMMENGESETZT, nicht je Schalter eine Zeile: Die
---- Frage ist "wie verteilen wir heute", nicht "welche Haekchen stehen".
-function LootRules:Describe()
+--- Die Saetze, die beschreiben, was heute Abend gilt — einer je Zeile der
+--- Schiene. Aus den Schaltern ZUSAMMENGESETZT: Die Frage ist "wie
+--- verteilen wir heute", nicht "welche Haekchen stehen".
+function LootRules:DescribeParts()
     local mode = GA.Modules.Session:Mode()
     local wer = Config:Get("voteRole") or "COUNCIL"
-
     local teile = {}
     if mode == "COUNCIL" then
-        teile[#teile + 1] = string.format(L.LR_SUM_COUNCIL,
-            L["LR_VOTE_" .. wer] or wer)
+        teile[#teile + 1] = string.format(L.LR_SUM_COUNCIL, L["LR_VOTE_" .. wer] or wer)
     elseif mode == "SOFTRES" then
         teile[#teile + 1] = L.LR_SUM_SOFTRES_MODE
     elseif mode == "DKP" then
@@ -460,7 +476,6 @@ function LootRules:Describe()
     else
         teile[#teile + 1] = L.LR_SUM_ROLL_MODE
     end
-
     if mode == "COUNCIL" and Config:Get("softResEnabled") ~= false then
         teile[#teile + 1] = L.LR_SUM_SOFTRES
     end
@@ -468,28 +483,32 @@ function LootRules:Describe()
         teile[#teile + 1] = L.LR_SUM_PLUSONE
     end
     if Config:Get("rotationEnabled") then
-        teile[#teile + 1] = string.format(L.LR_SUM_ROTATION,
-            tonumber(Config:Get("rotationSeats")) or 2)
+        teile[#teile + 1] = string.format(L.LR_SUM_ROTATION, tonumber(Config:Get("rotationSeats")) or 2)
     end
+    local bereich = Config:Get("sessionScope") == "RAID" and "RAID" or "GUILD"
+    local frist = tonumber(Config:Get("bidSeconds")) or 0
+    teile[#teile + 1] = string.format(L.LR_SUM_WHO_HOWLONG, L["LR_SCOPE_" .. bereich],
+        frist > 0 and string.format(L.LR_TIMER_WHICH, frist) or L.LR_TIMER_WHICH_OFF)
+    return teile
+end
 
-    return table.concat(teile, " ")
+--- Derselbe Inhalt als ein Satz — fuer die Ankuendigung und den Test.
+function LootRules:Describe()
+    return table.concat(self:DescribeParts(), " ")
 end
 
 --- Widersprueche, die sonst erst am Raidabend auffallen.
 function LootRules:Warnings()
     local out = {}
-
     if GA.Modules.Session:Mode() ~= "COUNCIL" and Config:Get("rotationEnabled") then
         -- Sitze zu verteilen, an denen niemand abstimmen kann, ist kein
         -- Fehler des Codes — aber es fluestert Leute an und verspricht
         -- ihnen etwas, das es nicht gibt.
         out[#out + 1] = L.LR_WARN_ROTATION_NOCOUNCIL
     end
-
     if GA.Modules.Session:Mode() == "COUNCIL" and Config:Get("voteRole") == "ALL" then
         out[#out + 1] = L.LR_WARN_ALL_VOTE
     end
-
     local aktiv = aktiveAntworten()
     if aktiv then
         local anzahl = 0
@@ -498,94 +517,74 @@ function LootRules:Warnings()
         end
         if anzahl == 0 then out[#out + 1] = L.LR_WARN_NO_RESPONSES end
     end
-
     return table.concat(out, "\n")
+end
+
+local function press(chips, field, wert)
+    for _, chip in ipairs(chips) do chip:SetPressed(chip[field] == wert) end
 end
 
 function LootRules:Refresh()
     if not self.frame then return end
-
     local mode = GA.Modules.Session:Mode()
     local council = mode == "COUNCIL"
 
-    self.modeLabel:SetText(string.format(L.LR_MODE_WHICH,
-        L["LR_MODE_" .. mode] or mode))
-    for _, button in ipairs(self.modeButtons) do
-        if button.SetEnabledState then
-            button:SetEnabledState(button.modeKey ~= mode)
-        end
-    end
-    self.councilHint:SetText(L["LR_MODE_" .. mode .. "_HINT"] or "")
+    press(self.modeChips, "key", mode)
+    self.modeHint:SetText(L["LR_MODE_" .. mode .. "_HINT"] or "")
 
     local wer = Config:Get("voteRole") or "COUNCIL"
-    self.voterLabel:SetText(string.format(L.LR_VOTE_WHO,
-        L["LR_VOTE_" .. wer] or wer))
-    for _, button in ipairs(self.voterButtons) do
-        -- Der gewaehlte Knopf ist der ausgegraute: Er ist kein Ziel mehr.
-        if button.SetEnabledState then
-            button:SetEnabledState(council and button.voteKey ~= wer)
-        end
+    self.voterLabel:SetText(string.format(L.LR_VOTE_WHO, L["LR_VOTE_" .. wer] or wer))
+    press(self.voterChips, "key", wer)
+    for _, chip in ipairs(self.voterChips) do
+        -- Ohne Council gibt es keine Abstimmung: Die Chips bleiben stumpf.
+        if council then chip:Enable() else chip:Disable() end
+        chip:SetAlpha(council and 1 or 0.45)
+    end
+    self.rotationLine:SetChecked(Config:Get("rotationEnabled") and true or false)
+    self.rotationLine.chip:SetText(string.format(L.LR_SEATS, tonumber(Config:Get("rotationSeats")) or 2))
+
+    local aktiv = aktiveAntworten()
+    for _, chip in ipairs(self.responseChips) do
+        local an = (aktiv == nil) or (aktiv[chip.responseKey] and true or false)
+        chip:SetPressed(chip.responseKey == "PASS" or an)
+        chip:SetAlpha(chip.responseKey == "PASS" and 0.6 or 1)
     end
 
-    -- Wer teilnimmt. STAND VORHER IN Warnings() — mein Einfuegeanker traf
-    -- die falsche Funktion. Dass die Knoepfe trotzdem richtig aussahen,
-    -- war Zufall: Warnings() laeuft nach ApplyPermission, die anderen
-    -- Knoepfe wurden davor gesetzt und danach ueberschrieben. Eine
-    -- Abfragefunktion, die nebenbei Knoepfe schaltet, macht die
-    -- Reihenfolge zur Verabredung.
     local bereich = Config:Get("sessionScope") == "RAID" and "RAID" or "GUILD"
     self.scopeLabel:SetText(string.format(L.LR_SCOPE_WHICH, L["LR_SCOPE_" .. bereich]))
     self.scopeHint:SetText(L["LR_SCOPE_" .. bereich .. "_HINT"] or "")
-    for _, button in ipairs(self.scopeButtons) do
-        if button.SetEnabledState then
-            button:SetEnabledState(button.scopeKey ~= bereich)
-        end
-    end
-
-    local aktiv = aktiveAntworten()
-    for _, box in ipairs(self.responseBoxes) do
-        local an = (aktiv == nil) or (aktiv[box.responseKey] and true or false)
-        box:SetChecked(box.responseKey == "PASS" or an)
-    end
-
-    self.softResBox:SetChecked(Config:Get("softResEnabled") ~= false)
-    self.plusOneBox:SetChecked(Config:Get("plusOneEnabled") ~= false)
-    self.rotationBox:SetChecked(Config:Get("rotationEnabled") and true or false)
-    self.autoTradeBox:SetChecked(Config:Get("autoTrade") ~= false)
-    local quelle = GA.Modules.Session:RollSource()
-    self.sourceLabel:SetText(string.format(L.LR_ROLLSRC_WHICH,
-        L["LR_ROLLSRC_" .. quelle] or quelle))
-    self.sourceHint:SetText(L["LR_ROLLSRC_" .. quelle .. "_HINT"] or "")
-    for _, button in ipairs(self.sourceButtons) do
-        if button.SetEnabledState then
-            button:SetEnabledState(button.sourceKey ~= quelle)
-        end
-    end
-
-    -- Im leisen Betrieb gibt es keine Chatzeilen, die man ausblenden
-    -- koennte. Ein Kaestchen, das nichts bewirkt, verwirrt mehr als es
-    -- nuetzt.
-    self.outbidBox:SetChecked(Config:Get("dkpOutbidWhisper") ~= false)
+    press(self.scopeChips, "key", bereich)
 
     local frist = tonumber(Config:Get("bidSeconds")) or 0
-    self.timerLabel:SetText(frist > 0
-        and string.format(L.LR_TIMER_WHICH, frist)
-        or L.LR_TIMER_WHICH_OFF)
-    for _, button in ipairs(self.timerButtons) do
-        if button.SetEnabledState then
-            button:SetEnabledState(button.seconds ~= frist)
-        end
-    end
+    self.timerLabel:SetText(frist > 0 and string.format(L.LR_TIMER_WHICH, frist) or L.LR_TIMER_WHICH_OFF)
+    press(self.timerChips, "key", frist)
 
-    self.quietBox:SetChecked(Config:Get("quietRolls") ~= false)
-    if self.quietBox.SetEnabledState then
-        self.quietBox:SetEnabledState(quelle == "CHAT")
-    end
+    self.softResLine:SetChecked(Config:Get("softResEnabled") ~= false)
+    self.plusOneLine:SetChecked(Config:Get("plusOneEnabled") ~= false)
+    self.autoTradeLine:SetChecked(Config:Get("autoTrade") ~= false)
+    self.outbidLine:SetChecked(Config:Get("dkpOutbidWhisper") ~= false)
+
+    local quelle = GA.Modules.Session:RollSource()
+    self.sourceLabel:SetText(string.format(L.LR_ROLLSRC_WHICH, L["LR_ROLLSRC_" .. quelle] or quelle))
+    self.sourceHint:SetText(L["LR_ROLLSRC_" .. quelle .. "_HINT"] or "")
+    press(self.sourceChips, "key", quelle)
+    -- Im leisen Betrieb gibt es keine Chatzeilen, die man ausblenden
+    -- koennte. Ein Schalter, der nichts bewirkt, verwirrt mehr als er nuetzt.
+    self.quietLine:SetChecked(Config:Get("quietRolls") ~= false)
+    self.quietLine:SetEnabledState(quelle == "CHAT", L.LR_ROLLSRC_MASTER_HINT)
 
     self:ApplyPermission()
 
-    self.summary:SetText(self:Describe())
-    self.warning:SetText(self:Warnings())
+    local parts = self:DescribeParts()
+    for index, line in ipairs(self.summaryLines) do
+        local text = parts[index]
+        line.text:SetText(text or "")
+        line:SetShown(text ~= nil)
+    end
+    local warnings = self:Warnings()
+    self.warning:SetText(warnings)
+    self.warnHead:SetShown(warnings ~= "")
+    self.warning:SetShown(warnings ~= "")
 
     self:Relayout()
 end
