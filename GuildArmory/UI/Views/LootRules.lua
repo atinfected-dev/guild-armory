@@ -30,6 +30,8 @@ local L = GA.L
 
 local Config = GA.Core.Config
 
+LootRules.titleKey = "NAV_LOOTRULES"
+
 local RAIL_W = 250
 local BLOCK_HEAD = 40
 

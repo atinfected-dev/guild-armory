@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.23
+## 0.1.24
 
 In progress.
+
+## 0.1.23
+
+Class crests in the Dungeonhub's places, everything round that should be round, and the loot rules page named in its header.
 
 **Dungeonhub: class crests in the places.** A taken place shows the
 member's class crest, round as in the roster, with the role letter as a
@@ -14,7 +18,8 @@ the whisper button.
 client, so switches, role discs, badges, fire pins and dot pins looked
 square. Everything round now takes the game's own round indicator
 texture first, measured, and falls back to ours; the Dungeonhub's
-action text ends before its buttons instead of running under them.
+action text ends before its buttons instead of running under them. The
+loot rules page shows its title in the header instead of its key.
 
 ## 0.1.22
 
