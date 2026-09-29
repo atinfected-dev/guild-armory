@@ -10,6 +10,12 @@ small badge in its corner; an open place keeps the role disc. The
 action buttons sit at the card's right edge, and the leader's name is
 the whisper button.
 
+**Round is round again.** Our own circle texture does not load on this
+client, so switches, role discs, badges, fire pins and dot pins looked
+square. Everything round now takes the game's own round indicator
+texture first, measured, and falls back to ours; the Dungeonhub's
+action text ends before its buttons instead of running under them.
+
 ## 0.1.22
 
 The Dungeonhub — runs with five role places for the next 24 hours, on its own tab — and map pins that choose crest or dot and a size.

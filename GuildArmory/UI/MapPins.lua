@@ -61,7 +61,7 @@ local L = GA.L
 -- Bildschirm richtig gewesen.
 local PIN_SIZE = 22
 local PIN_MIN, PIN_MAX = 12, 40
-local CIRCLE_TEXTURE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+local function CIRCLE_TEXTURE() return Theme.RoundTexture() end
 
 --- Die eingestellte Nadelgroesse, in Grenzen.
 local function pinSize()
@@ -423,11 +423,11 @@ function MapPins:Refresh()
             -- Rand — ohne Wappen. Sagt weniger, ist auf kleiner Groesse
             -- aber lesbarer.
             local rund
-            if style == "dot" and Theme.TextureExists(CIRCLE_TEXTURE) then
-                pin.fill:SetTexture(CIRCLE_TEXTURE)
+            if style == "dot" and CIRCLE_TEXTURE() then
+                pin.fill:SetTexture(CIRCLE_TEXTURE())
                 pin.fill:SetTexCoord(0, 1, 0, 1)
                 pin.fill:SetVertexColor(r, g, b, 1)
-                pin.rand:SetTexture(CIRCLE_TEXTURE)
+                pin.rand:SetTexture(CIRCLE_TEXTURE())
                 pin.rand:SetTexCoord(0, 1, 0, 1)
                 pin.rand:SetVertexColor(RAND_FARBE[1], RAND_FARBE[2], RAND_FARBE[3], RAND_FARBE[4])
                 pin.rand:Show()
@@ -514,7 +514,7 @@ end
 
 local FIRE_SIZE = 24
 local FIRE_FALLBACK = "Interface\\Icons\\Spell_Fire_Fire"
-local DISC = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
 
 function MapPins:FirePin(index)
     self.firePins = self.firePins or {}
@@ -525,7 +525,7 @@ function MapPins:FirePin(index)
     pin:SetFrameStrata("HIGH")
     pin.disc = pin:CreateTexture(nil, "BACKGROUND")
     pin.disc:SetAllPoints(pin)
-    if Theme.TextureExists(DISC) then pin.disc:SetTexture(DISC) end
+    if Theme.RoundTexture() then pin.disc:SetTexture(Theme.RoundTexture()) end
     Theme.Paint(pin.disc, { 0.05, 0.07, 0.05, 0.9 })
     pin.icon = pin:CreateTexture(nil, "ARTWORK")
     pin.icon:SetPoint("TOPLEFT", pin, "TOPLEFT", 4, -4)

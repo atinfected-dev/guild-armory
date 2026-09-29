@@ -32,7 +32,7 @@ local Config = GA.Core.Config
 
 local RAIL_W = 250
 local BLOCK_HEAD = 40
-local CIRCLE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
 
 --- Die vier Verteilarten, in der Reihenfolge der Chips.
 ---
@@ -67,7 +67,7 @@ local function block(parent, number, title, subtitle)
     box.badge:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -8)
     local disc = box.badge:CreateTexture(nil, "BACKGROUND")
     disc:SetAllPoints(box.badge)
-    if Theme.TextureExists(CIRCLE) then disc:SetTexture(CIRCLE) end
+    if Theme.RoundTexture() then disc:SetTexture(Theme.RoundTexture()) end
     Theme.Paint(disc, Theme.color.heading)
     box.number = Theme.Label(box.badge, tostring(number), fonts.title, Theme.color.windowBg)
     box.number:SetPoint("CENTER", box.badge, "CENTER", 0, 0)

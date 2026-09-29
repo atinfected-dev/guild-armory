@@ -239,9 +239,7 @@ function View:Card(index)
         slot.disc = slot:CreateTexture(nil, "ARTWORK")
         slot.disc:SetSize(18, 18)
         slot.disc:SetPoint("TOP", slot, "TOP", 0, -5)
-        if Theme.TextureExists("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga") then
-            slot.disc:SetTexture("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga")
-        end
+        if Theme.RoundTexture() then slot.disc:SetTexture(Theme.RoundTexture()) end
         slot.letter = Theme.Label(slot, "", fonts.small, Theme.color.windowBg)
         slot.letter:SetPoint("CENTER", slot.disc, "CENTER", 0, 0)
         -- DAS KLASSENWAPPEN fuer einen belegten Platz (Wunsch 29.09.2026),
@@ -254,9 +252,7 @@ function View:Card(index)
         slot.badge = slot:CreateTexture(nil, "OVERLAY")
         slot.badge:SetSize(11, 11)
         slot.badge:SetPoint("CENTER", slot.crest, "BOTTOMRIGHT", -2, 2)
-        if Theme.TextureExists("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga") then
-            slot.badge:SetTexture("Interface\\AddOns\\GuildArmory\\Media\\Circle.tga")
-        end
+        if Theme.RoundTexture() then slot.badge:SetTexture(Theme.RoundTexture()) end
         slot.badge:Hide()
         slot.badgeLetter = Theme.Label(slot, "", fonts.pin or fonts.small, Theme.color.windowBg)
         slot.badgeLetter:SetPoint("CENTER", slot.badge, "CENTER", 0, 0)
@@ -271,7 +267,9 @@ function View:Card(index)
     end
 
     card.action = Theme.Label(card, "", fonts.small, Theme.color.textDim)
-    card.action:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 12, 12)
+    card.action:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 12, 14)
+    card.action:SetJustifyH("LEFT")
+    card.action:SetWordWrap(false)
     card.buttons = {}
     for i = 1, 3 do
         local button = Widgets.FlatButton(card, "", nil)
@@ -372,7 +370,9 @@ function View:FillCard(card, run)
     local mine = Hub:MyRole(run)
     -- VON RECHTS: Der erste Knopf sitzt am rechten Rand, jeder weitere
     -- links daneben — so laeuft keiner ueber die Kante (gesehen 29.09.2026
-    -- bei "Withdraw"). Der Text der Zeile steht links davon.
+    -- bei "Withdraw"). Der Text der Zeile endet vor dem letzten Knopf und
+    -- wird abgeschnitten, statt darunter zu laufen (gesehen danach).
+    local leftmost
     local function place(index, text, onClick, anchorTo)
         local button = card.buttons[index]
         button:SetLabel(text)
@@ -381,8 +381,11 @@ function View:FillCard(card, run)
         if anchorTo then button:SetPoint("RIGHT", anchorTo, "LEFT", -4, 0)
         else button:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -12, 12) end
         button:Show()
+        leftmost = button
         return button
     end
+    card.action:ClearAllPoints()
+    card.action:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 12, 14)
     if run.own then
         card.action:SetText(string.format(L.DH_IN_AS, roleName(mine or "DPS")) .. " · " .. L.DH_LEADER)
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
@@ -410,6 +413,8 @@ function View:FillCard(card, run)
         end
     end
     card.whisper:EnableMouse(not run.own)
+    if leftmost then card.action:SetPoint("RIGHT", leftmost, "LEFT", -8, 0)
+    else card.action:SetPoint("RIGHT", card, "RIGHT", -12, 0) end
 end
 
 -- ================================================================== Inhalt ----

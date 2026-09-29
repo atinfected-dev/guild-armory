@@ -657,13 +657,12 @@ end
 --- gefuelltes Rechteck, der Knopf der ganze Kreis — alle eingefaerbt.
 --- Laedt die Textur nicht, wird die Pille eckig; sie bleibt bedienbar.
 --- @param onToggle function(checked)
-local CIRCLE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
-
 function Widgets.Switch(parent, onToggle)
     local W, H, KNOB = 46, 22, 16
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(W, H)
-    local round = Theme.TextureExists(CIRCLE)
+    local CIRCLE = Theme.RoundTexture()
+    local round = CIRCLE ~= nil
 
     local function cap(side)
         local t = button:CreateTexture(nil, "BACKGROUND")

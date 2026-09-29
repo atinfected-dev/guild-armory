@@ -336,6 +336,27 @@ end
 --- Prueft, ob eine Texturdatei im Client existiert. SetTexture nimmt jeden Pfad
 --- an; ob er zu einer Datei fuehrt, verraet erst GetTexture danach.
 local textureProbe
+--- DIE RUNDE TEXTUR, gemessen statt angenommen. GESEHEN 29.09.2026: Die
+--- eigene Media/Circle.tga blieb im Dungeonhub eckig — der Client laedt
+--- sie nicht, was TextureExists dort auch sagte. Das Spiel selbst hat
+--- runde Scheiben (die Anzeigen der Bereitschaftsabfrage, Indicator-*);
+--- die werden zuerst probiert, die eigene danach. Ergebnis gemerkt.
+--- @return string|nil pfad  nil, wenn nichts Rundes laedt
+function Theme.RoundTexture()
+    if Theme.roundTexture ~= nil then return Theme.roundTexture or nil end
+    for _, path in ipairs({
+        "Interface\\COMMON\\Indicator-Gray",
+        "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga",
+    }) do
+        if Theme.TextureExists(path) then
+            Theme.roundTexture = path
+            return path
+        end
+    end
+    Theme.roundTexture = false
+    return nil
+end
+
 function Theme.TextureExists(path)
     if not textureProbe then
         textureProbe = UIParent:CreateTexture(nil, "BACKGROUND")

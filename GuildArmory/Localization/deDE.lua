@@ -1072,7 +1072,7 @@ GA.Core.Locale:Register("deDE", {
     DH_LEADER          = "du leitest",
     DH_LEAVE           = "Verlassen",
     DH_WITHDRAW        = "Zuruecknehmen",
-    DH_INVITE          = "Gruppe einladen",
+    DH_INVITE          = "Alle einladen",
     DH_WHISPER         = "Leiter anfluestern",
     DH_FULL            = "Voll — 5 von 5.",
     DH_OPEN            = "frei",

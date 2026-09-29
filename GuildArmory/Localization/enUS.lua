@@ -1084,7 +1084,7 @@ GA.Core.Locale:Register("enUS", {
     DH_LEADER          = "you lead",
     DH_LEAVE           = "Leave",
     DH_WITHDRAW        = "Withdraw",
-    DH_INVITE          = "Invite the group",
+    DH_INVITE          = "Invite all",
     DH_WHISPER         = "Whisper leader",
     DH_FULL            = "Full — 5 of 5.",
     DH_OPEN            = "open",
