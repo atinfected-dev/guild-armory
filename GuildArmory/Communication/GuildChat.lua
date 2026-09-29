@@ -41,7 +41,7 @@ local Compat = GA.Core.Compat
 
 GuildChat.LIMIT = 500          -- gespeicherte Zeilen
 GuildChat.PULL_EVERY = 5       -- Sekunden zwischen zwei Lesungen des Verlaufs
-GuildChat.RELOAD_EVERY = 60    -- Sekunden, nach denen ein geladener Verlauf neu gelesen wird
+GuildChat.RELOAD_EVERY = 20    -- Sekunden, nach denen ein geladener Verlauf neu gelesen wird
 GuildChat.REQUEST = 300        -- Zeilen je Anfrage an das Spiel
 GuildChat.SAME_WINDOW = 10     -- Sekunden: derselbe Absender = dieselbe Nachricht
 GuildChat.EVENT_WINDOW = 5     -- Sekunden: dasselbe Ereignis zweimal
@@ -135,6 +135,10 @@ function GuildChat:RequestHistory(force)
     if type(Compat.After) == "function" then
         Compat.After(2, function() GuildChat:PullHistory("timer") end)
         Compat.After(6, function() GuildChat:PullHistory("timer") end)
+        -- Und noch einmal spaeter: Die Schluessel der ersten Ladung koennen
+        -- schon tot sein, wenn das Spiel den Kanal danach neu fokussiert
+        -- (gesehen 29.09.2026: erst nach der Minute lesbar).
+        Compat.After(15, function() GuildChat:PullHistory("event") end)
     end
     return true
 end
