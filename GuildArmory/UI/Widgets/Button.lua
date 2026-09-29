@@ -648,29 +648,57 @@ end
 
 -- ------------------------------------------------------- Schalter -----------
 
---- Ein Schalter: 44 x 24, grau ist aus, gold ist an, der Knopf wandert.
---- Ersetzt in den Einstellungen das Kaestchen (Entwurf S1, 29.09.2026):
---- Ein Kaestchen sagt "gesetzt"; ein Schalter sagt "laeuft".
+--- Ein Schalter: eine RUNDE Pille, rot ist aus, gruen ist an, der Knopf
+--- wandert (Wunsch 29.09.2026: "runde Slider, rot fuer aus, gruen fuer an").
+---
+--- Das Spiel kennt keine abgerundeten Rahmen; die Rundung kommt aus einer
+--- eigenen Textur (Media/Circle.tga, weisser Kreis mit weichem Rand): Die
+--- Kappen der Pille sind ihre linke und rechte Haelfte, die Mitte ein
+--- gefuelltes Rechteck, der Knopf der ganze Kreis — alle eingefaerbt.
+--- Laedt die Textur nicht, wird die Pille eckig; sie bleibt bedienbar.
 --- @param onToggle function(checked)
+local CIRCLE = "Interface\\AddOns\\GuildArmory\\Media\\Circle.tga"
+
 function Widgets.Switch(parent, onToggle)
+    local W, H, KNOB = 46, 22, 16
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(44, 24)
-    local track = Theme.Fill(button, { 0, 0, 0, 0 })
-    local lines = Theme.Outline(button, Theme.color.borderLit)
+    button:SetSize(W, H)
+    local round = Theme.TextureExists(CIRCLE)
+
+    local function cap(side)
+        local t = button:CreateTexture(nil, "BACKGROUND")
+        t:SetSize(H / 2, H)
+        if round then
+            t:SetTexture(CIRCLE)
+            if side == "LEFT" then t:SetTexCoord(0, 0.5, 0, 1) else t:SetTexCoord(0.5, 1, 0, 1) end
+            t:SetPoint(side, button, side, 0, 0)
+        else
+            t:Hide()
+        end
+        return t
+    end
+    local left, right = cap("LEFT"), cap("RIGHT")
+    local middle = button:CreateTexture(nil, "BACKGROUND")
+    if round then
+        middle:SetPoint("TOPLEFT", button, "TOPLEFT", H / 2, 0)
+        middle:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -H / 2, 0)
+    else
+        middle:SetAllPoints(button)
+    end
     local knob = button:CreateTexture(nil, "ARTWORK")
-    knob:SetSize(18, 18)
-    knob:SetPoint("LEFT", button, "LEFT", 3, 0)
-    Theme.Paint(knob, Theme.color.textFaint)
+    knob:SetSize(KNOB, KNOB)
+    if round then knob:SetTexture(CIRCLE) end
     button.checked = false
     button.enabled = true
 
     local function paint(self)
         local on = self.checked
-        Theme.Paint(track, on and Theme.color.goldMid or { 0, 0, 0, 0 })
-        for _, line in ipairs(lines) do Theme.Paint(line, on and Theme.color.goldMid or Theme.color.borderLit) end
+        local color = on and Theme.color.good or Theme.color.bad
+        for _, t in ipairs({ left, middle, right }) do Theme.Paint(t, color) end
         knob:ClearAllPoints()
-        if on then knob:SetPoint("RIGHT", self, "RIGHT", -3, 0) else knob:SetPoint("LEFT", self, "LEFT", 3, 0) end
-        Theme.Paint(knob, on and Theme.color.windowBg or Theme.color.textFaint)
+        local inset = (H - KNOB) / 2
+        if on then knob:SetPoint("RIGHT", self, "RIGHT", -inset, 0) else knob:SetPoint("LEFT", self, "LEFT", inset, 0) end
+        Theme.Paint(knob, { 0.96, 0.94, 0.88, 1 })
         self:SetAlpha(self.enabled and 1 or 0.45)
     end
 

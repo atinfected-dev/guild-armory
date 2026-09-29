@@ -96,7 +96,7 @@ end
 --- Wie breit der Text einer Zeile sein darf: Breite minus Raender und Bedienelement.
 local function textWidth(row, width)
     local reserved = 36
-    if row.switch then reserved = reserved + 44 + CONTROL_GAP end
+    if row.switch then reserved = reserved + 46 + CONTROL_GAP end
     if row.chip:IsShown() then reserved = reserved + (row.chip:GetStringWidth() or 0) + 10 end
     return math.max(60, width - reserved)
 end

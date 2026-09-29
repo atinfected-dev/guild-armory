@@ -9,7 +9,9 @@ In progress.
 Six sections in a column on the left — Language, Window, On screen,
 Notifications, Loot, Data — and one page on the right, remembered
 between openings. Every setting is a row: title, hint underneath, and a
-switch on the right instead of a checkbox — grey is off, gold is on.
+round switch on the right instead of a checkbox — red is off, green is
+on, the knob slides (the rounding is a texture of our own, Media/Circle.tga;
+where it does not load the switch is square and still works).
 Rows measure themselves at the current width, so a long hint never runs
 into the next row (the layout test stands on the new function). The
 council rotation moved to Loot where it belongs; debug output is a
