@@ -245,6 +245,7 @@ GA.Core.Locale:Register("deDE", {
     MINIMAP_RIGHT               = "Rechtsklick: Einstellungen",
     MINIMAP_DRAG                = "Ziehen: Knopf verschieben",
     MINIMAP_SHIFT               = "Umschalt-Klick: Meldungen",
+    MINIMAP_ALT                 = "Alt-Klick: Lagerleiste ein oder aus",
     MINIMAP_STATS               = "%d Charaktere  ·  %d Vergaben",
     SET_MINIMAP                 = "Minimap-Knopf anzeigen",
 
@@ -961,6 +962,9 @@ GA.Core.Locale:Register("deDE", {
     -- Lager
     CAMP_TITLE         = "Lager",
     CAMP_ALONE         = "Sonst niemand aus der Gilde in dieser Zone.",
+    CAMP_HIDDEN_HINT   = "Lagerleiste ausgeblendet. Alt-Klick auf den Minimap-Knopf holt sie zurueck.",
+    CAMP_SHOWN         = "Lagerleiste eingeblendet.",
+    CAMP_OFF_HINT      = "Die Lagerleiste ist aus. Einschalten unter Einstellungen, Am Bildschirm.",
     CAMP_NOTICE        = "Die Lagerleiste ist an. Dieser Client meldet der Gilde ab jetzt, in welcher Zone du bist, welche Berufe du hast und welche Lagerausbauten in deinem Beutel liegen. Deine Position geht nur in dem Augenblick hinaus, in dem du ein Lagerfeuer aufstellst. Abschalten in den Einstellungen oder mit /ga camp off.",
 
     CAMP_TT_NOPROF     = "Beruf nicht gelernt.",
@@ -1146,7 +1150,7 @@ GA.Core.Locale:Register("deDE", {
     SET_NAV_NOLOG      = "hier nicht moeglich",
     SET_SCALE_ROW      = "Groesse",
     SET_SCALE_HINT     = "Die Groesse dieses Fensters. Die Position wird ebenfalls gemerkt.",
-    SET_MINIMAP_HINT   = "Linksklick oeffnet das Addon, Shift-Klick die Ablage der Meldungen.",
+    SET_MINIMAP_HINT   = "Linksklick oeffnet das Addon, Shift-Klick die Ablage der Meldungen, Alt-Klick blendet die Lagerleiste ein oder aus.",
     SET_LOOT_THRESHOLD_HINT = "Unterhalb dieser Qualitaet wird nichts erfasst — Questgruen wuerde die Historie fluten.",
     SET_ROTATION_HINT  = "Das Council kommt der Reihe nach dran; das Ankuendigen fluestert, wer dran ist.",
     SET_MEASURED_ROW   = "Bisher gesehen",

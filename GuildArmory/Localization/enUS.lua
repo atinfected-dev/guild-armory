@@ -255,6 +255,7 @@ GA.Core.Locale:Register("enUS", {
     MINIMAP_RIGHT               = "Right click: settings",
     MINIMAP_DRAG                = "Drag: move the button",
     MINIMAP_SHIFT               = "Shift-click: notifications",
+    MINIMAP_ALT                 = "Alt-click: camp bar on or off",
     MINIMAP_STATS               = "%d characters  ·  %d awards",
     SET_MINIMAP                 = "Show minimap button",
 
@@ -973,6 +974,9 @@ GA.Core.Locale:Register("enUS", {
     -- Camp
     CAMP_TITLE         = "Camp",
     CAMP_ALONE         = "Nobody else from the guild in this zone.",
+    CAMP_HIDDEN_HINT   = "Camp bar hidden. Alt-click the minimap button to bring it back.",
+    CAMP_SHOWN         = "Camp bar shown.",
+    CAMP_OFF_HINT      = "The camp list is off. Switch it on under Settings, On screen.",
     CAMP_NOTICE        = "Camp list is on. This client now tells the guild which zone you are in, which professions you have and which camp upgrades are in your bags. Your position goes out only in the moment you place a campfire. Switch it off in the settings or with /ga camp off.",
 
     CAMP_TT_NOPROF     = "Profession not learned.",
@@ -1158,7 +1162,7 @@ GA.Core.Locale:Register("enUS", {
     SET_NAV_NOLOG      = "not possible here",
     SET_SCALE_ROW      = "Scale",
     SET_SCALE_HINT     = "Size of this window. Its position is remembered as well.",
-    SET_MINIMAP_HINT   = "Left click opens the addon, shift-click the notification tray.",
+    SET_MINIMAP_HINT   = "Left click opens the addon, shift-click the notification tray, alt-click shows or hides the camp bar.",
     SET_LOOT_THRESHOLD_HINT = "Below this quality nothing is recorded — quest greens would flood the history.",
     SET_ROTATION_HINT  = "The council takes turns; announcing whispers whoever is up.",
     SET_MEASURED_ROW   = "Seen so far",

@@ -236,7 +236,11 @@ function CampFrame:Create()
         CampFrame:SavePlacement()
     end)
     header:SetScript("OnClick", function(_, button)
-        if button == "RightButton" then CampFrame:Hide() return end
+        if button == "RightButton" then
+            CampFrame:Hide()
+            GA.Core.Debug:Info(L.CAMP_HIDDEN_HINT)
+            return
+        end
         CampFrame:ToggleCollapsed()
     end)
 

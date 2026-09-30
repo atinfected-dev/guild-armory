@@ -140,6 +140,13 @@ function MinimapButton:Create()
             GA.UI.Notifications:Toggle()
             return
         end
+        -- ALT + KLICK: die Lagerleiste (30.09.2026). Rechtsklick auf ihre
+        -- Kopfzeile blendet sie aus; vorher gab es keinen Weg zurueck.
+        local okAlt, alt = pcall(IsAltKeyDown)
+        if okAlt and alt and GA.UI.CampFrame then
+            MinimapButton:ToggleCamp()
+            return
+        end
         if mouseButton == "RightButton" then
             GA.UI.MainFrame:Show()
             GA.UI.MainFrame:ShowView("settings")
@@ -248,6 +255,19 @@ end
 
 -- ================================================================== Tooltip ---
 
+--- Blendet die Lagerleiste ein oder aus und sagt im Chat, was passiert ist.
+-- Ist die Lagerleiste in den Einstellungen aus, gibt es nichts einzublenden:
+-- dann steht dort, wo der Schalter ist.
+function MinimapButton:ToggleCamp()
+    local Camp = GA.Modules.Camp
+    if Camp and not Camp:Enabled() then
+        GA.Core.Debug:Info(L.CAMP_OFF_HINT)
+        return
+    end
+    local shown = GA.UI.CampFrame:Toggle()
+    GA.Core.Debug:Info(shown and L.CAMP_SHOWN or L.CAMP_HIDDEN_HINT)
+end
+
 function MinimapButton:ShowTooltip(owner)
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
     GameTooltip:AddLine("Guild Armory")
@@ -260,6 +280,7 @@ function MinimapButton:ShowTooltip(owner)
     GameTooltip:AddLine(L.MINIMAP_LEFT, 0.9, 0.8, 0.5)
     GameTooltip:AddLine(L.MINIMAP_RIGHT, 0.9, 0.8, 0.5)
     GameTooltip:AddLine(L.MINIMAP_SHIFT, 0.9, 0.8, 0.5)
+    GameTooltip:AddLine(L.MINIMAP_ALT, 0.9, 0.8, 0.5)
     GameTooltip:AddLine(L.MINIMAP_DRAG, 0.44, 0.40, 0.33)
     GameTooltip:Show()
 end
