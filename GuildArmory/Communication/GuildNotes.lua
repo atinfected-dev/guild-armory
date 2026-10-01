@@ -35,6 +35,8 @@ local Compat = GA.Core.Compat
 GuildNotes.MAX = 120          -- Zeichen je Notiz: passt mit Kopf in eine Nachricht
 GuildNotes.MAX_MOTD = 180     -- die Nachricht des Tages darf laenger sein; ohne Namen im Paket
 GuildNotes.MOTD_KEY = "@motd" -- kein Mitglied hat diesen Schluessel
+GuildNotes.INFO_KEY = "@info" -- die Gildeninfo: lang, mit Zeilen, als Blob unterwegs
+GuildNotes.MAX_INFO = 2000    -- Zeichen; ein Blob, zehn Stuecke
 GuildNotes.REPLY_EVERY = 60   -- Sekunden: hoechstens so oft auf GNOTEQ antworten
 GuildNotes.SEEN_TTL = 30      -- Sekunden: so lange gilt "das sah ich schon"
 
@@ -59,6 +61,28 @@ end
 
 local function limitFor(key)
     return key == GuildNotes.MOTD_KEY and GuildNotes.MAX_MOTD or GuildNotes.MAX
+end
+
+--- Die Gildeninfo behaelt ihre Zeilen: nur das Protokollzeichen und
+--- Leerraum an den Enden fallen weg, Windows-Umbrueche werden zu einem.
+local function cleanInfo(text)
+    if type(text) ~= "string" then return "" end
+    text = string.gsub(text, "|", "")
+    text = string.gsub(text, "\r\n?", "\n")
+    text = string.gsub(text, "[ \t]+\n", "\n")
+    text = string.gsub(text, "^%s*(.-)%s*$", "%1")
+    return string.sub(text, 1, GuildNotes.MAX_INFO)
+end
+
+local seen = {}
+
+local function markSeen(key, ts)
+    seen[key .. "@" .. tostring(ts)] = Util.Now()
+end
+
+local function wasSeen(key, ts)
+    local at = seen[key .. "@" .. tostring(ts)]
+    return at ~= nil and Util.Now() - at <= GuildNotes.SEEN_TTL
 end
 
 --- Der Schluessel eines Mitglieds: die GUID, wo der Client sie nennt,
@@ -103,6 +127,59 @@ function GuildNotes:SetMOTD(text)
     return self:Set(nil, nil, text, self.MOTD_KEY)
 end
 
+-- ================================================================== Gildeninfo
+
+--- DIE GILDENINFO UEBER DAS ADDON (01.10.2026): SetGuildInfoText kommt aus
+--- einem Addon nicht durch. Also ein Sondereintrag wie die Nachricht des
+--- Tages — Schluessel "@info", laenger, mit Zeilenumbruechen, darum nicht
+--- in einer GNOTE-Zeile, sondern als Blob GINFO: erste Zeile der Stempel,
+--- der Rest der Text. Das Recht ist das, das im Spiel fuer die Gildeninfo gilt.
+function GuildNotes:CanEditInfo()
+    return Compat.CanEditGuildInfo() ~= false
+end
+
+--- @return string|nil text, table|nil eintrag {text, by, ts}
+function GuildNotes:GetInfo()
+    return self:Get(self.INFO_KEY)
+end
+
+--- Schickt den Eintrag als Blob; leer ist ein Grabstein wie bei den Notizen.
+local function sendInfo(entry)
+    local c = comm()
+    if not c or type(c.SendBlob) ~= "function" then return false end
+    return c:SendBlob("GINFO", tostring(entry.ts) .. "\n" .. (entry.text or ""), "GUILD", nil, true) and true or false
+end
+
+function GuildNotes:SetInfo(text)
+    if not self:CanEditInfo() then return false, "noright" end
+    local notes = store()
+    if not notes then return false, "nokey" end
+    local identity = Compat.GetPlayerIdentity and Compat.GetPlayerIdentity() or nil
+    local by = identity and identity.name and Util.ShortName(identity.name) or "?"
+    local entry = { text = cleanInfo(text), by = by, ts = Util.Now() }
+    notes[self.INFO_KEY] = entry
+    GA.Core.Callbacks:Fire("GUILD_NOTES", self.INFO_KEY)
+    sendInfo(entry)
+    return true
+end
+
+--- Ein GINFO-Blob von einem anderen Client: die juengere gewinnt.
+function GuildNotes:OnInfoBlob(sender, text)
+    if comm() and comm():IsSelf(sender) then return false end
+    if type(text) ~= "string" then return false end
+    local head, body = string.match(text, "^([^\n]*)\n?(.*)$")
+    local ts = tonumber(head)
+    if not ts then return false end
+    local notes = store()
+    if not notes then return false end
+    markSeen(self.INFO_KEY, ts)
+    local alt = notes[self.INFO_KEY]
+    if alt and alt.ts and alt.ts >= ts then return false end
+    notes[self.INFO_KEY] = { text = cleanInfo(body), by = Util.ShortName(sender), ts = ts }
+    GA.Core.Callbacks:Fire("GUILD_NOTES", self.INFO_KEY)
+    return true
+end
+
 -- ================================================================== Schreiben -
 
 --- Setzt die Notiz und verteilt sie. Leer heisst loeschen — auch das
@@ -127,21 +204,11 @@ end
 
 -- ================================================================== Empfang ---
 
-local seen = {}
-
-local function markSeen(key, ts)
-    seen[key .. "@" .. tostring(ts)] = Util.Now()
-end
-
-local function wasSeen(key, ts)
-    local at = seen[key .. "@" .. tostring(ts)]
-    return at ~= nil and Util.Now() - at <= GuildNotes.SEEN_TTL
-end
-
 --- Eine Notiz von einem anderen Client: die juengere gewinnt.
 function GuildNotes:OnNote(sender, fields)
     if comm() and comm():IsSelf(sender) then return false end
     local key, ts = fields[1], tonumber(fields[3])
+    if key == self.INFO_KEY then return false end
     local text = clean(fields[4], limitFor(key))
     if type(key) ~= "string" or key == "" or not ts then return false end
     local notes = store()
@@ -173,7 +240,11 @@ function GuildNotes:OnRequest(sender, fields)
         for _, key in ipairs(pending) do
             local entry = (store() or {})[key]
             if entry and not wasSeen(key, entry.ts) and comm() then
-                comm():Send("GNOTE", { key, "", tostring(entry.ts), entry.text or "" }, "GUILD", nil, true)
+                if key == GuildNotes.INFO_KEY then
+                    sendInfo(entry)
+                else
+                    comm():Send("GNOTE", { key, "", tostring(entry.ts), entry.text or "" }, "GUILD", nil, true)
+                end
                 sent = sent + 1
             end
         end
@@ -208,6 +279,9 @@ function GuildNotes:OnEnable()
     if Comm then
         Comm:On("GNOTE", function(sender, fields) GuildNotes:OnNote(sender, fields) end, "GuildNotes")
         Comm:On("GNOTEQ", function(sender, fields) GuildNotes:OnRequest(sender, fields) end, "GuildNotes")
+        if type(Comm.OnBlob) == "function" then
+            Comm:OnBlob("GINFO", function(sender, text) GuildNotes:OnInfoBlob(sender, text) end, "GuildNotes")
+        end
     end
     if type(Compat.After) == "function" then
         Compat.After(8, function() GuildNotes:Request() end)

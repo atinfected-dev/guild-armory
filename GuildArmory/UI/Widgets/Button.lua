@@ -555,7 +555,8 @@ end
 --- Eigener Frame und nicht derselbe: Ein Dialog, der mal liest und mal schreibt,
 --- verwechselt man beim Bedienen — und hier haengt an einem Fehlklick, dass eine
 --- Strategie ueberschrieben wird.
-function Widgets.InputDialog(title, hintText, onAccept)
+--- @param initialText string|nil  steht beim Oeffnen schon im Feld (zum Bearbeiten)
+function Widgets.InputDialog(title, hintText, onAccept, initialText)
     local frame = Widgets._inputDialog
 
     if not frame then
@@ -638,10 +639,13 @@ function Widgets.InputDialog(title, hintText, onAccept)
     frame.title:SetText(string.upper(title or ""))
     frame.hint:SetText(hintText or "")
     frame.status:SetText("")
-    frame.edit:SetText("")
+    frame.edit:SetText(initialText or "")
     frame.onAccept = onAccept
     frame:Show()
     frame.edit:SetFocus()
+    if initialText and initialText ~= "" and frame.edit.SetCursorPosition then
+        frame.edit:SetCursorPosition(#initialText)
+    end
 
     return frame
 end

@@ -4,6 +4,8 @@
 
 Alt-click on the minimap button shows or hides the camp bar; hiding it with a right click now says how to get it back.
 
+The guild info is the addon's own now, like the message of the day: whoever may edit it in the game edits it here, everyone with the addon sees it, line breaks stay.
+
 ## 0.1.25
 
 Asking for a tradable item whispers the real item link.

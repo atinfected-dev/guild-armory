@@ -689,18 +689,24 @@ function View:EditMOTD()
     end)
 end
 
+--- DIE GILDENINFO DES ADDONS (01.10.2026): SetGuildInfoText kommt aus einem
+--- Addon nicht durch, also die eigene aus GuildNotes. Wer sie im Spiel
+--- aendern duerfte, bekommt den Text zum Bearbeiten; alle anderen lesen.
 function View:EditGuildInfo()
-    local text = Compat.GetGuildInfoText()
-    if Compat.CanEditGuildInfo() ~= true then
-        -- Nur lesen: als Bericht, den man kopieren kann.
-        Widgets.CopyDialog(L.ROSTER_INFO, text or L.ROSTER_INFO_NONE)
+    local text, entry = GuildNotes:GetInfo()
+    local by = entry and entry.by and entry.ts
+        and string.format(L.ROSTER_NOTE_BY, entry.by, Util.TimeAgo(entry.ts)) or nil
+    if not GuildNotes:CanEditInfo() then
+        local body = text or L.ROSTER_INFO_NONE
+        if by then body = body .. "\n\n" .. by end
+        Widgets.CopyDialog(L.ROSTER_INFO, body)
         return
     end
-    Widgets.InputDialog(L.ROSTER_INFO, (text and text ~= "" and (text .. "\n\n") or "") .. L.ROSTER_INFO_HINT,
+    Widgets.InputDialog(L.ROSTER_INFO, by and (L.ROSTER_INFO_HINT .. "  " .. by) or L.ROSTER_INFO_HINT,
         function(neu)
-            local ok, weg = Compat.SetGuildInfoText(neu)
-            return ok, ok and nil or tostring(weg)
-        end)
+            local ok, grund = GuildNotes:SetInfo(neu)
+            return ok, ok and nil or (grund == "noright" and L.ROSTER_INFO_LOCKED or tostring(grund))
+        end, text or "")
 end
 
 -- ================================================================== Refresh ---
