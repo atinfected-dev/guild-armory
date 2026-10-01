@@ -41,6 +41,12 @@ local HERO_HEIGHT = 118
 local KPI_W, KPI_H, KPI_GAP = 104, 66, 8
 local MINE_WIDTH = 290
 local RIGHT_WIDTH = 240
+local HUB_HEIGHT = 92          -- die zwei Live-Kacheln ueber dem Strom
+local ROLE_COLOR = {           -- wie im Dungeonhub: Tank blau, Heiler gruen, Schaden rot
+    TANK = { 0.36, 0.55, 0.84 },
+    HEAL = { 0.30, 0.69, 0.31 },
+    DPS  = { 0.78, 0.25, 0.18 },
+}
 local SLOT_W, SLOT_GAP = 14, 2
 local FEED_ROW = 36
 
@@ -226,9 +232,24 @@ function Dashboard:Create(parent)
     if self.tradablesPost.SetWidth then self.tradablesPost:SetWidth(96) end
     self:BuildTradables(tradables.content, fonts)
 
+    -- ------------------------------------- Questhub und Dungeonhub --------
+    -- Zwei Live-Kacheln ueber dem Strom (Entwurf O1, 01.10.2026): die Zahl,
+    -- die ersten zwei Eintraege, Klick springt in den Reiter. Leer ist gedimmt.
+    local hubs = CreateFrame("Frame", nil, frame)
+    hubs:SetHeight(HUB_HEIGHT)
+    hubs:SetPoint("TOPLEFT", mine, "TOPRIGHT", gap, 0)
+    hubs:SetPoint("TOPRIGHT", where, "TOPLEFT", -gap, 0)
+    self.hubs = hubs
+    self.questTile = self:BuildHubTile(hubs, fonts, "questhub", L.DASH_HUB_QUEST, L.DASH_HUB_GO_QUEST)
+    self.questTile:SetPoint("TOPLEFT", hubs, "TOPLEFT", 0, 0)
+    self.questTile:SetPoint("BOTTOMRIGHT", hubs, "BOTTOM", -gap / 2, 0)
+    self.dungeonTile = self:BuildHubTile(hubs, fonts, "dungeonhub", L.DASH_HUB_RUN, L.DASH_HUB_GO_RUN)
+    self.dungeonTile:SetPoint("TOPRIGHT", hubs, "TOPRIGHT", 0, 0)
+    self.dungeonTile:SetPoint("BOTTOMLEFT", hubs, "BOTTOM", gap / 2, 0)
+
     -- ------------------------------------------------------ Der Strom -------
     local feed = Widgets.Panel(frame, L.DASH_FEED, "")
-    feed:SetPoint("TOPLEFT", mine, "TOPRIGHT", gap, 0)
+    feed:SetPoint("TOPLEFT", hubs, "BOTTOMLEFT", 0, -gap)
     feed:SetPoint("BOTTOMRIGHT", where, "BOTTOMLEFT", -gap, 0)
     feed:SetPoint("BOTTOM", frame, "BOTTOM", 0, pad)
     self.feedPanel = feed
@@ -438,6 +459,148 @@ function Dashboard:BuildWhere(content, fonts)
     self.campText:SetJustifyH("LEFT")
     self.campText:SetWordWrap(false)
     self.camp:Hide()
+end
+
+-- ================================================================== Kacheln ---
+
+--- Eine Live-Kachel: Beschriftung, Zahl, Untertitel, zwei Zeilen (Text
+--- links, Text oder fuenf Plaetze rechts), unten der Sprung in den Reiter.
+function Dashboard:BuildHubTile(parent, fonts, viewKey, label, goText)
+    local tile = CreateFrame("Button", nil, parent)
+    tile.background = Theme.Fill(tile, Theme.color.rowBg)
+    tile.outline = Theme.Outline(tile, Theme.color.border)
+
+    tile.label = Theme.Label(tile, string.upper(label), fonts.small, Theme.color.goldDim)
+    tile.label:SetPoint("TOPLEFT", tile, "TOPLEFT", 10, -8)
+    tile.count = Theme.Label(tile, "", fonts.big, Theme.color.text)
+    tile.count:SetPoint("LEFT", tile.label, "RIGHT", 8, 0)
+    tile.sub = Theme.Label(tile, "", fonts.small, Theme.color.textDim)
+    tile.sub:SetPoint("LEFT", tile.count, "RIGHT", 6, -1)
+    tile.sub:SetPoint("RIGHT", tile, "RIGHT", -10, 0)
+    tile.sub:SetJustifyH("LEFT")
+    tile.sub:SetWordWrap(false)
+
+    tile.lines = {}
+    for index = 1, 2 do
+        local line = CreateFrame("Frame", nil, tile)
+        line:SetHeight(16)
+        line:SetPoint("TOPLEFT", tile, "TOPLEFT", 10, -28 - (index - 1) * 17)
+        line:SetPoint("TOPRIGHT", tile, "TOPRIGHT", -10, -28 - (index - 1) * 17)
+        line.right = Theme.Label(line, "", fonts.small, Theme.color.textDim)
+        line.right:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+        line.right:SetJustifyH("RIGHT")
+        line.right:SetWordWrap(false)
+        line.boxes = {}
+        local vorige
+        for slot = 1, 5 do
+            local box = line:CreateTexture(nil, "ARTWORK")
+            box:SetWidth(11) box:SetHeight(11)
+            if vorige then box:SetPoint("RIGHT", vorige, "LEFT", -3, 0)
+            else box:SetPoint("RIGHT", line, "RIGHT", 0, 0) end
+            box:Hide()
+            line.boxes[slot] = box
+            vorige = box
+        end
+        line.left = Theme.Label(line, "", fonts.row, Theme.color.text)
+        line.left:SetPoint("LEFT", line, "LEFT", 0, 0)
+        line.left:SetPoint("RIGHT", line.boxes[5], "LEFT", -8, 0)
+        line.left:SetJustifyH("LEFT")
+        line.left:SetWordWrap(false)
+        line:Hide()
+        tile.lines[index] = line
+    end
+
+    tile.go = Theme.Label(tile, goText .. " \226\134\146", fonts.small, Theme.color.goldDim)
+    tile.go:SetPoint("BOTTOMLEFT", tile, "BOTTOMLEFT", 10, 7)
+    tile.empty = Theme.Label(tile, "", fonts.small, Theme.color.textFaint)
+    tile.empty:SetPoint("TOPLEFT", tile, "TOPLEFT", 10, -30)
+    tile.empty:SetPoint("RIGHT", tile, "RIGHT", -10, 0)
+    tile.empty:SetJustifyH("LEFT")
+
+    tile:SetScript("OnEnter", function(self) Theme.Paint(self.background, Theme.color.rowHover) end)
+    tile:SetScript("OnLeave", function(self) Theme.Paint(self.background, Theme.color.rowBg) end)
+    tile:SetScript("OnClick", function()
+        GA.UI.MainFrame:Show()
+        GA.UI.MainFrame:ShowView(viewKey)
+    end)
+    return tile
+end
+
+--- Leer heisst gedimmt: Rahmen und Zahl in Schattenfarbe, ein Satz statt Zeilen.
+local function dimTile(tile, empty, emptyText)
+    local frameColor = empty and Theme.color.border or Theme.color.goldDim
+    for _, edge in ipairs(tile.outline) do Theme.Paint(edge, frameColor) end
+    local c = empty and Theme.color.textFaint or Theme.color.text
+    tile.count:SetTextColor(c[1], c[2], c[3])
+    local g = empty and Theme.color.textFaint or Theme.color.goldDim
+    tile.go:SetTextColor(g[1], g[2], g[3])
+    tile.empty:SetText(empty and emptyText or "")
+end
+
+local function fillLine(line, left, right)
+    line.left:SetText(left or "")
+    line.right:SetText(right or "")
+    for _, box in ipairs(line.boxes) do box:Hide() end
+    line.left:SetPoint("RIGHT", line.right, "LEFT", -8, 0)
+    line:Show()
+end
+
+function Dashboard:RefreshHubs()
+    -- Questhub: Gesuche, davon in der eigenen Zone; die ersten zwei.
+    local Questhub = GA.Modules.Questhub
+    local requests = Questhub and Questhub:List() or {}
+    local zone = Compat.GetZone and Compat.GetZone() or nil
+    local hier = 0
+    for _, request in ipairs(requests) do
+        if zone and request.zone == zone then hier = hier + 1 end
+    end
+    local tile = self.questTile
+    tile.count:SetText(tostring(#requests))
+    tile.sub:SetText(#requests == 0 and "" or (hier > 0 and string.format(L.DASH_HUB_QUEST_HERE, hier) or L.DASH_HUB_QUEST_SUB))
+    for index = 1, 2 do
+        local request, line = requests[index], tile.lines[index]
+        if request then
+            local wer = Util.ColorByClass(Util.ShortName(request.seeker or "?"), request.class)
+            fillLine(line, request.title or "?",
+                (request.zone and (request.zone .. " \194\183 ") or "") .. wer .. " \194\183 " .. Util.TimeAgo(request.ts))
+        else
+            line:Hide()
+        end
+    end
+    dimTile(tile, #requests == 0, L.DASH_HUB_QUEST_NONE)
+
+    -- Dungeonhub: Laeufe nach Startzeit; die ersten zwei mit ihren Plaetzen.
+    local Hub = GA.Modules.Dungeonhub
+    local runs = Hub and Hub:List() or {}
+    tile = self.dungeonTile
+    tile.count:SetText(tostring(#runs))
+    tile.sub:SetText(#runs == 0 and "" or L.DASH_HUB_RUN_SUB)
+    local heute = date("*t", Util.Now()).yday
+    for index = 1, 2 do
+        local run, line = runs[index], tile.lines[index]
+        if run then
+            local wann = date("%H:%M", run.at or 0)
+            if date("*t", run.at or 0).yday ~= heute then wann = wann .. " " .. string.lower(L.DH_TOMORROW) end
+            line.left:SetText("|cfff1e3b8" .. wann .. "|r  " .. tostring(run.dungeon or "?"))
+            line.right:SetText("")
+            line.left:SetPoint("RIGHT", line.boxes[5], "LEFT", -8, 0)
+            for slot, box in ipairs(line.boxes) do
+                local place = Hub:Slots(run)[slot]
+                local color = place and ROLE_COLOR[place.role] or Theme.color.border
+                if place and place.name then
+                    local r, g, b = Util.ClassColor(place.class)
+                    Theme.Paint(box, { r or color[1], g or color[2], b or color[3], 1 })
+                else
+                    Theme.Paint(box, { color[1], color[2], color[3], 0.35 })
+                end
+                box:Show()
+            end
+            line:Show()
+        else
+            line:Hide()
+        end
+    end
+    dimTile(tile, #runs == 0, L.DASH_HUB_RUN_NONE)
 end
 
 -- ================================================================== Handel ----
@@ -870,6 +1033,7 @@ function Dashboard:Refresh()
     self:RefreshHero(identity, character)
     self:RefreshMine(identity, character)
     self:RefreshWhere()
+    self:RefreshHubs()
     self:RefreshFeed()
     self:RefreshTradables()
 
@@ -949,7 +1113,7 @@ GA.Core.Callbacks:On("TRADABLES_CHANGED", function()
 end, "DashboardView")
 
 -- Der Strom und der Rest der Seite: nur, solange sie zu sehen ist.
-for _, event in ipairs({ "ACTIVITY_CHANGED", "SESSION_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED" }) do
+for _, event in ipairs({ "ACTIVITY_CHANGED", "SESSION_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED", "QUESTHUB_CHANGED", "DUNGEONHUB_CHANGED" }) do
     GA.Core.Callbacks:On(event, function()
         if Dashboard.frame and Dashboard.frame:IsVisible() then Dashboard:Refresh() end
     end, "DashboardView")
