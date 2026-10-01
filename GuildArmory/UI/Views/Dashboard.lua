@@ -510,7 +510,9 @@ function Dashboard:BuildHubTile(parent, fonts, viewKey, label, goText)
         tile.lines[index] = line
     end
 
-    tile.go = Theme.Label(tile, goText .. " \226\134\146", fonts.small, Theme.color.goldDim)
+    -- Ohne Pfeil: Die Spielschrift hat das Zeichen nicht und malte ein
+    -- Kaestchen (Bild 01.10.2026).
+    tile.go = Theme.Label(tile, goText, fonts.small, Theme.color.goldDim)
     tile.go:SetPoint("BOTTOMLEFT", tile, "BOTTOMLEFT", 10, 7)
     tile.empty = Theme.Label(tile, "", fonts.small, Theme.color.textFaint)
     tile.empty:SetPoint("TOPLEFT", tile, "TOPLEFT", 10, -30)
