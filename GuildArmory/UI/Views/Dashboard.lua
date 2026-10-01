@@ -362,6 +362,25 @@ end
 function Dashboard:BuildWhere(content, fonts)
     self.zones = Widgets.ScrollList(content, {
         rowHeight = 24,
+        -- Die Punkte sagen nur, wie viele: Wer es ist, steht im Tooltip
+        -- (Wunsch 01.10.2026), nach Stufe absteigend, in Klassenfarbe.
+        onEnterRow = function(row, entry)
+            if not entry or not entry.members then return end
+            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(entry.zone, 1, 1, 1)
+            local liste = {}
+            for index, member in ipairs(entry.members) do liste[index] = member end
+            table.sort(liste, function(a, b)
+                if (a.level or 0) ~= (b.level or 0) then return (a.level or 0) > (b.level or 0) end
+                return tostring(a.name or "") < tostring(b.name or "")
+            end)
+            for _, member in ipairs(liste) do
+                GameTooltip:AddDoubleLine(Util.ColorByClass(Util.ShortName(member.name or "?"), member.class),
+                    member.level and tostring(member.level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
+            end
+            GameTooltip:Show()
+        end,
+        onLeaveRow = function() GameTooltip:Hide() end,
         createRow = function(row)
             row.zone = Theme.Label(row, "", fonts.row, Theme.color.text)
             row.zone:SetPoint("LEFT", row, "LEFT", 6, 0)

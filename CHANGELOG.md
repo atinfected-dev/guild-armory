@@ -6,6 +6,8 @@ Alt-click on the minimap button shows or hides the camp bar; hiding it with a ri
 
 The guild info is the addon's own now, like the message of the day: whoever may edit it in the game edits it here, everyone with the addon sees it, line breaks stay.
 
+Overview: hovering a zone under "Who is where" lists who stands there. The J key lands on the overview; on the overview it closes the window. Settings show the version from the first look, not only after a change.
+
 ## 0.1.25
 
 Asking for a tradable item whispers the real item link.

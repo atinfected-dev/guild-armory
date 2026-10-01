@@ -615,7 +615,11 @@ function Settings:Refresh()
     -- sich hier oben, und wer vorher misst, misst den alten Text.
     for _, page in pairs(self.pages) do Settings.LayoutPage(page) end
 
-    GA.UI.MainFrame:SetContext("v" .. GA.version)
+    -- ShowView schreibt nach diesem Refresh den Titel samt view.context:
+    -- Die Version muss dort stehen, sonst steht sie nur nach einer
+    -- Aenderung (gesehen 01.10.2026).
+    self.context = "v" .. GA.version
+    GA.UI.MainFrame:SetContext(self.context)
 end
 
 GA.UI.MainFrame:RegisterView("settings", Settings)

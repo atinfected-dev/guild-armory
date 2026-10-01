@@ -1149,7 +1149,7 @@ GA.Core.Locale:Register("enUS", {
 
     SET_ONSCREEN       = "On screen",
     SET_GUILDKEY       = "Guild key opens Guild Armory",
-    SET_GUILDKEY_HINT  = "J and the guild button open the roster here instead of the game's window. Not in combat. Bank and rank permissions stay in the game's window — a button there opens it.",
+    SET_GUILDKEY_HINT  = "J and the guild button open the overview here instead of the game's window; pressed again on the overview, J closes it. Not in combat. Bank and rank permissions stay in the game's window — a button in the roster opens it.",
     SET_NOTIFY         = "Notifications",
     SET_SUB_LANGUAGE   = "Default English; automatic follows the game client",
     SET_SUB_WINDOW     = "Size, key, tooltips",

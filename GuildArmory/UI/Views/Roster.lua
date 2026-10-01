@@ -931,25 +931,27 @@ local function redirectToRoster()
         View.togglePending = nil
         Compat.HideBlizzardGuildFrame()
         local main = GA.UI.MainFrame
-        if main.frame and main.frame:IsShown() and main.current == "roster" then return end
+        if main.frame and main.frame:IsShown() and main.current == "dashboard" then return end
         main:Show()
-        main:ShowView("roster")
+        main:ShowView("dashboard")
     end)
 end
 
---- Der Knopf, den die umbelegte J-Taste klickt: Verzeichnis auf, oder zu,
---- wenn es schon offen ist — wie die Taste sich anfuehlen soll.
+--- Der Knopf, den die umbelegte J-Taste klickt: die Uebersicht auf, oder
+--- zu, wenn sie schon offen ist — wie die Taste sich anfuehlen soll. Steht
+--- das Fenster auf einer anderen Seite, wechselt J zur Uebersicht
+--- (Wunsch 01.10.2026: "immer im Overview landen").
 local function guildKeyButton()
     if View.keyButton then return View.keyButton end
     local button = CreateFrame("Button", "GuildArmoryGuildKeyButton", UIParent)
     button:Hide()
     button:SetScript("OnClick", function()
         local main = GA.UI.MainFrame
-        if main.frame and main.frame:IsShown() and main.current == "roster" then
+        if main.frame and main.frame:IsShown() and main.current == "dashboard" then
             main:Hide()
         else
             main:Show()
-            main:ShowView("roster")
+            main:ShowView("dashboard")
         end
     end)
     View.keyButton = button

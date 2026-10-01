@@ -1137,7 +1137,7 @@ GA.Core.Locale:Register("deDE", {
 
     SET_ONSCREEN       = "Am Bildschirm",
     SET_GUILDKEY       = "Gildentaste oeffnet Guild Armory",
-    SET_GUILDKEY_HINT  = "J und der Gildenknopf oeffnen das Verzeichnis hier statt Blizzards Fenster. Nicht im Kampf. Bank und Rangrechte bleiben bei Blizzard — ein Knopf dort oeffnet es.",
+    SET_GUILDKEY_HINT  = "J und der Gildenknopf oeffnen die Uebersicht hier statt Blizzards Fenster; auf der Uebersicht schliesst J sie wieder. Nicht im Kampf. Bank und Rangrechte bleiben bei Blizzard — ein Knopf im Verzeichnis oeffnet es.",
     SET_NOTIFY         = "Meldungen",
     SET_SUB_LANGUAGE   = "Vorgabe Englisch; automatisch folgt dem Spielclient",
     SET_SUB_WINDOW     = "Groesse, Taste, Tooltips",
