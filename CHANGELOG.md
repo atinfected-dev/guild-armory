@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.27
+
+In progress.
+
 ## 0.1.26
 
 Alt-click on the minimap button shows or hides the camp bar; hiding it with a right click now says how to get it back.
