@@ -2,7 +2,7 @@
 
 ## 0.1.28
 
-In progress.
+My character on the overview: the five rows carry icons (bag, note, anvil, coin, achievement) instead of dots; the next achievement shows its own icon.
 
 ## 0.1.27
 

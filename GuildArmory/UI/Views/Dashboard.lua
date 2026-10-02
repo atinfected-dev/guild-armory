@@ -59,6 +59,18 @@ local DAY = 86400
 --- links oben nach rechts unten, die Waffen zuletzt. OHNE Hemd und
 --- Wappenrock: Sie zaehlen nicht zum Itemlevel, und mit ihnen waren es
 --- neunzehn Streifen fuer eine Zeile, die "17" verspricht (27.09.2026).
+--- Die Symbole der fuenf Zeilen unter dem Charakter (Wunsch 02.10.2026):
+--- je Zeile Kandidaten in Reihenfolge, der erste, den der Client hat,
+--- gewinnt; hat er keinen, bleibt der Punkt im Ring. Die fuenfte Zeile
+--- traegt das Symbol des Erfolgs selbst, wenn es einen gibt.
+local MINE_ICONS = {
+    { [[Interface\Icons\INV_Misc_Bag_08]], [[Interface\Icons\INV_Box_01]] },
+    { [[Interface\Icons\INV_Misc_Note_01]], [[Interface\Icons\INV_Scroll_03]] },
+    { [[Interface\Icons\Trade_BlackSmithing]], [[Interface\Icons\INV_Misc_Gear_01]] },
+    { [[Interface\Icons\INV_Misc_Coin_01]], [[Interface\Icons\INV_Misc_Coin_02]] },
+    { [[Interface\Icons\Achievement_General]], [[Interface\Icons\INV_BannerPVP_01]], [[Interface\Icons\INV_Misc_Rune_01]] },
+}
+
 local SLOT_ORDER = { 1, 2, 3, 15, 5, 9, 10, 6, 7, 8, 11, 12, 13, 14, 16, 17, 18 }
 
 -- ================================================================== Aufbau ----
@@ -388,6 +400,20 @@ function Dashboard:BuildMine(content, fonts)
         row.dot = row.ring:CreateTexture(nil, "OVERLAY")
         row.dot:SetWidth(6) row.dot:SetHeight(6)
         row.dot:SetPoint("CENTER", row.ring, "CENTER", 0, 0)
+        -- Das Symbol fuellt den Ring; der Punkt bleibt der Rueckfall.
+        row.icon = row.ring:CreateTexture(nil, "ARTWORK")
+        row.icon:SetPoint("TOPLEFT", row.ring, "TOPLEFT", 1, -1)
+        row.icon:SetPoint("BOTTOMRIGHT", row.ring, "BOTTOMRIGHT", -1, 1)
+        pcall(row.icon.SetTexCoord, row.icon, 0.07, 0.93, 0.07, 0.93)
+        row.icon:Hide()
+        for _, path in ipairs(MINE_ICONS[index] or {}) do
+            if Theme.TextureExists(path) and pcall(row.icon.SetTexture, row.icon, path) then
+                row.iconPath = path
+                row.icon:Show()
+                row.dot:Hide()
+                break
+            end
+        end
 
         row.value = Theme.Label(row, "", fonts.rowBold, Theme.color.gold)
         row.value:SetPoint("RIGHT", row, "RIGHT", -6, 0)
@@ -416,9 +442,26 @@ function Dashboard:BuildMine(content, fonts)
             self.sub:SetText(sub or "")
             self.value:SetText(value or "")
             self.value:SetTextColor(farbe[1], farbe[2], farbe[3])
-            Theme.Paint(self.dot, farbe)
+            if self.iconPath then
+                -- Gedimmt, wenn die Zeile nichts zu melden hat.
+                local faint = color == nil or color == Theme.color.textFaint
+                self.icon:SetVertexColor(1, 1, 1, faint and 0.45 or 1)
+                if self.icon.SetDesaturated then pcall(self.icon.SetDesaturated, self.icon, faint) end
+            else
+                Theme.Paint(self.dot, farbe)
+            end
             for _, line in ipairs(self.ring.lines) do Theme.Paint(line, farbe) end
             self.view = view
+        end
+
+        --- Ein eigenes Symbol fuer diese Zeile (der naechste Erfolg); nil
+        --- stellt das Standardsymbol wieder her.
+        function row:SetIcon(path)
+            local ziel = path or self.iconPath
+            if not ziel then return end
+            if pcall(self.icon.SetTexture, self.icon, ziel) then
+                pcall(self.icon.SetTexCoord, self.icon, 0.07, 0.93, 0.07, 0.93)
+            end
         end
         self.mine[index] = row
     end
@@ -1076,8 +1119,12 @@ function Dashboard:RefreshMine(identity, character)
         self.mine[5]:Set(L.DASH_MINE_ACH, bester.name,
             string.format("%d/%d", bester.progress.current, bester.progress.target),
             Theme.color.gold, "achievements")
+        local Symbols = GA.UI.AchievementIcons
+        local eigenes = Symbols and Symbols.For and select(1, Symbols:For(bester)) or nil
+        self.mine[5]:SetIcon(eigenes)
     else
         self.mine[5]:Set(L.DASH_MINE_ACH, L.DASH_MINE_ACH_NONE, "—", Theme.color.textFaint, "achievements")
+        self.mine[5]:SetIcon(nil)
     end
 end
 
