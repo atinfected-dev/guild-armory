@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.28
+
+In progress.
+
 ## 0.1.27
 
 The Guild info button in the roster does something again: its handler reached for a module that was not in scope, so the click threw.
