@@ -40,6 +40,8 @@ Questhub.MAX_OBJECTIVES = 3
 Questhub.OBJECTIVE_LEN = 40
 Questhub.TITLE_LEN = 60
 Questhub.REQUEST_COOLDOWN = 30
+Questhub.SEEN_TTL = 20            -- Sekunden: so lange gilt "das Gesuch hoerte ich eben"
+Questhub.RELAY_DELAY = 6          -- Sekunden: Weitergabe fremder Gesuche zufaellig verzoegert
 
 Questhub.requests = {}
 Questhub.hookPath = nil
@@ -49,10 +51,39 @@ local function store()
     if not account then return nil end
     account.questhub = account.questhub or { own = {} }
     account.questhub.own = account.questhub.own or {}
+    account.questhub.known = account.questhub.known or {}   -- fremde Gesuche, fuer die Weitergabe
+    account.questhub.gone = account.questhub.gone or {}     -- Grabsteine: zurueckgenommene Gesuche
     return account.questhub
 end
 
 local function comm() return GA.Core.Comm end
+
+--- WEITERGABE (02.10.2026), wie im Dungeonhub: Jeder Client gibt weiter,
+--- was er kennt. Fremde Gesuche wandern in die Datei; auf eine Anfrage
+--- gehen sie als QHUBR hinaus, mit dem Sucher als letztem Feld, weil der
+--- Absender dann nicht der Sucher ist. Zurueckgenommene bleiben als
+--- Grabstein (QHUBXR), damit eine Weitergabe sie nicht wiederbelebt.
+--- Wer ein Gesuch eben erst hoerte, schickt es nicht noch einmal.
+local seen = {}
+local function markSeen(id) seen[id] = Util.Now() end
+local function seenLately(id)
+    local at = seen[id]
+    return at ~= nil and Util.Now() - at <= Questhub.SEEN_TTL
+end
+local function remember(request)
+    local db = store()
+    if db and not request.own then db.known[request.id] = request end
+end
+local function forget(id, seeker)
+    local db = store()
+    if not db then return end
+    db.known[id] = nil
+    db.gone[id] = { seeker = seeker, ts = Util.Now() }
+end
+local function isGone(id)
+    local db = store()
+    return db ~= nil and db.gone[id] ~= nil
+end
 
 local function ownName()
     local identity = Compat.GetPlayerIdentity()
@@ -160,12 +191,24 @@ function Questhub:Send(request)
     }, "GUILD", nil, true) and true or false
 end
 
+--- Weitergabe eines fremden Gesuchs: wie QHUB, nur mit dem Sucher als
+--- letztem Feld.
+function Questhub:Relay(request)
+    if not comm() or request.own then return false end
+    return comm():Send("QHUBR", {
+        request.id, request.questID, request.title, request.level or 0,
+        request.tag or "", request.zone or "", table.concat(request.objectives or {}, ";"),
+        request.ts, request.seeker or "",
+    }, "GUILD", nil, true) and true or false
+end
+
 --- Nimmt ein eigenes Gesuch zurueck.
 function Questhub:Withdraw(id, quiet)
     local db = store()
     if not db or not db.own[id] then return false end
     db.own[id] = nil
     self.requests[id] = nil
+    forget(id, ownName())
     if comm() then comm():Send("QHUBX", { id }, "GUILD", nil, true) end
     if not quiet then GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", "withdraw", id) end
     return true
@@ -190,7 +233,8 @@ end
 
 -- ================================================================== Fremde ---
 
-function Questhub:OnPost(sender, fields)
+--- @param relayedSeeker string|nil  bei einer Weitergabe der eigentliche Sucher
+function Questhub:OnPost(sender, fields, relayedSeeker)
     if comm() and comm():IsSelf(sender) then return end
     local id = fields[1]
     local questID = tonumber(fields[2])
@@ -200,6 +244,13 @@ function Questhub:OnPost(sender, fields)
         or type(title) ~= "string" or title == "" or not ts then
         return
     end
+    if relayedSeeker then
+        -- Ein weitergegebenes Gesuch: nicht, wenn es zurueckgenommen wurde,
+        -- nicht mein eigenes, und nichts Aelteres ueber Bekanntes.
+        if isGone(id) or relayedSeeker == ownName() then return end
+        local alt = self.requests[id]
+        if alt and (alt.ts or 0) >= ts then markSeen(id) return end
+    end
     -- Ein Gesuch aus der Zukunft oder aelter als seine Lebensdauer ist
     -- keines. Die Uhren zweier Clients weichen ab; drei Stunden sind Luft.
     if math.abs(Util.Now() - ts) > self.TTL + 3600 then return end
@@ -208,23 +259,45 @@ function Questhub:OnPost(sender, fields)
     for teil in string.gmatch(tostring(fields[7] or ""), "[^;]+") do ziele[#ziele + 1] = teil end
 
     local alt = self.requests[id]
+    local seeker = relayedSeeker or Util.ShortName(sender)
     local request = {
         id = id, questID = questID, title = kuerzen(title, self.TITLE_LEN),
         level = tonumber(fields[4]), tag = fields[5] ~= "" and fields[5] or nil,
         zone = fields[6] ~= "" and fields[6] or nil, objectives = ziele, ts = ts,
-        seeker = Util.ShortName(sender), class = klasseVon(sender), own = false,
+        seeker = seeker, class = klasseVon(seeker), own = false,
         joiners = alt and alt.joiners or {},
     }
     self.requests[id] = request
+    markSeen(id)
+    remember(request)
     GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", alt and "update" or "new", request)
 end
 
-function Questhub:OnWithdraw(sender, fields)
-    local request = self.requests[fields[1] or ""]
-    if not request or request.own then return end
-    if Util.ShortName(sender) ~= request.seeker then return end
-    self.requests[request.id] = nil
-    GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", "withdraw", request.id)
+function Questhub:OnRelayPost(sender, fields)
+    local seeker = fields[9]
+    if type(seeker) ~= "string" or seeker == "" then return end
+    self:OnPost(sender, fields, seeker)
+end
+
+--- @param relayedSeeker string|nil  bei einer Weitergabe der eigentliche Sucher
+function Questhub:OnWithdraw(sender, fields, relayedSeeker)
+    local id = fields[1] or ""
+    local request = self.requests[id]
+    local seeker = relayedSeeker or Util.ShortName(sender)
+    if not request then
+        if relayedSeeker and id ~= "" and not isGone(id) then forget(id, seeker) end
+        return
+    end
+    if request.own or seeker ~= request.seeker then return end
+    self.requests[id] = nil
+    forget(id, seeker)
+    GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", "withdraw", id)
+end
+
+function Questhub:OnRelayWithdraw(sender, fields)
+    local seeker = fields[2]
+    if type(seeker) ~= "string" or seeker == "" then return end
+    self:OnWithdraw(sender, fields, seeker)
 end
 
 function Questhub:OnJoin(sender, fields)
@@ -237,10 +310,34 @@ function Questhub:OnJoin(sender, fields)
     GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", "join", request)
 end
 
---- Jemand fragt nach allen Gesuchen: die eigenen noch einmal schicken.
+--- Jemand fragt: die eigenen sofort, die fremden nach einer kurzen
+--- zufaelligen Pause — nur die, die kein anderer eben schon schickte.
+--- Grabsteine gehen mit.
+--- @return number angekuendigt (fremde Gesuche plus Grabsteine)
 function Questhub:OnRequest(sender)
-    if comm() and comm():IsSelf(sender) then return end
-    for _, request in pairs(store() and store().own or {}) do self:Send(request) end
+    if comm() and comm():IsSelf(sender) then return 0 end
+    local db = store()
+    for _, request in pairs(db and db.own or {}) do self:Send(request) end
+    local pending, gone = {}, {}
+    for id, request in pairs(self.requests) do
+        if not request.own and not seenLately(id) then pending[#pending + 1] = request end
+    end
+    for id, g in pairs(db and db.gone or {}) do gone[#gone + 1] = { id = id, seeker = g.seeker or "" } end
+    if #pending + #gone == 0 then return 0 end
+    local function relay()
+        for _, request in ipairs(pending) do
+            if self.requests[request.id] and not seenLately(request.id) then self:Relay(request) end
+        end
+        if comm() then
+            for _, g in ipairs(gone) do comm():Send("QHUBXR", { g.id, g.seeker }, "GUILD", nil, true) end
+        end
+    end
+    if type(Compat.After) == "function" then
+        Compat.After(math.random() * self.RELAY_DELAY, relay)
+    else
+        relay()
+    end
+    return #pending + #gone
 end
 
 function Questhub:Request()
@@ -262,6 +359,15 @@ function Questhub:Prune()
         if (request.ts or 0) < grenze then
             self.requests[id] = nil
             if db and db.own[id] then db.own[id] = nil end
+            if db and db.known[id] then db.known[id] = nil end
+        end
+    end
+    if db then
+        for id, request in pairs(db.known) do
+            if (request.ts or 0) < grenze then db.known[id] = nil end
+        end
+        for id, g in pairs(db.gone) do
+            if (g.ts or 0) < grenze then db.gone[id] = nil end
         end
     end
 end
@@ -324,10 +430,18 @@ function Questhub:OnEnable()
         Comm:On("QHUBX", function(sender, fields) Questhub:OnWithdraw(sender, fields) end, "Questhub")
         Comm:On("QJOIN", function(sender, fields) Questhub:OnJoin(sender, fields) end, "Questhub")
         Comm:On("QREQ", function(sender) Questhub:OnRequest(sender) end, "Questhub")
+        Comm:On("QHUBR", function(sender, fields) Questhub:OnRelayPost(sender, fields) end, "Questhub")
+        Comm:On("QHUBXR", function(sender, fields) Questhub:OnRelayWithdraw(sender, fields) end, "Questhub")
     end
 
-    -- Eigene Gesuche aus der Datei: zurueck ins Gedaechtnis, abgelaufene weg.
+    -- Eigene und bekannte fremde Gesuche aus der Datei: zurueck ins
+    -- Gedaechtnis, abgelaufene weg.
     local db = store()
+    for id, request in pairs(db and db.known or {}) do
+        request.own = false
+        request.joiners = request.joiners or {}
+        self.requests[id] = request
+    end
     for id, request in pairs(db and db.own or {}) do
         request.own = true
         request.joiners = request.joiners or {}

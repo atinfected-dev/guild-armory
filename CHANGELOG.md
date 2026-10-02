@@ -4,6 +4,8 @@
 
 My character on the overview: the five rows carry icons (bag, note, anvil, coin, achievement) instead of dots; the next achievement shows its own icon.
 
+Questhub and Dungeonhub pass their entries on: every client keeps what it heard, answers a newcomer's request with it (naming the real seeker or leader), and remembers withdrawals so nothing withdrawn comes back. The leader's line-up carries a stamp, so a relayed older line-up never overwrites a newer one. Before, only the poster answered, so whoever logged in while the poster was away saw nothing.
+
 ## 0.1.27
 
 The Guild info button in the roster does something again: its handler reached for a module that was not in scope, so the click threw.

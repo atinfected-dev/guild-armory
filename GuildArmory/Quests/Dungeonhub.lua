@@ -17,9 +17,13 @@
       DMEMB  id, "TANK:Name;HEAL:Name;DPS:A,B,C"     die Besetzung, vom Leiter
       DHUBX  id                                      zurueckgenommen
       DREQ                                           "schickt mir eure Laeufe"
+      DHUBR  wie DHUB, dazu leader                   Weitergabe durch einen Dritten
+      DMEMBR id, Besetzung, mts, leader              Weitergabe der Besetzung
+      DHUBXR id, leader                              Weitergabe eines Grabsteins
     DER LEITER IST DIE QUELLE DER BESETZUNG: Er antwortet auf jeden Beitritt
-    mit DMEMB, und wer spaeter einloggt, bekommt sie auf DREQ. Ohne den
-    Leiter online gilt, was die anderen an DJOIN gesehen haben.
+    mit DMEMB (mit Stempel mts), und wer spaeter einloggt, bekommt sie auf
+    DREQ. Ist der Leiter nicht da, geben die anderen weiter, was sie von ihm
+    haben (02.10.2026) — der Stempel sagt, was juenger ist.
 
     WAS DAS ADDON NICHT TUT: Gruppen bilden. "Gruppe einladen" schickt die
     Einladungen des Spiels aus dem Klick heraus; wer annimmt, ist Sache des
@@ -42,6 +46,8 @@ Dungeonhub.GRACE = 3600             -- so weit darf die Startzeit zurueckliegen
 Dungeonhub.NOTE_LEN = 60
 Dungeonhub.DUNGEON_LEN = 30
 Dungeonhub.REQUEST_COOLDOWN = 30
+Dungeonhub.SEEN_TTL = 20            -- Sekunden: so lange gilt "den Lauf hoerte ich eben"
+Dungeonhub.RELAY_DELAY = 6          -- Sekunden: Weitergabe fremder Laeufe zufaellig verzoegert
 
 --- Die Rollen, in der Reihenfolge der Plaetze, und wie viele es je gibt.
 Dungeonhub.ROLES = { "TANK", "HEAL", "DPS" }
@@ -105,10 +111,43 @@ local function store()
     if not account then return nil end
     account.dungeonhub = account.dungeonhub or { own = {} }
     account.dungeonhub.own = account.dungeonhub.own or {}
+    account.dungeonhub.known = account.dungeonhub.known or {}   -- fremde Laeufe, fuer die Weitergabe
+    account.dungeonhub.gone = account.dungeonhub.gone or {}     -- Grabsteine: zurueckgenommene Laeufe
     return account.dungeonhub
 end
 
 local function comm() return GA.Core.Comm end
+
+--- WEITERGABE (02.10.2026): Ein Lauf lebte nur beim Leiter und bei denen,
+--- die ihn direkt hoerten. Wer spaeter einloggte, fragte — und bekam nur
+--- Antwort, wenn der Leiter gerade da war. Jetzt gibt JEDER Client weiter,
+--- was er kennt: fremde Laeufe wandern in die Datei, auf eine Anfrage
+--- gehen sie als DHUBR/DMEMBR hinaus, mit dem Leiter als Feld, weil der
+--- Absender dann nicht der Leiter ist. Zurueckgenommene Laeufe bleiben
+--- als Grabstein, damit eine Weitergabe sie nicht wiederbelebt.
+---
+--- Wer einen Lauf eben erst hoerte, schickt ihn auf eine Anfrage nicht
+--- noch einmal — sonst antworten dreissig Clients mit demselben Lauf.
+local seen = {}
+local function markSeen(id) seen[id] = Util.Now() end
+local function seenLately(id)
+    local at = seen[id]
+    return at ~= nil and Util.Now() - at <= Dungeonhub.SEEN_TTL
+end
+local function remember(run)
+    local db = store()
+    if db and not run.own then db.known[run.id] = run end
+end
+local function forget(id, leader)
+    local db = store()
+    if not db then return end
+    db.known[id] = nil
+    db.gone[id] = { leader = leader, ts = Util.Now() }
+end
+local function isGone(id)
+    local db = store()
+    return db ~= nil and db.gone[id] ~= nil
+end
 
 local function ownName()
     local identity = Compat.GetPlayerIdentity()
@@ -244,6 +283,7 @@ function Dungeonhub:Post(dungeon, at, note, role)
         note = kuerzen(note, self.NOTE_LEN), ts = now,
         leader = me, class = identity.class, own = true,
         members = { [me] = { role = role, class = identity.class, ts = now } },
+        mts = now,
     }
     db.own[run.id] = run
     db.lastRole = role
@@ -293,7 +333,18 @@ end
 --- Der Leiter schickt die Besetzung — nach jeder Aenderung und auf Anfrage.
 function Dungeonhub:SendMembers(run)
     if not comm() or not run.own then return false end
-    return comm():Send("DMEMB", { run.id, self.EncodeMembers(run) }, "GUILD", nil, true) and true or false
+    run.mts = run.mts or Util.Now()
+    return comm():Send("DMEMB", { run.id, self.EncodeMembers(run), tostring(run.mts) }, "GUILD", nil, true) and true or false
+end
+
+--- Weitergabe eines fremden Laufs samt Besetzung: wie DHUB und DMEMB,
+--- nur mit dem Leiter als letztem Feld.
+function Dungeonhub:Relay(run)
+    if not comm() or run.own then return false end
+    local leaderRole = run.members and run.members[run.leader] and run.members[run.leader].role or "DPS"
+    comm():Send("DHUBR", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.leader }, "GUILD", nil, true)
+    comm():Send("DMEMBR", { run.id, self.EncodeMembers(run), tostring(run.mts or 0), run.leader }, "GUILD", nil, true)
+    return true
 end
 
 --- Nimmt einen eigenen Lauf zurueck.
@@ -302,6 +353,7 @@ function Dungeonhub:Withdraw(id, quiet)
     if not db or not db.own[id] then return false end
     db.own[id] = nil
     self.runs[id] = nil
+    forget(id, ownName())
     if comm() then comm():Send("DHUBX", { id }, "GUILD", nil, true) end
     if not quiet then GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "withdraw", id) end
     return true
@@ -321,7 +373,7 @@ function Dungeonhub:Join(id, role)
     local db = store()
     if db then db.lastRole = role end
     if comm() then comm():Send("DJOIN", { id, role }, "GUILD", nil, true) end
-    if run.own then self:SendMembers(run) end
+    if run.own then run.mts = Util.Now() self:SendMembers(run) end
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "join", run)
     return true
 end
@@ -346,37 +398,68 @@ end
 
 -- ================================================================== Fremde ---
 
-function Dungeonhub:OnPost(sender, fields)
+--- @param relayedLeader string|nil  bei einer Weitergabe der eigentliche Leiter
+function Dungeonhub:OnPost(sender, fields, relayedLeader)
     if comm() and comm():IsSelf(sender) then return end
     local id, dungeon = fields[1], fields[2]
     local at, ts = tonumber(fields[3]), tonumber(fields[5])
     if type(id) ~= "string" or id == "" or type(dungeon) ~= "string" or dungeon == "" or not at or not ts then return end
+    if relayedLeader then
+        -- Ein weitergegebener Lauf: nicht, wenn er zurueckgenommen wurde,
+        -- nicht mein eigener, und nichts Aelteres ueber Bekanntes.
+        if isGone(id) or relayedLeader == ownName() then return end
+        local alt = self.runs[id]
+        if alt and (alt.ts or 0) >= ts then markSeen(id) return end
+    end
     -- Aelter als seine Lebensdauer oder weit in der Zukunft: kein Lauf.
     -- Zwei Uhren weichen ab; eine Stunde ist Luft.
     local now = Util.Now()
     if ts > now + 3600 or now - ts > self.TTL then return end
-    local leader = Util.ShortName(sender)
+    local leader = relayedLeader or Util.ShortName(sender)
     local alt = self.runs[id]
     local run = {
         id = id, dungeon = kuerzen(dungeon, self.DUNGEON_LEN), at = at,
         note = kuerzen(fields[4], self.NOTE_LEN), ts = ts,
-        leader = leader, class = klasseVon(sender), own = false,
-        members = alt and alt.members or {},
+        leader = leader, class = klasseVon(leader), own = false,
+        members = alt and alt.members or {}, mts = alt and alt.mts or nil,
     }
     if not run.members[leader] then
         local role = validRole(fields[6]) and fields[6] or "DPS"
         run.members[leader] = { role = role, class = run.class, ts = ts }
     end
     self.runs[id] = run
+    markSeen(id)
+    remember(run)
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", alt and "update" or "new", run)
 end
 
-function Dungeonhub:OnWithdraw(sender, fields)
-    local run = self.runs[fields[1] or ""]
-    if not run or run.own then return end
-    if Util.ShortName(sender) ~= run.leader then return end
-    self.runs[run.id] = nil
-    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "withdraw", run.id)
+function Dungeonhub:OnRelayPost(sender, fields)
+    local leader = fields[7]
+    if type(leader) ~= "string" or leader == "" then return end
+    self:OnPost(sender, fields, leader)
+end
+
+--- @param relayedLeader string|nil  bei einer Weitergabe der eigentliche Leiter
+function Dungeonhub:OnWithdraw(sender, fields, relayedLeader)
+    local id = fields[1] or ""
+    local run = self.runs[id]
+    local leader = relayedLeader or Util.ShortName(sender)
+    if not run then
+        -- Nichts zu entfernen, aber der Grabstein verhindert, dass eine
+        -- spaetere Weitergabe den Lauf zurueckbringt.
+        if relayedLeader and id ~= "" and not isGone(id) then forget(id, leader) end
+        return
+    end
+    if run.own or leader ~= run.leader then return end
+    self.runs[id] = nil
+    forget(id, leader)
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "withdraw", id)
+end
+
+function Dungeonhub:OnRelayWithdraw(sender, fields)
+    local leader = fields[2]
+    if type(leader) ~= "string" or leader == "" then return end
+    self:OnWithdraw(sender, fields, leader)
 end
 
 function Dungeonhub:OnJoin(sender, fields)
@@ -394,29 +477,72 @@ function Dungeonhub:OnJoin(sender, fields)
         if name == run.leader then return end
         run.members[name] = nil
     end
-    if run.own then self:SendMembers(run) end
+    if run.own then run.mts = Util.Now() self:SendMembers(run) else remember(run) end
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "join", run)
 end
 
-function Dungeonhub:OnMembers(sender, fields)
+--- @param relayedLeader string|nil  bei einer Weitergabe der eigentliche Leiter
+function Dungeonhub:OnMembers(sender, fields, relayedLeader)
     if comm() and comm():IsSelf(sender) then return end
     local run = self.runs[fields[1] or ""]
     if not run or run.own then return end
-    if Util.ShortName(sender) ~= run.leader then return end
+    local leader = relayedLeader or Util.ShortName(sender)
+    if leader ~= run.leader then return end
+    local mts = tonumber(fields[3])
+    if relayedLeader then
+        -- Eine weitergegebene Besetzung zaehlt nur, wenn sie juenger ist
+        -- als die, die ich habe: Der Stempel des Leiters entscheidet.
+        if not mts or mts <= (run.mts or 0) then markSeen(run.id) return end
+    end
     run.members = self.DecodeMembers(fields[2], klasseVon)
+    run.mts = mts or Util.Now()
     if not run.members[run.leader] then
         run.members[run.leader] = { role = "DPS", class = run.class, ts = 0 }
     end
+    markSeen(run.id)
+    remember(run)
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "members", run)
 end
 
+function Dungeonhub:OnRelayMembers(sender, fields)
+    local leader = fields[4]
+    if type(leader) ~= "string" or leader == "" then return end
+    self:OnMembers(sender, fields, leader)
+end
+
 --- Jemand fragt nach allen Laeufen: die eigenen noch einmal, samt Besetzung.
+--- Jemand fragt: die eigenen sofort, die fremden nach einer kurzen
+--- zufaelligen Pause — und nur die, die in der Zwischenzeit kein anderer
+--- schon geschickt hat. Grabsteine gehen mit, damit der Fragende nichts
+--- Zurueckgenommenes von einem Dritten annimmt.
+--- @return number angekuendigt (fremde Laeufe plus Grabsteine)
 function Dungeonhub:OnRequest(sender)
-    if comm() and comm():IsSelf(sender) then return end
-    for _, run in pairs(store() and store().own or {}) do
+    if comm() and comm():IsSelf(sender) then return 0 end
+    local db = store()
+    for _, run in pairs(db and db.own or {}) do
         self:Send(run)
         self:SendMembers(run)
     end
+    local pending, gone = {}, {}
+    for id, run in pairs(self.runs) do
+        if not run.own and not seenLately(id) then pending[#pending + 1] = run end
+    end
+    for id, g in pairs(db and db.gone or {}) do gone[#gone + 1] = { id = id, leader = g.leader or "" } end
+    if #pending + #gone == 0 then return 0 end
+    local function relay()
+        for _, run in ipairs(pending) do
+            if self.runs[run.id] and not seenLately(run.id) then self:Relay(run) end
+        end
+        if comm() then
+            for _, g in ipairs(gone) do comm():Send("DHUBXR", { g.id, g.leader }, "GUILD", nil, true) end
+        end
+    end
+    if type(Compat.After) == "function" then
+        Compat.After(math.random() * self.RELAY_DELAY, relay)
+    else
+        relay()
+    end
+    return #pending + #gone
 end
 
 function Dungeonhub:Request()
@@ -438,6 +564,15 @@ function Dungeonhub:Prune()
         if now - (run.ts or 0) > self.TTL or now - (run.at or 0) > self.GRACE then
             self.runs[id] = nil
             if db and db.own[id] then db.own[id] = nil end
+            if db and db.known[id] then db.known[id] = nil end
+        end
+    end
+    if db then
+        for id, run in pairs(db.known) do
+            if now - (run.ts or 0) > self.TTL or now - (run.at or 0) > self.GRACE then db.known[id] = nil end
+        end
+        for id, g in pairs(db.gone) do
+            if now - (g.ts or 0) > self.TTL then db.gone[id] = nil end
         end
     end
 end
@@ -499,10 +634,19 @@ function Dungeonhub:OnEnable()
         Comm:On("DJOIN", function(sender, fields) Dungeonhub:OnJoin(sender, fields) end, "Dungeonhub")
         Comm:On("DMEMB", function(sender, fields) Dungeonhub:OnMembers(sender, fields) end, "Dungeonhub")
         Comm:On("DREQ", function(sender) Dungeonhub:OnRequest(sender) end, "Dungeonhub")
+        Comm:On("DHUBR", function(sender, fields) Dungeonhub:OnRelayPost(sender, fields) end, "Dungeonhub")
+        Comm:On("DMEMBR", function(sender, fields) Dungeonhub:OnRelayMembers(sender, fields) end, "Dungeonhub")
+        Comm:On("DHUBXR", function(sender, fields) Dungeonhub:OnRelayWithdraw(sender, fields) end, "Dungeonhub")
     end
 
-    -- Eigene Laeufe aus der Datei: zurueck ins Gedaechtnis, abgelaufene weg.
+    -- Eigene und bekannte fremde Laeufe aus der Datei: zurueck ins
+    -- Gedaechtnis, abgelaufene weg.
     local db = store()
+    for id, run in pairs(db and db.known or {}) do
+        run.own = false
+        run.members = run.members or {}
+        self.runs[id] = run
+    end
     for id, run in pairs(db and db.own or {}) do
         run.own = true
         run.members = run.members or {}
