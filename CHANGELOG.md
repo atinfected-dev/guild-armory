@@ -6,7 +6,7 @@ The Guild info button in the roster does something again: its handler reached fo
 
 The guild info stands on the overview, under the guild's name: the first two lines, the whole text as a tooltip, a click opens the editor.
 
-"Who is where" shows class crests instead of coloured dots.
+"Who is where" shows class crests instead of coloured dots, six per zone, then +n.
 
 ## 0.1.26
 

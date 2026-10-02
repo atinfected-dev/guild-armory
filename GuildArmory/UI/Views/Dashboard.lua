@@ -41,6 +41,7 @@ local HERO_HEIGHT = 150          -- 118 + zwei Zeilen Gildeninfo (02.10.2026)
 local KPI_W, KPI_H, KPI_GAP = 104, 66, 8
 local MINE_WIDTH = 290
 local RIGHT_WIDTH = 240
+local MAX_CRESTS = 6           -- Wappen je Zonenzeile, danach +n (02.10.2026: sechs statt acht)
 local HUB_HEIGHT = 92          -- die zwei Live-Kacheln ueber dem Strom
 local ROLE_COLOR = {           -- wie im Dungeonhub: Tank blau, Heiler gruen, Schaden rot
     TANK = { 0.36, 0.55, 0.84 },
@@ -437,11 +438,11 @@ function Dashboard:BuildWhere(content, fonts)
             row.zone:SetPoint("LEFT", row, "LEFT", 6, 0)
             row.zone:SetJustifyH("LEFT")
             row.zone:SetWordWrap(false)
-            -- Bis zu acht Wappen (02.10.2026: Klassensymbole statt
+            -- Bis zu sechs Wappen (02.10.2026: Klassensymbole statt
             -- Farbpunkte), danach eine Zahl.
             row.dots = {}
             local vorige
-            for index = 1, 8 do
+            for index = 1, MAX_CRESTS do
                 local dot = row:CreateTexture(nil, "ARTWORK")
                 dot:SetWidth(16) dot:SetHeight(16)
                 if vorige then dot:SetPoint("RIGHT", vorige, "LEFT", -2, 0)
@@ -451,7 +452,7 @@ function Dashboard:BuildWhere(content, fonts)
                 vorige = dot
             end
             row.more = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-            row.more:SetPoint("RIGHT", row.dots[8], "LEFT", -4, 0)
+            row.more:SetPoint("RIGHT", row.dots[MAX_CRESTS], "LEFT", -4, 0)
             row.zone:SetPoint("RIGHT", row.more, "LEFT", -4, 0)
         end,
         updateRow = function(row, entry)
@@ -475,7 +476,7 @@ function Dashboard:BuildWhere(content, fonts)
                     dot:Hide()
                 end
             end
-            row.more:SetText(#entry.members > 8 and ("+" .. (#entry.members - 8)) or "")
+            row.more:SetText(#entry.members > MAX_CRESTS and ("+" .. (#entry.members - MAX_CRESTS)) or "")
         end,
     })
     self.zones:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
