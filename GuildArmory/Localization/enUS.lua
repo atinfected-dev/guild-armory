@@ -71,6 +71,7 @@ GA.Core.Locale:Register("enUS", {
     DASH_FEED_TAG     = "%d events · measured, not claimed",
     DASH_FEED_EMPTY   = "Nothing yet. Level-ups, joins, awards and achievements appear here as they happen.",
     DASH_WHERE        = "Who is where",
+    DASH_INFO_EMPTY   = "No guild info yet. Click to write one; everyone with the addon will see it here.",
     DASH_HUB_QUEST    = "Questhub",
     DASH_HUB_QUEST_SUB = "requests",
     DASH_HUB_QUEST_HERE = "requests · %d in your zone",

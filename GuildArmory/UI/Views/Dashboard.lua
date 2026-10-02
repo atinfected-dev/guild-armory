@@ -37,7 +37,7 @@ local L = GA.L
 
 Dashboard.titleKey = "NAV_DASHBOARD"
 
-local HERO_HEIGHT = 118
+local HERO_HEIGHT = 150          -- 118 + zwei Zeilen Gildeninfo (02.10.2026)
 local KPI_W, KPI_H, KPI_GAP = 104, 66, 8
 local MINE_WIDTH = 290
 local RIGHT_WIDTH = 240
@@ -203,6 +203,36 @@ function Dashboard:Create(parent)
     -- Titel und Zeile enden vor den Kacheln.
     self.guildName:SetPoint("RIGHT", self.kpis.ilvl, "LEFT", -16, 0)
     self.guildMeta:SetPoint("RIGHT", self.kpis.ilvl, "LEFT", -16, 0)
+
+    -- Die Gildeninfo des Addons: die ersten zwei Zeilen hier, der ganze
+    -- Text im Tooltip, Klick oeffnet den Dialog aus dem Verzeichnis.
+    -- Unter der Chipzeile, fest verankert, damit sie bei leeren Chips
+    -- nicht nach oben rutscht.
+    local info = CreateFrame("Button", nil, hero)
+    info:SetPoint("TOPLEFT", self.guildMeta, "BOTTOMLEFT", 0, -30)
+    info:SetPoint("RIGHT", self.kpis.ilvl, "LEFT", -16, 0)
+    info:SetHeight(30)
+    info.text = Theme.Label(info, "", fonts.small, Theme.color.text)
+    info.text:SetPoint("TOPLEFT", info, "TOPLEFT", 0, 0)
+    info.text:SetPoint("BOTTOMRIGHT", info, "BOTTOMRIGHT", 0, 0)
+    info.text:SetJustifyH("LEFT")
+    info.text:SetJustifyV("TOP")
+    info.text:SetWordWrap(true)
+    if info.text.SetMaxLines then pcall(info.text.SetMaxLines, info.text, 2) end
+    info:SetScript("OnEnter", function(self)
+        if not self.full or self.full == "" then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:AddLine(L.ROSTER_INFO, 1, 1, 1)
+        GameTooltip:AddLine(self.full, 0.91, 0.86, 0.75, true)
+        if self.by then GameTooltip:AddLine(self.by, 0.44, 0.40, 0.33) end
+        GameTooltip:Show()
+    end)
+    info:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    info:SetScript("OnClick", function()
+        local roster = GA.UI.MainFrame.views and GA.UI.MainFrame.views.roster
+        if roster and roster.EditGuildInfo then roster:EditGuildInfo() end
+    end)
+    self.guildInfo = info
 
     -- ------------------------------------------------------ Dein Charakter --
     local mine = Widgets.Panel(frame, L.DASH_MY_CHARACTER, L.DASH_COMPUTED)
@@ -767,6 +797,39 @@ function Dashboard:LayoutChips()
     end
 end
 
+--- Die Gildeninfo im Kopf: zwei Zeilen, der Rest im Tooltip. Ohne Text
+--- steht da fuer die, die schreiben duerfen, der Hinweis — fuer alle
+--- anderen nichts.
+function Dashboard:RefreshGuildInfo()
+    local GuildNotes = GA.Modules.GuildNotes
+    local info = self.guildInfo
+    if not info or not GuildNotes then return end
+    local text, entry = GuildNotes:GetInfo()
+    info.full = text
+    info.by = entry and entry.by and entry.ts
+        and string.format(L.ROSTER_NOTE_BY, entry.by, Util.TimeAgo(entry.ts)) or nil
+    if text and text ~= "" then
+        local zeilen, n = {}, 0
+        for zeile in string.gmatch(text .. "\n", "([^\n]*)\n") do
+            if zeile ~= "" then
+                n = n + 1
+                zeilen[n] = zeile
+                if n == 2 then break end
+            end
+        end
+        info.text:SetText(table.concat(zeilen, "\n"))
+        info.text:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
+        info:Show()
+    elseif GuildNotes:CanEditInfo() then
+        info.text:SetText(L.DASH_INFO_EMPTY)
+        info.text:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        info:Show()
+    else
+        info.text:SetText("")
+        info:Hide()
+    end
+end
+
 function Dashboard:RefreshHero(identity, character)
     if Theme.TextureExists(LOGO) and pcall(self.emblem.SetTexture, self.emblem, LOGO) then
         self.emblem:Show()
@@ -819,6 +882,7 @@ function Dashboard:RefreshHero(identity, character)
         self.chips.handover:Hide()
     end
     self:LayoutChips()
+    self:RefreshGuildInfo()
 
     -- ------------------------------------------------------ Kennzahlen ------
     -- Itemlevel: Mittel ueber die GEMESSENEN. Ungemessene zaehlen nicht als
@@ -1115,7 +1179,7 @@ GA.Core.Callbacks:On("TRADABLES_CHANGED", function()
 end, "DashboardView")
 
 -- Der Strom und der Rest der Seite: nur, solange sie zu sehen ist.
-for _, event in ipairs({ "ACTIVITY_CHANGED", "SESSION_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED", "QUESTHUB_CHANGED", "DUNGEONHUB_CHANGED" }) do
+for _, event in ipairs({ "ACTIVITY_CHANGED", "SESSION_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED", "QUESTHUB_CHANGED", "DUNGEONHUB_CHANGED", "GUILD_NOTES" }) do
     GA.Core.Callbacks:On(event, function()
         if Dashboard.frame and Dashboard.frame:IsVisible() then Dashboard:Refresh() end
     end, "DashboardView")

@@ -66,6 +66,7 @@ GA.Core.Locale:Register("deDE", {
     DASH_FEED_TAG     = "%d Ereignisse · gemessen, nicht gemeldet",
     DASH_FEED_EMPTY   = "Noch nichts. Stufenaufstiege, Beitritte, Vergaben und Erfolge erscheinen hier, sobald sie passieren.",
     DASH_WHERE        = "Wer ist wo",
+    DASH_INFO_EMPTY   = "Noch keine Gildeninfo. Klick schreibt eine; alle mit dem Addon sehen sie hier.",
     DASH_HUB_QUEST    = "Questhub",
     DASH_HUB_QUEST_SUB = "Gesuche",
     DASH_HUB_QUEST_HERE = "Gesuche · %d in deiner Zone",
