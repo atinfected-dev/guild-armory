@@ -693,6 +693,9 @@ end
 --- Addon nicht durch, also die eigene aus GuildNotes. Wer sie im Spiel
 --- aendern duerfte, bekommt den Text zum Bearbeiten; alle anderen lesen.
 function View:EditGuildInfo()
+    -- Als Global war GuildNotes hier nil: Der Klick warf und tat nichts
+    -- (gesehen 02.10.2026).
+    local GuildNotes = GA.Modules.GuildNotes
     local text, entry = GuildNotes:GetInfo()
     local by = entry and entry.by and entry.ts
         and string.format(L.ROSTER_NOTE_BY, entry.by, Util.TimeAgo(entry.ts)) or nil
