@@ -530,7 +530,7 @@ function Dashboard:BuildHubTile(parent, fonts, viewKey, label, goText)
         local vorige
         for slot = 1, 5 do
             local box = line:CreateTexture(nil, "ARTWORK")
-            box:SetWidth(11) box:SetHeight(11)
+            box:SetWidth(14) box:SetHeight(14)
             if vorige then box:SetPoint("RIGHT", vorige, "LEFT", -3, 0)
             else box:SetPoint("RIGHT", line, "RIGHT", 0, 0) end
             box:Hide()
@@ -625,11 +625,19 @@ function Dashboard:RefreshHubs()
             for slot, box in ipairs(line.boxes) do
                 local place = Hub:Slots(run)[slot]
                 local color = place and ROLE_COLOR[place.role] or Theme.color.border
-                if place and place.name then
+                -- Wie im Dungeonhub (02.10.2026): besetzt das Klassenwappen,
+                -- frei das Rollensymbol; ohne beides der Farbpunkt.
+                if place and place.name and Theme.SetClassPortrait(box, place.class) then
+                    box:SetVertexColor(1, 1, 1, 1)
+                elseif place and not place.name and Theme.SetRoleIcon(box, place.role) then
+                    box:SetVertexColor(1, 1, 1, 0.75)
+                elseif place and place.name then
                     local r, g, b = Util.ClassColor(place.class)
                     Theme.Paint(box, { r or color[1], g or color[2], b or color[3], 1 })
+                    box:SetVertexColor(1, 1, 1, 1)
                 else
                     Theme.Paint(box, { color[1], color[2], color[3], 0.35 })
+                    box:SetVertexColor(1, 1, 1, 1)
                 end
                 box:Show()
             end

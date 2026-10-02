@@ -8,7 +8,7 @@ The guild info stands on the overview, under the guild's name: the first two lin
 
 "Who is where" shows class crests instead of coloured dots, six per zone, then +n.
 
-Dungeonhub: the places carry the game's role icons (shield, cross, sword) instead of the letters T, H and D; a client without the icon sheet keeps the letters.
+Dungeonhub: the places carry the game's role icons (shield, cross, sword) instead of the letters T, H and D; a client without the icon sheet keeps the letters. The Dungeonhub tile on the overview draws the same: crests for taken places, role icons for open ones.
 
 ## 0.1.26
 
