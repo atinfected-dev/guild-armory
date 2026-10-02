@@ -83,7 +83,7 @@ GA.Core.Locale:Register("enUS", {
     DASH_HUB_GO_RUN   = "To the Dungeonhub",
     DASH_ZONE_UNKNOWN = "Zone unknown",
     DASH_CAMP         = "Campfire in %s · %s · %s",
-    DASH_SLOTS_HINT   = "17 slots · colour is the item quality · empty is dark",
+    DASH_SLOTS_HINT   = "17 slots · the line is the item quality · empty is dark",
     DASH_MINE_SESSION = "Loot session open",
     DASH_MINE_SESSION_SUB = "%d items on the table",
     DASH_MINE_WISH    = "Wishlist",

@@ -10,6 +10,8 @@ The guild info stands on the overview, under the guild's name: the first two lin
 
 Dungeonhub: the places carry the game's role icons (shield, cross, sword) instead of the letters T, H and D; a client without the icon sheet keeps the letters. The Dungeonhub tile on the overview draws the same: crests for taken places, role icons for open ones.
 
+My character on the overview: the 17 slots show the items' icons with a quality-coloured line beneath; hovering one shows the item.
+
 ## 0.1.26
 
 Alt-click on the minimap button shows or hides the camp bar; hiding it with a right click now says how to get it back.

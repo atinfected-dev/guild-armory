@@ -78,7 +78,7 @@ GA.Core.Locale:Register("deDE", {
     DASH_HUB_GO_RUN   = "Zum Dungeonhub",
     DASH_ZONE_UNKNOWN = "Zone unbekannt",
     DASH_CAMP         = "Lagerfeuer in %s · %s · %s",
-    DASH_SLOTS_HINT   = "17 Plaetze · Farbe ist die Qualitaet · leer ist dunkel",
+    DASH_SLOTS_HINT   = "17 Plaetze · der Strich ist die Qualitaet · leer ist dunkel",
     DASH_MINE_SESSION = "Lootsession offen",
     DASH_MINE_SESSION_SUB = "%d Gegenstaende auf dem Tisch",
     DASH_MINE_WISH    = "Wunschliste",

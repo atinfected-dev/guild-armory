@@ -339,17 +339,32 @@ function Dashboard:BuildMine(content, fonts)
     self.charName:SetPoint("RIGHT", self.ilvlLabel, "LEFT", -8, 0)
     self.charMeta:SetPoint("RIGHT", self.ilvlLabel, "LEFT", -8, 0)
 
-    -- Die 17 Plaetze als Streifen. Farbe = Qualitaet, leer = dunkel.
+    -- Die 17 Plaetze als kleine Gegenstandsbilder (Wunsch 02.10.2026),
+    -- darunter ein Strich in der Qualitaetsfarbe; leer bleibt dunkel.
+    -- Hover zeigt den Tooltip des Gegenstands.
     self.slots = {}
     for index = 1, #SLOT_ORDER do
-        local strip = content:CreateTexture(nil, "ARTWORK")
-        strip:SetWidth(SLOT_W) strip:SetHeight(12)
-        strip:SetPoint("TOPLEFT", content, "TOPLEFT", 2 + (index - 1) * (SLOT_W + SLOT_GAP), -58)
-        Theme.Paint(strip, Theme.color.border)
-        self.slots[index] = strip
+        local slot = CreateFrame("Button", nil, content)
+        slot:SetWidth(SLOT_W) slot:SetHeight(SLOT_W + 3)
+        slot:SetPoint("TOPLEFT", content, "TOPLEFT", 2 + (index - 1) * (SLOT_W + SLOT_GAP), -56)
+        slot.icon = slot:CreateTexture(nil, "ARTWORK")
+        slot.icon:SetWidth(SLOT_W) slot.icon:SetHeight(SLOT_W)
+        slot.icon:SetPoint("TOP", slot, "TOP", 0, 0)
+        pcall(slot.icon.SetTexCoord, slot.icon, 0.07, 0.93, 0.07, 0.93)
+        Theme.Paint(slot.icon, Theme.color.border)
+        slot.strip = slot:CreateTexture(nil, "ARTWORK")
+        slot.strip:SetHeight(2)
+        slot.strip:SetPoint("BOTTOMLEFT", slot, "BOTTOMLEFT", 0, 0)
+        slot.strip:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", 0, 0)
+        Theme.Paint(slot.strip, Theme.color.border)
+        slot:SetScript("OnEnter", function(self)
+            if self.itemID or self.link then Widgets.ShowItemTooltip(self, self.itemID, self.link) end
+        end)
+        slot:SetScript("OnLeave", function() Widgets.HideItemTooltip() end)
+        self.slots[index] = slot
     end
     self.slotsHint = Theme.Label(content, L.DASH_SLOTS_HINT, fonts.small, Theme.color.textFaint)
-    self.slotsHint:SetPoint("TOPLEFT", content, "TOPLEFT", 2, -74)
+    self.slotsHint:SetPoint("TOPLEFT", content, "TOPLEFT", 2, -76)
 
     local divider = content:CreateTexture(nil, "ARTWORK")
     Theme.Paint(divider, Theme.color.border)
@@ -958,12 +973,24 @@ function Dashboard:RefreshMine(identity, character)
     self.ilvlLabel:SetText(count and string.format("%s · %d/17", string.upper(L.COL_ILVL), count)
         or string.upper(L.DASH_ITEMLEVEL))
 
-    -- Die Plaetze: Qualitaetsfarbe, leer dunkel.
+    -- Die Plaetze: das Bild des Gegenstands, der Strich in Qualitaetsfarbe,
+    -- leer dunkel. Ein Bild, das der Client noch nicht hat, wird angefragt
+    -- und beim naechsten Refresh gemalt.
     local equipment = character and character.equipment or {}
     for index, slotID in ipairs(SLOT_ORDER) do
         local item = equipment[slotID]
+        local slot = self.slots[index]
         local farbe = item and item.quality and Theme.QualityColor(item.quality)
-        Theme.Paint(self.slots[index], farbe or Theme.color.border)
+        Theme.Paint(slot.strip, farbe or Theme.color.border)
+        slot.itemID = item and item.itemID or nil
+        slot.link = item and item.link or nil
+        local icon = item and (item.icon or Compat.GetItemIcon(item.itemID)) or nil
+        if icon and pcall(slot.icon.SetTexture, slot.icon, icon) then
+            slot.icon:SetVertexColor(1, 1, 1, 1)
+        else
+            if item and item.itemID then Compat.RequestItemData(item.itemID) end
+            Theme.Paint(slot.icon, farbe and { farbe[1] * 0.5, farbe[2] * 0.5, farbe[3] * 0.5 } or Theme.color.border)
+        end
     end
 
     -- ------------------------------------------------------ Fuenf Zeilen ----
