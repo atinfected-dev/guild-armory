@@ -6,6 +6,8 @@ The Guild info button in the roster does something again: its handler reached fo
 
 The guild info stands on the overview, under the guild's name: the first two lines, the whole text as a tooltip, a click opens the editor.
 
+"Who is where" shows class crests instead of coloured dots.
+
 ## 0.1.26
 
 Alt-click on the minimap button shows or hides the camp bar; hiding it with a right click now says how to get it back.

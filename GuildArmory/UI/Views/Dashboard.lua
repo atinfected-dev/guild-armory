@@ -437,13 +437,14 @@ function Dashboard:BuildWhere(content, fonts)
             row.zone:SetPoint("LEFT", row, "LEFT", 6, 0)
             row.zone:SetJustifyH("LEFT")
             row.zone:SetWordWrap(false)
-            -- Bis zu acht Punkte, danach eine Zahl.
+            -- Bis zu acht Wappen (02.10.2026: Klassensymbole statt
+            -- Farbpunkte), danach eine Zahl.
             row.dots = {}
             local vorige
             for index = 1, 8 do
                 local dot = row:CreateTexture(nil, "ARTWORK")
-                dot:SetWidth(9) dot:SetHeight(9)
-                if vorige then dot:SetPoint("RIGHT", vorige, "LEFT", -3, 0)
+                dot:SetWidth(16) dot:SetHeight(16)
+                if vorige then dot:SetPoint("RIGHT", vorige, "LEFT", -2, 0)
                 else dot:SetPoint("RIGHT", row, "RIGHT", -6, 0) end
                 dot:Hide()
                 row.dots[index] = dot
@@ -461,7 +462,11 @@ function Dashboard:BuildWhere(content, fonts)
                 local member = entry.members[index]
                 if member then
                     dot:Show()
-                    if member.class then
+                    -- Das Wappen, wenn der Client eines hergibt; sonst wie
+                    -- bisher der Farbpunkt.
+                    if member.class and Theme.SetClassPortrait(dot, member.class) then
+                        dot:SetVertexColor(1, 1, 1, 1)
+                    elseif member.class then
                         Theme.Paint(dot, { Util.ClassColor(member.class) })
                     else
                         Theme.Paint(dot, Theme.color.border)
