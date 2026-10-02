@@ -611,6 +611,25 @@ end
 --- liefert das Spiel in CLASS_ICON_TCOORDS; sie selbst zu schreiben hiesse,
 --- neun Zahlenpaare zu pflegen, die es schon gibt.
 --- @return boolean
+--- Das Rollensymbol des Spiels — Schild, Kreuz, Schwert — aus dem
+--- Portrait-Blatt der Gruppensuche, Ausschnitte wie
+--- GetTexCoordsForRoleSmallCircle. false, wenn das Blatt fehlt: dann
+--- bleibt der Buchstabe (Wunsch 02.10.2026).
+local ROLE_COORDS = {
+    TANK = { 0, 19 / 64, 22 / 64, 41 / 64 },
+    HEAL = { 20 / 64, 39 / 64, 1 / 64, 20 / 64 },
+    DPS  = { 20 / 64, 39 / 64, 22 / 64, 41 / 64 },
+}
+local ROLE_SHEET = [[Interface\LFGFrame\UI-LFG-ICON-PORTRAITROLES]]
+
+function Theme.SetRoleIcon(texture, role)
+    local box = ROLE_COORDS[role]
+    if not box or not Theme.TextureExists(ROLE_SHEET) then return false end
+    if not pcall(texture.SetTexture, texture, ROLE_SHEET) then return false end
+    pcall(texture.SetTexCoord, texture, box[1], box[2], box[3], box[4])
+    return true
+end
+
 function Theme.SetClassPortrait(texture, classFile)
     if not classFile then return false end
 

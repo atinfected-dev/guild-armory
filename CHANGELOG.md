@@ -8,6 +8,8 @@ The guild info stands on the overview, under the guild's name: the first two lin
 
 "Who is where" shows class crests instead of coloured dots, six per zone, then +n.
 
+Dungeonhub: the places carry the game's role icons (shield, cross, sword) instead of the letters T, H and D; a client without the icon sheet keeps the letters.
+
 ## 0.1.26
 
 Alt-click on the minimap button shows or hides the camp bar; hiding it with a right click now says how to get it back.
