@@ -4,7 +4,7 @@
 
 Dungeonhub to Discord: when the guild is linked to Discord, the post form has "Also announce in Discord" (remembers your choice). The leader's client then writes a readable line into the linked Discord channel: dungeon, day, time, leader, open roles, note. Everyone who joins, switches role or leaves writes their own line there too, with the spots still open or "now full", and the leader writes one more line if the run is cancelled. One way only: measured, an addon can send to Discord but cannot read what comes back.
 
-Discord bot, optional: Settings has "Dungeonhub: Discord bot" (off by default). With it on, your announced runs end with a short tag the guild's bot reads and turns into a sign-up board with Tank, Healer, Damage and Leave buttons, updated with every line from the game. Sign-ups made in Discord show on the board; in game they appear once the player joins there.
+Discord bot, optional: Settings has "Dungeonhub: Discord bot" (off by default). With it on, your announced runs end with a short tag the guild's bot reads. The bot mirrors each run as a board in its own channel: who is signed up as tank, healer or damage, updated with every line from the game, closed when the run is full, cancelled or over. It deletes the tagged lines so the Discord guild chat stays readable. The board only shows; signing up stays in game.
 
 Dungeonhub and Questhub: a run that had started more than an hour ago (or a request older than two hours) kept coming back as new and popped its notification again — a client that had not tidied up yet passed it on, and the receiver took it. Expired entries are now refused on arrival, every client tidies up before passing anything on, and each run or request notifies at most once per client, also across a reload.
 

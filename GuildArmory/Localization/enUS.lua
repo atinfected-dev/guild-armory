@@ -1188,7 +1188,7 @@ GA.Core.Locale:Register("enUS", {
 
     SET_ONSCREEN       = "On screen",
     SET_DISCORD_BOT    = "Dungeonhub: Discord bot",
-    SET_DISCORD_BOT_HINT = "Only if your guild runs the Guild Armory Discord bot. Runs you announce in Discord then end with a short tag like [ga1 ...]; the bot turns it into a sign-up board with buttons. Everyone who joins your run writes the tag too.",
+    SET_DISCORD_BOT_HINT = "Only if your guild runs the Guild Armory Discord bot. Runs you announce in Discord then end with a short tag like [ga1 ...]; the bot mirrors the run as a board showing who is signed up as tank, healer or damage, and removes the tagged line from the chat channel. Everyone who joins your run writes the tag too. Signing up stays in game.",
     SET_GUILDKEY       = "Guild key opens Guild Armory",
     SET_GUILDKEY_HINT  = "J and the guild button open the overview here instead of the game's window; pressed again on the overview, J closes it. Not in combat. Bank and rank permissions stay in the game's window — a button in the roster opens it.",
     SET_NOTIFY         = "Notifications",
