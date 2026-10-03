@@ -101,6 +101,28 @@ local function store()
     return account.crafting
 end
 
+--- Die Hauptberufe nach Kennung der Fertigkeitslinie. Nur sie werden aus dem
+--- eigenen Eintrag geloescht, wenn das Spiel sie nicht kennt: Ob ein Client
+--- Kochen, Erste Hilfe und Angeln in GetProfessions nennt, ist nicht
+--- gemessen — ein fehlender Nebenberuf koennte also nur nicht gemeldet sein.
+Crafting.PRIMARY = {
+    [164] = true, [165] = true, [171] = true, [182] = true, [186] = true,
+    [197] = true, [202] = true, [333] = true, [393] = true, [755] = true, [773] = true,
+}
+
+--- Die eigenen Berufe laut Spiel: { [lineID] = rank }. nil, wenn das Spiel
+--- es nicht sagt oder keine einzige Kennung lieferte — dann wird nichts
+--- verglichen, statt aus "weiss nicht" ein "hat keinen" zu machen.
+local function ownLines()
+    local lines = Compat.GetProfessionLines and Compat.GetProfessionLines() or nil
+    if not lines or #lines == 0 then return nil end
+    local out = {}
+    for _, entry in ipairs(lines) do
+        if entry.line then out[tonumber(entry.line)] = tonumber(entry.rank) or 0 end
+    end
+    return out
+end
+
 -- ================================================================ Kodierung --
 
 local function toBase36(value)
@@ -188,6 +210,29 @@ end
 function Crafting:ScanOpen(laut)
     local beruf = Compat.GetOpenTradeSkill()
     if not beruf then return nil, "nowindow" end
+
+    -- NUR DAS EIGENE FENSTER (03.10.2026). Ein Fenster aus einem Link, der
+    -- Gildenansicht oder eines NPCs zeigt den Stand eines anderen; abgelegt
+    -- unter dem eigenen Namen ging er an die ganze Gilde.
+    if Compat.IsForeignTradeSkill and Compat.IsForeignTradeSkill() == true then
+        Debug:Print("craft", "Fremdes Berufsfenster %s — nicht gelesen.", tostring(beruf.name or beruf.line))
+        return nil, "foreign"
+    end
+    -- Zweite Sicherung, falls das Spiel die Frage nicht beantwortet: Den
+    -- Hauptberuf muss dieser Charakter haben, und der Rang muss stimmen.
+    local eigene = ownLines()
+    if eigene then
+        local meiner = eigene[tonumber(beruf.line)]
+        if meiner == nil and Crafting.PRIMARY[tonumber(beruf.line)] then
+            Debug:Print("craft", "%s ist kein eigener Beruf — nicht gelesen.", tostring(beruf.name or beruf.line))
+            return nil, "foreign"
+        end
+        if meiner and meiner > 0 and beruf.rank and beruf.rank > 0 and meiner ~= beruf.rank then
+            Debug:Print("craft", "%s: Fenster %d, eigener Rang %d — fremd, nicht gelesen.",
+                tostring(beruf.name or beruf.line), beruf.rank, meiner)
+            return nil, "foreign"
+        end
+    end
 
     local rezepte = Compat.GetLearnedRecipes()
     if not rezepte then return nil, "notready" end
@@ -605,6 +650,43 @@ function Crafting:ScheduleSend()
     end)
 end
 
+--- Prueft den EIGENEN Eintrag gegen die Berufe, die das Spiel nennt
+--- (03.10.2026). Ein Hauptberuf, den dieser Charakter nicht hat, faellt
+--- heraus — so verschwindet, was ein fremdes Fenster frueher hineinschrieb.
+--- Ein abweichender Rang wird auf den echten gesetzt. Danach geht der
+--- berichtigte Stand an die Gilde.
+--- @return number berichtigte Berufe
+function Crafting:CheckOwn()
+    local eigene = ownLines()
+    if not eigene then return 0 end
+    local identity = Compat.GetPlayerIdentity()
+    if not identity or not identity.name then return 0 end
+    local name = Util.ShortName(identity.name)
+    local eintrag = store()[name]
+    if not eintrag or not eintrag.lines then return 0 end
+
+    local berichtigt = 0
+    for lineID, line in pairs(eintrag.lines) do
+        local id = tonumber(lineID)
+        local rang = eigene[id]
+        if rang == nil and Crafting.PRIMARY[id] then
+            eintrag.lines[lineID] = nil
+            berichtigt = berichtigt + 1
+            Debug:Print("craft", "Eigener Eintrag %s: Beruf nicht gelernt — entfernt.", tostring(line.name or id))
+        elseif rang and rang > 0 and line.rank ~= rang then
+            line.rank = rang
+            if (line.maxRank or 0) < rang then line.maxRank = 0 end
+            berichtigt = berichtigt + 1
+        end
+    end
+    if berichtigt > 0 then
+        self.dirty = true
+        GA.Core.Callbacks:Fire("CRAFTING_CHANGED", name)
+        self:ScheduleSend()
+    end
+    return berichtigt
+end
+
 --- Der Stand eines anderen.
 function Crafting:OnCraft(sender, text)
     local Comm = GA.Core.Comm
@@ -620,7 +702,7 @@ function Crafting:OnCraft(sender, text)
     local kurz = Util.ShortName(sender)
     if not kurz or kurz == "" then return end
 
-    local gelesen = 0
+    local gelesen, alleHeil, genannt = 0, true, {}
     for teil in string.gmatch(text, "[^~]+") do
         -- DER LINK IST DAS LETZTE FELD UND DARF DOPPELPUNKTE ENTHALTEN —
         -- er steckt voller davon. Deshalb faengt ihn ein `.*` am Ende ein,
@@ -632,6 +714,7 @@ function Crafting:OnCraft(sender, text)
         local lineID, rank, maxRank, lineName, items, spells, link =
             string.match(teil, "^(%d+):(%d+):(%d+):([^:]*):([^:]*):([^:]*):?(.*)$")
         lineID, rank, maxRank = tonumber(lineID), tonumber(rank), tonumber(maxRank)
+        if lineID then genannt[lineID] = true else alleHeil = false end
 
         if lineID and rank and maxRank and rank <= 1000 and maxRank <= 1000 then
             -- Beide Listen muessen lesbar sein. Eine kaputte Haelfte
@@ -648,7 +731,31 @@ function Crafting:OnCraft(sender, text)
                     link = link ~= "" and link or nil,
                 })
                 gelesen = gelesen + 1
+            else
+                alleHeil = false
             end
+        else
+            alleHeil = false
+        end
+    end
+
+    -- DIE NACHRICHT IST DER GANZE STAND (03.10.2026). Ein Client schickt
+    -- immer alle seine Berufe. Was er nicht mehr nennt, hat er nicht mehr —
+    -- so verschwindet ein Beruf, den ein fremdes Fenster frueher unter
+    -- seinem Namen eintrug. Nur bei einer ganz lesbaren Nachricht: Ein
+    -- kaputter Teil koennte genau den Beruf tragen, der sonst fiele.
+    local eintrag = store()[kurz]
+    if alleHeil and gelesen > 0 and eintrag and eintrag.lines then
+        local weg = 0
+        for lineID in pairs(eintrag.lines) do
+            if not genannt[tonumber(lineID)] then
+                eintrag.lines[lineID] = nil
+                weg = weg + 1
+            end
+        end
+        if weg > 0 then
+            self.dirty = true
+            GA.Core.Callbacks:Fire("CRAFTING_CHANGED", kurz)
         end
     end
 
@@ -690,6 +797,10 @@ function Crafting:OnEnable()
     GA.Core.Events:Register("TRADE_SKILL_SHOW", scan, "Crafting")
     GA.Core.Events:Register("TRADE_SKILL_LIST_UPDATE", scan, "Crafting")
     GA.Core.Events:Register("TRADE_SKILL_DATA_SOURCE_CHANGED", scan, "Crafting")
+
+    -- Den eigenen Eintrag gegen die echten Berufe pruefen, bevor gefragt
+    -- und geantwortet wird.
+    Compat.After(15, function() Crafting:CheckOwn() end)
 
     -- Einmal nach dem Anmelden fragen, was die anderen koennen.
     Compat.After(25, function() Crafting:Request() end)

@@ -1057,6 +1057,7 @@ GA.Core.Locale:Register("enUS", {
     CRAFT_LINKS_OWN    = "Own link: %s",
     CRAFT_ERR_nowindow = "No profession window open.",
     CRAFT_ERR_notready = "The profession window has not sent its recipes yet — try again in a moment.",
+    CRAFT_ERR_foreign  = "This profession window is not your own (a link, the guild view or a crafting NPC) — not read.",
     CRAFT_ERR_noguid   = "Your own character ID is unreadable on this client.",
 
     CRAFT_ASK_BUTTON   = "Ask",

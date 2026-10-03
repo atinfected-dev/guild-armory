@@ -1867,6 +1867,36 @@ end
 --- Welcher Beruf steht gerade im Fenster?
 ---
 --- @return table|nil { line, name, rank, maxRank }
+--- Ist das offene Berufsfenster NICHT das eigene? (03.10.2026)
+---
+--- Ein Fenster aus einem Berufe-Link ("Beruf oeffnen" im Addon oder ein
+--- Link im Chat), die Gildenansicht eines Berufs oder ein NPC-Handwerker
+--- zeigen FREMDE Raenge und FREMDE Rezepte. Der Scan las sie als eigene —
+--- gesehen: Verzauberkunst 225/225 mit 128 Rezepten bei einem Charakter
+--- um Stufe 16, an die Gilde verschickt.
+---
+--- @return boolean|nil  true = fremd, false = eigenes, nil = weiss nicht
+function Compat.IsForeignTradeSkill()
+    local gefragt = false
+    local function ask(fn)
+        if not isFunction(fn) then return nil end
+        local ok, value = pcall(fn)
+        if not ok then return nil end
+        gefragt = true
+        return value and true or false
+    end
+    local api = _G.C_TradeSkillUI
+    if isTable(api) then
+        if ask(api.IsTradeSkillLinked) then return true end
+        if ask(api.IsTradeSkillGuild) then return true end
+        if ask(api.IsTradeSkillGuildMember) then return true end
+        if ask(api.IsNPCCrafting) then return true end
+    end
+    if ask(_G.IsTradeSkillLinked) then return true end
+    if gefragt then return false end
+    return nil
+end
+
 function Compat.GetOpenTradeSkill()
     local api = _G.C_TradeSkillUI
     if not isTable(api) then return nil end

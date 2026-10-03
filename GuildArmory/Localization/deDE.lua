@@ -1045,6 +1045,7 @@ GA.Core.Locale:Register("deDE", {
     CRAFT_LINKS_OWN    = "Eigener Link: %s",
     CRAFT_ERR_nowindow = "Kein Berufsfenster offen.",
     CRAFT_ERR_notready = "Das Berufsfenster hat seine Rezepte noch nicht geschickt — gleich noch einmal versuchen.",
+    CRAFT_ERR_foreign  = "Dieses Berufsfenster ist nicht dein eigenes (ein Link, die Gildenansicht oder ein Handwerker-NPC) — nicht gelesen.",
     CRAFT_ERR_noguid   = "Die eigene Charakterkennung ist auf diesem Client nicht lesbar.",
 
     CRAFT_ASK_BUTTON   = "Fragen",

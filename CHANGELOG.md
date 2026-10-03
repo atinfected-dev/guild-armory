@@ -2,7 +2,7 @@
 
 ## 0.1.30
 
-In progress.
+Professions: opening someone else's profession window (a profession link, the guild view or a crafting NPC) no longer files their skill and recipes under your name. Such a window was read as your own and sent to the guild; seen as Enchanting 225/225 with 128 recipes on a level-16 character. Each client now checks its own entry against the professions the game lists after login and drops a main profession it does not have, and a member's message now replaces their whole list, so the wrong entry disappears for everyone once the owner logs in with this version.
 
 ## 0.1.29
 
