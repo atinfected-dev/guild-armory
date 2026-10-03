@@ -55,22 +55,55 @@ function Discord:ApiNames()
     return out
 end
 
---- Wer bedient "/discord"? Sucht die globalen SLASH_<NAME>n.
---- @return string|nil schluessel, function|nil handler
-function Discord:SlashHandler(command)
+--- Der Stand der Verbindung, nur ueber Abfragefunktionen ohne Wirkung.
+--- Die verbotenen (Authorize, RefreshAuth, GuildLink, GuildUnlink,
+--- SetGuildSetting, UpdateDiscordServers, UpdateGuildLobby) fehlen hier mit
+--- Absicht.
+--- @return string
+function Discord:Status()
+    local api = _G.C_Discord
+    if type(api) ~= "table" then return "C_Discord fehlt" end
+    local teile = {}
+    for _, name in ipairs({ "IsEnabled", "IsUserOAuthed", "IsGuildChannelLinked", "GetGuildLinkStatus",
+                            "GetNumDiscordChannels", "GetNumDiscordServers", "GetDisplayNameType" }) do
+        local fn = api[name]
+        if type(fn) == "function" then
+            local werte = { pcall(fn) }
+            local out = {}
+            for i = 2, math.min(#werte, 4) do out[#out + 1] = tostring(werte[i]) end
+            teile[#teile + 1] = name .. "=" .. (werte[1] and table.concat(out, ",") or "Fehler")
+        end
+    end
+    return table.concat(teile, " | ")
+end
+
+--- Wer steckt hinter "/discord"? Ein Chattyp (wie "/g" -> GUILD), kein
+--- Slash-Befehl: Gemessen 03.10.2026 — SlashCmdList kennt "/discord" nicht.
+--- Gesucht wird in den globalen SLASH_<NAME>n und in Blizzards Chattyp-Tabelle.
+--- @return string|nil chattyp, string|nil globalname
+function Discord:ChatType(command)
     command = string.lower(command or "/discord")
-    local list = _G.SlashCmdList
-    if type(list) ~= "table" then return nil end
-    for key in pairs(list) do
-        for i = 1, 9 do
-            local alias = _G["SLASH_" .. key .. i]
-            if alias == nil then break end
-            if type(alias) == "string" and string.lower(alias) == command then
-                return key, list[key]
-            end
+    local hash = _G.hash_ChatTypeInfoList
+    if type(hash) == "table" then
+        local typ = hash[string.upper(command)]
+        if type(typ) == "string" then return typ, "hash_ChatTypeInfoList" end
+    end
+    for key, value in pairs(_G) do
+        if type(value) == "string" and type(key) == "string" and string.sub(key, 1, 6) == "SLASH_"
+            and string.lower(value) == command then
+            local typ = string.match(key, "^SLASH_(.-)%d+$")
+            return typ, key
         end
     end
     return nil
+end
+
+--- Fuer "api": der Chattyp mit seinem Eintrag in ChatTypeInfo.
+function Discord:SlashHandler(command)
+    local typ, global = self:ChatType(command)
+    if not typ then return nil end
+    local info = type(_G.ChatTypeInfo) == "table" and _G.ChatTypeInfo[typ]
+    return typ .. " (" .. tostring(global) .. (info and ", in ChatTypeInfo" or ", nicht in ChatTypeInfo") .. ")"
 end
 
 --- Zwei Minuten lang alles mitschreiben, was nach Chat, Club oder Discord
@@ -110,11 +143,13 @@ end
 --- Spieler ihn tippt. Was dabei passiert, steht im Ergebnis.
 --- @return boolean ok, string bericht
 function Discord:SendTest()
-    local key, handler = self:SlashHandler("/discord")
-    if not handler then return false, "Kein Handler fuer /discord gefunden." end
+    -- Der Chattyp hinter "/discord", sonst die Vermutung des Nutzers.
+    local typ = self:ChatType("/discord") or "GUILD_DISCORD"
     local text = "ga-test " .. date("%H:%M:%S")
-    local ok, err = pcall(handler, text, _G.DEFAULT_CHAT_FRAME and _G.DEFAULT_CHAT_FRAME.editBox)
-    local entry = date("%H:%M:%S") .. " SEND via SlashCmdList." .. tostring(key) .. ": " .. (ok and "kein Fehler" or ("Fehler: " .. tostring(err)))
+    if not _G.SendChatMessage then return false, "SendChatMessage fehlt" end
+    local ok, err = pcall(_G.SendChatMessage, text, typ)
+    local entry = date("%H:%M:%S") .. " SEND SendChatMessage(\"" .. text .. "\", \"" .. typ .. "\"): "
+        .. (ok and "kein Fehler — kommt die Zeile in Discord an?" or ("Fehler: " .. tostring(err)))
     local list = log()
     list[#list + 1] = entry
     return ok, entry

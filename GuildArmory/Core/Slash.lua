@@ -686,9 +686,10 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local sub, arg = string.match(rest or "", "^(%S*)%s*(.*)$")
         if sub == "api" then
             local namen = Discord:ApiNames()
-            local key = Discord:SlashHandler("/discord")
+            local typ = Discord:SlashHandler("/discord")
             Debug:Info("C_Discord: %s", #namen > 0 and table.concat(namen, ", ") or "nicht vorhanden")
-            Debug:Info("/discord wird bedient von: %s", key and ("SlashCmdList." .. key) or "niemandem gefunden")
+            Debug:Info("/discord ist der Chattyp: %s", typ or "nicht gefunden")
+            Debug:Info("Status: %s", Discord:Status())
         elseif sub == "listen" then
             local s = Discord:Listen(tonumber(arg))
             Debug:Info("Schreibe %d Sekunden lang Chat-, Club- und Discord-Ereignisse mit. Jetzt in Discord ga-test schreiben, danach /ga discord show.", s)
