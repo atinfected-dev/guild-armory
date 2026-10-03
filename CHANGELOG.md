@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.30
+
+In progress.
+
 ## 0.1.29
 
 Roster, design R3: the list is split into "Online" and "Offline" with a header line each. Rows carry the class crest, a crown or star for the top two ranks, the name over a line with class, level and rank, the zone with HERE when it is yours, the note, and on the right what the person is doing in the addon right now (leads or sits in a run, looks for people, offers items) or when they were last seen. The rank column is gone; the list header says how many are online, in your zone and officers.
