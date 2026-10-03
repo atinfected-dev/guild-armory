@@ -52,7 +52,7 @@ local function columns()
         { key = "name",  label = L.COL_NAME,         width = 150 },
         { key = "zone",  label = L.ROSTER_COL_ZONE,  width = 110 },
         { key = "note",  label = L.ROSTER_COL_NOTE,  width = 100 },
-        { key = "now",   label = L.ROSTER_COL_NOW,   width = 140, justify = "RIGHT" },
+        { key = "now",   label = L.ROSTER_COL_NOW,   width = 230, justify = "RIGHT" },  -- breit genug fuer "in Blackfathom Deeps 20:00" (Bild 03.10.2026)
     }
 end
 
