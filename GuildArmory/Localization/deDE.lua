@@ -68,6 +68,7 @@ GA.Core.Locale:Register("deDE", {
     DASH_WHERE        = "Wer ist wo",
     TALENTS_BUTTON    = "Talente",
     TALENTS_POINTS    = "Punkte verteilt",
+    TALENTS_TREE_N    = "Baum %d",
     TALENTS_RANK      = "Rang %d/%d",
     TALENTS_CHOICE    = "Auswahlknoten · die andere Wahl: %s",
     TALENTS_FOOT      = "Erfasst %s · %s",

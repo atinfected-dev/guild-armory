@@ -499,10 +499,17 @@ Probe.CHECKS = {
           local version, specID = GA.Modules.Talents.Header(loadout)
           GA.Modules.Talents:CaptureOwn()
           local m = GA.Core.Database.account.measured and GA.Core.Database.account.measured.talentDecoder
+          local baeume = {}
+          for i, tab in ipairs(tree.tabs or {}) do
+              baeume[i] = string.format("%s [%s]", tostring(tab.name), tostring(tab.bg))
+          end
+          local grid = GA.Modules.Talents.Grid(GA.Modules.Talents.DecodeLayout(GA.Modules.Talents.EncodeLayout(tree)))
           return (m and m.ok) and Probe.YES or Probe.EMPTY,
-              string.format("%d Knoten (%d sichtbar, %d gekauft), Spec %s, String-Fassung %s, Decoder %s",
+              string.format("%d Knoten (%d sichtbar, %d gekauft), Spec %s, String-Fassung %s, Decoder %s, Raster %s Baeume x %s Reihen, Namen: %s",
                   #tree.nodes, sichtbar, gekauft, tostring(tree.specID or specID), tostring(version),
-                  m and (m.ok and "stimmt" or "weicht ab") or "ungeprueft")
+                  m and (m.ok and "stimmt" or "weicht ab") or "ungeprueft",
+                  grid and tostring(#grid.trees) or "?", grid and tostring(grid.rows) or "?",
+                  #baeume > 0 and table.concat(baeume, ", ") or "GetTalentTabInfo liefert nichts")
       end },
 
     { key = "professions", was = "Gelernte Hauptberufe",

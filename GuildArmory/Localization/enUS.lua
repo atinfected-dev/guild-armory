@@ -73,6 +73,7 @@ GA.Core.Locale:Register("enUS", {
     DASH_WHERE        = "Who is where",
     TALENTS_BUTTON    = "Talents",
     TALENTS_POINTS    = "points spent",
+    TALENTS_TREE_N    = "Tree %d",
     TALENTS_RANK      = "Rank %d/%d",
     TALENTS_CHOICE    = "Choice node · the other option: %s",
     TALENTS_FOOT      = "Captured %s · %s",

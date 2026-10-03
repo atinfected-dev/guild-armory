@@ -45,7 +45,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local Debug = GA.Core.Debug
 
-Talents.LAYOUT_VERSION = 1
+Talents.LAYOUT_VERSION = 2   -- 2: mit den Baeumen (Name, Symbol, Hintergrund); 1 bleibt lesbar
 
 local function account() return GA.Core.Database.account end
 local function layouts()
@@ -134,8 +134,16 @@ end
 
 -- ================================================================ Baum -------
 
---- Ein Baum als kurzer Text: Kopf "v|spec|tree", dann je Knoten
---- "id,x,y,max,c,zauber/zauber,ziel/ziel" — unsichtbare nur "id,,,max".
+--- Ein Baum als kurzer Text. Fassung 2:
+---   "2|spec|tree|baeume|knoten"
+--- baeume: je Baum "name~symbol~hintergrund", getrennt durch "^"
+--- knoten: je Knoten "id,x,y,max,c,zauber/zauber,ziel/ziel", getrennt
+---         durch ";" — unsichtbare nur "id,,,max".
+--- Fassung 1 hatte keine Baeume ("1|spec|tree|knoten") und bleibt lesbar.
+local function clean(text)
+    return (string.gsub(tostring(text or ""), "[|;,%^~]", ""))
+end
+
 function Talents.EncodeLayout(layout)
     local teile = {}
     for _, node in ipairs(layout.nodes) do
@@ -148,8 +156,12 @@ function Talents.EncodeLayout(layout)
             teile[#teile + 1] = table.concat({ node.id, "", "", node.max or 1 }, ",")
         end
     end
-    return table.concat({ Talents.LAYOUT_VERSION, layout.specID or 0, layout.treeID or 0 }, "|")
-        .. "|" .. table.concat(teile, ";")
+    local baeume = {}
+    for i, tab in ipairs(layout.tabs or {}) do
+        baeume[i] = clean(tab.name) .. "~" .. clean(tab.icon) .. "~" .. clean(tab.bg)
+    end
+    return table.concat({ Talents.LAYOUT_VERSION, layout.specID or 0, layout.treeID or 0,
+        table.concat(baeume, "^") }, "|") .. "|" .. table.concat(teile, ";")
 end
 
 local function split(text, sep)
@@ -161,9 +173,29 @@ end
 --- @return table|nil layout
 function Talents.DecodeLayout(text)
     if type(text) ~= "string" then return nil end
-    local v, spec, tree, body = string.match(text, "^(%d+)|(%d+)|(%d+)|(.*)$")
-    if tonumber(v) ~= Talents.LAYOUT_VERSION or not body or body == "" then return nil end
-    local layout = { specID = tonumber(spec), treeID = tonumber(tree), nodes = {} }
+    local v, spec, tree, rest = string.match(text, "^(%d+)|(%d+)|(%d+)|(.*)$")
+    v = tonumber(v)
+    if not v or not rest then return nil end
+    local baeume, body = "", rest
+    if v == 2 then
+        baeume, body = string.match(rest, "^([^|]*)|(.*)$")
+        if not body then return nil end
+    elseif v ~= 1 then
+        return nil
+    end
+    if body == "" then return nil end
+
+    local layout = { specID = tonumber(spec), treeID = tonumber(tree), nodes = {}, tabs = {} }
+    if baeume ~= "" then
+        for _, rec in ipairs(split(baeume, "^")) do
+            local f = split(rec, "~")
+            layout.tabs[#layout.tabs + 1] = {
+                name = f[1] ~= "" and f[1] or nil,
+                icon = tonumber(f[2]) or (f[2] ~= "" and f[2] or nil),
+                bg = f[3] ~= "" and f[3] or nil,
+            }
+        end
+    end
     for _, rec in ipairs(split(body, ";")) do
         local f = split(rec, ",")
         local id = tonumber(f[1])
@@ -178,6 +210,125 @@ function Talents.DecodeLayout(text)
     end
     if layout.specID == 0 then layout.specID = nil end
     return layout
+end
+
+-- ================================================================ Raster -----
+
+--- Der kleinste Abstand zwischen verschiedenen Werten: der Rasterschritt.
+local function step(values)
+    local sorted, seen = {}, {}
+    for _, v in ipairs(values) do
+        if not seen[v] then seen[v] = true sorted[#sorted + 1] = v end
+    end
+    table.sort(sorted)
+    local best
+    for i = 2, #sorted do
+        local d = sorted[i] - sorted[i - 1]
+        if d >= 1 and (not best or d < best) then best = d end
+    end
+    return best or 1, sorted
+end
+
+--- Ordnet die sichtbaren Knoten wie das Talentfenster: Baeume nebeneinander,
+--- in jedem Spalten und Zeilen. Ein Baum endet, wo zwischen zwei Spalten
+--- mehr als anderthalb Schritte Luft ist. Die Zeilen zaehlen ueber alle
+--- Baeume gleich, damit die Reihen wie im Spiel auf einer Hoehe stehen.
+--- @return table|nil { trees = { { nodes, cols } }, rows }
+function Talents.Grid(layout)
+    local xs, ys, vis = {}, {}, {}
+    for _, node in ipairs(layout and layout.nodes or {}) do
+        if node.visible then
+            vis[#vis + 1] = node
+            xs[#xs + 1] = node.x
+            ys[#ys + 1] = node.y
+        end
+    end
+    if #vis == 0 then return nil end
+    local sx, sortedX = step(xs)
+    local sy, sortedY = step(ys)
+
+    -- Baumgrenzen aus den Luecken zwischen den Spalten.
+    local starts = { sortedX[1] }
+    for i = 2, #sortedX do
+        if sortedX[i] - sortedX[i - 1] > 1.5 * sx then starts[#starts + 1] = sortedX[i] end
+    end
+    -- Kennt der Baum seine Zahl an Baeumen (GetTalentTabInfo) und passt die
+    -- Lueckenregel nicht dazu — etwa weil die Baeume im Spiel ohne Extraabstand
+    -- nebeneinander liegen —, sind die n-1 groessten Luecken die Grenzen.
+    local soll = layout.tabs and #layout.tabs or 0
+    if soll >= 2 and #starts ~= soll and #sortedX >= soll then
+        local gaps = {}
+        for i = 2, #sortedX do gaps[#gaps + 1] = { i = i, d = sortedX[i] - sortedX[i - 1] } end
+        table.sort(gaps, function(a, b) if a.d ~= b.d then return a.d > b.d end return a.i < b.i end)
+        local cut = {}
+        for k = 1, soll - 1 do cut[#cut + 1] = gaps[k].i end
+        table.sort(cut)
+        starts = { sortedX[1] }
+        for _, i in ipairs(cut) do starts[#starts + 1] = sortedX[i] end
+    end
+    local trees = {}
+    for i = 1, #starts do trees[i] = { left = starts[i], nodes = {}, cols = 1 } end
+
+    local rows = 1
+    for _, node in ipairs(vis) do
+        local t = 1
+        for i = #starts, 1, -1 do
+            if node.x >= starts[i] then t = i break end
+        end
+        local tree = trees[t]
+        node.tree = t
+        node.col = math.floor((node.x - tree.left) / sx + 0.5) + 1
+        node.row = math.floor((node.y - sortedY[1]) / sy + 0.5) + 1
+        if node.col > tree.cols then tree.cols = node.col end
+        if node.row > rows then rows = node.row end
+        tree.nodes[#tree.nodes + 1] = node
+    end
+    return { trees = trees, rows = rows }
+end
+
+--- Der Zustand jedes Knotens wie im Spiel: voll (gold), teilweise (gruen),
+--- offen (hell, noch kein Punkt), gesperrt (grau). Gesperrt ist, was eine
+--- Reihe hoeher liegt, als die Punkte in diesem Baum erlauben (fuenf je
+--- Reihe), oder dessen Vorgaenger nicht voll ist.
+--- @return table { [nodeID] = state }, table punkte je Baum
+function Talents.States(layout, grid, picks)
+    local states, points = {}, {}
+    if not grid then return states, points end
+    for i, tree in ipairs(grid.trees) do
+        local sum = 0
+        for _, node in ipairs(tree.nodes) do
+            local p = picks[node.id]
+            if p and not p.granted then sum = sum + (p.rank or 0) end
+        end
+        points[i] = sum
+    end
+    local incoming = {}
+    for _, node in ipairs(layout.nodes) do
+        for _, target in ipairs(node.edges or {}) do
+            incoming[target] = incoming[target] or {}
+            table.insert(incoming[target], node)
+        end
+    end
+    for _, node in ipairs(layout.nodes) do
+        if node.visible then
+            local p = picks[node.id]
+            local rank = p and (p.granted and node.max or p.rank) or 0
+            if rank >= (node.max or 1) and rank > 0 then
+                states[node.id] = "max"
+            elseif rank > 0 then
+                states[node.id] = "partial"
+            else
+                local frei = (points[node.tree] or 0) >= 5 * ((node.row or 1) - 1)
+                for _, source in ipairs(incoming[node.id] or {}) do
+                    local sp = picks[source.id]
+                    local sr = sp and (sp.granted and source.max or sp.rank) or 0
+                    if sr < (source.max or 1) then frei = false end
+                end
+                states[node.id] = frei and "open" or "locked"
+            end
+        end
+    end
+    return states, points
 end
 
 --- Der Baum einer Spezialisierung, entschluesselt und zwischengespeichert.

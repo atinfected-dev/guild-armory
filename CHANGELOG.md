@@ -2,7 +2,7 @@
 
 ## 0.1.31
 
-Talents at the paper doll: a Talents button in the Equipment tab opens the member's talent tree, rebuilt from the game's own data — nodes where the game places them, connections, bought nodes lit with their rank, the rest greyed out, the game's tooltip on hover, and when and from where the talents were captured. Each client reads the tree of its own class and sends it to the guild once; the pick travels as the game's talent string with the character. So a tree appears as soon as one member of that class runs this version. The addon's own window only reads; opening Blizzard's talent window from an addon can block saving your own talents later. `/ga probe` reports whether this client's trees and talent strings read correctly.
+Talents at the paper doll: a Talents button in the Equipment tab opens the member's talent window, rebuilt to look like the game's: the class's trees side by side, each with its round icon, name, points and background, talents in the game's grid with arrows, gold frames for full ranks, green for partial, bright for open and grey for still locked (five points per row, prerequisites full), the rank in the corner and the game's tooltip on hover, plus when and from where the talents were captured. Each client reads the tree of its own class and sends it to the guild once; the pick travels as the game's talent string with the character. So a tree appears as soon as one member of that class runs this version. The addon's own window only reads; opening Blizzard's talent window from an addon can block saving your own talents later. `/ga probe` reports whether this client's trees and talent strings read correctly.
 
 ## 0.1.30
 

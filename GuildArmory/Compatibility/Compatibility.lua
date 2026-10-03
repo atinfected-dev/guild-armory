@@ -783,7 +783,41 @@ function Compat.ReadOwnTalentTree()
     end
 
     local specID = Compat.GetSpecializationID("player")
-    return { specID = specID, treeID = treeID, nodes = nodes }
+    return { specID = specID, treeID = treeID, nodes = nodes, tabs = Compat.GetTalentTabs() }
+end
+
+--- Die Baeume der eigenen Klasse, wie das Talentfenster sie oben nennt:
+--- Name, Symbol, Hintergrund — von links nach rechts (03.10.2026, Bild des
+--- Forever-Talentfensters: Elementarkampf, Verstaerkung, Wiederherstellung).
+---
+--- GetTalentTabInfo hat je nach Fassung zwei Formen:
+---   Classic:  name, icon, pointsSpent, background
+---   spaeter:  id, name, description, icon, pointsSpent, background, ...
+--- Unterschieden wird am Typ des ersten Werts, nicht an der Fassung.
+--- @return table|nil { { name, icon, bg } }
+function Compat.GetTalentTabs()
+    if not isFunction(_G.GetNumTalentTabs) or not isFunction(_G.GetTalentTabInfo) then return nil end
+    local ok, count = pcall(_G.GetNumTalentTabs)
+    if not ok or type(count) ~= "number" or count < 1 or count > 5 then return nil end
+    local out = {}
+    for tab = 1, count do
+        local values = { pcall(_G.GetTalentTabInfo, tab) }
+        if values[1] then
+            local name, icon, bg
+            if type(values[2]) == "number" and type(values[3]) == "string" then
+                name, icon, bg = values[3], values[5], values[7]
+            else
+                name, icon, bg = values[2], values[3], values[5]
+            end
+            out[tab] = {
+                name = type(name) == "string" and name ~= "" and name or nil,
+                icon = (type(icon) == "number" or type(icon) == "string") and icon or nil,
+                bg = type(bg) == "string" and bg ~= "" and bg or nil,
+            }
+        end
+    end
+    if #out == 0 then return nil end
+    return out
 end
 
 -- ================================================================== Loot ------

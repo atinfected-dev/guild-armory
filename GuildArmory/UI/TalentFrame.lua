@@ -1,13 +1,14 @@
 --[[----------------------------------------------------------------------------
     UI/TalentFrame — der nachgebaute Talentbaum eines Mitglieds.
 
-    Ein eigenes Fenster, das nur liest (siehe Armory/Talents: warum nicht
-    Blizzards Talentfenster). Die Knoten stehen an der Stelle, die das Spiel
-    ihnen im Baum gibt, verkleinert auf das Fenster; die Verbindungen sind
-    Linien, gekaufte Knoten leuchten, ungekaufte sind grau. Hover zeigt den
-    Zauber mit dem Tooltip des Spiels.
+    Aufgebaut wie das Talentfenster von Forever (Bild 03.10.2026): die Baeume
+    der Klasse nebeneinander, jeder mit rundem Symbol, Namen und seinen
+    Punkten oben, darunter die Talente im Raster. Die Rahmen sagen den Stand
+    wie im Spiel: gold = voll, gruen = teilweise, hell = offen, grau = noch
+    gesperrt. Unten rechts am Symbol der Rang, oben links der hoechste.
 
-    Was fehlt, sagt das Fenster — mit dem Grund, statt leer zu bleiben.
+    Das Fenster liest nur (siehe Armory/Talents: warum nicht Blizzards
+    Talentfenster). Was fehlt, sagt es mit dem Grund, statt leer zu bleiben.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -21,17 +22,28 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local ICON = 30
-local AREA_W, AREA_H = 620, 520
-local PAD = 18
+local ICON = 38
+local CELL_X, CELL_Y = 58, 56
+local HEAD = 70
+local TREE_PAD = 26
+local PAD = 16
+local TOP = 58
+local FOOT = 46
+
+local STATE_COLOR = {
+    max     = { 0.95, 0.78, 0.20 },
+    partial = { 0.30, 0.88, 0.38 },
+    open    = { 0.62, 0.60, 0.55 },
+    locked  = { 0.22, 0.21, 0.19 },
+}
+
+-- ================================================================ Rahmen ------
 
 function TalentFrame:Create()
     if self.frame then return self.frame end
     local fonts = Theme.Fonts()
 
     local frame = CreateFrame("Frame", "GuildArmoryTalentFrame", UIParent)
-    frame:SetWidth(AREA_W + 2 * PAD)
-    frame:SetHeight(AREA_H + 96)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:SetMovable(true)
@@ -51,60 +63,164 @@ function TalentFrame:Create()
     frame.title:SetPoint("TOPLEFT", frame.crest, "TOPRIGHT", 10, -1)
     frame.sub = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
     frame.sub:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -3)
-    frame.sub:SetPoint("RIGHT", frame, "RIGHT", -110, 0)
-    frame.sub:SetJustifyH("LEFT")
-    frame.sub:SetWordWrap(false)
 
     frame.points = Theme.Label(frame, "", fonts.big, Theme.color.goldBright)
-    frame.points:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -18, -14)
+    frame.points:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -14)
     frame.pointsLabel = Theme.Label(frame, L.TALENTS_POINTS, fonts.small, Theme.color.textDim)
-    frame.pointsLabel:SetPoint("TOPRIGHT", frame.points, "BOTTOMRIGHT", 0, -2)
+    frame.pointsLabel:SetPoint("RIGHT", frame.points, "LEFT", -8, 0)
 
-    local area = CreateFrame("Frame", nil, frame)
-    area:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -60)
-    area:SetWidth(AREA_W) area:SetHeight(AREA_H)
-    Theme.Fill(area, Theme.color.rowAltBg)
-    Theme.Outline(area, Theme.color.border)
-    frame.area = area
-    frame.nodes = {}
-    frame.lines = {}
+    frame.body = CreateFrame("Frame", nil, frame)
+    frame.body:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TOP)
+    Theme.Fill(frame.body, { 0.03, 0.03, 0.03, 1 })
+    Theme.Outline(frame.body, Theme.color.border)
 
-    frame.message = Theme.Label(area, "", fonts.body, Theme.color.textDim)
-    frame.message:SetPoint("TOPLEFT", area, "TOPLEFT", 20, -20)
-    frame.message:SetPoint("RIGHT", area, "RIGHT", -20, 0)
+    frame.message = Theme.Label(frame.body, "", fonts.body, Theme.color.textDim)
+    frame.message:SetPoint("TOPLEFT", frame.body, "TOPLEFT", 24, -24)
+    frame.message:SetPoint("RIGHT", frame.body, "RIGHT", -24, 0)
     frame.message:SetJustifyH("LEFT")
     frame.message:SetSpacing(4)
 
     frame.foot = Theme.Label(frame, "", fonts.small, Theme.color.textFaint)
-    frame.foot:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", PAD, 16)
+    frame.foot:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", PAD, 17)
     frame.foot:SetPoint("RIGHT", frame, "RIGHT", -110, 0)
     frame.foot:SetJustifyH("LEFT")
+    frame.foot:SetWordWrap(false)
 
     local close = Widgets.Button(frame, L.BTN_CLOSE, function() frame:Hide() end)
     close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 10)
 
+    frame.trees, frame.nodes, frame.lines = {}, {}, {}
     frame:Hide()
     if type(_G.UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GuildArmoryTalentFrame") end
     self.frame = frame
     return frame
 end
 
---- Ein Knoten: Rahmen, Symbol, Rang.
+--- Ein Baumfeld: Hintergrund, Kopf mit rundem Symbol, Name und Punkten.
+function TalentFrame:Tree(index)
+    local frame = self.frame
+    if frame.trees[index] then return frame.trees[index] end
+    local fonts = Theme.Fonts()
+    local tree = CreateFrame("Frame", nil, frame.body)
+
+    tree.bg = {}
+    for _, key in ipairs({ "TopLeft", "TopRight", "BottomLeft", "BottomRight" }) do
+        local tex = tree:CreateTexture(nil, "BACKGROUND", nil, 1)
+        tex:Hide()
+        tree.bg[key] = tex
+    end
+    tree.atlas = tree:CreateTexture(nil, "BACKGROUND", nil, 1)
+    tree.atlas:SetAllPoints(tree)
+    tree.atlas:Hide()
+    tree.tint = Theme.Fill(tree, { 0, 0, 0, 0 }, "BACKGROUND")
+    tree.shade = tree:CreateTexture(nil, "BACKGROUND", nil, 2)
+    tree.shade:SetAllPoints(tree)
+    Theme.Paint(tree.shade, { 0, 0, 0, 0.35 })
+
+    tree.divider = tree:CreateTexture(nil, "BORDER")
+    tree.divider:SetWidth(1)
+    tree.divider:SetPoint("TOPRIGHT", tree, "TOPRIGHT", 0, 0)
+    tree.divider:SetPoint("BOTTOMRIGHT", tree, "BOTTOMRIGHT", 0, 0)
+    Theme.Paint(tree.divider, Theme.color.border)
+
+    tree.icon = tree:CreateTexture(nil, "ARTWORK")
+    tree.icon:SetWidth(36) tree.icon:SetHeight(36)
+    tree.ring = tree:CreateTexture(nil, "OVERLAY")
+    tree.ring:SetWidth(46) tree.ring:SetHeight(46)
+    tree.ring:SetPoint("CENTER", tree.icon, "CENTER", 0, 0)
+    pcall(tree.ring.SetTexture, tree.ring, "Interface\\Minimap\\MiniMap-TrackingBorder")
+    pcall(tree.ring.SetTexCoord, tree.ring, 0, 0.6, 0, 0.6)
+    if Theme.RoundTexture and Theme.RoundTexture() then
+        pcall(tree.icon.SetMask, tree.icon, Theme.RoundTexture())
+    end
+
+    tree.badge = CreateFrame("Frame", nil, tree)
+    tree.badge:SetWidth(22) tree.badge:SetHeight(15)
+    tree.badge:SetPoint("BOTTOMLEFT", tree.icon, "BOTTOMRIGHT", -8, -4)
+    tree.badge:SetFrameLevel(tree:GetFrameLevel() + 2)
+    Theme.Fill(tree.badge, { 0.05, 0.05, 0.05, 0.95 })
+    Theme.Outline(tree.badge, Theme.color.goldDim)
+    tree.badgeText = Theme.Label(tree.badge, "", fonts.small, Theme.color.goldBright)
+    tree.badgeText:SetPoint("CENTER", tree.badge, "CENTER", 0, 0)
+
+    tree.name = Theme.Label(tree, "", fonts.big, Theme.color.text)
+    tree.name:SetPoint("LEFT", tree.icon, "RIGHT", 16, 0)
+
+    tree.line = tree:CreateTexture(nil, "ARTWORK")
+    tree.line:SetHeight(1)
+    tree.line:SetPoint("TOPLEFT", tree, "TOPLEFT", 14, -HEAD + 6)
+    tree.line:SetPoint("TOPRIGHT", tree, "TOPRIGHT", -14, -HEAD + 6)
+    Theme.Paint(tree.line, { 0.79, 0.64, 0.29, 0.45 })
+
+    frame.trees[index] = tree
+    return tree
+end
+
+--- Hintergrund eines Baums: das klassische Bild aus vier Teilen, ein Atlas,
+--- oder ein dunkler Grund in Klassenfarbe.
+local function paintBackground(tree, bg, classColor)
+    for _, tex in pairs(tree.bg) do tex:Hide() end
+    tree.atlas:Hide()
+    Theme.Paint(tree.tint, { classColor[1] * 0.18, classColor[2] * 0.18, classColor[3] * 0.18, 1 })
+    if not bg then return end
+
+    local base = "Interface\\TalentFrame\\" .. bg
+    if Theme.TextureExists(base .. "-TopLeft") then
+        local w, h = tree:GetWidth(), tree:GetHeight()
+        local left, top = w * 0.8, h * 0.667
+        local parts = {
+            TopLeft     = { 0, 0, left, top },
+            TopRight    = { left, 0, w - left, top },
+            BottomLeft  = { 0, top, left, h - top },
+            BottomRight = { left, top, w - left, h - top },
+        }
+        for key, rect in pairs(parts) do
+            local tex = tree.bg[key]
+            if pcall(tex.SetTexture, tex, base .. "-" .. key) then
+                tex:ClearAllPoints()
+                tex:SetPoint("TOPLEFT", tree, "TOPLEFT", rect[1], -rect[2])
+                tex:SetWidth(rect[3]) tex:SetHeight(rect[4])
+                tex:Show()
+            end
+        end
+        return
+    end
+    local textureApi = _G.C_Texture
+    if type(textureApi) == "table" and type(textureApi.GetAtlasInfo) == "function" then
+        local ok, info = pcall(textureApi.GetAtlasInfo, bg)
+        if ok and info and pcall(tree.atlas.SetAtlas, tree.atlas, bg) then tree.atlas:Show() end
+    end
+end
+
+--- Eine Talentkachel.
 function TalentFrame:Node(index)
     local frame = self.frame
-    local node = frame.nodes[index]
-    if node then return node end
+    if frame.nodes[index] then return frame.nodes[index] end
     local fonts = Theme.Fonts()
-    node = CreateFrame("Button", nil, frame.area)
+    local node = CreateFrame("Button", nil, frame.body)
     node:SetWidth(ICON) node:SetHeight(ICON)
-    node:SetFrameLevel(frame.area:GetFrameLevel() + 3)
-    node.border = Theme.Fill(node, Theme.color.border, "BACKGROUND")
+    node:SetFrameLevel(frame.body:GetFrameLevel() + 5)
+    node.border = Theme.Fill(node, STATE_COLOR.locked, "BACKGROUND")
+    node.inner = node:CreateTexture(nil, "BORDER")
+    node.inner:SetPoint("TOPLEFT", node, "TOPLEFT", 2, -2)
+    node.inner:SetPoint("BOTTOMRIGHT", node, "BOTTOMRIGHT", -2, 2)
+    Theme.Paint(node.inner, { 0, 0, 0, 1 })
     node.icon = node:CreateTexture(nil, "ARTWORK")
-    node.icon:SetPoint("TOPLEFT", node, "TOPLEFT", 2, -2)
-    node.icon:SetPoint("BOTTOMRIGHT", node, "BOTTOMRIGHT", -2, 2)
+    node.icon:SetPoint("TOPLEFT", node, "TOPLEFT", 3, -3)
+    node.icon:SetPoint("BOTTOMRIGHT", node, "BOTTOMRIGHT", -3, 3)
     pcall(node.icon.SetTexCoord, node.icon, 0.08, 0.92, 0.08, 0.92)
-    node.rank = Theme.Label(node, "", fonts.small, Theme.color.goldBright)
-    node.rank:SetPoint("BOTTOMRIGHT", node, "BOTTOMRIGHT", 3, -3)
+
+    node.rankBox = CreateFrame("Frame", nil, node)
+    node.rankBox:SetWidth(14) node.rankBox:SetHeight(14)
+    node.rankBox:SetPoint("BOTTOMRIGHT", node, "BOTTOMRIGHT", 2, -2)
+    node.rankBox:SetFrameLevel(node:GetFrameLevel() + 2)
+    node.rankFill = Theme.Fill(node.rankBox, { 0, 0, 0, 0.9 })
+    node.rank = Theme.Label(node.rankBox, "", fonts.small, Theme.color.goldBright)
+    node.rank:SetPoint("CENTER", node.rankBox, "CENTER", 0, 0)
+
+    node.maxText = Theme.Label(node, "", fonts.small, Theme.color.textDim)
+    node.maxText:SetPoint("BOTTOMLEFT", node, "TOPLEFT", -2, -8)
+
     node:SetScript("OnEnter", function(self)
         if not self.spellID or self.spellID == 0 then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -121,12 +237,11 @@ function TalentFrame:Node(index)
     return node
 end
 
---- Eine Verbindungslinie, wenn der Client Linien kann.
 function TalentFrame:Line(index)
     local frame = self.frame
     if frame.lines[index] then return frame.lines[index] end
-    if type(frame.area.CreateLine) ~= "function" then return nil end
-    local ok, line = pcall(frame.area.CreateLine, frame.area, nil, "BORDER")
+    if type(frame.body.CreateLine) ~= "function" then return nil end
+    local ok, line = pcall(frame.body.CreateLine, frame.body, nil, "ARTWORK")
     if not ok or not line then return nil end
     pcall(line.SetThickness, line, 2)
     frame.lines[index] = line
@@ -134,19 +249,21 @@ function TalentFrame:Line(index)
 end
 
 local function clear(frame)
-    for _, node in ipairs(frame.nodes) do node:Hide() end
-    for _, line in ipairs(frame.lines) do line:Hide() end
+    for _, t in ipairs(frame.trees) do t:Hide() end
+    for _, n in ipairs(frame.nodes) do n:Hide() end
+    for _, l in ipairs(frame.lines) do l:Hide() end
+    frame.message:SetText("")
 end
 
---- Zeigt die Talente eines Charakters.
+-- ================================================================ Zeigen -----
+
 function TalentFrame:Show(character)
     local frame = self:Create()
     clear(frame)
-    frame.message:SetText("")
 
-    local r, g, b = Util.ClassColor(character.class)
+    local cr, cg, cb = Util.ClassColor(character.class)
     frame.title:SetText(character.name or "?")
-    frame.title:SetTextColor(r, g, b)
+    frame.title:SetTextColor(cr, cg, cb)
     if character.class and Theme.SetClassPortrait(frame.crest, character.class) then frame.crest:Show() else frame.crest:Hide() end
 
     local Talents = GA.Modules.Talents
@@ -158,64 +275,81 @@ function TalentFrame:Show(character)
     if character.level then teile[#teile + 1] = string.format(L.LEVEL_FMT, tostring(character.level)) end
     frame.sub:SetText(table.concat(teile, " · "))
 
-    -- Herkunft und Alter: die Regel des Addons.
     local ts = build and build.ts or (character.loadout and character.loadout.ts)
     local quelle = build and build.own and L.TALENTS_SRC_SELF
         or ((character.loadout and character.loadout.source == "inspect") and L.TALENTS_SRC_INSPECT or L.TALENTS_SRC_SYNC)
-    frame.foot:SetText(ts and string.format(L.TALENTS_FOOT, Util.TimeAgo(ts), quelle) or "")
+    local foot = ts and string.format(L.TALENTS_FOOT, Util.TimeAgo(ts), quelle) or ""
     local measured = GA.Core.Database.account.measured
     if measured and measured.talentDecoder and measured.talentDecoder.ok == false and build and not build.own then
-        frame.foot:SetText(frame.foot:GetText() .. "  |cffd9a441" .. L.TALENTS_DECODER_WARN .. "|r")
+        foot = foot .. "  |cffd9a441" .. L.TALENTS_DECODER_WARN .. "|r"
     end
+    frame.foot:SetText(foot)
 
-    if not build then
+    local grid = build and Talents.Grid(build.layout)
+    if not build or not grid then
         frame.points:SetText("")
-        frame.message:SetText(L["TALENTS_NO_" .. string.upper(tostring(grund))] or L.TALENTS_NO_GENERIC)
+        frame:SetWidth(560) frame:SetHeight(TOP + 200 + FOOT)
+        frame.body:SetWidth(560 - 2 * PAD) frame.body:SetHeight(200)
+        frame.message:SetText(build and L.TALENTS_NO_NOLAYOUT
+            or (L["TALENTS_NO_" .. string.upper(tostring(grund))] or L.TALENTS_NO_GENERIC))
         frame:Show()
         return
     end
 
-    -- Lage: das Feld der sichtbaren Knoten auf die Flaeche abbilden.
-    local minX, minY, maxX, maxY
-    for _, node in ipairs(build.layout.nodes) do
-        if node.visible then
-            minX = math.min(minX or node.x, node.x) maxX = math.max(maxX or node.x, node.x)
-            minY = math.min(minY or node.y, node.y) maxY = math.max(maxY or node.y, node.y)
-        end
+    local states, points = Talents.States(build.layout, grid, build.picks)
+
+    -- Groesse aus dem Raster: Baeume nebeneinander, gleich hoch.
+    local treeH = HEAD + grid.rows * CELL_Y + 18
+    local x = 0
+    local origin = {}
+    for i, t in ipairs(grid.trees) do
+        local w = math.max(4, t.cols) * CELL_X + 2 * TREE_PAD
+        local tree = self:Tree(i)
+        tree:ClearAllPoints()
+        tree:SetPoint("TOPLEFT", frame.body, "TOPLEFT", x, 0)
+        tree:SetWidth(w) tree:SetHeight(treeH)
+        local tab = build.layout.tabs and build.layout.tabs[i] or {}
+        paintBackground(tree, tab.bg, { cr, cg, cb })
+        tree.icon:ClearAllPoints()
+        tree.icon:SetPoint("TOPLEFT", tree, "TOPLEFT", math.max(18, w / 2 - 70), -16)
+        if tab.icon then pcall(tree.icon.SetTexture, tree.icon, tab.icon) else Theme.Paint(tree.icon, Theme.color.border) end
+        tree.name:SetText(tab.name or string.format(L.TALENTS_TREE_N, i))
+        tree.badgeText:SetText(tostring(points[i] or 0))
+        tree.divider:SetShown(i < #grid.trees)
+        tree:Show()
+        origin[i] = { x = x + TREE_PAD + (CELL_X - ICON) / 2 + ((math.max(4, t.cols) - t.cols) * CELL_X) / 2, w = w }
+        x = x + w
     end
-    if not minX then
-        frame.message:SetText(L.TALENTS_NO_NOLAYOUT)
-        frame:Show()
-        return
-    end
-    local spanX, spanY = math.max(1, maxX - minX), math.max(1, maxY - minY)
-    local scale = math.min((AREA_W - 2 * ICON) / spanX, (AREA_H - 2 * ICON) / spanY)
-    local offX = (AREA_W - spanX * scale) / 2
-    local offY = (AREA_H - spanY * scale) / 2
-    local function place(node)
-        return offX + (node.x - minX) * scale, -(offY + (node.y - minY) * scale)
+    frame.body:SetWidth(x) frame.body:SetHeight(treeH)
+    frame:SetWidth(x + 2 * PAD) frame:SetHeight(TOP + treeH + FOOT)
+
+    local function cell(node)
+        local o = origin[node.tree]
+        return o.x + (node.col - 1) * CELL_X, -(HEAD + 6 + (node.row - 1) * CELL_Y)
     end
 
-    local byID, punkte = {}, 0
+    -- Pfeile unter den Kacheln: vom unteren Rand der Quelle zum oberen des Ziels.
+    local byID = {}
     for _, node in ipairs(build.layout.nodes) do byID[node.id] = node end
-
-    -- Linien zuerst, unter den Knoten.
-    local lineIndex = 0
+    local li = 0
     for _, node in ipairs(build.layout.nodes) do
         if node.visible then
             for _, target in ipairs(node.edges or {}) do
                 local other = byID[target]
-                if other and other.visible then
-                    lineIndex = lineIndex + 1
-                    local line = self:Line(lineIndex)
+                if other and other.visible and other.tree == node.tree then
+                    li = li + 1
+                    local line = self:Line(li)
                     if line then
-                        local x1, y1 = place(node)
-                        local x2, y2 = place(other)
-                        pcall(line.SetStartPoint, line, "TOPLEFT", frame.area, x1, y1)
-                        pcall(line.SetEndPoint, line, "TOPLEFT", frame.area, x2, y2)
-                        local an = build.picks[node.id] and build.picks[target]
-                        local c = an and Theme.color.gold or Theme.color.border
-                        pcall(line.SetColorTexture, line, c[1], c[2], c[3], an and 0.9 or 0.6)
+                        local x1, y1 = cell(node)
+                        local x2, y2 = cell(other)
+                        local sx, sy = x1 + ICON / 2, y1 - ICON
+                        local ex, ey = x2 + ICON / 2, y2
+                        if other.row == node.row then sx, sy, ex, ey = x1 + ICON, y1 - ICON / 2, x2, y2 - ICON / 2 end
+                        pcall(line.SetStartPoint, line, "TOPLEFT", frame.body, sx, sy)
+                        pcall(line.SetEndPoint, line, "TOPLEFT", frame.body, ex, ey)
+                        local an = states[node.id] == "max"
+                        local c = an and STATE_COLOR.max or { 0.35, 0.33, 0.30 }
+                        pcall(line.SetColorTexture, line, c[1], c[2], c[3], an and 0.95 or 0.8)
                         line:Show()
                     end
                 end
@@ -223,14 +357,14 @@ function TalentFrame:Show(character)
         end
     end
 
-    local index = 0
+    local index, gesamt = 0, 0
     for _, node in ipairs(build.layout.nodes) do
-        if node.visible then
+        if node.visible and node.tree then
             index = index + 1
             local button = self:Node(index)
-            local x, y = place(node)
+            local bx, by = cell(node)
             button:ClearAllPoints()
-            button:SetPoint("CENTER", frame.area, "TOPLEFT", x, y)
+            button:SetPoint("TOPLEFT", frame.body, "TOPLEFT", bx, by)
             local pick = build.picks[node.id]
             local chosen = pick and pick.chosen or 1
             local spellID = node.spells[chosen] or node.spells[1]
@@ -238,23 +372,28 @@ function TalentFrame:Show(character)
             button.alternative = node.choice and node.spells[chosen == 1 and 2 or 1] or nil
             button.rankMax = node.max or 1
             button.rankNow = pick and (pick.granted and node.max or pick.rank) or 0
+            local state = states[node.id] or "locked"
             local icon = Compat.GetSpellIcon(spellID)
             if icon then pcall(button.icon.SetTexture, button.icon, icon) else Theme.Paint(button.icon, Theme.color.border) end
-            local an = pick ~= nil
-            if button.icon.SetDesaturated then pcall(button.icon.SetDesaturated, button.icon, not an) end
-            button.icon:SetAlpha(an and 1 or 0.45)
-            Theme.Paint(button.border, an and Theme.color.gold or Theme.color.border)
-            if (node.max or 1) > 1 or an then
-                button.rank:SetText(string.format("%d/%d", button.rankNow, button.rankMax))
+            if button.icon.SetDesaturated then pcall(button.icon.SetDesaturated, button.icon, state == "locked") end
+            button.icon:SetAlpha(state == "locked" and 0.45 or 1)
+            Theme.Paint(button.border, STATE_COLOR[state])
+
+            if button.rankNow > 0 then
+                local c = STATE_COLOR[state]
+                button.rank:SetText(tostring(button.rankNow))
+                button.rank:SetTextColor(c[1], c[2], c[3])
+                button.rankBox:Show()
             else
-                button.rank:SetText("")
+                button.rankBox:Hide()
             end
-            if an and not pick.granted then punkte = punkte + (pick.rank or 0) end
+            button.maxText:SetText((node.max or 1) > 1 and tostring(node.max) or "")
+            if pick and not pick.granted then gesamt = gesamt + (pick.rank or 0) end
             button:Show()
         end
     end
 
-    frame.points:SetText(tostring(punkte))
+    frame.points:SetText(tostring(gesamt))
     frame:Show()
 end
 
