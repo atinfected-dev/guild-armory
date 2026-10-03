@@ -1440,6 +1440,18 @@ function Compat.RegisterAddonPrefix(prefix)
     return false
 end
 
+--- Ist die Gilde mit Discord verbunden? Nur die Abfrage C_Discord.IsEnabled —
+--- keine der verwaltenden Funktionen (Projektregel). Gemessen 03.10.2026:
+--- true, und SendChatMessage(text, "GUILD_DISCORD") kommt in Discord an.
+--- @return boolean|nil  nil = weiss nicht
+function Compat.IsDiscordBridgeEnabled()
+    local api = _G.C_Discord
+    if not isTable(api) or not isFunction(api.IsEnabled) then return nil end
+    local ok, on = pcall(api.IsEnabled)
+    if not ok then return nil end
+    return on and true or false
+end
+
 --- Schreibt in einen Chatkanal. Anders als Addon-Nachrichten ist das fuer
 --- Menschen sichtbar — und in Forever moeglicherweise auch nach Discord, wenn
 --- die Gilde eine Bruecke eingerichtet hat. Das ist der einzige Weg, auf dem

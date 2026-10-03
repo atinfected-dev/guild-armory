@@ -160,6 +160,15 @@ function View:Create(parent)
     end
     y = y - 32
 
+    -- Auch in Discord ankuendigen: nur, wenn die Gilde verbunden ist.
+    self.discordChip = Widgets.Chip(form, L.DH_DISCORD_CHIP, function(pressed)
+        GA.Modules.Dungeonhub:SetDiscordDefault(pressed)
+        View:RefreshForm()
+    end)
+    self.discordChip:SetHeight(20)
+    self.discordChip:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
+    y = y - 28
+
     self.postButton = Widgets.Button(form, L.DH_POST_BTN, function() View:Post() end, "primary")
     self.postButton:SetHeight(24)
     self.postButton:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
@@ -465,7 +474,7 @@ function View:Post()
     if not hh then self.formError:SetText(L.DH_ERR_time) return end
     local at, grund = Hub.StartTime(self.dayOffset or 0, hh, mm)
     if not at then self.formError:SetText(L["DH_ERR_" .. tostring(grund)] or tostring(grund)) return end
-    local run, reason = Hub:Post(dungeon, at, self.noteBox:GetText(), self.role or "DPS")
+    local run, reason = Hub:Post(dungeon, at, self.noteBox:GetText(), self.role or "DPS", Hub:DiscordDefault() == true)
     if not run then
         self.formError:SetText(L["DH_ERR_" .. tostring(reason)] or tostring(reason))
         return
@@ -479,6 +488,11 @@ function View:RefreshForm()
     for _, chip in ipairs(self.dayChips) do chip:SetPressed(chip.offset == (self.dayOffset or 0)) end
     for _, chip in ipairs(self.roleChips) do chip:SetPressed(chip.role == self.role) end
     self.dungeonPick:SetDisplay(L.DH_DUNGEON_LIST, Theme.color.textFaint)
+    if self.discordChip then
+        local dc = GA.Modules.Dungeonhub:DiscordDefault()
+        self.discordChip:SetShown(dc ~= nil)
+        self.discordChip:SetPressed(dc == true)
+    end
     local on = GA.Core.Config:Get("notifyEnabled") ~= false and GA.Core.Config:Get("notifyDungeon") ~= false
     self.notifyState:SetText(string.format(L.DH_NOTIFY_STATE, on and L.SET_ON or L.SET_OFF))
 end

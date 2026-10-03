@@ -17,7 +17,8 @@
       DMEMB  id, "TANK:Name;HEAL:Name;DPS:A,B,C"     die Besetzung, vom Leiter
       DHUBX  id                                      zurueckgenommen
       DREQ                                           "schickt mir eure Laeufe"
-      DHUBR  wie DHUB, dazu leader                   Weitergabe durch einen Dritten
+      DHUB   Feld 7: "1" = steht in Discord (seit 0.1.31; aeltere Clients lassen es weg)
+      DHUBR  wie DHUB, dazu leader (Feld 7), Discord in Feld 8                  Weitergabe durch einen Dritten
       DMEMBR id, Besetzung, mts, leader              Weitergabe der Besetzung
       DHUBXR id, leader                              Weitergabe eines Grabsteins
     DER LEITER IST DIE QUELLE DER BESETZUNG: Er antwortet auf jeden Beitritt
@@ -265,7 +266,8 @@ end
 
 --- Traegt einen Lauf ein.
 --- @return table|nil run, string|nil grund
-function Dungeonhub:Post(dungeon, at, note, role)
+--- @param discord boolean|nil  auch in Discord ankuendigen (Variante 1, 03.10.2026)
+function Dungeonhub:Post(dungeon, at, note, role, discord)
     if not Compat.IsInGuild() then return nil, "noguild" end
     dungeon = kuerzen(dungeon, self.DUNGEON_LEN)
     if dungeon == "" then return nil, "nodungeon" end
@@ -286,11 +288,13 @@ function Dungeonhub:Post(dungeon, at, note, role)
         members = { [me] = { role = role, class = identity.class, ts = now } },
         mts = now,
     }
+    run.discord = discord and true or nil
     db.own[run.id] = run
     db.lastRole = role
     self.runs[run.id] = run
     self:Send(run)
     self:SendMembers(run)
+    if run.discord then self:AnnounceDiscord(run, "new") end
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "post", run)
     return run
 end
@@ -298,7 +302,7 @@ end
 function Dungeonhub:Send(run)
     if not comm() then return false end
     local leaderRole = run.members and run.members[run.leader] and run.members[run.leader].role or "DPS"
-    return comm():Send("DHUB", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole },
+    return comm():Send("DHUB", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.discord and "1" or "0" },
         "GUILD", nil, true) and true or false
 end
 
@@ -343,7 +347,7 @@ end
 function Dungeonhub:Relay(run)
     if not comm() or run.own then return false end
     local leaderRole = run.members and run.members[run.leader] and run.members[run.leader].role or "DPS"
-    comm():Send("DHUBR", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.leader }, "GUILD", nil, true)
+    comm():Send("DHUBR", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.leader, run.discord and "1" or "0" }, "GUILD", nil, true)
     comm():Send("DMEMBR", { run.id, self.EncodeMembers(run), tostring(run.mts or 0), run.leader }, "GUILD", nil, true)
     return true
 end
@@ -352,6 +356,8 @@ end
 function Dungeonhub:Withdraw(id, quiet)
     local db = store()
     if not db or not db.own[id] then return false end
+    local run = db.own[id]
+    if run and run.discord and run.discordSent then self:AnnounceDiscord(run, "cancel") end
     db.own[id] = nil
     self.runs[id] = nil
     forget(id, ownName())
@@ -375,6 +381,7 @@ function Dungeonhub:Join(id, role)
     if db then db.lastRole = role end
     if comm() then comm():Send("DJOIN", { id, role }, "GUILD", nil, true) end
     if run.own then run.mts = Util.Now() self:SendMembers(run) end
+    self:AnnounceDiscord(run, "join", me, role)
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "join", run)
     return true
 end
@@ -387,6 +394,7 @@ function Dungeonhub:Leave(id)
     if run.leader == me then return false, "leader" end
     run.members[me] = nil
     if comm() then comm():Send("DJOIN", { id, 0 }, "GUILD", nil, true) end
+    self:AnnounceDiscord(run, "leave", me)
     GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "leave", run)
     return true
 end
@@ -395,6 +403,85 @@ function Dungeonhub:LastRole()
     local db = store()
     local role = db and db.lastRole
     return validRole(role) and role or "DPS"
+end
+
+-- ================================================================== Discord --
+--
+-- NUR IN EINE RICHTUNG (03.10.2026). Gemessen: Das Addon kann ueber den
+-- Chattyp GUILD_DISCORD nach Discord schreiben, aber Discord-Text nicht lesen
+-- (Communication/Discord). Jeder schreibt nur fuer sich selbst:
+--   * der Leiter, wenn er den Lauf eintraegt ("new") und wenn er ihn absagt
+--     ("cancel");
+--   * wer beitritt oder die Rolle wechselt ("join") und wer geht ("leave"),
+--     mit den danach freien Plaetzen — oder "jetzt voll".
+-- Ob ein Lauf in Discord steht, reist als Feld im DHUB mit (run.discord),
+-- damit die anderen Clients wissen, dass ihre Zeile dorthin gehoert.
+
+--- Freie Plaetze als Text: "Tank, Heiler, 2x Schaden" — oder nil, wenn voll.
+function Dungeonhub:FreeText(run)
+    local teile = {}
+    for _, role in ipairs(self.ROLES) do
+        local frei = self.SLOTS[role] - self:Count(run, role)
+        local name = L["DH_ROLE_" .. role] or role
+        if frei == 1 then teile[#teile + 1] = name
+        elseif frei > 1 then teile[#teile + 1] = string.format(L.DH_DC_COUNT, frei, name) end
+    end
+    if #teile == 0 then return nil end
+    return table.concat(teile, ", ")
+end
+
+--- Die Zeile fuer Discord.
+--- @param kind string "new" | "join" | "leave" | "cancel"
+--- @param who string|nil  wer beitritt oder geht
+--- @param role string|nil  mit welcher Rolle
+function Dungeonhub:DiscordLine(run, kind, who, role)
+    local wann = date("%H:%M", run.at or 0)
+    local heute = date("%Y-%m-%d", Util.Now()) == date("%Y-%m-%d", run.at or 0)
+    local tag = heute and L.DH_DC_TODAY or L.DH_DC_TOMORROW
+    local dungeon = run.dungeon or "?"
+    local frei = self:FreeText(run)
+    local rest = frei and string.format(L.DH_DC_OPEN, frei) or L.DH_DC_NOW_FULL
+    local text
+    if kind == "cancel" then
+        text = string.format(L.DH_DC_CANCEL, dungeon, tag, wann)
+    elseif kind == "new" then
+        local note = run.note and run.note ~= "" and (" - " .. run.note) or ""
+        text = string.format(L.DH_DC_NEW, dungeon, tag, wann, run.leader or "?", rest, note)
+    elseif kind == "leave" then
+        text = string.format(L.DH_DC_LEAVE, who or "?", dungeon, tag, wann, rest)
+    else
+        local rolle = L["DH_ROLE_" .. tostring(role)] or tostring(role)
+        text = string.format(L.DH_DC_JOIN, who or "?", rolle, dungeon, tag, wann, rest)
+    end
+    -- Kein | im Text: Der Chat liest es als Steuerzeichen.
+    return (string.gsub(text, "|", "/"))
+end
+
+--- Schreibt die eigene Zeile nach Discord, wenn der Lauf dort angekuendigt
+--- ist und die Gilde verbunden ist.
+--- @return boolean gesendet
+function Dungeonhub:AnnounceDiscord(run, kind, who, role)
+    if not run or not run.discord then return false end
+    if Compat.IsDiscordBridgeEnabled and Compat.IsDiscordBridgeEnabled() == false then return false end
+    if type(Compat.SendChatMessage) ~= "function" then return false end
+    local line = self:DiscordLine(run, kind, who, role)
+    if not Compat.SendChatMessage(line, "GUILD_DISCORD") then return false end
+    run.discordSent = Util.Now()
+    return true
+end
+
+--- Die letzte Wahl im Formular, und ob es Discord hier ueberhaupt gibt.
+--- @return boolean|nil  nil = keine Verbindung, Haken verstecken
+function Dungeonhub:DiscordDefault()
+    if not Compat.IsDiscordBridgeEnabled or Compat.IsDiscordBridgeEnabled() ~= true then return nil end
+    local db = store()
+    if db and db.discordChoice ~= nil then return db.discordChoice end
+    return true
+end
+
+function Dungeonhub:SetDiscordDefault(on)
+    local db = store()
+    if db then db.discordChoice = on and true or false end
 end
 
 -- ================================================================== Fremde ---
@@ -428,6 +515,7 @@ function Dungeonhub:OnPost(sender, fields, relayedLeader)
         note = kuerzen(fields[4], self.NOTE_LEN), ts = ts,
         leader = leader, class = klasseVon(leader), own = false,
         members = alt and alt.members or {}, mts = alt and alt.mts or nil,
+        discord = fields[relayedLeader and 8 or 7] == "1" or nil,
     }
     if not run.members[leader] then
         local role = validRole(fields[6]) and fields[6] or "DPS"
