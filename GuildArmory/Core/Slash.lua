@@ -679,6 +679,29 @@ SlashCmdList["GUILDARMORY"] = function(input)
         for _, entry in ipairs(Tradables:All()) do
             Debug:Info("  %-16s %d", tostring(entry.name), #entry.items)
         end
+    elseif command == "discord" then
+        -- Messwerkzeug fuer die Discord-Anbindung (Communication/Discord).
+        local Discord = GA.Modules.Discord
+        if not Discord then return end
+        local sub, arg = string.match(rest or "", "^(%S*)%s*(.*)$")
+        if sub == "api" then
+            local namen = Discord:ApiNames()
+            local key = Discord:SlashHandler("/discord")
+            Debug:Info("C_Discord: %s", #namen > 0 and table.concat(namen, ", ") or "nicht vorhanden")
+            Debug:Info("/discord wird bedient von: %s", key and ("SlashCmdList." .. key) or "niemandem gefunden")
+        elseif sub == "listen" then
+            local s = Discord:Listen(tonumber(arg))
+            Debug:Info("Schreibe %d Sekunden lang Chat-, Club- und Discord-Ereignisse mit. Jetzt in Discord ga-test schreiben, danach /ga discord show.", s)
+        elseif sub == "send" then
+            local _, bericht = Discord:SendTest()
+            Debug:Info("%s", bericht)
+        elseif sub == "show" then
+            local db = GA.Core.Database.account
+            local list = db.measured and db.measured.discordLog or {}
+            GA.UI.Widgets.CopyDialog("Discord-Messung", #list > 0 and table.concat(list, "\n") or "Noch nichts mitgeschrieben.")
+        else
+            Debug:Info("/ga discord api | listen | send | show")
+        end
     elseif command == "camp" or command == "lager" then
         local Camp = GA.Modules.Camp
         local CampFrame = GA.UI.CampFrame

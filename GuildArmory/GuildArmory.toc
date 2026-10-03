@@ -34,6 +34,7 @@ Core\Events.lua
 Core\Export.lua
 Core\Import.lua
 Communication\Comm.lua
+Communication\Discord.lua
 
 # --- Module: Logik, niemals UI -----------------------------------------------
 # ItemIndex liegt in Database/, laedt aber hier: Es ist ein Modul mit OnEnable
