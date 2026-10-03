@@ -19,6 +19,22 @@
                            Discord an, kann das Addon dort schreiben.
       /ga discord show     Zeigt das Mitgeschriebene zum Kopieren.
 
+    GEMESSEN 03.10.2026:
+      * "/discord" ist der Chattyp GUILD_DISCORD (wie "/g" -> GUILD).
+        SendChatMessage(text, "GUILD_DISCORD") aus dem Addon laeuft ohne
+        Sperre, und die Zeile kommt in Discord an.
+      * Discord -> Spiel kommt als CHAT_MSG_GUILD_DISCORD und parallel als
+        CLUB_MESSAGE_ADDED (Kanal "Discord", streamType 3). Der TEXT ist in
+        beiden nur ein geschuetzter Platzhalter (|Kx6|k, |Kw36785|k) — fuer
+        Addons nicht lesbar. Lesbar ist nur der Absendername (Wert 2).
+      * Nachrichten eines Discord-Webhooks im verbundenen Kanal kommen im
+        Spiel gar nicht an. Ob Nachrichten eines Bot-Kontos ankommen, ist
+        ungemessen.
+      * RegisterAllEvents ist Blizzards Code vorbehalten ("Blocked by
+        Blizzard"); listen meldet sich deshalb fuer einzelne Ereignisse an.
+      Folge: Addon -> Discord geht. Discord -> Addon geht nicht ueber den
+      Text, und ueber den Absendernamen nur, falls Bot-Nachrichten ankommen.
+
     WAS HIER NIE AUFGERUFEN WIRD (feste Regel des Projekts):
       C_Discord.Authorize, RefreshAuth, GuildLink, GuildUnlink,
       SetGuildSetting, UpdateDiscordServers, UpdateGuildLobby.
