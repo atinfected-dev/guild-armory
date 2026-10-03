@@ -113,6 +113,7 @@ local function store()
     account.dungeonhub.own = account.dungeonhub.own or {}
     account.dungeonhub.known = account.dungeonhub.known or {}   -- fremde Laeufe, fuer die Weitergabe
     account.dungeonhub.gone = account.dungeonhub.gone or {}     -- Grabsteine: zurueckgenommene Laeufe
+    account.dungeonhub.announced = account.dungeonhub.announced or {} -- schon gemeldet: id -> Zeit
     return account.dungeonhub
 end
 
@@ -415,6 +416,11 @@ function Dungeonhub:OnPost(sender, fields, relayedLeader)
     -- Zwei Uhren weichen ab; eine Stunde ist Luft.
     local now = Util.Now()
     if ts > now + 3600 or now - ts > self.TTL then return end
+    -- Laengst gestartet ist abgelaufen — auch, wenn ihn ein Client weitergibt,
+    -- der noch nicht aufgeraeumt hat. Ohne diese Pruefung kam ein Lauf, den
+    -- Prune eine Stunde nach Start loeschte, mit der naechsten Weitergabe als
+    -- NEU zurueck und meldete sich wieder (gesehen 03.10.2026).
+    if at < now - self.GRACE then return end
     local leader = relayedLeader or Util.ShortName(sender)
     local alt = self.runs[id]
     local run = {
@@ -430,7 +436,12 @@ function Dungeonhub:OnPost(sender, fields, relayedLeader)
     self.runs[id] = run
     markSeen(id)
     remember(run)
-    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", alt and "update" or "new", run)
+    -- NEU nur einmal je Lauf und Client, auch ueber einen Reload hinweg:
+    -- Die Meldung haengt an "new".
+    local db = store()
+    local gemeldet = db and db.announced[id]
+    if db then db.announced[id] = now end
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", (alt or gemeldet) and "update" or "new", run)
 end
 
 function Dungeonhub:OnRelayPost(sender, fields)
@@ -518,6 +529,8 @@ end
 --- @return number angekuendigt (fremde Laeufe plus Grabsteine)
 function Dungeonhub:OnRequest(sender)
     if comm() and comm():IsSelf(sender) then return 0 end
+    -- Erst aufraeumen: Weitergegeben wird nur, was noch gilt.
+    self:Prune()
     local db = store()
     for _, run in pairs(db and db.own or {}) do
         self:Send(run)
@@ -573,6 +586,9 @@ function Dungeonhub:Prune()
         end
         for id, g in pairs(db.gone) do
             if now - (g.ts or 0) > self.TTL then db.gone[id] = nil end
+        end
+        for id, ts in pairs(db.announced) do
+            if now - (ts or 0) > self.TTL + self.GRACE then db.announced[id] = nil end
         end
     end
 end

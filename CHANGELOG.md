@@ -2,6 +2,8 @@
 
 ## 0.1.31
 
+Dungeonhub and Questhub: a run that had started more than an hour ago (or a request older than two hours) kept coming back as new and popped its notification again — a client that had not tidied up yet passed it on, and the receiver took it. Expired entries are now refused on arrival, every client tidies up before passing anything on, and each run or request notifies at most once per client, also across a reload.
+
 Talents at the paper doll: a Talents button in the Equipment tab opens the member's talent window, rebuilt to look like the game's: the class's trees side by side, each with its round icon, name, points and background, talents in the game's grid with arrows, gold frames for full ranks, green for partial, bright for open and grey for still locked (five points per row, prerequisites full), the rank in the corner and the game's tooltip on hover, plus when and from where the talents were captured. Each client reads the tree of its own class and sends it to the guild once; the pick travels as the game's talent string with the character. So a tree appears as soon as one member of that class runs this version. The addon's own window only reads; opening Blizzard's talent window from an addon can block saving your own talents later. `/ga probe` reports whether this client's trees and talent strings read correctly.
 
 ## 0.1.30

@@ -53,6 +53,7 @@ local function store()
     account.questhub.own = account.questhub.own or {}
     account.questhub.known = account.questhub.known or {}   -- fremde Gesuche, fuer die Weitergabe
     account.questhub.gone = account.questhub.gone or {}     -- Grabsteine: zurueckgenommene Gesuche
+    account.questhub.announced = account.questhub.announced or {} -- schon gemeldet: id -> Zeit
     return account.questhub
 end
 
@@ -253,7 +254,11 @@ function Questhub:OnPost(sender, fields, relayedSeeker)
     end
     -- Ein Gesuch aus der Zukunft oder aelter als seine Lebensdauer ist
     -- keines. Die Uhren zweier Clients weichen ab; drei Stunden sind Luft.
-    if math.abs(Util.Now() - ts) > self.TTL + 3600 then return end
+    -- Abgelaufen ist, was Prune loeschen wuerde (TTL). Vorher galten hier drei
+    -- Stunden statt zwei: Ein Gesuch zwischen zwei und drei Stunden kam mit
+    -- jeder Weitergabe als NEU zurueck (gesehen 03.10.2026 im Dungeonhub).
+    local now = Util.Now()
+    if ts > now + 3600 or now - ts > self.TTL then return end
 
     local ziele = {}
     for teil in string.gmatch(tostring(fields[7] or ""), "[^;]+") do ziele[#ziele + 1] = teil end
@@ -270,7 +275,10 @@ function Questhub:OnPost(sender, fields, relayedSeeker)
     self.requests[id] = request
     markSeen(id)
     remember(request)
-    GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", alt and "update" or "new", request)
+    local db = store()
+    local gemeldet = db and db.announced[id]
+    if db then db.announced[id] = now end
+    GA.Core.Callbacks:Fire("QUESTHUB_CHANGED", (alt or gemeldet) and "update" or "new", request)
 end
 
 function Questhub:OnRelayPost(sender, fields)
@@ -316,6 +324,7 @@ end
 --- @return number angekuendigt (fremde Gesuche plus Grabsteine)
 function Questhub:OnRequest(sender)
     if comm() and comm():IsSelf(sender) then return 0 end
+    self:Prune()
     local db = store()
     for _, request in pairs(db and db.own or {}) do self:Send(request) end
     local pending, gone = {}, {}
@@ -368,6 +377,9 @@ function Questhub:Prune()
         end
         for id, g in pairs(db.gone) do
             if (g.ts or 0) < grenze then db.gone[id] = nil end
+        end
+        for id, ts in pairs(db.announced) do
+            if (ts or 0) < grenze - 3600 then db.announced[id] = nil end
         end
     end
 end
