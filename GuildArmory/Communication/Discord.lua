@@ -135,7 +135,29 @@ function Discord:Listen(seconds)
         end)
     end
     self.listenUntil = Util.Now() + seconds
-    pcall(self.listener.RegisterAllEvents, self.listener)
+    -- NICHT RegisterAllEvents: Das ist auf diesem Client Blizzards Code
+    -- vorbehalten und loeste "Blocked by Blizzard" aus (03.10.2026). Statt
+    -- dessen die Ereignisse des Discord-Chattyps aus Blizzards eigener
+    -- Tabelle ChatTypeGroup, und ein paar Verwandte zur Sicherheit.
+    local events = {}
+    local group = type(_G.ChatTypeGroup) == "table" and _G.ChatTypeGroup.GUILD_DISCORD
+    for _, event in ipairs(type(group) == "table" and group or {}) do events[#events + 1] = event end
+    for _, event in ipairs({ "CHAT_MSG_GUILD_DISCORD", "CHAT_MSG_GUILD", "CHAT_MSG_COMMUNITIES_CHANNEL",
+                             "CHAT_MSG_CHANNEL", "CHAT_MSG_SYSTEM", "CLUB_MESSAGE_ADDED" }) do
+        events[#events + 1] = event
+    end
+    local angemeldet = {}
+    for _, event in ipairs(events) do
+        if not angemeldet[event] and pcall(self.listener.RegisterEvent, self.listener, event) then
+            angemeldet[event] = true
+        end
+    end
+    local namen = {}
+    for event in pairs(angemeldet) do namen[#namen + 1] = event end
+    table.sort(namen)
+    local list = log()
+    list[#list + 1] = date("%H:%M:%S") .. " LISTEN auf: " .. table.concat(namen, ", ")
+        .. " (ChatTypeGroup.GUILD_DISCORD: " .. (type(group) == "table" and table.concat(group, ", ") or "fehlt") .. ")"
     return seconds
 end
 
