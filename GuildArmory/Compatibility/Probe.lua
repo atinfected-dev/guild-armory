@@ -512,6 +512,14 @@ Probe.CHECKS = {
                   #baeume > 0 and table.concat(baeume, ", ") or "GetTalentTabInfo liefert nichts")
       end },
 
+    { key = "talentNames", was = "Namen der Talentbaeume",
+      fuer = "Kopfzeilen im Talentfenster (Armory/Talents)",
+      run = function()
+          local tree = GA.Core.Compat.ReadOwnTalentTree()
+          local text = GA.Core.Compat.DescribeTalentTabSources()
+          return (tree and tree.tabs) and Probe.YES or Probe.EMPTY, text
+      end },
+
     { key = "professions", was = "Gelernte Hauptberufe",
       fuer = "GA-163..165, GA-022, GA-023 Berufe",
       run = function()

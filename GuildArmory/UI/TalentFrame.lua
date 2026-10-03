@@ -33,7 +33,7 @@ local FOOT = 46
 local STATE_COLOR = {
     max     = { 0.95, 0.78, 0.20 },
     partial = { 0.30, 0.88, 0.38 },
-    open    = { 0.62, 0.60, 0.55 },
+    open    = { 0.40, 0.39, 0.36 },   -- nicht geskillt: grau wie gesperrt, nur heller umrandet (Wunsch 03.10.2026)
     locked  = { 0.22, 0.21, 0.19 },
 }
 
@@ -73,6 +73,12 @@ function TalentFrame:Create()
     frame.body:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TOP)
     Theme.Fill(frame.body, { 0.03, 0.03, 0.03, 1 })
     Theme.Outline(frame.body, Theme.color.border)
+
+    -- Die Pfeile auf eigener Ebene: ueber den Baumflaechen (Kinder der
+    -- Grundflaeche, die ihre Linien sonst verdeckten), unter den Kacheln.
+    frame.lineLayer = CreateFrame("Frame", nil, frame.body)
+    frame.lineLayer:SetAllPoints(frame.body)
+    frame.lineLayer:SetFrameLevel(frame.body:GetFrameLevel() + 3)
 
     frame.message = Theme.Label(frame.body, "", fonts.body, Theme.color.textDim)
     frame.message:SetPoint("TOPLEFT", frame.body, "TOPLEFT", 24, -24)
@@ -240,8 +246,8 @@ end
 function TalentFrame:Line(index)
     local frame = self.frame
     if frame.lines[index] then return frame.lines[index] end
-    if type(frame.body.CreateLine) ~= "function" then return nil end
-    local ok, line = pcall(frame.body.CreateLine, frame.body, nil, "ARTWORK")
+    if type(frame.lineLayer.CreateLine) ~= "function" then return nil end
+    local ok, line = pcall(frame.lineLayer.CreateLine, frame.lineLayer, nil, "ARTWORK")
     if not ok or not line then return nil end
     pcall(line.SetThickness, line, 2)
     frame.lines[index] = line
@@ -312,7 +318,10 @@ function TalentFrame:Show(character)
         paintBackground(tree, tab.bg, { cr, cg, cb })
         tree.icon:ClearAllPoints()
         tree.icon:SetPoint("TOPLEFT", tree, "TOPLEFT", math.max(18, w / 2 - 70), -16)
-        if tab.icon then pcall(tree.icon.SetTexture, tree.icon, tab.icon) else Theme.Paint(tree.icon, Theme.color.border) end
+        local atlas = type(tab.icon) == "string" and string.match(tab.icon, "^atlas:(.+)$")
+        if atlas then pcall(tree.icon.SetAtlas, tree.icon, atlas)
+        elseif tab.icon then pcall(tree.icon.SetTexture, tree.icon, tab.icon)
+        else Theme.Paint(tree.icon, Theme.color.border) end
         tree.name:SetText(tab.name or string.format(L.TALENTS_TREE_N, i))
         tree.badgeText:SetText(tostring(points[i] or 0))
         tree.divider:SetShown(i < #grid.trees)
@@ -375,8 +384,10 @@ function TalentFrame:Show(character)
             local state = states[node.id] or "locked"
             local icon = Compat.GetSpellIcon(spellID)
             if icon then pcall(button.icon.SetTexture, button.icon, icon) else Theme.Paint(button.icon, Theme.color.border) end
-            if button.icon.SetDesaturated then pcall(button.icon.SetDesaturated, button.icon, state == "locked") end
-            button.icon:SetAlpha(state == "locked" and 0.45 or 1)
+            -- Nicht geskillt ist grau, offen nur etwas heller als gesperrt.
+            local grau = state == "locked" or state == "open"
+            if button.icon.SetDesaturated then pcall(button.icon.SetDesaturated, button.icon, grau) end
+            button.icon:SetAlpha(state == "locked" and 0.4 or (state == "open" and 0.7 or 1))
             Theme.Paint(button.border, STATE_COLOR[state])
 
             if button.rankNow > 0 then

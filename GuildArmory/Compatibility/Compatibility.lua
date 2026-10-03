@@ -765,6 +765,7 @@ function Compat.ReadOwnTalentTree()
             node.rank = tonumber(n.ranksPurchased) or 0
             node.visible = n.isVisible ~= false and node.x ~= nil and node.y ~= nil
             node.choice = (choiceType ~= nil and n.type == choiceType) or (isTable(n.entryIDs) and #n.entryIDs > 1)
+            node.sub = tonumber(n.subTreeID)
             for index, entryID in ipairs(n.entryIDs or {}) do
                 local okEntry, e = pcall(tr.GetEntryInfo, configID, entryID)
                 local spellID
@@ -783,7 +784,10 @@ function Compat.ReadOwnTalentTree()
     end
 
     local specID = Compat.GetSpecializationID("player")
-    return { specID = specID, treeID = treeID, nodes = nodes, tabs = Compat.GetTalentTabs() }
+    local tabs, quelle = Compat.GetTalentTabs()
+    if not tabs then tabs, quelle = Compat.TalentTabsFromSubTrees(configID, nodes) end
+    if not tabs then tabs, quelle = Compat.TalentTabsFromSpecs() end
+    return { specID = specID, treeID = treeID, nodes = nodes, tabs = tabs, tabSource = quelle }
 end
 
 --- Die Baeume der eigenen Klasse, wie das Talentfenster sie oben nennt:
@@ -798,10 +802,14 @@ end
 function Compat.GetTalentTabs()
     if not isFunction(_G.GetNumTalentTabs) or not isFunction(_G.GetTalentTabInfo) then return nil end
     local ok, count = pcall(_G.GetNumTalentTabs)
+    if not ok or type(count) ~= "number" or count < 1 then
+        ok, count = pcall(_G.GetNumTalentTabs, false, false)
+    end
     if not ok or type(count) ~= "number" or count < 1 or count > 5 then return nil end
     local out = {}
     for tab = 1, count do
         local values = { pcall(_G.GetTalentTabInfo, tab) }
+        if not values[1] or values[2] == nil then values = { pcall(_G.GetTalentTabInfo, tab, false, false, 1) } end
         if values[1] then
             local name, icon, bg
             if type(values[2]) == "number" and type(values[3]) == "string" then
@@ -816,8 +824,102 @@ function Compat.GetTalentTabs()
             }
         end
     end
-    if #out == 0 then return nil end
-    return out
+    if #out == 0 or not out[1] or not out[1].name then return nil end
+    return out, "tabinfo"
+end
+
+--- Zweite Quelle: die Teilbaeume des Trait-Systems. Gibt der Client die
+--- klassischen Baeume als Teilbaeume (subTreeID je Knoten), stehen Name und
+--- Symbol in C_Traits.GetSubTreeInfo. Reihenfolge von links nach rechts.
+--- Ein Atlas-Symbol traegt den Vorsatz "atlas:".
+--- @return table|nil, string|nil
+function Compat.TalentTabsFromSubTrees(configID, nodes)
+    local tr = _G.C_Traits
+    if not isTable(tr) or not isFunction(tr.GetSubTreeInfo) then return nil end
+    local groups, order = {}, {}
+    for _, node in ipairs(nodes or {}) do
+        if node.sub and node.visible then
+            if not groups[node.sub] then
+                groups[node.sub] = { id = node.sub, minX = node.x }
+                order[#order + 1] = groups[node.sub]
+            elseif node.x < groups[node.sub].minX then
+                groups[node.sub].minX = node.x
+            end
+        end
+    end
+    if #order < 2 then return nil end
+    table.sort(order, function(a, b) return a.minX < b.minX end)
+    local out = {}
+    for i, g in ipairs(order) do
+        local ok, info = pcall(tr.GetSubTreeInfo, configID, g.id)
+        if not ok or not isTable(info) or type(info.name) ~= "string" or info.name == "" then return nil end
+        local icon = info.iconElementID
+        if type(icon) == "string" and icon ~= "" then icon = "atlas:" .. icon else icon = nil end
+        out[i] = { name = info.name, icon = icon }
+    end
+    return out, "subtree"
+end
+
+--- Dritte Quelle: die Spezialisierungen der Klasse (Name und Symbol), wenn
+--- es mehr als eine gibt. Ob ihre Reihenfolge der der Baeume entspricht,
+--- sagt erst ein Bild — die Sonde nennt die Quelle.
+--- @return table|nil, string|nil
+function Compat.TalentTabsFromSpecs()
+    if not isFunction(_G.UnitClass) or not isFunction(_G.GetSpecializationInfoForClassID) then return nil end
+    local okClass, _, _, classID = pcall(_G.UnitClass, "player")
+    if not okClass or not classID then return nil end
+    local count = 4
+    if isFunction(_G.GetNumSpecializationsForClassID) then
+        local okN, n = pcall(_G.GetNumSpecializationsForClassID, classID)
+        if okN and type(n) == "number" then count = n end
+    end
+    if count < 2 then return nil end
+    local out = {}
+    for i = 1, count do
+        local ok, _, name, _, icon = pcall(_G.GetSpecializationInfoForClassID, classID, i)
+        if ok and type(name) == "string" and name ~= "" then out[#out + 1] = { name = name, icon = icon } end
+    end
+    if #out < 2 then return nil end
+    return out, "spec"
+end
+
+--- Fuer die Sonde: was jede Quelle der Baumnamen ROH liefert.
+--- @return string
+function Compat.DescribeTalentTabSources()
+    local teile = {}
+    local function werte(...)
+        local n, out = select("#", ...), {}
+        for i = 1, math.min(n, 8) do out[i] = tostring((select(i, ...))) end
+        return table.concat(out, ", ")
+    end
+    if isFunction(_G.GetNumTalentTabs) then
+        teile[#teile + 1] = "GetNumTalentTabs()=" .. werte(pcall(_G.GetNumTalentTabs))
+    else
+        teile[#teile + 1] = "GetNumTalentTabs fehlt"
+    end
+    if isFunction(_G.GetTalentTabInfo) then
+        teile[#teile + 1] = "GetTalentTabInfo(1)=" .. werte(pcall(_G.GetTalentTabInfo, 1))
+        teile[#teile + 1] = "GetTalentTabInfo(1,false,false,1)=" .. werte(pcall(_G.GetTalentTabInfo, 1, false, false, 1))
+    else
+        teile[#teile + 1] = "GetTalentTabInfo fehlt"
+    end
+    local tree = Compat.ReadOwnTalentTree()
+    local subs = {}
+    for _, node in ipairs(tree and tree.nodes or {}) do if node.sub then subs[node.sub] = true end end
+    local anzahl = 0
+    for _ in pairs(subs) do anzahl = anzahl + 1 end
+    teile[#teile + 1] = "subTreeIDs=" .. anzahl .. (isTable(_G.C_Traits) and isFunction(_G.C_Traits.GetSubTreeInfo) and "" or " (GetSubTreeInfo fehlt)")
+    local okClass, _, _, classID = pcall(_G.UnitClass, "player")
+    if okClass and classID and isFunction(_G.GetSpecializationInfoForClassID) then
+        local namen = {}
+        for i = 1, 4 do
+            local ok, _, name = pcall(_G.GetSpecializationInfoForClassID, classID, i)
+            if ok and name then namen[#namen + 1] = tostring(name) end
+        end
+        teile[#teile + 1] = "Specs der Klasse=" .. (#namen > 0 and table.concat(namen, "/") or "keine")
+    end
+    teile[#teile + 1] = "gewaehlt: " .. tostring(tree and tree.tabSource or "keine")
+    return table.concat(teile, " | ")
 end
 
 -- ================================================================== Loot ------
