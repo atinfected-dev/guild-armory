@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.31
+
+In progress.
+
 ## 0.1.30
 
 Storage: awards and journal entries older than 90 days are condensed after login, so the loot history no longer grows with its full step-by-step trail. A finished award keeps recipient, item, quality, time, loot master, answer, status and proof — everything +1, rotation, statistics, achievements, sync and the website export read — and loses its status history, votes, link and the combat-time tracking fields (measured: 53 % of an award was status history). The award detail says when it was condensed; `/ga archive` runs it on demand. Open awards are never touched.
