@@ -246,6 +246,13 @@ Schema.ACCOUNT_DEFAULTS = {
         -- es will: Es biegt eine Erwartung von zehn Jahren um.
         guildKeyOpensAddon = false,
 
+        -- DISCORD-BOT (03.10.2026). An: Die Discord-Zeilen des Dungeonhubs
+        -- tragen am Ende eine Maschinenmarke "[ga1 ...]", aus der der Bot
+        -- (tools/src/discordbot) einen Anmelder mit Knoepfen baut. Aus, bis
+        -- die Gilde einen Bot laufen hat — sonst steht die Marke fuer
+        -- Menschen unlesbar in Discord.
+        discordBot = false,
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die

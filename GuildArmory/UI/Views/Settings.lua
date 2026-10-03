@@ -399,6 +399,11 @@ function Settings:Create(parent)
     self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("levelUpAnnounce", on) end })
 
+    -- Discord-Bot (03.10.2026): haengt Maschinenmarken an die Discord-Zeilen
+    -- des Dungeonhubs. Aus, bis die Gilde den Bot laufen hat.
+    self.rowDiscordBot = makeRow(onscreen, { label = L.SET_DISCORD_BOT, hint = L.SET_DISCORD_BOT_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("discordBot", on) end })
+
     -- ------------------------------------------------------------ Meldungen -
     --
     -- Je Art ein Schalter (28.09.2026). Aus heisst: weder Streifen noch
@@ -542,6 +547,7 @@ function Settings:Refresh()
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
     self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)

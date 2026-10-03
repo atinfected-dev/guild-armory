@@ -1175,6 +1175,8 @@ GA.Core.Locale:Register("deDE", {
 
 
     SET_ONSCREEN       = "Am Bildschirm",
+    SET_DISCORD_BOT    = "Dungeonhub: Discord-Bot",
+    SET_DISCORD_BOT_HINT = "Nur, wenn deine Gilde den Guild-Armory-Discord-Bot laufen hat. Laeufe, die du in Discord ankuendigst, enden dann mit einer kurzen Marke wie [ga1 ...]; der Bot macht daraus einen Anmelder mit Knoepfen. Wer deinem Lauf beitritt, schreibt die Marke ebenfalls.",
     SET_GUILDKEY       = "Gildentaste oeffnet Guild Armory",
     SET_GUILDKEY_HINT  = "J und der Gildenknopf oeffnen die Uebersicht hier statt Blizzards Fenster; auf der Uebersicht schliesst J sie wieder. Nicht im Kampf. Bank und Rangrechte bleiben bei Blizzard — ein Knopf im Verzeichnis oeffnet es.",
     SET_NOTIFY         = "Meldungen",

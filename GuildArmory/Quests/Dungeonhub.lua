@@ -17,7 +17,8 @@
       DMEMB  id, "TANK:Name;HEAL:Name;DPS:A,B,C"     die Besetzung, vom Leiter
       DHUBX  id                                      zurueckgenommen
       DREQ                                           "schickt mir eure Laeufe"
-      DHUB   Feld 7: "1" = steht in Discord (seit 0.1.31; aeltere Clients lassen es weg)
+      DHUB   Feld 7: "1" = steht in Discord, "2" = dazu Marken fuer den Bot
+             (seit 0.1.31; aeltere Clients lassen es weg)
       DHUBR  wie DHUB, dazu leader (Feld 7), Discord in Feld 8                  Weitergabe durch einen Dritten
       DMEMBR id, Besetzung, mts, leader              Weitergabe der Besetzung
       DHUBXR id, leader                              Weitergabe eines Grabsteins
@@ -289,6 +290,7 @@ function Dungeonhub:Post(dungeon, at, note, role, discord)
         mts = now,
     }
     run.discord = discord and true or nil
+    run.discordBot = discord and GA.Core.Config and GA.Core.Config:Get("discordBot") and true or nil
     db.own[run.id] = run
     db.lastRole = role
     self.runs[run.id] = run
@@ -302,7 +304,7 @@ end
 function Dungeonhub:Send(run)
     if not comm() then return false end
     local leaderRole = run.members and run.members[run.leader] and run.members[run.leader].role or "DPS"
-    return comm():Send("DHUB", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.discord and "1" or "0" },
+    return comm():Send("DHUB", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, Dungeonhub.DiscordFlag(run) },
         "GUILD", nil, true) and true or false
 end
 
@@ -347,7 +349,7 @@ end
 function Dungeonhub:Relay(run)
     if not comm() or run.own then return false end
     local leaderRole = run.members and run.members[run.leader] and run.members[run.leader].role or "DPS"
-    comm():Send("DHUBR", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.leader, run.discord and "1" or "0" }, "GUILD", nil, true)
+    comm():Send("DHUBR", { run.id, run.dungeon, run.at, run.note or "", run.ts, leaderRole, run.leader, Dungeonhub.DiscordFlag(run) }, "GUILD", nil, true)
     comm():Send("DMEMBR", { run.id, self.EncodeMembers(run), tostring(run.mts or 0), run.leader }, "GUILD", nil, true)
     return true
 end
@@ -453,8 +455,39 @@ function Dungeonhub:DiscordLine(run, kind, who, role)
         local rolle = L["DH_ROLE_" .. tostring(role)] or tostring(role)
         text = string.format(L.DH_DC_JOIN, who or "?", rolle, dungeon, tag, wann, rest)
     end
+    if run.discordBot then
+        local tag = self:DiscordTag(run, kind, who, role)
+        -- Eine Chatzeile hat hoechstens 255 Bytes. Gekuerzt wird der
+        -- lesbare Teil, nie die Marke: Die liest der Bot.
+        local platz = self.CHAT_MAX - #tag - 1
+        if #text > platz then text = string.sub(text, 1, math.max(platz - 3, 0)) .. "..." end
+        text = text .. " " .. tag
+    end
     -- Kein | im Text: Der Chat liest es als Steuerzeichen.
     return (string.gsub(text, "|", "/"))
+end
+
+Dungeonhub.CHAT_MAX = 255
+local KIND_LETTER = { new = "n", join = "j", leave = "l", cancel = "x" }
+
+--- Das Feld 7 im DHUB: "0" nicht in Discord, "1" lesbar, "2" mit Marken.
+function Dungeonhub.DiscordFlag(run)
+    if not run.discord then return "0" end
+    return run.discordBot and "2" or "1"
+end
+
+--- Die Maschinenmarke fuer den Bot:
+---   [ga1 <art> <id> <start> <leiter> <besetzung> <dungeon> <notiz>]
+--- art n/j/l/x; besetzung wie DMEMB ("TANK:A;HEAL:;DPS:B,C"); im Dungeon
+--- stehen Unterstriche fuer Leerzeichen; die Notiz ist der Rest bis "]".
+--- Ein Name ohne Leerzeichen: Spielernamen haben keine.
+function Dungeonhub:DiscordTag(run, kind, who, role)
+    local dungeon = string.gsub(run.dungeon or "?", "[%s%]]", "_")
+    local note = string.gsub(run.note or "", "[%]%[]", "")
+    local tag = string.format("[ga1 %s %s %d %s %s %s", KIND_LETTER[kind] or "j", tostring(run.id),
+        tonumber(run.at) or 0, tostring(run.leader or "?"), self.EncodeMembers(run), dungeon)
+    if note ~= "" then tag = tag .. " " .. note end
+    return tag .. "]"
 end
 
 --- Schreibt die eigene Zeile nach Discord, wenn der Lauf dort angekuendigt
@@ -515,8 +548,10 @@ function Dungeonhub:OnPost(sender, fields, relayedLeader)
         note = kuerzen(fields[4], self.NOTE_LEN), ts = ts,
         leader = leader, class = klasseVon(leader), own = false,
         members = alt and alt.members or {}, mts = alt and alt.mts or nil,
-        discord = fields[relayedLeader and 8 or 7] == "1" or nil,
     }
+    local flag = fields[relayedLeader and 8 or 7]
+    run.discord = (flag == "1" or flag == "2") or nil
+    run.discordBot = flag == "2" or nil
     if not run.members[leader] then
         local role = validRole(fields[6]) and fields[6] or "DPS"
         run.members[leader] = { role = role, class = run.class, ts = ts }
