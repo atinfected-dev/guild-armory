@@ -699,7 +699,10 @@ SlashCmdList["GUILDARMORY"] = function(input)
         elseif sub == "show" then
             local db = GA.Core.Database.account
             local list = db.measured and db.measured.discordLog or {}
-            GA.UI.Widgets.CopyDialog("Discord-Messung", #list > 0 and table.concat(list, "\n") or "Noch nichts mitgeschrieben.")
+            -- Jedes | verdoppeln: Das Textfeld liest | als Steuerzeichen, und ein
+            -- einzelnes leert still das ganze Feld (gesehen 03.10.2026).
+            GA.UI.Widgets.CopyDialog("Discord-Messung",
+                #list > 0 and (table.concat(list, "\n"):gsub("|", "||")) or "Noch nichts mitgeschrieben.")
         else
             Debug:Info("/ga discord api | listen | send | show")
         end
