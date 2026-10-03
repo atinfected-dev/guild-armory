@@ -244,6 +244,9 @@ function Awards:Transition(awardId, newStatus, options)
 
     local before = award.status
     award.status = newStatus
+    -- Eine archivierte Vergabe hat keine Historie mehr (Database/Archive);
+    -- eine spaete Korrektur faengt sie neu an.
+    award.statusHistory = award.statusHistory or {}
     award.statusHistory[#award.statusHistory + 1] = {
         status = newStatus,
         ts = Util.Now(),

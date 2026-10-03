@@ -139,6 +139,12 @@ SlashCmdList["GUILDARMORY"] = function(input)
         end
         Debug:Info(L.SLASH_LANGUAGE_NOW, tostring(Locale.active),
             tostring(Locale.reason))
+    elseif command == "archive" or command == "archiv" then
+        local Archive = GA.Modules.Archive
+        if Archive then
+            local vergaben, journal = Archive:Run()
+            Debug:Info(L.ARCHIVE_DONE, vergaben, journal, Archive.AFTER_DAYS)
+        end
     elseif command == "dedupe" or command == "doppelte" then
         -- DIE DOPPELTEN VON HEUTE ABEND WEGRAEUMEN.
         --

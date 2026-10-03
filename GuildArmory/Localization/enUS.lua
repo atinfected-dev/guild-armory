@@ -258,6 +258,7 @@ GA.Core.Locale:Register("enUS", {
     QUALITY_3                   = "Rare",
     QUALITY_4                   = "Epic",
     LOOT_CORRECTION_OF          = "Correction of %s",
+    LOOT_ARCHIVED      = "History condensed on %s: recipient, item and proof are kept, the individual steps are not.",
     LOOT_CORRECTED_BY           = "Corrected by %s",
 
     -- Minimap-Knopf
@@ -853,7 +854,8 @@ GA.Core.Locale:Register("enUS", {
     TRADE_UNSURE       = "this client cannot tell whether they are already soulbound",
     TRADE_ANNOUNCE     = "Up for trade: %s",
     SLASH_COMBATLOG    = "Auto combat logging: %s   ·   recording right now: %s",
-    SLASH_HELP         = "Commands: /ga · armory · scale · debug · language · status · mem · bags · dedupe · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · craft link · map · test · version · handover · reset",
+    SLASH_HELP         = "Commands: /ga · armory · scale · debug · language · status · mem · bags · dedupe · archive · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · craft link · map · test · version · handover · reset",
+    ARCHIVE_DONE       = "Archive: %d awards and %d journal entries condensed (older than %d days). Recipient, item, time and proof stay; the step-by-step history goes.",
     SLASH_RESET_WARN   = "Resetting \"%s\" deletes %d characters and %d awards.",
     SLASH_RESET_CONFIRM = "To confirm, repeat: /ga reset %s",
     SLASH_RESET_EXPIRED = "Expired, nothing changed.",

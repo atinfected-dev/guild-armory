@@ -248,6 +248,7 @@ GA.Core.Locale:Register("deDE", {
     QUALITY_3                   = "Blau",
     QUALITY_4                   = "Episch",
     LOOT_CORRECTION_OF          = "Korrektur von %s",
+    LOOT_ARCHIVED      = "Verlauf verdichtet am %s: Empfaenger, Gegenstand und Nachweis sind erhalten, die einzelnen Schritte nicht.",
     LOOT_CORRECTED_BY           = "Korrigiert durch %s",
 
     -- Minimap-Knopf
@@ -842,7 +843,8 @@ GA.Core.Locale:Register("deDE", {
     TRADE_UNSURE       = "dieser Client kann nicht sagen, ob sie schon gebunden sind",
     TRADE_ANNOUNCE     = "Zu vergeben: %s",
     SLASH_COMBATLOG    = "Combat Log automatisch: %s   ·   zeichnet gerade auf: %s",
-    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · mem · bags · dedupe · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · craft link · map · test · version · handover · reset",
+    SLASH_HELP         = "Befehle: /ga · armory · scale · debug · language · status · mem · bags · dedupe · archive · capture · minimap · sync · export · import · rotate · roll · sr · plusone · atlas · icons · probe · combatlog · trade · camp · craft · craft link · map · test · version · handover · reset",
+    ARCHIVE_DONE       = "Archiv: %d Vergaben und %d Journaleintraege verdichtet (aelter als %d Tage). Empfaenger, Gegenstand, Zeit und Nachweis bleiben; der Verlauf Schritt fuer Schritt faellt weg.",
     SLASH_RESET_WARN   = "Zuruecksetzen von \"%s\" — loescht %d Charaktere und %d Vergaben.",
     SLASH_RESET_CONFIRM = "Zum Bestaetigen noch einmal: /ga reset %s",
     SLASH_RESET_EXPIRED = "Abgelaufen, nichts geaendert.",

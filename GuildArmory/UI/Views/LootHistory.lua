@@ -265,6 +265,9 @@ function LootHistory:RefreshDetail(award)
         lines[#lines + 1] = (strong and L.LOOT_PROOF_STRONG or L.LOOT_PROOF_WEAK)
             .. ": " .. (L["LOOT_PROOF_" .. award.confirmation] or award.confirmation)
     end
+    if award.archived then
+        lines[#lines + 1] = string.format(L.LOOT_ARCHIVED, date("%d.%m.%Y", award.archived))
+    end
     if award.correctionOf then
         lines[#lines + 1] = string.format(L.LOOT_CORRECTION_OF, award.correctionOf)
     end

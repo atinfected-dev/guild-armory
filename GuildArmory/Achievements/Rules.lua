@@ -270,7 +270,8 @@ function Rules.SOURCES.awardsClean()
     local count = 0
     for _, award in pairs(account().awards) do
         if award.lootMasterGuid == own and award.confirmation and not award.test then
-            local clean = true
+            -- Archivierte Vergaben tragen das Ergebnis als Flag (Database/Archive).
+            local clean = award.clean ~= false
             for _, step in ipairs(award.statusHistory or {}) do
                 if step.status == status.CORRECTED or step.status == status.CANCELLED then
                     clean = false

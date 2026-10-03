@@ -39,6 +39,7 @@ Communication\Comm.lua
 # ItemIndex liegt in Database/, laedt aber hier: Es ist ein Modul mit OnEnable
 # und braucht Core\Debug, das erst nach dem Datenbankblock kommt.
 Database\ItemIndex.lua
+Database\Archive.lua
 Database\AtlasBridge.lua
 Armory\Equipment.lua
 Armory\Guild.lua
