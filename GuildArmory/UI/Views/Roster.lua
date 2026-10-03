@@ -43,17 +43,26 @@ local function rankColor(rankIndex)
 end
 
 local COLUMN_GAP, COLUMN_X0 = 6, 8
+--- Entwurf R3 (03.10.2026): Wappen, Name mit Rangzeichen und Unterzeile
+--- (Klasse · Stufe · Rang), Zone, Notiz, und rechts, was die Person im
+--- Addon gerade tut — oder wann sie zuletzt da war. Die Rangspalte ist weg.
 local function columns()
     return {
-        { key = "crest", label = "",               width = 16 },
-        { key = "name",  label = L.COL_NAME,       width = 128 },
-        { key = "level", label = L.COL_LEVEL,      width = 28, justify = "RIGHT" },
-        { key = "zone",  label = L.ROSTER_COL_ZONE, width = 96 },
-        { key = "rank",  label = L.ROSTER_COL_RANK, width = 84 },
-        { key = "note",  label = L.ROSTER_COL_NOTE, width = 100 },
-        { key = "last",  label = L.ROSTER_COL_LAST, width = 62, justify = "RIGHT" },
+        { key = "crest", label = "",                 width = 22 },
+        { key = "name",  label = L.COL_NAME,         width = 150 },
+        { key = "zone",  label = L.ROSTER_COL_ZONE,  width = 110 },
+        { key = "note",  label = L.ROSTER_COL_NOTE,  width = 100 },
+        { key = "now",   label = L.ROSTER_COL_NOW,   width = 140, justify = "RIGHT" },
     }
 end
+
+local ROW_H = 32
+--- Rangzeichen des Spiels: Krone fuer den Gildenmeister, Stern fuer den
+--- zweiten Rang. Gibt der Client sie nicht her, bleibt der Platz leer.
+local RANK_ICON = {
+    [0] = [[Interface\GroupFrame\UI-Group-LeaderIcon]],
+    [1] = [[Interface\GroupFrame\UI-Group-AssistantIcon]],
+}
 
 local function offsets()
     local x, out, w = COLUMN_X0, {}, {}
@@ -193,18 +202,19 @@ function View:Create(parent)
     self:BuildChat(chat, fonts)
 
     -- ------------------------------------------------------ Tabelle ---------
-    local list = Widgets.Panel(frame, L.ROSTER_TITLE)
+    local list = Widgets.Panel(frame, L.ROSTER_TITLE, "")
     list:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
     list:SetPoint("RIGHT", detail, "LEFT", -gap, 0)
     list:SetPoint("BOTTOM", chat, "TOP", 0, gap)
     self.listPanel = list
 
     self.rows = Widgets.ScrollList(list.content, {
-        rowHeight = 24,
+        rowHeight = ROW_H,
         columns = columns(),
         createRow = function(row) self:BuildRow(row) end,
         updateRow = function(row, member) self:UpdateRow(row, member) end,
         onClickRow = function(member)
+            if member.header then return end
             self.selectedKey = member.name
             self:Refresh()
         end,
@@ -236,46 +246,116 @@ function View:BuildRow(row)
     row.edge:Hide()
 
     row.crest = row:CreateTexture(nil, "ARTWORK")
-    row.crest:SetWidth(14) row.crest:SetHeight(14)
+    row.crest:SetWidth(20) row.crest:SetHeight(20)
     row.crest:SetPoint("LEFT", row, "LEFT", x.crest, 0)
 
-    row.name = Theme.Label(row, "", fonts.row, Theme.color.text)
-    row.name:SetPoint("LEFT", row, "LEFT", x.name, 0)
+    row.rankIcon = row:CreateTexture(nil, "OVERLAY")
+    row.rankIcon:SetWidth(11) row.rankIcon:SetHeight(11)
+    row.rankIcon:SetPoint("TOPLEFT", row, "TOPLEFT", x.name, -4)
+    row.rankIcon:Hide()
+
+    row.name = Theme.Label(row, "", fonts.rowBold or fonts.row, Theme.color.text)
+    row.name:SetPoint("TOPLEFT", row, "TOPLEFT", x.name, -3)
     row.name:SetWidth(w.name)
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
 
-    row.level = Theme.Label(row, "", fonts.small, Theme.color.textDim)
-    row.level:SetPoint("LEFT", row, "LEFT", x.level, 0)
-    row.level:SetWidth(w.level)
-    row.level:SetJustifyH("RIGHT")
+    row.sub = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.sub:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -1)
+    row.sub:SetWidth(w.name)
+    row.sub:SetJustifyH("LEFT")
+    row.sub:SetWordWrap(false)
 
-    row.zone = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+    row.zone = Theme.Label(row, "", fonts.row, Theme.color.text)
     row.zone:SetPoint("LEFT", row, "LEFT", x.zone, 0)
     row.zone:SetWidth(w.zone)
     row.zone:SetJustifyH("LEFT")
     row.zone:SetWordWrap(false)
-
-    row.rank = CreateFrame("Frame", nil, row)
-    row.rank:SetHeight(15)
-    row.rank:SetPoint("LEFT", row, "LEFT", x.rank, 0)
-    row.rankLines = Theme.Outline(row.rank, Theme.color.border)
-    row.rankText = Theme.Label(row.rank, "", fonts.small, Theme.color.textDim)
-    row.rankText:SetPoint("CENTER", row.rank, "CENTER", 0, 0)
 
     row.note = Theme.Label(row, "", fonts.small, Theme.color.textDim)
     row.note:SetPoint("LEFT", row, "LEFT", x.note, 0)
     row.note:SetJustifyH("LEFT")
     row.note:SetWordWrap(false)
 
-    row.last = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
-    row.last:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.last:SetWidth(w.last)
-    row.last:SetJustifyH("RIGHT")
-    row.note:SetPoint("RIGHT", row.last, "LEFT", -6, 0)
+    row.now = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.now:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.now:SetWidth(w.now)
+    row.now:SetJustifyH("RIGHT")
+    row.now:SetWordWrap(false)
+    row.note:SetPoint("RIGHT", row.now, "LEFT", -6, 0)
+
+    -- Die Gruppenzeile: Punkt, Beschriftung, Linie bis zum Rand.
+    row.groupDot = row:CreateTexture(nil, "ARTWORK")
+    row.groupDot:SetWidth(7) row.groupDot:SetHeight(7)
+    row.groupDot:SetPoint("LEFT", row, "LEFT", x.crest + 6, -2)
+    if Theme.RoundTexture() then row.groupDot:SetTexture(Theme.RoundTexture()) end
+    row.groupDot:Hide()
+    row.groupText = Theme.Label(row, "", fonts.small, Theme.color.goldDim)
+    row.groupText:SetPoint("LEFT", row.groupDot, "RIGHT", 6, 0)
+    row.groupText:Hide()
+    row.groupLine = row:CreateTexture(nil, "ARTWORK")
+    row.groupLine:SetHeight(1)
+    row.groupLine:SetPoint("LEFT", row.groupText, "RIGHT", 8, 0)
+    row.groupLine:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    Theme.Paint(row.groupLine, Theme.color.border)
+    row.groupLine:Hide()
+end
+
+--- Was die Person im Addon gerade tut: leitet einen Lauf, steht in einem,
+--- sucht Leute, bietet etwas an. Das Erste, das zutrifft.
+local function activityOf(name)
+    local short = Util.ShortName(name or "")
+    local Hub = GA.Modules.Dungeonhub
+    if Hub then
+        for _, run in ipairs(Hub:List()) do
+            local wann = date("%H:%M", run.at or 0)
+            if run.leader == short then
+                return string.format(L.ROSTER_NOW_LEADS, run.dungeon or "?", wann), Theme.color.gold
+            elseif run.members and run.members[short] then
+                return string.format(L.ROSTER_NOW_IN, run.dungeon or "?", wann), Theme.color.textDim
+            end
+        end
+    end
+    local Questhub = GA.Modules.Questhub
+    if Questhub then
+        for _, request in ipairs(Questhub:List()) do
+            if request.seeker == short then
+                return string.format(L.ROSTER_NOW_SEEKS, request.title or "?"), Theme.color.textDim
+            end
+        end
+    end
+    local Tradables = GA.Modules.Tradables
+    if Tradables and Tradables.All then
+        for _, entry in ipairs(Tradables:All()) do
+            if Util.ShortName(entry.name or "") == short and entry.items and #entry.items > 0 then
+                return string.format(L.ROSTER_NOW_OFFERS, #entry.items), Theme.color.textDim
+            end
+        end
+    end
+    return nil
+end
+
+local function showMember(row, on)
+    for _, w in ipairs({ row.crest, row.name, row.sub, row.zone, row.note, row.now }) do w:SetShown(on) end
+    for _, w in ipairs({ row.groupDot, row.groupText, row.groupLine }) do w:SetShown(not on) end
+    if on then row.rankIcon:Hide() end
 end
 
 function View:UpdateRow(row, member)
+    if member.header then
+        row.edge:Hide()
+        showMember(row, false)
+        row.rankIcon:Hide()
+        local c = member.online and Theme.color.jade or Theme.color.border
+        Theme.Tint(row.groupDot, c)
+        local t = member.online and Theme.color.goldDim or Theme.color.textFaint
+        row.groupText:SetText(string.upper(member.label) .. "  \194\183  " .. tostring(member.count))
+        row.groupText:SetTextColor(t[1], t[2], t[3])
+        row:SetAlpha(1)
+        return
+    end
+    showMember(row, true)
+
     local selected = member.name == self.selectedKey
     if selected then
         row.edge:Show()
@@ -287,24 +367,48 @@ function View:UpdateRow(row, member)
     local r, g, b = Util.ClassColor(member.class)
     if member.class and Theme.SetClassPortrait(row.crest, member.class) then row.crest:Show() else row.crest:Hide() end
 
+    -- Rangzeichen vor dem Namen; der Name rueckt dafuer ein.
+    local icon = RANK_ICON[member.rankIndex or 99]
+    local x = offsets()
+    local einzug = 0
+    if icon and Theme.TextureExists(icon) and pcall(row.rankIcon.SetTexture, row.rankIcon, icon) then
+        row.rankIcon:Show()
+        einzug = 14
+    else
+        row.rankIcon:Hide()
+    end
+    -- Neu verankern heisst erst loesen: SetPoint fuegt hinzu, es ersetzt nicht.
+    row.name:ClearAllPoints()
+    row.name:SetPoint("TOPLEFT", row, "TOPLEFT", x.name + einzug, -3)
+
     local nick = member.guid and GA.Modules.Notes:GetNickname(member.guid)
     row.name:SetText(member.name .. (nick and nick ~= "" and (" |cff6f6753„" .. nick .. "“|r") or ""))
     row.name:SetTextColor(r, g, b)
-    row.level:SetText(member.level and tostring(member.level) or "")
-    row.zone:SetText(member.online and (member.zone or "") or "")
 
+    local teile = {}
+    if member.className or member.class then teile[#teile + 1] = member.className or member.class end
+    if member.level then teile[#teile + 1] = tostring(member.level) end
+    if member.rankName then teile[#teile + 1] = member.rankName end
     local farbe = rankColor(member.rankIndex)
-    row.rankText:SetText(string.upper(member.rankName or "?"))
-    row.rankText:SetTextColor(farbe[1], farbe[2], farbe[3])
-    for _, line in ipairs(row.rankLines) do Theme.Paint(line, farbe) end
-    row.rank:SetWidth(math.min(84, row.rankText:GetStringWidth() + 12))
+    row.sub:SetText(table.concat(teile, " \194\183 "))
+    row.sub:SetTextColor(farbe[1] * 0.85 + 0.1, farbe[2] * 0.85 + 0.1, farbe[3] * 0.85 + 0.1)
+
+    -- Zone, mit "HIER", wenn es die eigene ist.
+    local zone = member.online and member.zone or nil
+    if zone and self.ownZone and zone == self.ownZone then
+        row.zone:SetText(zone .. "  |cffc9a24a" .. L.ROSTER_HERE .. "|r")
+    else
+        row.zone:SetText(zone or "")
+    end
 
     row.note:SetText(GA.Modules.GuildNotes:Get(GA.Modules.GuildNotes.Key(member.guid, member.name)) or "")
 
-    -- Zuletzt gesehen: online jetzt, sonst das Roster, sonst der Strich.
+    -- Rechts: online, was die Person gerade tut; offline, wann zuletzt.
     if member.online then
-        row.last:SetText(L.ROSTER_ONLINE)
-        row.last:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
+        local text, color = activityOf(member.name)
+        row.now:SetText(text or "")
+        local c = color or Theme.color.textDim
+        row.now:SetTextColor(c[1], c[2], c[3])
     else
         local weg = member.lastOnlineTs and Util.TimeAgo(member.lastOnlineTs)
         if not weg then
@@ -312,13 +416,12 @@ function View:UpdateRow(row, member)
             local sekunden = index and Compat.GetGuildMemberLastOnline(index)
             weg = sekunden and Util.TimeAgo(Util.Now() - sekunden) or nil
         end
-        row.last:SetText(weg or "—")
-        row.last:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        row.now:SetText(weg and string.format(L.ROSTER_LAST_SEEN, weg) or "—")
+        row.now:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
     end
 
     -- Offline gedaempft: Die Zeile bleibt lesbar, aber sie tritt zurueck.
-    local alpha = member.online and 1 or 0.6
-    row.name:SetAlpha(alpha) row.crest:SetAlpha(alpha) row.zone:SetAlpha(alpha)
+    row:SetAlpha(member.online and 1 or 0.6)
 end
 
 -- ================================================================== Rechts ----
@@ -876,8 +979,38 @@ function View:Refresh()
     self.motdText:SetText(motd or L.ROSTER_MOTD_EMPTY)
 
     local gefiltert = self:Filtered(list)
-    self.rows:SetData(gefiltert)
+    self.ownZone = Compat.GetZone and Compat.GetZone() or nil
+
+    -- Zwei Gruppen mit Kopfzeile: online zuerst (nach Rang), dann offline
+    -- (zuletzt gesehen zuerst). Die Kopfzeilen sind Zeilen der Liste.
+    local da, weg = {}, {}
+    for _, member in ipairs(gefiltert) do
+        if member.online then da[#da + 1] = member else weg[#weg + 1] = member end
+    end
+    table.sort(weg, function(a, b)
+        local ta, tb = a.lastOnlineTs or 0, b.lastOnlineTs or 0
+        if ta ~= tb then return ta > tb end
+        return (a.name or "") < (b.name or "")
+    end)
+    local zeilen = {}
+    if #da > 0 then zeilen[#zeilen + 1] = { header = true, online = true, label = L.ROSTER_ONLINE, count = #da } end
+    for _, m in ipairs(da) do zeilen[#zeilen + 1] = m end
+    if #weg > 0 then zeilen[#zeilen + 1] = { header = true, online = false, label = L.ROSTER_OFFLINE, count = #weg } end
+    for _, m in ipairs(weg) do zeilen[#zeilen + 1] = m end
+    self.rows:SetData(zeilen)
     self.footer:SetText(string.format(L.ROSTER_FOOTER, #gefiltert, #list))
+
+    -- Die Zusammenfassung in der Kopfzeile der Liste.
+    local hier, offiziere = 0, 0
+    for _, member in ipairs(list) do
+        if member.online then
+            if self.ownZone and member.zone == self.ownZone then hier = hier + 1 end
+            if (member.rankIndex or 99) <= 1 then offiziere = offiziere + 1 end
+        end
+    end
+    if self.listPanel.tag then
+        self.listPanel.tag:SetText(string.format(L.ROSTER_SUMMARY, online or #da, hier, offiziere))
+    end
 
     local selected
     for _, member in ipairs(gefiltert) do
