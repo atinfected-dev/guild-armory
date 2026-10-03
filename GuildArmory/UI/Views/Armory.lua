@@ -147,6 +147,20 @@ function Armory:Create(parent)
     self.ilvlLabel = Theme.Label(doll, L.DASH_ITEMLEVEL, fonts.body, Theme.color.textDim)
     self.ilvlLabel:SetPoint("TOPRIGHT", self.ilvlValue, "BOTTOMRIGHT", 0, -2)
 
+    -- Talente (03.10.2026): oeffnet den nachgebauten Baum dieses Charakters.
+    self.talentButton = Widgets.Button(doll, L.TALENTS_BUTTON, function()
+        local character = self.selectedGuid and GA.Core.Database.account.characters[self.selectedGuid]
+        if character and GA.UI.TalentFrame then GA.UI.TalentFrame:Toggle(character) end
+    end)
+    self.talentButton:SetPoint("TOPRIGHT", self.ilvlLabel, "BOTTOMRIGHT", 2, -6)
+    self.talentButton:HookScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+        GameTooltip:AddLine(L.TALENTS_BUTTON, 1, 1, 1)
+        GameTooltip:AddLine(button.hint or "", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    self.talentButton:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
     -- DIE ZEILE ENDET VOR DEM ITEMLEVEL. Gemeldet 27.09.2026 mit Bild:
     -- "Level 20 · Windshaper Skyborne · Shaman · Guild Master" lief in
     -- "Item level" hinein. Sie hatte kein rechtes Ende, und die Klassenkachel
@@ -445,6 +459,21 @@ function Armory:RefreshDoll()
     local character = self.selectedGuid and GA.Core.Database.account.characters[self.selectedGuid]
     local identity = Compat.GetPlayerIdentity()
     local own = character and character.guid == identity.guid
+
+    -- Der Talente-Knopf: an, wenn es einen Stand gibt; sein Hinweis sagt,
+    -- woher und wie alt.
+    if self.talentButton then
+        local hat = character and (character.loadout or own)
+        if self.talentButton.SetEnabled then self.talentButton:SetEnabled(hat and true or false) end
+        self.talentButton:SetAlpha(hat and 1 or 0.45)
+        if character and character.loadout and character.loadout.ts then
+            local quelle = own and L.TALENTS_SRC_SELF
+                or (character.loadout.source == "inspect" and L.TALENTS_SRC_INSPECT or L.TALENTS_SRC_SYNC)
+            self.talentButton.hint = string.format(L.TALENTS_FOOT, Util.TimeAgo(character.loadout.ts), quelle)
+        else
+            self.talentButton.hint = own and L.TALENTS_SRC_SELF or L.TALENTS_NONE_HINT
+        end
+    end
 
     if not character then
         self.name:SetText("")

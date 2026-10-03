@@ -57,6 +57,7 @@ Raids\Attendance.lua
 Raids\History.lua
 Raids\CombatLog.lua
 Armory\Tradables.lua
+Armory\Talents.lua
 # Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
 Camp\Catalog.lua
 Camp\Camp.lua
@@ -96,6 +97,7 @@ UI\Tooltips.lua
 UI\ImportDialog.lua
 UI\GrantDialog.lua
 UI\AchievementIcons.lua
+UI\TalentFrame.lua
 UI\Views\Dashboard.lua
 UI\Views\Questhub.lua
 UI\Views\Dungeonhub.lua

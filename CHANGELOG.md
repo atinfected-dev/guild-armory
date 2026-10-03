@@ -2,7 +2,7 @@
 
 ## 0.1.31
 
-In progress.
+Talents at the paper doll: a Talents button in the Equipment tab opens the member's talent tree, rebuilt from the game's own data — nodes where the game places them, connections, bought nodes lit with their rank, the rest greyed out, the game's tooltip on hover, and when and from where the talents were captured. Each client reads the tree of its own class and sends it to the guild once; the pick travels as the game's talent string with the character. So a tree appears as soon as one member of that class runs this version. The addon's own window only reads; opening Blizzard's talent window from an addon can block saving your own talents later. `/ga probe` reports whether this client's trees and talent strings read correctly.
 
 ## 0.1.30
 

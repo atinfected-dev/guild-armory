@@ -120,6 +120,11 @@ function Sync:BuildCharacterPayload()
         count = character.itemLevel and character.itemLevel.count,
         ts = character.equipmentTs,
         eq = equipment,
+        -- Die Talentwahl als Import-String des Spiels, mit Spezialisierung
+        -- und Zeitpunkt (03.10.2026). Den Baum dazu bringt Armory/Talents.
+        sp = character.specID,
+        lo = character.loadout and character.loadout.value or nil,
+        lt = character.loadout and character.loadout.ts or nil,
     })
 end
 
@@ -250,6 +255,17 @@ function Sync:OnCharacter(sender, text)
         raceID = tonumber(data.rc),
         sex = (data.sx == 2 or data.sx == 3) and data.sx or nil,
     })
+
+    -- Die Talente gelten unabhaengig von der Ausruestung: Der Besitzer
+    -- schickt seinen eigenen Stand, der juengere gewinnt.
+    if type(data.lo) == "string" and data.lo ~= "" and #data.lo <= 400 and character.source ~= "self" then
+        local lt = tonumber(data.lt) or Util.Now()
+        if not character.loadout or (character.loadout.ts or 0) < lt then
+            character.loadout = { value = data.lo, ts = lt, source = "sync" }
+            if tonumber(data.sp) then character.specID = tonumber(data.sp) end
+            GA.Core.Callbacks:Fire("TALENTS_CHANGED", data.guid)
+        end
+    end
 
     -- Eine eigene Messung wird NICHT von einer Fremdmeldung ueberschrieben.
     -- Wer den Charakter selbst gespielt oder inspiziert hat, weiss es besser.

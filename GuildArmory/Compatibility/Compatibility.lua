@@ -692,6 +692,100 @@ function Compat.GetTalentLoadoutString()
     return value
 end
 
+-- ================================================================== Talentbaum -
+--
+-- DER EIGENE BAUM, GELESEN AUS DEM SPIEL (03.10.2026). Der Client hat das
+-- Trait-System (C_ClassTalents, C_Traits; gemessen 19.09.2026 ueber den
+-- Import-String). Ein Client kennt den Baum SEINER Klasse vollstaendig:
+-- Knoten, Lage, hoechster Rang, Zauber, Verbindungen und den eigenen Stand.
+-- Den Baum anderer Klassen kennt er nicht — den bringt ein Mitglied dieser
+-- Klasse mit (Armory/Talents).
+--
+-- Die Knoten kommen in der Reihenfolge von C_Traits.GetTreeNodes. Genau in
+-- dieser Reihenfolge stehen sie auch im Import-String; ohne sie laesst er
+-- sich nicht lesen. Deshalb gehoeren auch unsichtbare Knoten in die Liste.
+
+--- Das Symbol eines Zaubers.
+--- @return number|string|nil
+function Compat.GetSpellIcon(spellID)
+    spellID = tonumber(spellID)
+    if not spellID then return nil end
+    local spell = _G.C_Spell
+    if isTable(spell) and isFunction(spell.GetSpellTexture) then
+        local ok, icon = pcall(spell.GetSpellTexture, spellID)
+        if ok and icon then return icon end
+    end
+    if isTable(spell) and isFunction(spell.GetSpellInfo) then
+        local ok, info = pcall(spell.GetSpellInfo, spellID)
+        if ok and isTable(info) and info.iconID then return info.iconID end
+    end
+    if isFunction(_G.GetSpellTexture) then
+        local ok, icon = pcall(_G.GetSpellTexture, spellID)
+        if ok and icon then return icon end
+    end
+    return nil
+end
+
+--- Name und Symbol einer Spezialisierung.
+--- @return table|nil { name, icon }
+function Compat.GetSpecInfo(specID)
+    specID = tonumber(specID)
+    if not specID or not isFunction(_G.GetSpecializationInfoByID) then return nil end
+    local ok, _, name, _, icon = pcall(_G.GetSpecializationInfoByID, specID)
+    if not ok or type(name) ~= "string" or name == "" then return nil end
+    return { name = name, icon = icon }
+end
+
+--- Liest den eigenen, aktiven Talentbaum.
+--- @return table|nil { specID, treeID, nodes = { { id, x, y, max, rank, choice, spells, chosen, edges, visible } } }, string|nil grund
+function Compat.ReadOwnTalentTree()
+    if not has.traits then return nil, "notraits" end
+    local ct, tr = _G.C_ClassTalents, _G.C_Traits
+    for _, fn in ipairs({ ct.GetActiveConfigID, tr.GetConfigInfo, tr.GetTreeNodes, tr.GetNodeInfo, tr.GetEntryInfo, tr.GetDefinitionInfo }) do
+        if not isFunction(fn) then return nil, "noapi" end
+    end
+
+    local ok, configID = pcall(ct.GetActiveConfigID)
+    if not ok or not configID then return nil, "noconfig" end
+    local okInfo, info = pcall(tr.GetConfigInfo, configID)
+    if not okInfo or not isTable(info) or not isTable(info.treeIDs) or not info.treeIDs[1] then return nil, "notree" end
+    local treeID = info.treeIDs[1]
+    local okNodes, nodeIDs = pcall(tr.GetTreeNodes, treeID)
+    if not okNodes or not isTable(nodeIDs) or #nodeIDs == 0 then return nil, "nonodes" end
+
+    local choiceType = _G.Enum and _G.Enum.TraitNodeType and _G.Enum.TraitNodeType.Selection
+
+    local nodes = {}
+    for _, nodeID in ipairs(nodeIDs) do
+        local okNode, n = pcall(tr.GetNodeInfo, configID, nodeID)
+        local node = { id = nodeID, visible = false, max = 1, rank = 0, spells = {}, edges = {} }
+        if okNode and isTable(n) then
+            node.x, node.y = tonumber(n.posX), tonumber(n.posY)
+            node.max = tonumber(n.maxRanks) or 1
+            node.rank = tonumber(n.ranksPurchased) or 0
+            node.visible = n.isVisible ~= false and node.x ~= nil and node.y ~= nil
+            node.choice = (choiceType ~= nil and n.type == choiceType) or (isTable(n.entryIDs) and #n.entryIDs > 1)
+            for index, entryID in ipairs(n.entryIDs or {}) do
+                local okEntry, e = pcall(tr.GetEntryInfo, configID, entryID)
+                local spellID
+                if okEntry and isTable(e) and e.definitionID then
+                    local okDef, d = pcall(tr.GetDefinitionInfo, e.definitionID)
+                    if okDef and isTable(d) then spellID = tonumber(d.spellID) or tonumber(d.overriddenSpellID) end
+                end
+                node.spells[index] = spellID or 0
+                if isTable(n.activeEntry) and n.activeEntry.entryID == entryID then node.chosen = index end
+            end
+            for _, edge in ipairs(n.visibleEdges or {}) do
+                if isTable(edge) and edge.targetNode then node.edges[#node.edges + 1] = edge.targetNode end
+            end
+        end
+        nodes[#nodes + 1] = node
+    end
+
+    local specID = Compat.GetSpecializationID("player")
+    return { specID = specID, treeID = treeID, nodes = nodes }
+end
+
 -- ================================================================== Loot ------
 
 --- Namen aus Enum.LootMethod auf die klassischen Bezeichner abgebildet.

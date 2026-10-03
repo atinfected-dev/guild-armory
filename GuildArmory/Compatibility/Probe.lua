@@ -485,6 +485,26 @@ Probe.CHECKS = {
       end },
 
     -- ----------------------------------------------------------- Berufe ----
+    { key = "talents", was = "Talentbaum und Talent-String",
+      fuer = "Talente an der Puppe (Armory/Talents)",
+      run = function()
+          local tree, grund = GA.Core.Compat.ReadOwnTalentTree()
+          if not tree then return Probe.NO, "Baum nicht lesbar: " .. tostring(grund) end
+          local sichtbar, gekauft = 0, 0
+          for _, n in ipairs(tree.nodes) do
+              if n.visible then sichtbar = sichtbar + 1 end
+              if (n.rank or 0) > 0 then gekauft = gekauft + 1 end
+          end
+          local loadout = GA.Core.Compat.GetTalentLoadoutString()
+          local version, specID = GA.Modules.Talents.Header(loadout)
+          GA.Modules.Talents:CaptureOwn()
+          local m = GA.Core.Database.account.measured and GA.Core.Database.account.measured.talentDecoder
+          return (m and m.ok) and Probe.YES or Probe.EMPTY,
+              string.format("%d Knoten (%d sichtbar, %d gekauft), Spec %s, String-Fassung %s, Decoder %s",
+                  #tree.nodes, sichtbar, gekauft, tostring(tree.specID or specID), tostring(version),
+                  m and (m.ok and "stimmt" or "weicht ab") or "ungeprueft")
+      end },
+
     { key = "professions", was = "Gelernte Hauptberufe",
       fuer = "GA-163..165, GA-022, GA-023 Berufe",
       run = function()
