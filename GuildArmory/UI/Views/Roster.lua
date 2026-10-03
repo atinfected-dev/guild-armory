@@ -52,7 +52,7 @@ local function columns()
         { key = "name",  label = L.COL_NAME,         width = 150 },
         { key = "zone",  label = L.ROSTER_COL_ZONE,  width = 110 },
         { key = "note",  label = L.ROSTER_COL_NOTE,  width = 100 },
-        { key = "now",   label = L.ROSTER_COL_NOW,   width = 230, justify = "RIGHT" },  -- breit genug fuer "in Blackfathom Deeps 20:00" (Bild 03.10.2026)
+        { key = "now",   label = L.ROSTER_COL_NOW,   width = 230 },  -- links unter der Ueberschrift, bis zum Rand (Bild 03.10.2026)
     }
 end
 
@@ -277,12 +277,14 @@ function View:BuildRow(row)
     row.note:SetJustifyH("LEFT")
     row.note:SetWordWrap(false)
 
+    -- Links an der Spalte, bis zum rechten Rand: der Text beginnt unter
+    -- seiner Ueberschrift, nicht am Rand (Bild 03.10.2026).
     row.now = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+    row.now:SetPoint("LEFT", row, "LEFT", x.now, 0)
     row.now:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.now:SetWidth(w.now)
-    row.now:SetJustifyH("RIGHT")
+    row.now:SetJustifyH("LEFT")
     row.now:SetWordWrap(false)
-    row.note:SetPoint("RIGHT", row.now, "LEFT", -6, 0)
+    row.note:SetPoint("RIGHT", row, "LEFT", x.now - 6, 0)
 
     -- Die Gruppenzeile: Punkt, Beschriftung, Linie bis zum Rand.
     row.groupDot = row:CreateTexture(nil, "ARTWORK")
