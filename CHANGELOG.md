@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.32
+
+In progress.
+
 ## 0.1.31
 
 Dungeonhub to Discord: when the guild is linked to Discord, the post form has "Also announce in Discord" (remembers your choice). The leader's client then writes a readable line into the linked Discord channel: dungeon, day, time, leader, open roles, note. Everyone who joins, switches role or leaves writes their own line there too, with the spots still open or "now full", and the leader writes one more line if the run is cancelled. One way only: measured, an addon can send to Discord but cannot read what comes back.
