@@ -123,14 +123,53 @@ function Discord:Listen(seconds)
             local upper = string.upper(event)
             if not (string.find(upper, "^CHAT_MSG") or string.find(upper, "CLUB") or string.find(upper, "DISCORD")) then return end
             if string.find(upper, "ADDON") then return end
+            -- Alle Werte (bis 17), nummeriert: Gemessen 03.10.2026 kam der
+            -- Text als geschuetzter Platzhalter |K..|k an; gesucht wird ein
+            -- anderer lesbarer Weg.
             local werte = {}
-            for i = 1, math.min(select("#", ...), 8) do
+            for i = 1, math.min(select("#", ...), 17) do
                 local v = select(i, ...)
-                werte[#werte + 1] = string.sub(tostring(v), 1, 80)
+                werte[#werte + 1] = i .. "=" .. string.sub(tostring(v), 1, 60)
             end
             local list = log()
             if #list < Discord.MAX_LOG then
                 list[#list + 1] = date("%H:%M:%S") .. " " .. event .. " | " .. table.concat(werte, " | ")
+            end
+
+            -- Die zweite Leseart: dieselbe Nachricht ueber C_Club. Inhalt,
+            -- Absender und Kanal, so wie die Club-Schnittstelle sie liefert.
+            if event == "CLUB_MESSAGE_ADDED" and type(_G.C_Club) == "table" then
+                local clubId, streamId, messageId = ...
+                local club = _G.C_Club
+                local teile = {}
+                if type(club.GetMessageInfo) == "function" then
+                    local ok, info = pcall(club.GetMessageInfo, clubId, streamId, messageId)
+                    if ok and type(info) == "table" then
+                        teile[#teile + 1] = "content=" .. string.sub(tostring(info.content), 1, 60)
+                        local a = type(info.author) == "table" and info.author or {}
+                        teile[#teile + 1] = "author.name=" .. tostring(a.name)
+                        teile[#teile + 1] = "author.guid=" .. tostring(a.guid)
+                        teile[#teile + 1] = "author.memberId=" .. tostring(a.memberId)
+                        teile[#teile + 1] = "author.isSelf=" .. tostring(a.isSelf)
+                        teile[#teile + 1] = "author.clubType=" .. tostring(a.clubType)
+                        for k, v in pairs(info) do
+                            if k ~= "content" and k ~= "author" and type(v) ~= "table" then
+                                teile[#teile + 1] = tostring(k) .. "=" .. string.sub(tostring(v), 1, 40)
+                            end
+                        end
+                    else
+                        teile[#teile + 1] = "GetMessageInfo: " .. (ok and "nichts" or ("Fehler " .. tostring(info)))
+                    end
+                end
+                if type(club.GetStreamInfo) == "function" then
+                    local ok, s = pcall(club.GetStreamInfo, clubId, streamId)
+                    if ok and type(s) == "table" then
+                        teile[#teile + 1] = "stream.name=" .. tostring(s.name) .. " stream.type=" .. tostring(s.streamType)
+                    end
+                end
+                if #list < Discord.MAX_LOG then
+                    list[#list + 1] = date("%H:%M:%S") .. " CLUB-INFO | " .. table.concat(teile, " | ")
+                end
             end
         end)
     end
