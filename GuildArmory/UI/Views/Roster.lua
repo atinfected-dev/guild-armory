@@ -638,7 +638,10 @@ function View:BuildChat(panel, fonts)
             local r, g, b = Util.ClassColor(line.class)
             -- Discord-Absender haben keine Klasse: Discords Blau
             if line.channel == "DISCORD" and (line.remote or not line.class) then r, g, b = 0.48, 0.53, 1 end
-            row.text:SetText(string.format("%s: %s", Util.Colorize(line.who or "?", r, g, b), line.text or ""))
+            -- Anhang, Emoji, Sticker aus Discord: wie Blizzards Fenster in Gelb dahinter
+            local extra = line.extra and L["ROSTER_CHAT_SENT_" .. string.upper(line.extra)]
+            row.text:SetText(string.format("%s: %s%s", Util.Colorize(line.who or "?", r, g, b), line.text or "",
+                extra and ((line.text and line.text ~= "" and " " or "") .. Util.Colorize(extra, 1, 0.82, 0)) or ""))
         end,
     })
     self.chatLines:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)

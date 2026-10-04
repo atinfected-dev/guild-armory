@@ -246,7 +246,7 @@ function GuildChat:PullHistory(reason)
                     self.session[#self.session + 1] = {
                         channel = channel, text = entry.text,
                         who = who, class = entry.class or klasseVon(entry.who),
-                        ts = entry.ts, id = entry.id, history = true, remote = entry.remote,
+                        ts = entry.ts, id = entry.id, history = true, remote = entry.remote, extra = entry.extra,
                     }
                     added = added + 1
                 end

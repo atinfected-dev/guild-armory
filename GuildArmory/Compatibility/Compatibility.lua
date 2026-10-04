@@ -3261,6 +3261,7 @@ function Compat.GetClubChatHistory(kind, limit)
                         text = content,
                         -- ohne Spieler-GUID kam sie nicht aus dem Spiel, sondern aus Discord
                         remote = kind == "DISCORD" and (author.guid == nil or author.guid == "") or nil,
+                        extra = kind == "DISCORD" and Compat.DiscordExtra(author.discordInfo) or nil,
                     }
                 end
             end
@@ -3268,6 +3269,27 @@ function Compat.GetClubChatHistory(kind, limit)
     end
     table.sort(out, function(a, b) return a.ts < b.ts or (a.ts == b.ts and a.id < b.id) end)
     return out, "C_Club"
+end
+
+--- Was eine Discord-Nachricht ausser Text traegt — Blizzards Fenster schreibt
+--- dann "Sent an attachment" / "Sent an emoji" (gesehen 04.10.2026), bei uns
+--- war die Zeile leer. Gesucht wird in author.discordInfo nach einem Feld, das
+--- wahr, eine Zahl > 0 oder eine nicht leere Liste ist und dessen Name
+--- "attach", "sticker" oder "emoji" enthaelt.
+--- @return string|nil "attachment" | "sticker" | "emoji"
+function Compat.DiscordExtra(info)
+    if not isTable(info) then return nil end
+    local found = {}
+    for key, v in pairs(info) do
+        local set = v == true or (type(v) == "number" and v > 0) or (isTable(v) and next(v) ~= nil)
+        if set and type(key) == "string" then
+            local k = string.lower(key)
+            if k:find("attach") then found.attachment = true
+            elseif k:find("sticker") then found.sticker = true
+            elseif k:find("emoji") then found.emoji = true end
+        end
+    end
+    return (found.attachment and "attachment") or (found.sticker and "sticker") or (found.emoji and "emoji") or nil
 end
 
 --- Der Name eines Discord-Autors aus author.discordInfo. Die Felder sind

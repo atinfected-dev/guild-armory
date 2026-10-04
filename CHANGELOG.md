@@ -2,7 +2,7 @@
 
 ## 0.1.33
 
-Guild chat in the roster: a third tab, Discord, beside Guild and Officers — the guild's linked Discord conversation, read and written the same way: the game's own history when you open it, every new line as it arrives, and a box to answer (it goes out like /discord). The tab only shows when your guild is linked to Discord. Discord lines live for the session only: the game hands them over as a key it resolves on screen, not as text, so they are never stored. The Officers tab now shows only for ranks allowed to listen to officer chat. Lines written in Discord show the linked character's name in Discord blue; lines typed in game keep their class colour. `/ga clubchat discord` lists the raw fields of the latest Discord messages.
+Guild chat in the roster: a third tab, Discord, beside Guild and Officers — the guild's linked Discord conversation, read and written the same way: the game's own history when you open it, every new line as it arrives, and a box to answer (it goes out like /discord). The tab only shows when your guild is linked to Discord. Discord lines live for the session only: the game hands them over as a key it resolves on screen, not as text, so they are never stored. The Officers tab now shows only for ranks allowed to listen to officer chat. Lines written in Discord show their author's name in Discord blue, and "Sent an attachment" / "Sent an emoji" where the game marks one; lines typed in game keep their class colour. `/ga clubchat discord` lists the raw fields of the latest Discord messages.
 
 ## 0.1.32
 
