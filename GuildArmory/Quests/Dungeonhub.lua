@@ -476,16 +476,41 @@ function Dungeonhub.DiscordFlag(run)
     return run.discordBot and "2" or "1"
 end
 
---- Die Maschinenmarke fuer den Bot:
----   [ga1 <art> <id> <start> <leiter> <besetzung> <dungeon> <notiz>]
---- art n/j/l/x; besetzung wie DMEMB ("TANK:A;HEAL:;DPS:B,C"); im Dungeon
---- stehen Unterstriche fuer Leerzeichen; die Notiz ist der Rest bis "]".
---- Ein Name ohne Leerzeichen: Spielernamen haben keine.
+--- Die Maschinenmarke fuer den Bot (Format 2 seit 0.1.32):
+---   [ga2 <art> <id> <start> <leiter> <besetzung> <dungeon> <notiz>]
+--- art n/j/l/x; besetzung "TANK:Name.KLASSE;HEAL:;DPS:Name.KLASSE,…".
+--- In Namen und Dungeon stehen Unterstriche fuer Leerzeichen, so trennt das
+--- Leerzeichen die Felder eindeutig; die Notiz ist der Rest bis "]".
+---
+--- WARUM FORMAT 2 (04.10.2026): Format 1 (0.1.31) schrieb die Namen wie sie
+--- sind — und auf WoW: Forever haben Namen Leerzeichen ("Total Tumult").
+--- Der Bot las dann "Total" als Schaden und "Tumult" als Dungeon. Die
+--- Klasse reist jetzt mit, damit der Anmelder Klassensymbole zeigen kann.
+local function tagName(name)
+    return (string.gsub(tostring(name or "?"), "[%s%]%[;:,%.]", "_"))
+end
+
+function Dungeonhub:TagMembers(run)
+    local teile = {}
+    for _, role in ipairs(self.ROLES) do
+        local namen = {}
+        for name, member in pairs(run.members or {}) do
+            if member.role == role then
+                local cls = member.class or klasseVon(name)
+                namen[#namen + 1] = tagName(name) .. (cls and ("." .. cls) or "")
+            end
+        end
+        table.sort(namen)
+        teile[#teile + 1] = role .. ":" .. table.concat(namen, ",")
+    end
+    return table.concat(teile, ";")
+end
+
 function Dungeonhub:DiscordTag(run, kind, who, role)
     local dungeon = string.gsub(run.dungeon or "?", "[%s%]]", "_")
     local note = string.gsub(run.note or "", "[%]%[]", "")
-    local tag = string.format("[ga1 %s %s %d %s %s %s", KIND_LETTER[kind] or "j", tostring(run.id),
-        tonumber(run.at) or 0, tostring(run.leader or "?"), self.EncodeMembers(run), dungeon)
+    local tag = string.format("[ga2 %s %s %d %s %s %s", KIND_LETTER[kind] or "j", tostring(run.id),
+        tonumber(run.at) or 0, tagName(run.leader), self:TagMembers(run), dungeon)
     if note ~= "" then tag = tag .. " " .. note end
     return tag .. "]"
 end

@@ -2,7 +2,7 @@
 
 ## 0.1.32
 
-In progress.
+Discord bot: the tag at the end of a Dungeonhub line could not carry names with spaces — and on WoW: Forever names have them. The bot read "Total Tumult" as a damage dealer called "Total" and a dungeon called "Tumult". The tag now writes spaces in names as underscores and carries each member's class, so the bot's board can show class symbols. The bot still reads the old tag from 0.1.31.
 
 ## 0.1.31
 
