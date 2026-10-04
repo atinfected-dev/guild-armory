@@ -3245,16 +3245,13 @@ function Compat.GetClubChatHistory(kind, limit)
                     and not Compat.IsChatPlaceholder(content) then
                     local author = isTable(m.author) and m.author or {}
                     local who, classID = author.name, author.classID
-                    -- GESEHEN 04.10.2026: Nachrichten aus Discord tragen im
-                    -- Verlauf keinen Namen ("?"), Blizzards Fenster zeigt aber
-                    -- den verknuepften Charakter. Der Name steht dann am
-                    -- Mitglied: C_Club.GetMemberInfo(club, memberId).
-                    if (type(who) ~= "string" or who == "") and author.memberId ~= nil and isFunction(club.GetMemberInfo) then
-                        local okI, member = pcall(club.GetMemberInfo, clubId, author.memberId)
-                        if okI and isTable(member) then
-                            if type(member.name) == "string" and member.name ~= "" then who = member.name end
-                            classID = classID or member.classID
-                        end
+                    -- GEMESSEN 04.10.2026 (/ga clubchat discord): Nachrichten aus
+                    -- Discord tragen keinen Namen und keine GUID, GetMemberInfo
+                    -- liefert fuer ihr memberId nil. Jede Nachricht hat aber
+                    -- author.discordInfo (eine Tabelle); dort wird der Name gesucht,
+                    -- den Blizzards Fenster zeigt.
+                    if (type(who) ~= "string" or who == "") and isTable(author.discordInfo) then
+                        who = Compat.DiscordAuthorName(author.discordInfo)
                     end
                     out[#out + 1] = {
                         id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
@@ -3271,6 +3268,21 @@ function Compat.GetClubChatHistory(kind, limit)
     end
     table.sort(out, function(a, b) return a.ts < b.ts or (a.ts == b.ts and a.id < b.id) end)
     return out, "C_Club"
+end
+
+--- Der Name eines Discord-Autors aus author.discordInfo. Die Felder sind
+--- nicht gemessen; gesucht wird in der wahrscheinlichen Reihenfolge, dann
+--- jedes Feld, dessen Name "name" enthaelt.
+function Compat.DiscordAuthorName(info)
+    if not isTable(info) then return nil end
+    for _, key in ipairs({ "characterName", "displayName", "nickname", "globalName", "name", "username", "userName" }) do
+        local v = info[key]
+        if type(v) == "string" and v ~= "" then return v end
+    end
+    for key, v in pairs(info) do
+        if type(key) == "string" and string.lower(key):find("name") and type(v) == "string" and v ~= "" then return v end
+    end
+    return nil
 end
 
 --- DIE ROHEN NACHRICHTEN DES CLUB-SPEICHERS, Feld fuer Feld — fuer
@@ -3323,7 +3335,18 @@ function Compat.DumpClubChat(kind, count)
                     for k, v in pairs(m) do
                         if isTable(v) then
                             local parts = {}
-                            for k2, v2 in pairs(v) do parts[#parts + 1] = tostring(k2) .. "=" .. show(v2) end
+                            for k2, v2 in pairs(v) do
+                                if isTable(v2) then
+                                    -- GEMESSEN 04.10.2026: author.discordInfo ist eine Tabelle —
+                                    -- dort steht, was Blizzards Fenster fuer Discord-Nutzer zeigt.
+                                    local inner = {}
+                                    for k3, v3 in pairs(v2) do inner[#inner + 1] = tostring(k3) .. "=" .. show(v3) end
+                                    table.sort(inner)
+                                    parts[#parts + 1] = tostring(k2) .. "={ " .. table.concat(inner, ", ") .. " }"
+                                else
+                                    parts[#parts + 1] = tostring(k2) .. "=" .. show(v2)
+                                end
+                            end
                             table.sort(parts)
                             say("    %s = { %s }", tostring(k), table.concat(parts, ", "))
                         else
