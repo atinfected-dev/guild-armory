@@ -22,6 +22,20 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
+-- Die drei Baeume je Klasse, in der klassischen Reihenfolge — Rueckfall, wenn
+-- das Spiel keine Namen/Symbole liefert. Namen stehen in der Lokalisierung (SPEC_<KLASSE>_<n>).
+local SPEC_ICONS = {
+    WARRIOR = { "Interface\\Icons\\Ability_Warrior_SavageBlow", "Interface\\Icons\\Ability_Warrior_InnerRage", "Interface\\Icons\\Ability_Warrior_DefensiveStance" },
+    PALADIN = { "Interface\\Icons\\Spell_Holy_HolyBolt", "Interface\\Icons\\Spell_Holy_DevotionAura", "Interface\\Icons\\Spell_Holy_AuraOfLight" },
+    HUNTER = { "Interface\\Icons\\Ability_Hunter_BeastTaming", "Interface\\Icons\\Ability_Marksmanship", "Interface\\Icons\\Ability_Hunter_SwiftStrike" },
+    ROGUE = { "Interface\\Icons\\Ability_Rogue_Eviscerate", "Interface\\Icons\\Ability_BackStab", "Interface\\Icons\\Ability_Stealth" },
+    PRIEST = { "Interface\\Icons\\Spell_Holy_WordFortitude", "Interface\\Icons\\Spell_Holy_GuardianSpirit", "Interface\\Icons\\Spell_Shadow_ShadowWordPain" },
+    SHAMAN = { "Interface\\Icons\\Spell_Nature_Lightning", "Interface\\Icons\\Spell_Nature_LightningShield", "Interface\\Icons\\Spell_Nature_MagicImmunity" },
+    MAGE = { "Interface\\Icons\\Spell_Holy_MagicalSentry", "Interface\\Icons\\Spell_Fire_FireBolt02", "Interface\\Icons\\Spell_Frost_FrostBolt02" },
+    WARLOCK = { "Interface\\Icons\\Spell_Shadow_DeathCoil", "Interface\\Icons\\Spell_Shadow_Metamorphosis", "Interface\\Icons\\Spell_Shadow_RainOfFire" },
+    DRUID = { "Interface\\Icons\\Spell_Nature_StarFall", "Interface\\Icons\\Ability_Racial_BearForm", "Interface\\Icons\\Spell_Nature_HealingTouch" },
+}
+
 local ICON = 38
 local CELL_X, CELL_Y = 58, 56
 local HEAD = 70
@@ -303,6 +317,12 @@ function TalentFrame:Show(character)
     end
 
     local states, points = Talents.States(build.layout, grid, build.picks)
+    -- Namen und Symbole der Baeume: was das Spiel liefert, sonst die bekannten
+    -- drei je Klasse (WoW: Forever lieferte am 03./04.10.2026 keine Namen —
+    -- im Fenster stand "Tree 1/2/3"). Nur bei genau drei Baeumen, in der
+    -- klassischen Reihenfolge; die Spielerin vom 04.10. (Schamanin, 18 Punkte
+    -- im mittleren Baum = Verstaerkung) passt dazu.
+    local specIcons = #grid.trees == 3 and SPEC_ICONS[character.class or ""] or nil
 
     -- Groesse aus dem Raster: Baeume nebeneinander, gleich hoch.
     local treeH = HEAD + grid.rows * CELL_Y + 18
@@ -318,11 +338,14 @@ function TalentFrame:Show(character)
         paintBackground(tree, tab.bg, { cr, cg, cb })
         tree.icon:ClearAllPoints()
         tree.icon:SetPoint("TOPLEFT", tree, "TOPLEFT", math.max(18, w / 2 - 70), -16)
-        local atlas = type(tab.icon) == "string" and string.match(tab.icon, "^atlas:(.+)$")
+        local icon = tab.icon or (specIcons and specIcons[i])
+        local atlas = type(icon) == "string" and string.match(icon, "^atlas:(.+)$")
         if atlas then pcall(tree.icon.SetAtlas, tree.icon, atlas)
-        elseif tab.icon then pcall(tree.icon.SetTexture, tree.icon, tab.icon)
+        elseif icon then pcall(tree.icon.SetTexture, tree.icon, icon)
         else Theme.Paint(tree.icon, Theme.color.border) end
-        tree.name:SetText(tab.name or string.format(L.TALENTS_TREE_N, i))
+        local name = tab.name
+        if (not name or name == "" or name:match("^Tree %d+$")) and specIcons then name = L["SPEC_" .. character.class .. "_" .. i] end
+        tree.name:SetText(name or string.format(L.TALENTS_TREE_N, i))
         tree.badgeText:SetText(tostring(points[i] or 0))
         tree.divider:SetShown(i < #grid.trees)
         tree:Show()
