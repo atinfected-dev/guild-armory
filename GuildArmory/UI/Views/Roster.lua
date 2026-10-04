@@ -637,7 +637,7 @@ function View:BuildChat(panel, fonts)
             row.time:SetText(line.ts and date("%H:%M", line.ts) or "")
             local r, g, b = Util.ClassColor(line.class)
             -- Discord-Absender haben keine Klasse: Discords Blau
-            if line.channel == "DISCORD" and not line.class then r, g, b = 0.48, 0.53, 1 end
+            if line.channel == "DISCORD" and (line.remote or not line.class) then r, g, b = 0.48, 0.53, 1 end
             row.text:SetText(string.format("%s: %s", Util.Colorize(line.who or "?", r, g, b), line.text or ""))
         end,
     })

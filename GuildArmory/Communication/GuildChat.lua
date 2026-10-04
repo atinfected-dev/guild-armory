@@ -93,7 +93,7 @@ function GuildChat:OnMessage(channel, text, sender, guid)
     if type(text) ~= "string" or text == "" then return nil end
     if channel == "DISCORD" or isKey(text) then
         return self:Remember({ channel = channel, text = text, who = Util.ShortName(sender or "?"),
-            class = klasseVon(sender, guid), ts = Util.Now() })
+            class = klasseVon(sender, guid), ts = Util.Now(), remote = channel == "DISCORD" and (guid == nil or guid == "") or nil })
     end
     return self:Store({
         channel = channel, text = text,
@@ -236,7 +236,7 @@ function GuildChat:PullHistory(reason)
             end
             if entry.ts and entry.ts < start and type(entry.text) == "string" and entry.text ~= ""
                 and not self.sessionIds[entry.id] then
-                local who = Util.ShortName(entry.who or "?")
+                local who = Util.ShortName(entry.who or (channel == "DISCORD" and "Discord" or "?"))
                 local known = false
                 for _, ts in ipairs(stored[channel .. "/" .. string.lower(who)] or {}) do
                     if math.abs(ts - entry.ts) <= self.SAME_WINDOW then known = true break end
@@ -246,7 +246,7 @@ function GuildChat:PullHistory(reason)
                     self.session[#self.session + 1] = {
                         channel = channel, text = entry.text,
                         who = who, class = entry.class or klasseVon(entry.who),
-                        ts = entry.ts, id = entry.id, history = true,
+                        ts = entry.ts, id = entry.id, history = true, remote = entry.remote,
                     }
                     added = added + 1
                 end

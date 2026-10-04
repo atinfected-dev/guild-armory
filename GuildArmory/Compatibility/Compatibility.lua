@@ -3244,12 +3244,26 @@ function Compat.GetClubChatHistory(kind, limit)
                 if id and not m.destroyed and type(content) == "string" and tonumber(id.epoch)
                     and not Compat.IsChatPlaceholder(content) then
                     local author = isTable(m.author) and m.author or {}
+                    local who, classID = author.name, author.classID
+                    -- GESEHEN 04.10.2026: Nachrichten aus Discord tragen im
+                    -- Verlauf keinen Namen ("?"), Blizzards Fenster zeigt aber
+                    -- den verknuepften Charakter. Der Name steht dann am
+                    -- Mitglied: C_Club.GetMemberInfo(club, memberId).
+                    if (type(who) ~= "string" or who == "") and author.memberId ~= nil and isFunction(club.GetMemberInfo) then
+                        local okI, member = pcall(club.GetMemberInfo, clubId, author.memberId)
+                        if okI and isTable(member) then
+                            if type(member.name) == "string" and member.name ~= "" then who = member.name end
+                            classID = classID or member.classID
+                        end
+                    end
                     out[#out + 1] = {
                         id = tostring(id.epoch) .. ":" .. tostring(id.position or 0),
                         ts = Compat.EpochToSeconds(tonumber(id.epoch)),
-                        who = type(author.name) == "string" and author.name or "?",
-                        class = classOf(author.classID),
+                        who = type(who) == "string" and who ~= "" and who or nil,
+                        class = classOf(classID),
                         text = content,
+                        -- ohne Spieler-GUID kam sie nicht aus dem Spiel, sondern aus Discord
+                        remote = kind == "DISCORD" and (author.guid == nil or author.guid == "") or nil,
                     }
                 end
             end
@@ -3294,6 +3308,17 @@ function Compat.DumpClubChat(kind, count)
                 shown = shown + 1
                 local m = messages[i]
                 say("  [%d]", i)
+                if isTable(m) and isTable(m.author) and m.author.memberId ~= nil and isFunction(club.GetMemberInfo) then
+                    local okI, member = pcall(club.GetMemberInfo, clubId, m.author.memberId)
+                    if okI and isTable(member) then
+                        local parts = {}
+                        for k2, v2 in pairs(member) do if not isTable(v2) then parts[#parts + 1] = tostring(k2) .. "=" .. show(v2) end end
+                        table.sort(parts)
+                        say("    GetMemberInfo(%s) = { %s }", tostring(m.author.memberId), table.concat(parts, ", "))
+                    else
+                        say("    GetMemberInfo(%s) = %s", tostring(m.author.memberId), show(member))
+                    end
+                end
                 if isTable(m) then
                     for k, v in pairs(m) do
                         if isTable(v) then
