@@ -3390,6 +3390,22 @@ function Compat.DumpClubChat(kind, count)
     return out
 end
 
+--- Setzt die Lesemarke eines Gildenkanals ans Ende — danach gilt er als
+--- gelesen, und der Hinweis am Gilden-Knopf der Leiste verschwindet (Wunsch
+--- des Nutzers, 04.10.2026: sonst musste er dafuer Blizzards Gildenfenster
+--- oeffnen). C_Club.AdvanceStreamViewMarker ist eine Funktion des Clubs, keine
+--- der gesperrten C_Discord-Funktionen. Ob der Client sie Addons erlaubt, ist
+--- nicht gemessen: pcall, und die Antwort sagt es.
+--- @param kind string "GUILD" | "OFFICER" | "DISCORD"
+--- @return boolean|nil ok  nil = keine Schnittstelle / kein Kanal
+function Compat.MarkClubStreamRead(kind)
+    local clubId, streamId = guildStream(kind)
+    local club = _G.C_Club
+    if not clubId or not isTable(club) or not isFunction(club.AdvanceStreamViewMarker) then return nil end
+    local ok = pcall(club.AdvanceStreamViewMarker, clubId, streamId)
+    return ok
+end
+
 --- Bittet das Spiel um aeltere Zeilen. Die Antwort kommt als Ereignis
 --- (CLUB_MESSAGE_HISTORY_RECEIVED); danach liest GetClubChatHistory mehr.
 --- Die Anfrage nennt die AELTESTE bekannte Kennung: Ohne sie laedt das

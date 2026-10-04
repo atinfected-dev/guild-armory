@@ -677,6 +677,8 @@ function View:RefreshChat()
     local darf = shown[self.chatChannel] and (self.chatChannel ~= "OFFICER" or Compat.CanViewOfficerNote() ~= false)
     self.chatInput:SetShown(darf)
     self.chatSend:SetShown(darf)
+    -- Was hier offen ist, ist gelesen: die Lesemarke im Spiel nachziehen.
+    if GuildChat.MarkRead then GuildChat:MarkRead(self.chatChannel) end
 end
 
 -- ================================================================== Aktionen --

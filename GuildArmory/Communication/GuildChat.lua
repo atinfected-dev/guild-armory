@@ -349,6 +349,26 @@ function GuildChat:Duplicates()
     return out
 end
 
+-- ============================================================ Gelesen ------
+
+--- Den Kanal im Spiel als gelesen markieren (Hinweis am Gilden-Knopf weg).
+--- Hoechstens einmal je zwei Sekunden und Kanal; das Ergebnis der ersten
+--- Antwort wird gemerkt, damit ein blockierter Aufruf nicht dauernd laeuft.
+function GuildChat:MarkRead(channel)
+    if type(Compat.MarkClubStreamRead) ~= "function" then return nil end
+    self.readAt = self.readAt or {}
+    local now = Util.Now()
+    if self.readAt[channel] and now - self.readAt[channel] < 2 then return nil end
+    if self.readBlocked then return false end
+    self.readAt[channel] = now
+    local ok = Compat.MarkClubStreamRead(channel)
+    if ok == false then
+        self.readBlocked = true
+        if GA.Core.Debug and GA.Core.Debug.Info then GA.Core.Debug:Info("Guild chat: the game refused to mark messages as read.") end
+    end
+    return ok
+end
+
 -- ============================================================ Senden -------
 
 --- Schreibt in den Kanal. Die Zeile kommt ueber das Ereignis zurueck.
@@ -377,6 +397,9 @@ function GuildChat:OnEnable()
     -- Discord: der Text ist ein Schluessel (|K…|k), der Absender lesbar.
     Events:Register("CHAT_MSG_GUILD_DISCORD", function(_, text, sender, _, _, _, _, _, _, _, _, _, guid)
         GuildChat:OnMessage("DISCORD", text, sender, guid)
+        -- Der Discord-Kanal wird im Addon gelesen: der Hinweis am Gilden-Knopf geht sofort weg.
+        if type(Compat.After) == "function" then Compat.After(1, function() GuildChat:MarkRead("DISCORD") end)
+        else GuildChat:MarkRead("DISCORD") end
     end, "GuildChat")
 
     -- Der Verlauf des Spiels: beim Betreten der Welt um Zeilen bitten, und
@@ -387,6 +410,13 @@ function GuildChat:OnEnable()
             GuildChat:RequestHistory(true)
             GuildChat:PullHistory("timer")
         end)
+        Compat.After(8, function() GuildChat:MarkRead("DISCORD") end)
+    end, "GuildChat")
+    -- Sperrt der Client die Lesemarke fuer Addons, meldet pcall trotzdem
+    -- Erfolg; das Spiel zeigt nur "Blocked by Blizzard". Dieses Ereignis sagt
+    -- es dem Addon — dann wird es nie wieder versucht (keine Fensterflut).
+    Events:Register("ADDON_ACTION_BLOCKED", function(_, addon, fn)
+        if type(fn) == "string" and fn:find("AdvanceStreamViewMarker") then GuildChat.readBlocked = true end
     end, "GuildChat")
     -- Mehr Namen als noetig: Was der Client nicht kennt, weist Register
     -- still ab, und welcher Name die Lieferung meldet, ist nicht gemessen.
