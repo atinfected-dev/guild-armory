@@ -2,7 +2,7 @@
 
 ## 0.1.33
 
-In progress.
+Guild chat in the roster: a third tab, Discord, beside Guild and Officers — the guild's linked Discord conversation, read and written the same way: the game's own history when you open it, every new line as it arrives, and a box to answer (it goes out like /discord). The tab only shows when your guild is linked to Discord. Discord lines live for the session only: the game hands them over as a key it resolves on screen, not as text, so they are never stored. The Officers tab now shows only for ranks allowed to listen to officer chat.
 
 ## 0.1.32
 

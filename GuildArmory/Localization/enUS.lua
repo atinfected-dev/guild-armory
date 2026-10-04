@@ -1289,6 +1289,7 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT        = "Guild chat",
     ROSTER_CHAT_GUILD  = "Guild",
     ROSTER_CHAT_OFFICER = "Officers",
+    ROSTER_CHAT_DISCORD = "Discord",
     ROSTER_CHAT_STATE  = "%d lines · %s",
     ROSTER_CHAT_SRC_CLUB = "with the game's own history",
     ROSTER_CHAT_SRC_LIVE = "since login · the last %d survive a reload",

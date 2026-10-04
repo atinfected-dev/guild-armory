@@ -45,6 +45,13 @@ GuildChat.RELOAD_EVERY = 20    -- Sekunden, nach denen ein geladener Verlauf neu
 GuildChat.REQUEST = 300        -- Zeilen je Anfrage an das Spiel
 GuildChat.SAME_WINDOW = 10     -- Sekunden: derselbe Absender = dieselbe Nachricht
 GuildChat.EVENT_WINDOW = 5     -- Sekunden: dasselbe Ereignis zweimal
+-- Die Kanaele. DISCORD (seit 0.1.33) ist die mit Discord verbundene
+-- Unterhaltung der Gilde: Ihr Text kommt nur als Schluessel des Spiels
+-- (|K…|k, gemessen 03.10.2026), den der Client beim ANZEIGEN aufloest —
+-- lesbar fuer Menschen, nicht fuer das Addon, und nur in dieser Sitzung.
+-- Darum lebt Discord ganz in der Sitzung und kommt nie in die Datei.
+GuildChat.CHANNELS = { "GUILD", "OFFICER", "DISCORD" }
+GuildChat.SEND_TYPE = { GUILD = "GUILD", OFFICER = "OFFICER", DISCORD = "GUILD_DISCORD" }
 
 -- Der Verlauf dieser Sitzung: nie in der Datei.
 GuildChat.session = {}
@@ -84,6 +91,10 @@ end
 --- @param channel string "GUILD" | "OFFICER"
 function GuildChat:OnMessage(channel, text, sender, guid)
     if type(text) ~= "string" or text == "" then return nil end
+    if channel == "DISCORD" or isKey(text) then
+        return self:Remember({ channel = channel, text = text, who = Util.ShortName(sender or "?"),
+            class = klasseVon(sender, guid), ts = Util.Now() })
+    end
     return self:Store({
         channel = channel, text = text,
         who = Util.ShortName(sender or "?"), class = klasseVon(sender, guid),
@@ -111,6 +122,25 @@ function GuildChat:Store(line)
     return line
 end
 
+--- Eine Zeile nur fuer diese Sitzung (Discord: ein Schluessel, kein Text).
+--- Dasselbe Ereignis zweimal binnen Sekunden bleibt eine Zeile.
+function GuildChat:Remember(line)
+    for index = #self.session, math.max(1, #self.session - 20), -1 do
+        local other = self.session[index]
+        if other.channel == line.channel and sameWho(other.who, line.who) and other.text == line.text
+            and math.abs((other.ts or 0) - (line.ts or 0)) <= self.EVENT_WINDOW then
+            return other
+        end
+    end
+    self.session[#self.session + 1] = line
+    while #self.session > self.LIMIT do
+        local gone = table.remove(self.session, 1)
+        if gone and gone.id and self.sessionIds then self.sessionIds[gone.id] = nil end
+    end
+    GA.Core.Callbacks:Fire("GUILD_CHAT", line)
+    return line
+end
+
 -- ============================================================ Verlauf ------
 
 --- Der Beginn dieser Sitzung: Ab hier hoert das Modul selbst. Was der
@@ -127,8 +157,7 @@ function GuildChat:RequestHistory(force)
     local now = Util.Now()
     if not force and self.lastRequest and now - self.lastRequest < 30 then return false end
     self.lastRequest = now
-    Compat.RequestClubChatHistory("GUILD", self.REQUEST)
-    Compat.RequestClubChatHistory("OFFICER", self.REQUEST)
+    for _, channel in ipairs(self.CHANNELS) do pcall(Compat.RequestClubChatHistory, channel, self.REQUEST) end
     -- Die Antwort kommt spaeter, und nicht immer mit einem Ereignis, das
     -- dieser Client kennt (28.09.2026: voller Speicher, kein Zug). Also
     -- zweimal nachlesen, nach zwei und nach sechs Sekunden.
@@ -193,7 +222,7 @@ function GuildChat:PullHistory(reason)
     local start = self:SessionStart()
     local added = 0
     self.source = self.source or {}
-    for _, channel in ipairs({ "GUILD", "OFFICER" }) do
+    for _, channel in ipairs(self.CHANNELS) do
         local entries, weg = Compat.GetClubChatHistory(channel, self.LIMIT)
         self.source[channel] = weg
         if entries and #entries > 0 then self.loaded = true end
@@ -328,7 +357,7 @@ function GuildChat:Send(text, channel)
     text = string.gsub(text, "%s+$", "")
     if text == "" then return false, "empty" end
     if not Compat.IsInGuild() then return false, "noguild" end
-    local ok = Compat.SendChatMessage(text, channel or "GUILD")
+    local ok = Compat.SendChatMessage(text, self.SEND_TYPE[channel or "GUILD"] or "GUILD")
     return ok and true or false, ok and nil or "send"
 end
 
@@ -344,6 +373,10 @@ function GuildChat:OnEnable()
     end, "GuildChat")
     Events:Register("CHAT_MSG_OFFICER", function(_, text, sender, _, _, _, _, _, _, _, _, _, guid)
         GuildChat:OnMessage("OFFICER", text, sender, guid)
+    end, "GuildChat")
+    -- Discord: der Text ist ein Schluessel (|K…|k), der Absender lesbar.
+    Events:Register("CHAT_MSG_GUILD_DISCORD", function(_, text, sender, _, _, _, _, _, _, _, _, _, guid)
+        GuildChat:OnMessage("DISCORD", text, sender, guid)
     end, "GuildChat")
 
     -- Der Verlauf des Spiels: beim Betreten der Welt um Zeilen bitten, und

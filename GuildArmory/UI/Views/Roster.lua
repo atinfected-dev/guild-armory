@@ -587,7 +587,9 @@ function View:BuildChat(panel, fonts)
     self.chatChannel = "GUILD"
     self.chatChips = {}
     local vorige
-    for _, channel in ipairs({ "GUILD", "OFFICER" }) do
+    self.chatHead = panel.header or content
+    self.chatHeading = panel.heading
+    for _, channel in ipairs({ "GUILD", "OFFICER", "DISCORD" }) do
         local chip = Widgets.Chip(panel.header or content, L["ROSTER_CHAT_" .. channel], function(pressed)
             self.chatChannel = pressed and channel or "GUILD"
             self:RefreshChat()
@@ -634,6 +636,8 @@ function View:BuildChat(panel, fonts)
         updateRow = function(row, line)
             row.time:SetText(line.ts and date("%H:%M", line.ts) or "")
             local r, g, b = Util.ClassColor(line.class)
+            -- Discord-Absender haben keine Klasse: Discords Blau
+            if line.channel == "DISCORD" and not line.class then r, g, b = 0.48, 0.53, 1 end
             row.text:SetText(string.format("%s: %s", Util.Colorize(line.who or "?", r, g, b), line.text or ""))
         end,
     })
@@ -644,7 +648,21 @@ end
 function View:RefreshChat()
     local GuildChat = GA.Modules.GuildChat
     if not GuildChat then return end
-    for _, chip in ipairs(self.chatChips) do chip:SetPressed(chip.channel == self.chatChannel) end
+    -- Welche Reiter: Offiziere nur, wer zuhoeren darf; Discord nur mit Bruecke.
+    local shown = { GUILD = true, OFFICER = Compat.CanListenOfficerChat() ~= false,
+        DISCORD = type(Compat.IsDiscordBridgeEnabled) == "function" and Compat.IsDiscordBridgeEnabled() == true }
+    if not shown[self.chatChannel] then self.chatChannel = "GUILD" end
+    local vorige
+    for _, chip in ipairs(self.chatChips) do
+        chip:SetShown(shown[chip.channel])
+        if shown[chip.channel] then
+            chip:ClearAllPoints()
+            if vorige then chip:SetPoint("LEFT", vorige, "RIGHT", 4, 0)
+            else chip:SetPoint("LEFT", self.chatHeading, "RIGHT", 12, 0) end
+            vorige = chip
+        end
+        chip:SetPressed(chip.channel == self.chatChannel)
+    end
     GuildChat:RequestHistory()
     GuildChat:PullHistory()
     local lines = GuildChat:List(self.chatChannel)
@@ -653,7 +671,7 @@ function View:RefreshChat()
     if self.chatLines.Scroll then self.chatLines:Scroll(-#lines) end
     self.chatState:SetText(string.format(L.ROSTER_CHAT_STATE, #lines,
         GuildChat:HasHistory() and L.ROSTER_CHAT_SRC_CLUB or string.format(L.ROSTER_CHAT_SRC_LIVE, GuildChat.LIMIT)))
-    local darf = self.chatChannel ~= "OFFICER" or Compat.CanViewOfficerNote() ~= false
+    local darf = shown[self.chatChannel] and (self.chatChannel ~= "OFFICER" or Compat.CanViewOfficerNote() ~= false)
     self.chatInput:SetShown(darf)
     self.chatSend:SetShown(darf)
 end

@@ -3021,6 +3021,27 @@ local function askGuildInfo(name)
 end
 function Compat.CanEditOfficerNote() return askGuildInfo("CanEditOfficerNote") end
 function Compat.CanViewOfficerNote() return askGuildInfo("CanViewOfficerNote") end
+
+--- Darf der EIGENE Rang den Offizierschat hoeren? Eintrag 3 der Rangrechte ist
+--- "Offizierschat zuhoeren" (GUILDCONTROL_OPTION3). Gefragt wird nach dem
+--- eigenen Rang ueber C_GuildInfo.GuildControlGetRankFlags(rang) — NICHT ueber
+--- das alte GuildControlGetRankFlags(), das die Rechte des Rangs liefert, der
+--- gerade in Blizzards Rangverwaltung ausgewaehlt ist. Der Gildenmeister darf
+--- immer. Unbekannt heisst nil: Der Reiter bleibt dann sichtbar.
+--- @return boolean|nil
+function Compat.CanListenOfficerChat()
+    if not isFunction(_G.GetGuildInfo) then return nil end
+    local ok, _, _, rankIndex = pcall(_G.GetGuildInfo, "player")
+    if not ok or type(rankIndex) ~= "number" then return nil end
+    if rankIndex == 0 then return true end
+    local api = _G.C_GuildInfo
+    if isTable(api) and isFunction(api.GuildControlGetRankFlags) then
+        local okF, flags = pcall(api.GuildControlGetRankFlags, rankIndex + 1)
+        if okF and isTable(flags) and flags[3] ~= nil then return flags[3] and true or false end
+    end
+    -- Wer Offiziersnotizen sehen darf, ist in jeder bekannten Gilde auch im Offizierschat.
+    return Compat.CanViewOfficerNote()
+end
 function Compat.CanGuildPromote() return askBool(_G.CanGuildPromote) end
 function Compat.CanGuildDemote() return askBool(_G.CanGuildDemote) end
 function Compat.CanGuildRemove() return askBool(_G.CanGuildRemove) end
@@ -3111,6 +3132,21 @@ local function guildStream(kind)
     local ok2, streams = pcall(club.GetStreams, clubId)
     if not ok2 or not isTable(streams) then return nil, nil, "nostreams" end
     local enum = isTable(_G.Enum) and isTable(_G.Enum.ClubStreamType) and _G.Enum.ClubStreamType or nil
+    -- Discord: GEMESSEN 03.10.2026 kam die verbundene Discord-Unterhaltung
+    -- als eigener Kanal des Gildenclubs an, Name "Discord", streamType 3.
+    -- Erst der Name, dann der Typ "Other".
+    if kind == "DISCORD" then
+        for _, stream in ipairs(streams) do
+            if isTable(stream) and type(stream.name) == "string" and string.lower(stream.name):find("discord") and stream.streamId ~= nil then
+                return clubId, stream.streamId, "C_Club"
+            end
+        end
+        local other = enum and enum.Other or 3
+        for _, stream in ipairs(streams) do
+            if isTable(stream) and stream.streamType == other and stream.streamId ~= nil then return clubId, stream.streamId, "C_Club" end
+        end
+        return nil, nil, "nostream"
+    end
     local wanted = kind == "OFFICER" and (enum and enum.Officer or 2) or (enum and enum.Guild or 1)
     for _, stream in ipairs(streams) do
         if isTable(stream) and stream.streamType == wanted and stream.streamId ~= nil then
