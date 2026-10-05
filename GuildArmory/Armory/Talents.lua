@@ -214,17 +214,30 @@ end
 
 -- ================================================================ Raster -----
 
---- Der kleinste Abstand zwischen verschiedenen Werten: der Rasterschritt.
+--- Der Rasterschritt: der kleinste Abstand zwischen Nachbarwerten — aber
+--- nur unter denen, die mindestens halb so gross sind wie der mittlere.
+---
+--- PALADIN, 05.10.2026: Ein Knoten lag 10 Einheiten neben seiner Spalte
+--- (5030 statt 5020). Der kleinste Abstand war damit 10 statt 600, jede
+--- gewoehnliche Spaltenluecke galt als Baumgrenze, und aus drei Baeumen
+--- wurden zwoelf ("Tree 3" bis "Tree 12"). Solche Ausreisser fallen jetzt
+--- in die Spalte, neben der sie liegen.
 local function step(values)
     local sorted, seen = {}, {}
     for _, v in ipairs(values) do
         if not seen[v] then seen[v] = true sorted[#sorted + 1] = v end
     end
     table.sort(sorted)
+    local diffs = {}
+    for i = 2, #sorted do diffs[#diffs + 1] = sorted[i] - sorted[i - 1] end
+    if #diffs == 0 then return 1, sorted end
+    local ordered = {}
+    for i, d in ipairs(diffs) do ordered[i] = d end
+    table.sort(ordered)
+    local median = ordered[math.floor((#ordered + 1) / 2)]
     local best
-    for i = 2, #sorted do
-        local d = sorted[i] - sorted[i - 1]
-        if d >= 1 and (not best or d < best) then best = d end
+    for _, d in ipairs(diffs) do
+        if d >= 1 and d >= median * 0.5 and (not best or d < best) then best = d end
     end
     return best or 1, sorted
 end
