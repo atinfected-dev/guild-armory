@@ -1290,6 +1290,19 @@ end
 function Theme.HeaderBar(frame)
     local bar = frame:CreateTexture(nil, "BACKGROUND")
     bar:SetAllPoints(frame)
+    -- Eigener Look: kein Questlog-Leuchten, sondern ein ruhiges Band mit
+    -- einer Linie in der Farbe der Reitermarke darunter.
+    local look = Theme.Look()
+    if look then
+        Theme.Paint(bar, look.light and { 0.43, 0.27, 0.12, 0.08 } or { 0, 0, 0, 0.22 })
+        local line = frame:CreateTexture(nil, "BORDER")
+        line:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+        line:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+        line:SetHeight(1)
+        local c = look.markLine or Theme.color.gold
+        Theme.Paint(line, { c[1], c[2], c[3], 0.55 })
+        return bar
+    end
     local path = [[Interface\QuestFrame\UI-QuestLogTitleHighlight]]
     if Theme.TextureExists(path) then
         pcall(bar.SetTexture, bar, path)

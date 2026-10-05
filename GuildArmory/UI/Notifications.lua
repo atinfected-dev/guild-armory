@@ -137,7 +137,8 @@ function Notifications:CreateStrip()
     strip:SetHeight(40)
     strip:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", 0, -6)
     strip:SetFrameStrata("MEDIUM")
-    Theme.Fill(strip, { 0.031, 0.047, 0.043, 0.92 })
+    -- Grund aus dem Look: auf dem hellen Codex stuende sonst Tinte auf Schwarz.
+    Theme.Fill(strip, { Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3], 0.94 })
     Theme.Outline(strip, Theme.color.borderLit)
 
     strip.edge = strip:CreateTexture(nil, "OVERLAY")
@@ -197,7 +198,7 @@ function Notifications:CreateTray()
     tray:SetPoint("TOPRIGHT", Minimap, "TOPLEFT", -8, 0)
     tray:SetFrameStrata("HIGH")
     tray:SetClampedToScreen(true)
-    Theme.Fill(tray, { 0.031, 0.047, 0.043, 0.96 })
+    Theme.Fill(tray, { Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3], 0.97 })
     Theme.Outline(tray, Theme.color.borderLit)
 
     local head = CreateFrame("Frame", nil, tray)

@@ -296,10 +296,24 @@ function Settings:Create(parent)
             button.choice = choice
             if previous then button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
             else button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            -- Farbprobe unter dem Knopf: Grund, Akzent, Hinweis des Looks —
+            -- man sieht vor dem Neuladen, was man waehlt.
+            local def = Theme.LOOKS[choice]
+            if def then
+                local probe = { def.palette.panelBg, def.palette.gold, def.palette.attn or def.palette.goldMid }
+                local part = math.floor((button:GetWidth() or 60) / 3)
+                for i, color in ipairs(probe) do
+                    local strip = row:CreateTexture(nil, "ARTWORK")
+                    strip:SetHeight(3)
+                    strip:SetWidth(part)
+                    strip:SetPoint("TOPLEFT", button, "BOTTOMLEFT", (i - 1) * part, -2)
+                    Theme.Paint(strip, { color[1], color[2], color[3], 1 })
+                end
+            end
             Settings.lookButtons[#Settings.lookButtons + 1] = button
             previous = button
         end
-        return function() return 28 end
+        return function() return 34 end
     end })
     makeRow(language, { label = L.SET_LANGUAGE, hint = L.SET_LANGUAGE_HINT, build = function(row)
         local previous

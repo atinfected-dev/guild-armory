@@ -50,13 +50,18 @@ local function columns()
     return {
         { key = "crest", label = "",                 width = 22 },
         { key = "name",  label = L.COL_NAME,         width = 150 },
+        -- Stufe als Zahl und Balken bis 60, mit einer Marke je zehn Stufen
+        -- (Entwuerfe vom 05.10.2026): der Weg, nicht nur der Stand.
+        { key = "level", label = L.COL_LEVEL,        width = 66 },
         { key = "zone",  label = L.ROSTER_COL_ZONE,  width = 110 },
         { key = "note",  label = L.ROSTER_COL_NOTE,  width = 100 },
-        { key = "now",   label = L.ROSTER_COL_NOW,   width = 230 },  -- links unter der Ueberschrift, bis zum Rand (Bild 03.10.2026)
+        { key = "now",   label = L.ROSTER_COL_NOW,   width = 200 },  -- links unter der Ueberschrift, bis zum Rand (Bild 03.10.2026)
     }
 end
 
 local ROW_H = 32
+local LEVEL_MAX = 60
+local LEVEL_BAR_W = 40
 --- Rangzeichen des Spiels: Krone fuer den Gildenmeister, Stern fuer den
 --- zweiten Rang. Gibt der Client sie nicht her, bleibt der Platz leer.
 local RANK_ICON = {
@@ -266,6 +271,27 @@ function View:BuildRow(row)
     row.sub:SetJustifyH("LEFT")
     row.sub:SetWordWrap(false)
 
+    row.levelText = Theme.Label(row, "", fonts.rowBold or fonts.row, Theme.color.heading)
+    row.levelText:SetPoint("LEFT", row, "LEFT", x.level, 0)
+    row.levelText:SetWidth(20)
+    row.levelText:SetJustifyH("RIGHT")
+    row.levelBg = row:CreateTexture(nil, "ARTWORK")
+    Theme.BarTrough(row.levelBg)
+    row.levelBg:SetWidth(LEVEL_BAR_W) row.levelBg:SetHeight(4)
+    row.levelBg:SetPoint("LEFT", row, "LEFT", x.level + 24, 0)
+    row.levelFill = row:CreateTexture(nil, "OVERLAY")
+    Theme.BarFill(row.levelFill, Theme.color.gold)
+    row.levelFill:SetHeight(4)
+    row.levelFill:SetPoint("LEFT", row.levelBg, "LEFT", 0, 0)
+    row.levelTicks = {}
+    for i = 1, 5 do
+        local tick = row:CreateTexture(nil, "OVERLAY", nil, 2)
+        tick:SetWidth(1) tick:SetHeight(6)
+        tick:SetPoint("CENTER", row.levelBg, "LEFT", math.floor(LEVEL_BAR_W * i * 10 / LEVEL_MAX), 0)
+        Theme.Paint(tick, { Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3], 0.85 })
+        row.levelTicks[i] = tick
+    end
+
     row.zone = Theme.Label(row, "", fonts.row, Theme.color.text)
     row.zone:SetPoint("LEFT", row, "LEFT", x.zone, 0)
     row.zone:SetWidth(w.zone)
@@ -337,8 +363,14 @@ local function activityOf(name)
     return nil
 end
 
+local function showLevel(row, on)
+    for _, w in ipairs({ row.levelText, row.levelBg, row.levelFill }) do w:SetShown(on) end
+    for _, tick in ipairs(row.levelTicks or {}) do tick:SetShown(on) end
+end
+
 local function showMember(row, on)
     for _, w in ipairs({ row.crest, row.name, row.sub, row.zone, row.note, row.now }) do w:SetShown(on) end
+    showLevel(row, on)
     for _, w in ipairs({ row.groupDot, row.groupText, row.groupLine }) do w:SetShown(not on) end
     if on then row.rankIcon:Hide() end
 end
@@ -389,8 +421,15 @@ function View:UpdateRow(row, member)
 
     local teile = {}
     if member.className or member.class then teile[#teile + 1] = member.className or member.class end
-    if member.level then teile[#teile + 1] = tostring(member.level) end
     if member.rankName then teile[#teile + 1] = member.rankName end
+    local level = tonumber(member.level)
+    if level and level > 0 then
+        showLevel(row, true)
+        row.levelText:SetText(tostring(level))
+        row.levelFill:SetWidth(math.max(1, math.floor(LEVEL_BAR_W * math.min(1, level / LEVEL_MAX))))
+    else
+        showLevel(row, false)
+    end
     local farbe = rankColor(member.rankIndex)
     row.sub:SetText(table.concat(teile, " \194\183 "))
     row.sub:SetTextColor(farbe[1] * 0.85 + 0.1, farbe[2] * 0.85 + 0.1, farbe[3] * 0.85 + 0.1)
