@@ -763,7 +763,10 @@ function View:ShowMemberMenu(member)
     if not member or not member.online then return end
     local me = Compat.GetPlayerIdentity().name
     if me and Util.ShortName(me) == Util.ShortName(member.name) then return end
-    local target = member.fullName or member.name
+    -- DER NAME OHNE REALM (Bild vom 05.10.2026): "Hoffi Sin-ClassicBetaPvE2"
+    -- findet das Spiel auf Forever nicht ("Cannot find player"), "Hoffi Sin"
+    -- schon — wie bei den Knoepfen im Detailbereich.
+    local target = member.name
     Widgets.ContextMenu(member.name, {
         { text = L.QH_WHISPER, func = function() Compat.OpenWhisper(target) end },
         { text = L.QH_INVITE, func = function()

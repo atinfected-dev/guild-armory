@@ -2,7 +2,7 @@
 
 ## 0.1.37
 
-In progress.
+Roster: Whisper and Invite in the right-click menu used the name with the realm ("Hoffi Sin-ClassicBetaPvE2"), which the game does not find on WoW: Forever — "Cannot find player". They use the plain name now, like the buttons in the member panel.
 
 ## 0.1.36
 
