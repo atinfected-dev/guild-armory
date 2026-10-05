@@ -269,6 +269,9 @@ Theme.MEDIA = {
     seal      = M .. "Seal.tga",
     shield    = M .. "Shield.tga",
     shieldopen = M .. "ShieldOpen.tga",
+    shieldfill = M .. "ShieldFill.tga",
+    shieldrim  = M .. "ShieldRim.tga",
+    discord    = M .. "Discord.tga",
 }
 
 --- Reihenfolge der Knoepfe in den Einstellungen.

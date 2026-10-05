@@ -233,6 +233,20 @@ function Widgets.Chip(parent, text, onToggle)
 
     chip.pressed = false
 
+    --- Ein Symbol links vom Text (z.B. Discord). Ohne geladene Textur: nichts.
+    function chip:SetIcon(path, tint)
+        if not path then return end
+        self.icon = self.icon or self:CreateTexture(nil, "OVERLAY")
+        self.icon:SetTexture(path)
+        self.icon:SetWidth(12) self.icon:SetHeight(12)
+        self.icon:ClearAllPoints()
+        self.icon:SetPoint("LEFT", self, "LEFT", 7, 0)
+        if tint then Theme.Tint(self.icon, tint) end
+        label:ClearAllPoints()
+        label:SetPoint("LEFT", self.icon, "RIGHT", 4, 0)
+        self:SetWidth(label:GetStringWidth() + 18 + 16)
+    end
+
     --- Eigene Farben fuer den gedrueckten Zustand (Standard: Gold).
     --- @param palette table|nil { fill = {r,g,b,a}, text = {r,g,b}, line = {r,g,b} }
     function chip:SetPalette(palette)

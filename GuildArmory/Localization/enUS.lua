@@ -1341,6 +1341,8 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_SRC_LIVE = "since login · the last %d survive a reload",
     ROSTER_CHAT_SEND   = "Send",
     ROSTER_CHAT_OPEN   = "Show chat",
+    HEADER_ONLINE      = "%d online",
+    HEADER_DISCORD     = "Discord linked",
     ROSTER_CHAT_CLOSE  = "Hide chat",
     ROSTER_CHAT_ERR_empty = "Nothing to send.",
     ROSTER_CHAT_ERR_noguild = "That needs a guild.",

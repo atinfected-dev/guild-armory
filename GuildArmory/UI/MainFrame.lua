@@ -347,6 +347,64 @@ function MainFrame:BuildFallbackHeader()
     local close = Widgets.Button(header, "X", function() MainFrame:Hide() end)
     close:SetWidth(22)
     close:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+
+    -- Anzeigen in der Kopfleiste (Entwuerfe vom 05.10.2026): wie viele
+    -- online sind, und ob die Gilde mit Discord verbunden ist.
+    if look then
+        local function pill(withDot)
+            local p = CreateFrame("Frame", nil, header)
+            p:SetHeight(20)
+            Theme.Fill(p, look.light and { 1, 0.98, 0.92, 0.18 } or { 0, 0, 0, 0.35 })
+            Theme.Outline(p, Theme.color.border)
+            p.text = Theme.Label(p, "", fonts.small, look.headerText or Theme.color.text)
+            if withDot then
+                p.dot = p:CreateTexture(nil, "ARTWORK")
+                p.dot:SetWidth(7) p.dot:SetHeight(7)
+                p.dot:SetPoint("LEFT", p, "LEFT", 8, 0)
+                if Theme.RoundTexture() then p.dot:SetTexture(Theme.RoundTexture()) end
+                Theme.Tint(p.dot, { 0.61, 0.83, 0.55, 1 })
+                p.text:SetPoint("LEFT", p.dot, "RIGHT", 6, 0)
+            end
+            return p
+        end
+        self.pillDiscord = pill(false)
+        self.pillDiscord:SetPoint("RIGHT", close, "LEFT", -10, 0)
+        local icon = Theme.Media("discord")
+        if icon then
+            self.pillDiscord.icon = self.pillDiscord:CreateTexture(nil, "ARTWORK")
+            self.pillDiscord.icon:SetTexture(icon)
+            self.pillDiscord.icon:SetWidth(13) self.pillDiscord.icon:SetHeight(13)
+            self.pillDiscord.icon:SetPoint("LEFT", self.pillDiscord, "LEFT", 7, 0)
+            Theme.Tint(self.pillDiscord.icon, { 0.62, 0.66, 1.00, 1 })
+            self.pillDiscord.text:SetPoint("LEFT", self.pillDiscord.icon, "RIGHT", 5, 0)
+        else
+            self.pillDiscord.text:SetPoint("LEFT", self.pillDiscord, "LEFT", 8, 0)
+        end
+        self.pillDiscord.text:SetText(L.HEADER_DISCORD)
+        self.pillDiscord:SetWidth(self.pillDiscord.text:GetStringWidth() + (icon and 34 or 16))
+        self.pillOnline = pill(true)
+        self:UpdateHeaderPills()
+        GA.Core.Callbacks:On("GUILD_UPDATED", function() MainFrame:UpdateHeaderPills() end, "MainFrameHeader")
+    end
+end
+
+--- Zahl der Mitglieder online und der Discord-Stand in der Kopfleiste.
+function MainFrame:UpdateHeaderPills()
+    if not self.pillOnline then return end
+    local online = 0
+    local guild = GA.Core.Database.account.guild
+    for _, member in pairs(guild and guild.members or {}) do
+        if member.online then online = online + 1 end
+    end
+    self.pillOnline.text:SetText(string.format(L.HEADER_ONLINE, online))
+    self.pillOnline:SetWidth(self.pillOnline.text:GetStringWidth() + 30)
+
+    local linked = type(GA.Core.Compat.IsDiscordBridgeEnabled) == "function"
+        and GA.Core.Compat.IsDiscordBridgeEnabled() == true
+    self.pillDiscord:SetShown(linked)
+    self.pillOnline:ClearAllPoints()
+    if linked then self.pillOnline:SetPoint("RIGHT", self.pillDiscord, "LEFT", -6, 0)
+    else self.pillOnline:SetPoint("RIGHT", self.pillDiscord, "RIGHT", 0, 0) end
 end
 
 --- Werkzeugzeile: Ansichtstitel, Kontext, Aktualisieren.

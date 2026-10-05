@@ -178,6 +178,7 @@ function View:Create(parent)
     end)
     self.discordChip:SetHeight(20)
     self.discordChip:SetPalette(DISCORD_PALETTE)
+    self.discordChip:SetIcon(Theme.Media("discord"), { 0.89, 0.90, 1.00, 1 })
     self.discordChip:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
 
     self.botChip = Widgets.Chip(form, L.DH_DISCORD_BOT_CHIP, function(pressed)
@@ -309,8 +310,25 @@ function View:Card(index)
         slot.badgeIcon:SetSize(10, 10)
         slot.badgeIcon:SetPoint("CENTER", slot.badge, "CENTER", 0, 0)
         slot.badgeIcon:Hide()
+        -- WAPPENSCHILD (eigene Looks, Bild vom 05.10.2026: fehlte bei
+        -- belegten Plaetzen). Fuellung im Grund, Rand in der Klassenfarbe,
+        -- innen das Rollensymbol; offen ein gestrichelter Rand.
+        if Theme.Look() and Theme.Media("shieldfill") and Theme.Media("shieldrim") then
+            slot.heraldry = true
+            slot.shieldFill = slot:CreateTexture(nil, "ARTWORK")
+            slot.shieldFill:SetTexture(Theme.MEDIA.shieldfill)
+            slot.shieldFill:SetSize(26, 26)
+            slot.shieldFill:SetPoint("TOP", slot, "TOP", 0, -2)
+            slot.shieldRim = slot:CreateTexture(nil, "ARTWORK", nil, 1)
+            slot.shieldRim:SetAllPoints(slot.shieldFill)
+            slot.roleIcon:ClearAllPoints()
+            slot.roleIcon:SetPoint("CENTER", slot.shieldFill, "CENTER", 0, 1)
+            slot.roleIcon:SetSize(13, 13)
+            slot.letter:ClearAllPoints()
+            slot.letter:SetPoint("CENTER", slot.shieldFill, "CENTER", 0, 1)
+        end
         slot.name = Theme.Label(slot, "", fonts.small, Theme.color.text)
-        slot.name:SetPoint("TOP", slot.disc, "BOTTOM", 0, -3)
+        slot.name:SetPoint("TOP", slot.heraldry and slot.shieldFill or slot.disc, "BOTTOM", 0, slot.heraldry and -1 or -3)
         slot.name:SetPoint("LEFT", slot, "LEFT", 2, 0)
         slot.name:SetPoint("RIGHT", slot, "RIGHT", -2, 0)
         slot.name:SetJustifyH("CENTER")
@@ -437,6 +455,37 @@ function View:FillCard(card, run)
             end
             for _, line in ipairs(box.lines) do Theme.Paint(line, { color[1] * 0.6, color[2] * 0.6, color[3] * 0.6 }) end
             Theme.Paint(box.fill, Theme.color.rowAltBg)
+        end
+    end
+
+    -- Wappenschilde ueber das Gezeichnete legen: Scheibe, Klassenbild und
+    -- Eckmarke weichen dem Schild.
+    for i, slot in ipairs(Hub:Slots(run)) do
+        local box = card.slots[i]
+        if box.heraldry then
+            box.disc:Hide() box.crest:Hide() box.badge:Hide()
+            box.badgeLetter:Hide() box.badgeIcon:Hide()
+            local color = ROLE_COLOR[slot.role]
+            local hasIcon = Theme.SetRoleIcon(box.roleIcon, slot.role)
+            if slot.name then
+                box.shieldFill:Show()
+                Theme.Tint(box.shieldFill, Theme.color.rowBg)
+                box.shieldRim:SetTexture(Theme.MEDIA.shieldrim)
+                if slot.class then box.shieldRim:SetVertexColor(Theme.ClassColor(slot.class))
+                else Theme.Tint(box.shieldRim, color) end
+                box.roleIcon:SetVertexColor(1, 1, 1, 1)
+                box.letter:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
+            else
+                local a = Theme.color.attn
+                box.shieldFill:Hide()
+                box.shieldRim:SetTexture(Theme.MEDIA.shieldopen)
+                Theme.Tint(box.shieldRim, a)
+                box.roleIcon:SetVertexColor(1, 1, 1, 0.55)
+                box.letter:SetTextColor(a[1], a[2], a[3])
+            end
+            box.roleIcon:SetShown(hasIcon)
+            box.letter:SetText(ROLE_LETTER[slot.role])
+            box.letter:SetShown(not hasIcon)
         end
     end
 

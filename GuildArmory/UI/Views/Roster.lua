@@ -638,6 +638,7 @@ function View:BuildChat(panel, fonts)
         if vorige then chip:SetPoint("LEFT", vorige, "RIGHT", 4, 0)
         else chip:SetPoint("LEFT", panel.heading, "RIGHT", 12, 0) end
         chip.channel = channel
+        if channel == "DISCORD" then chip:SetIcon(Theme.Media("discord"), { 0.55, 0.60, 1.00, 1 }) end
         self.chatChips[#self.chatChips + 1] = chip
         vorige = chip
     end
