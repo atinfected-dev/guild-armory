@@ -104,7 +104,8 @@ local function kpi(parent)
     local fonts = Theme.Fonts()
     local tile = CreateFrame("Frame", nil, parent)
     tile:SetWidth(KPI_W) tile:SetHeight(KPI_H)
-    Theme.Fill(tile, { 0.031, 0.047, 0.043, 0.85 })
+    -- Grund aus dem Look (im Codex hell); im Blizzard-Look derselbe Ton wie bisher.
+    Theme.Fill(tile, { Theme.color.windowBg[1], Theme.color.windowBg[2], Theme.color.windowBg[3], 0.85 })
     Theme.Outline(tile, Theme.color.border)
 
     tile.value = Theme.Label(tile, "—", fonts.hero, Theme.color.goldBright)

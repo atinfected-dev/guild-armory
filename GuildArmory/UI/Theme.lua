@@ -285,6 +285,16 @@ function Theme.HeaderTop()
     return Theme.Look() and 20 or 12
 end
 
+--- Seitlicher Abstand der Kopfleiste. In den eigenen Looks so gross, dass
+--- sie ZWISCHEN den oberen Eckornamenten liegt (Bild vom 05.10.2026: aussen
+--- angesetzte Ecken sahen nicht aus — die Leiste wird schmaler, nicht die
+--- Ecken verschoben).
+Theme.CORNER_SIZE = 34
+Theme.CORNER_INSET = 4
+function Theme.HeaderSide()
+    return Theme.Look() and (Theme.CORNER_SIZE + Theme.CORNER_INSET + 4) or 12
+end
+
 local BLACK = { 0.043, 0.039, 0.035, 1 }
 
 --- Je Look: Palette (dieselben Schluessel wie Theme.color — "gold" ist dort
@@ -382,10 +392,14 @@ Theme.LOOKS = {
             textFaint  = { 0.431, 0.353, 0.271 },        -- #6e5a45, 5.5:1
             heading    = { 0.431, 0.122, 0.086 },        -- Wachs dunkel
             gold       = { 0.561, 0.165, 0.122 },        -- Siegelwachs #8f2a1f
-            goldBright = { 0.973, 0.922, 0.816 },
+            -- goldBright ist an 68 Stellen TEXTFARBE (Zahlen, Namen, der
+            -- Gildenname). Creme stand dort auf Pergament und war unsichtbar
+            -- (Bild vom 05.10.2026) — hier also dunkles Wachs; die Creme-
+            -- schrift auf dem roten Knopf kommt aus btnPrimaryText.
+            goldBright = { 0.431, 0.122, 0.086 },
             goldMid    = { 0.561, 0.165, 0.122 },
             goldDim    = { 0.722, 0.537, 0.184 },        -- Blattgold  #b8892f
-            goldDeep   = { 0.431, 0.122, 0.086, 1.00 },
+            goldDeep   = { 0.902, 0.808, 0.698, 1.00 },  -- blasses Wachs: Flaeche unter dunkler Schrift
             -- Zustaende und Rollen dunkler: hell auf Pergament waere unlesbar.
             good       = { 0.200, 0.450, 0.180 },
             warn       = { 0.620, 0.400, 0.050 },
@@ -408,6 +422,7 @@ Theme.LOOKS = {
         btnPrimary = { 0.70, 0.20, 0.15, 1 }, btnPrimaryHover = { 0.85, 0.28, 0.20, 1 },
         btnSecondary = { 0.95, 0.90, 0.80, 1 }, btnSecondaryHover = { 1.00, 0.97, 0.88, 1 },
         btnLine = { 0.24, 0.16, 0.10, 1 },
+        btnPrimaryText = { 0.973, 0.922, 0.816 },
         tabSelected = { 0.98, 0.95, 0.86, 1 }, tabIdle = { 0.66, 0.56, 0.42, 1 },
         tabIdleText = { 0.169, 0.114, 0.071 },
         bar = "wax", trough = { 0.98, 0.95, 0.87, 1 },
@@ -626,12 +641,12 @@ function Theme.ForgeFrame(frame, kind, bgColor)
             for cornerPoint, tc in pairs(FLIP) do
                 local orn = layer:CreateTexture(nil, "OVERLAY")
                 orn:SetTexture(cornerTex)
-                -- Klein und ueber die Rahmenkante hinaus, wie ein Beschlag:
-                -- Mit 40 Pixeln nach innen stiessen sie oben an die
-                -- Kopfleiste (Bild vom 05.10.2026).
-                orn:SetWidth(26) orn:SetHeight(26)
-                orn:SetPoint(cornerPoint, frame, cornerPoint, string.find(cornerPoint, "LEFT") and -5 or 5,
-                    string.find(cornerPoint, "TOP") and 5 or -5)
+                -- Innen in der Ecke; die Kopfleiste haelt seitlich Abstand
+                -- (Theme.HeaderSide), damit sie nicht anstoesst.
+                orn:SetWidth(Theme.CORNER_SIZE) orn:SetHeight(Theme.CORNER_SIZE)
+                local d = Theme.CORNER_INSET
+                orn:SetPoint(cornerPoint, frame, cornerPoint, string.find(cornerPoint, "LEFT") and d or -d,
+                    string.find(cornerPoint, "TOP") and -d or d)
                 orn:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
             end
             frame.gaOrnaments = layer

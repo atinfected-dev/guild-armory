@@ -294,8 +294,9 @@ function MainFrame:BuildFallbackHeader()
     local inset = 12
     local top = Theme.HeaderTop()
     local header = CreateFrame("Frame", nil, frame)
-    header:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -top)
-    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -top)
+    local side = Theme.HeaderSide()
+    header:SetPoint("TOPLEFT", frame, "TOPLEFT", side, -top)
+    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -side, -top)
     header:SetHeight(Theme.size.headerHeight)
     local emblem
     local look = Theme.Look()
@@ -519,7 +520,7 @@ function MainFrame:BuildTabs()
                 if previous then
                     tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
                 else
-                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", 12 + 66, -(Theme.HeaderTop() + Theme.size.headerHeight + 3))
+                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", Theme.HeaderSide() + 66, -(Theme.HeaderTop() + Theme.size.headerHeight + 3))
                 end
             -- Gezeichnete Reiter liegen innen am unteren Rand.
             elseif previous then
