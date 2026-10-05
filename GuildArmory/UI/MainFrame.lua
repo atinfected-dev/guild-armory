@@ -297,6 +297,7 @@ function MainFrame:BuildFallbackHeader()
     local inset = 12
     local top = Theme.HeaderTop()
     local header = CreateFrame("Frame", nil, frame)
+    self.header = header
     local side = Theme.HeaderSide()
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", side, -top)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -side, -top)
@@ -351,6 +352,7 @@ function MainFrame:BuildFallbackHeader()
     local close = Widgets.Button(header, "X", function() MainFrame:Hide() end)
     close:SetWidth(22)
     close:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+    self.closeButton = close
 
     -- Anzeigen in der Kopfleiste (Entwuerfe vom 05.10.2026): wie viele
     -- online sind, und ob die Gilde mit Discord verbunden ist.
@@ -437,6 +439,23 @@ function MainFrame:BuildToolbar()
 
     self.settingsButton = self:BuildSettingsButton(bar)
     self.settingsButton:SetPoint("RIGHT", refresh, "LEFT", -4, 0)
+
+    -- Eigener Look: Aktualisieren und Zahnrad wandern in die Kopfleiste,
+    -- links vom X (Wunsch 05.10.2026); die Anzeigen ruecken davor. In der
+    -- Werkzeugzeile bleibt der Titel der Ansicht.
+    if Theme.Look() and self.header and self.closeButton then
+        refresh:SetParent(self.header)
+        refresh:ClearAllPoints()
+        refresh:SetPoint("RIGHT", self.closeButton, "LEFT", -8, 0)
+        self.settingsButton:SetParent(self.header)
+        self.settingsButton:ClearAllPoints()
+        self.settingsButton:SetPoint("RIGHT", refresh, "LEFT", -8, 0)
+        if self.pillDiscord then
+            self.pillDiscord:ClearAllPoints()
+            self.pillDiscord:SetPoint("RIGHT", self.settingsButton, "LEFT", -12, 0)
+            self:UpdateHeaderPills()
+        end
+    end
 end
 
 --- Das Zahnrad. Einstellungen sind keine Arbeitsansicht — sie standen nur
