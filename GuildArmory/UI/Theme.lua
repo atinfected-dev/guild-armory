@@ -285,7 +285,10 @@ Theme.DEFAULT_LOOK = "forge"
 --- stiessen sie an die Kopfleiste, dann sassen sie aussen, dann war die
 --- Leiste schmaler als der Inhalt. Alles drei sah unsauber aus.
 Theme.FRAME_MARGIN = 24
-Theme.CORNER_SIZE = 20
+-- Die Ornamente sind L-foermig: lang an den Kanten, nach innen nur gut 20
+-- Pixel tief (Stern, Blattgold-Dreieck, Winkel) — so bleiben sie auch gross
+-- im Rand (Wunsch 05.10.2026: "haetten nicht kleiner gemusst").
+Theme.CORNER_SIZE = 36
 Theme.CORNER_INSET = 3
 
 function Theme.Margin()
