@@ -39,7 +39,7 @@ local LANGUAGES = { "enUS", "deDE", "auto" }
 
 --- Die Abschnitte, in der Reihenfolge der Leiste.
 local SECTIONS = {
-    { key = "language", title = "SET_LANGUAGE", sub = "SET_SUB_LANGUAGE" },
+    { key = "language", title = "SET_UI_LANGUAGE", sub = "SET_SUB_UI_LANGUAGE" },
     { key = "window",   title = "SET_WINDOW",   sub = "SET_SUB_WINDOW" },
     { key = "onscreen", title = "SET_ONSCREEN", sub = "SET_SUB_ONSCREEN" },
     { key = "notify",   title = "SET_NOTIFY",   sub = "SET_SUB_NOTIFY" },
@@ -283,6 +283,24 @@ function Settings:Create(parent)
     -- Umstellung, zusammen mit dem Knopf, der sie abschliesst.
     local language = self.pages.language
     self.languageButtons = {}
+
+    -- Look (05.10.2026): die drei Entwuerfe und Blizzards Fenster, zur Wahl
+    -- neben der Sprache. Wirkt nach /reload — die Fenster sind schon gebaut.
+    self.lookButtons = {}
+    makeRow(language, { label = L.SET_LOOK, hint = L.SET_LOOK_HINT, build = function(row)
+        local previous
+        for _, choice in ipairs(Theme.LOOK_ORDER) do
+            local button = Widgets.Button(row, L["SET_LOOK_" .. string.upper(choice)],
+                function() Settings:ChooseLook(choice) end)
+            button:SetHeight(20)
+            button.choice = choice
+            if previous then button:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.lookButtons[#Settings.lookButtons + 1] = button
+            previous = button
+        end
+        return function() return 28 end
+    end })
     makeRow(language, { label = L.SET_LANGUAGE, hint = L.SET_LANGUAGE_HINT, build = function(row)
         local previous
         for _, choice in ipairs(LANGUAGES) do
@@ -309,10 +327,6 @@ function Settings:Create(parent)
 
     -- ------------------------------------------------------------ Fenster ---
     local window = self.pages.window
-    -- Look (05.10.2026): Schmiede ist Standard; wer Blizzards Fenster will,
-    -- schaltet hier um. Wirkt nach /reload — die Fenster sind dann schon gebaut.
-    self.rowLookBlizzard = makeRow(window, { label = L.SET_LOOK_BLIZZARD, hint = L.SET_LOOK_BLIZZARD_HINT, control = "switch",
-        set = function(on) GA.Core.Config:Set("uiLook", on and "blizzard" or "forge") end })
     makeRow(window, { label = L.SET_SCALE_ROW, hint = L.SET_SCALE_HINT, build = function(row)
         local function setScale(delta)
             GA.UI.MainFrame:SetScale((GA.Core.Config:GetUI("main").scale or 1) + delta)
@@ -524,19 +538,33 @@ function Settings:ChooseLanguage(choice)
     self:Refresh()
 end
 
+--- Stellt den Look um. Gebaut ist das Fenster schon im alten — der Hinweis
+--- auf /reload erscheint, sobald die Wahl vom laufenden Look abweicht.
+function Settings:ChooseLook(choice)
+    GA.Core.Config:Set("uiLook", choice)
+    self.lookChanged = choice ~= (Theme.look or Theme.DEFAULT_LOOK)
+    self:Refresh()
+end
+
 function Settings:Refresh()
     local Config = GA.Core.Config
+
+    local look = Theme.LookKey()
+    for _, button in ipairs(self.lookButtons or {}) do
+        button:SetEnabledState(button.choice ~= look)
+    end
 
     local chosen = GA.Core.Database.account.language or GA.Core.Locale.DEFAULT
     for _, button in ipairs(self.languageButtons) do
         button:SetEnabledState(button.choice ~= chosen)
     end
-    self.reloadRow:SetShown(self.languageChanged and true or false)
-    if not self.languageChanged then
+    local pending = self.languageChanged or self.lookChanged
+    self.reloadRow:SetShown(pending and true or false)
+    if not pending then
         -- Eine versteckte Zeile nimmt keinen Platz: Hoehe null, kein Hinweis.
         self.reloadRow.hint:SetText("")
     else
-        self.reloadRow.hint:SetText(L.SET_LANGUAGE_RELOAD)
+        self.reloadRow.hint:SetText(self.languageChanged and L.SET_LANGUAGE_RELOAD or L.SET_LOOK_RELOAD)
     end
 
     self.scaleValue:SetText(string.format("%.2f", Config:GetUI("main").scale or 1))
@@ -552,7 +580,6 @@ function Settings:Refresh()
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)
-    self.rowLookBlizzard.switch:SetChecked(Config:Get("uiLook") == "blizzard")
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
     self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)

@@ -259,7 +259,7 @@ function View:UpdateRow(row, request)
     else
         row.crest:Hide()
     end
-    local r, g, b = Util.ClassColor(request.class)
+    local r, g, b = Theme.ClassColor(request.class)
     local mit = GA.Modules.Questhub:JoinerCount(request)
     row.seeker:SetText(Util.FirstName(request.seeker or "?") .. (mit > 0 and (" |cff6f6753+" .. mit .. "|r") or ""))
     row.seeker:SetTextColor(r, g, b)
@@ -339,7 +339,7 @@ function View:BuildDetail(parent, fonts)
             row.name:SetWordWrap(false)
         end,
         updateRow = function(row, entry)
-            local r, g, b = Util.ClassColor(entry.class)
+            local r, g, b = Theme.ClassColor(entry.class)
             if entry.class and Theme.SetClassPortrait(row.crest, entry.class) then row.crest:Show() else row.crest:Hide() end
             row.name:SetText(entry.name .. (entry.poster and ("  |cff6f6753" .. L.QH_POSTER .. "|r") or ""))
             row.name:SetTextColor(r, g, b)

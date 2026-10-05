@@ -2,7 +2,7 @@
 
 ## 0.1.35
 
-New look, "Forge": the addon draws its own frames instead of Blizzard's window templates — a stone-grained window in a steel frame with rivets, a steel title bar carrying the guild emblem, copper and steel buttons, steel tabs, and progress bars that glow like molten metal. Ember replaces gold as the accent colour. All textures are the addon's own. Settings › Window has "Blizzard frames instead of the Forge look" for the previous style (after a /reload). The new texture files load only after a full game restart, not a /reload; until then the addon falls back to flat colours.
+Choose the addon's look: Settings › UI + Language (formerly Language) has four looks beside the language. Forge (the new default): a stone-grained window in a steel frame with rivets, a steel title bar carrying the guild emblem, copper and steel buttons, bars that glow like molten metal, ember instead of gold. Forever Twilight: a dusk sky after the WoW: Forever site, jewel-teal bars and buttons, bronze frame. Codex: parchment, ink and sealing wax — the one light look; class colours are darkened there so every name stays readable. Blizzard: the game's window frames and buttons, as before. All textures are the addon's own. A new look applies after a /reload; the new texture files load only after one full game restart, until then the looks fall back to flat colours.
 
 ## 0.1.34
 

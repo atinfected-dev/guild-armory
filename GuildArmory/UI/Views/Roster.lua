@@ -366,7 +366,7 @@ function View:UpdateRow(row, member)
         row.edge:Hide()
     end
 
-    local r, g, b = Util.ClassColor(member.class)
+    local r, g, b = Theme.ClassColor(member.class)
     if member.class and Theme.SetClassPortrait(row.crest, member.class) then row.crest:Show() else row.crest:Hide() end
 
     -- Rangzeichen vor dem Namen; der Name rueckt dafuer ein.
@@ -635,7 +635,7 @@ function View:BuildChat(panel, fonts)
         end,
         updateRow = function(row, line)
             row.time:SetText(line.ts and date("%H:%M", line.ts) or "")
-            local r, g, b = Util.ClassColor(line.class)
+            local r, g, b = Theme.ClassColor(line.class)
             -- Discord-Absender haben keine Klasse: Discords Blau
             if line.channel == "DISCORD" and (line.remote or not line.class) then r, g, b = 0.48, 0.53, 1 end
             -- Anhang, Emoji, Sticker aus Discord: wie Blizzards Fenster in Gelb dahinter
@@ -877,7 +877,7 @@ function View:RefreshDetail(member)
     d.none:Hide()
     for _, w in ipairs(widgets) do pcall(w.Show, w) end
 
-    local r, g, b = Util.ClassColor(member.class)
+    local r, g, b = Theme.ClassColor(member.class)
     if member.class and Theme.SetClassPortrait(d.crest, member.class) then d.crest:Show() else d.crest:Hide() end
     d.name:SetText(member.name)
     d.name:SetTextColor(r, g, b)
@@ -975,7 +975,7 @@ function View:Refresh()
     local teile = { string.format(L.DASH_MEMBERS_ONLINE, total or #list, online or 0) }
     for _, member in ipairs(list) do
         if member.rankIndex == 0 then
-            teile[#teile + 1] = string.format(L.DASH_GUILD_MASTER, Util.ColorByClass(member.name, member.class))
+            teile[#teile + 1] = string.format(L.DASH_GUILD_MASTER, Theme.ColorByClass(member.name, member.class))
             break
         end
     end

@@ -189,7 +189,7 @@ function LootHistory:UpdateRow(row, award)
     if award.recipientName then
         local character = award.recipientGuid
             and GA.Core.Database.account.characters[award.recipientGuid]
-        local r, g, b = Util.ClassColor(character and character.class)
+        local r, g, b = Theme.ClassColor(character and character.class)
         cells.who:SetText(Util.ShortName(award.recipientName))
         cells.who:SetTextColor(r, g, b)
     else

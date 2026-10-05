@@ -190,9 +190,9 @@ function MainFrame:Create()
     content:SetPoint("TOPLEFT", frame, "TOPLEFT", insets.left + 4, insets.top - 4)
     content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", insets.right - 4, insets.bottom + 4)
     if not self.native then
-        if Theme.look == "forge" then
-            -- Der Inhalt eine Spur dunkler als der Rahmen: wie eingelassen.
-            Theme.TexturedFill(content, Theme.MEDIA.stone, { 0.10, 0.092, 0.084, 1 })
+        if Theme.Look() then
+            -- Der Inhalt eine Spur abgesetzt vom Rahmen: wie eingelassen.
+            Theme.LookFill(content, Theme.Look().content)
         else
             Theme.TexturedFill(content, "Interface\\FrameGeneral\\UI-Background-Rock",
                 { 0.42, 0.50, 0.46, 1 })
@@ -293,9 +293,10 @@ function MainFrame:BuildFallbackHeader()
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -inset)
     header:SetHeight(Theme.size.headerHeight)
     local emblem
-    if Theme.look == "forge" then
-        -- Schmiede: Stahlleiste mit dem Gildenlogo als Wappen.
-        Theme.MetalFill(header, { 0.36, 0.33, 0.30, 1 })
+    local look = Theme.Look()
+    if look then
+        -- Eigener Look: Metallleiste in der Farbe des Looks, Gildenlogo als Wappen.
+        Theme.MetalFill(header, look.header)
         Theme.Edge(header, "BOTTOM", { 0.043, 0.039, 0.035, 1 })
         if Theme.Media("logo") then
             emblem = header:CreateTexture(nil, "ARTWORK")
@@ -309,11 +310,12 @@ function MainFrame:BuildFallbackHeader()
     end
 
     local brand = Theme.Label(header, "Guild Armory", fonts.big,
-        Theme.look == "forge" and Theme.color.heading or Theme.color.gold)
+        look and (look.headerText or Theme.color.heading) or Theme.color.gold)
     if emblem then brand:SetPoint("LEFT", emblem, "RIGHT", 10, 0)
     else brand:SetPoint("LEFT", header, "LEFT", 14, 0) end
     if brand.SetShadowOffset then brand:SetShadowOffset(1, -1) end
-    local tagline = Theme.Label(header, "Forever Edition", fonts.small, Theme.color.textFaint)
+    local tagline = Theme.Label(header, "Forever Edition", fonts.small,
+        look and look.headerSub or Theme.color.textFaint)
     tagline:SetPoint("LEFT", brand, "RIGHT", 8, -1)
 
     local close = Widgets.Button(header, "X", function() MainFrame:Hide() end)

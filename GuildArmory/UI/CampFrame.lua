@@ -400,7 +400,7 @@ function CampFrame:Refresh()
     for index = 1, sichtbar do
         local data = rows[self.offset + index]
         local row = self:Row(index)
-        local r, g, b = Util.ClassColor(data.class)
+        local r, g, b = Theme.ClassColor(data.class)
         row.name:SetText(data.name)
         row.name:SetTextColor(r, g, b)
 
@@ -604,7 +604,7 @@ function CampFrame:ShowPlacement(info)
     local popup = self:Popup()
     popup.info = info
 
-    local r, g, b = Util.ClassColor(self:ClassOf(info.name))
+    local r, g, b = Theme.ClassColor(self:ClassOf(info.name))
     popup.text:SetText(string.format(L.CAMP_PLACED_BY,
         string.format("|cff%02x%02x%02x%s|r", math.floor(r * 255 + 0.5),
             math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5), info.name),

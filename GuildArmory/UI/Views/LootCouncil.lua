@@ -586,7 +586,7 @@ function LootCouncil:UpdateCandidateRow(row, entry)
     zeigeAlle(row.candidateWidgets, true)
 
     local candidate = entry
-    local r, g, b = Util.ClassColor(candidate.class)
+    local r, g, b = Theme.ClassColor(candidate.class)
     if candidate.class and Theme.SetClassPortrait(row.crest, candidate.class) then
         row.crest:Show()
     else
@@ -850,7 +850,7 @@ function LootCouncil:RefreshDecision(candidates, session)
     self.leader = leader
 
     if leader then
-        local r, g, b = Util.ClassColor(leader.class)
+        local r, g, b = Theme.ClassColor(leader.class)
         if leader.class and Theme.SetClassPortrait(self.leaderCrest, leader.class) then
             self.leaderCrest:Show()
         else
@@ -887,7 +887,7 @@ function LootCouncil:RefreshDecision(candidates, session)
     for index, row in ipairs(self.tally) do
         local candidate = sortiert[index]
         if candidate then
-            local r, g, b = Util.ClassColor(candidate.class)
+            local r, g, b = Theme.ClassColor(candidate.class)
             row.name:SetText(candidate.name)
             row.name:SetTextColor(r, g, b)
             row.count:SetText(tostring(candidate.votes))

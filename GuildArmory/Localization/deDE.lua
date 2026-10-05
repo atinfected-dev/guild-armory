@@ -707,8 +707,15 @@ GA.Core.Locale:Register("deDE", {
     SET_LANGUAGE_RELOAD = "Vollstaendig erst nach einem /reload — was schon im Fenster steht, wurde in der alten Sprache geschrieben.",
 
     BTN_RELOAD         = "Jetzt neu laden",
-    SET_LOOK_BLIZZARD  = "Blizzard-Fenster statt Schmiede-Look",
-    SET_LOOK_BLIZZARD_HINT = "Das Addon zeichnet eigene Rahmen, Knoepfe und Balken aus Stahl und Glut. Eingeschaltet: Blizzards Fensterrahmen und Knoepfe wie bisher. Wirkt nach einem /reload.",
+    SET_UI_LANGUAGE    = "UI + Sprache",
+    SET_SUB_UI_LANGUAGE = "Aussehen des Addons und seine Sprache",
+    SET_LOOK           = "Aussehen",
+    SET_LOOK_HINT      = "Schmiede: Stahl, Stein und Glut. Forever Twilight: Daemmerungshimmel, Juwel-Tuerkis und Bronze, nach der WoW-Forever-Seite. Codex: Pergament, Tinte und Siegelwachs — der einzige helle Look. Blizzard: die Fensterrahmen des Spiels, wie bisher.",
+    SET_LOOK_FORGE     = "Schmiede",
+    SET_LOOK_TWILIGHT  = "Forever Twilight",
+    SET_LOOK_CODEX     = "Codex",
+    SET_LOOK_BLIZZARD  = "Blizzard",
+    SET_LOOK_RELOAD    = "Das neue Aussehen wirkt nach einem /reload. Neue Texturdateien brauchen einmal einen kompletten Neustart des Spiels.",
 
     -- /ga
     DASH_TRADABLES     = "Tauschbare Gegenstaende",

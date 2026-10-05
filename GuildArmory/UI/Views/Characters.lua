@@ -356,7 +356,7 @@ function Characters:UpdateCard(card, profile)
     local roleColor = Theme.color[ROLE_COLOR[role] or "borderLit"]
     Theme.Paint(card.edge, roleColor)
 
-    local r, g, b = Util.ClassColor(main and main.class)
+    local r, g, b = Theme.ClassColor(main and main.class)
     if main and main.class and Theme.SetClassPortrait(card.crest, main.class) then
         card.crest:Show()
     else
@@ -392,7 +392,7 @@ function Characters:UpdateCard(card, profile)
         local alt = card.alts[index] or buildAlt(card, index)
         local origin = profile.origin and profile.origin[character.guid] or Players.ORIGIN_MANUAL
         self:DrawSegments(alt.line, origin, 10)
-        local ar, ag, ab = Util.ClassColor(character.class)
+        local ar, ag, ab = Theme.ClassColor(character.class)
         if character.class and Theme.SetClassPortrait(alt.crest, character.class) then
             alt.crest:Show()
         else
@@ -539,7 +539,7 @@ function Characters:UpdateCharacterRow(row, character, kind)
     local profile = Players:GetProfileFor(character.guid)
     local isMain = profile and profile.mainGuid == character.guid
 
-    local r, g, b = Util.ClassColor(character.class)
+    local r, g, b = Theme.ClassColor(character.class)
     if character.class and Theme.SetClassPortrait(row.crest, character.class) then
         row.crest:Show()
     else

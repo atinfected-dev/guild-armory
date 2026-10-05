@@ -448,7 +448,7 @@ function CraftingView:UpdateCrafterRow(row, entry)
 
     row.nameText:SetText(entry.name or L.UNKNOWN)
     if class then
-        row.nameText:SetTextColor(Util.ClassColor(class))
+        row.nameText:SetTextColor(Theme.ClassColor(class))
     else
         row.nameText:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
     end
@@ -765,7 +765,7 @@ function CraftingView:Refresh()
         end
         local farbe
         if class then
-            local r, g, b = Util.ClassColor(class)
+            local r, g, b = Theme.ClassColor(class)
             farbe = { r, g, b }
         end
         self:SetHeader(class and ("class:" .. class) or false,

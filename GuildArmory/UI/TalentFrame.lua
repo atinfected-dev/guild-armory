@@ -281,7 +281,7 @@ function TalentFrame:Show(character)
     local frame = self:Create()
     clear(frame)
 
-    local cr, cg, cb = Util.ClassColor(character.class)
+    local cr, cg, cb = Theme.ClassColor(character.class)
     frame.title:SetText(character.name or "?")
     frame.title:SetTextColor(cr, cg, cb)
     if character.class and Theme.SetClassPortrait(frame.crest, character.class) then frame.crest:Show() else frame.crest:Hide() end

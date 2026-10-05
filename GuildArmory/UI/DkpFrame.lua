@@ -104,7 +104,7 @@ function DkpFrame:Create()
             row.points:SetJustifyH("RIGHT")
         end,
         updateRow = function(row, entry)
-            row.nameText:SetText(Util.ColorByClass(entry.name or "?", entry.class))
+            row.nameText:SetText(Theme.ColorByClass(entry.name or "?", entry.class))
             row.points:SetText(tostring(entry.total))
             -- Ein Konto bei null faellt auf. Das ist die Zahl, bei der
             -- jemand nicht mitbieten kann — und die er selten selbst sagt.

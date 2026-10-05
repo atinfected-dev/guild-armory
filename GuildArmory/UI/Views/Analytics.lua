@@ -214,7 +214,7 @@ function AnalyticsView:UpdateRow(row, entry)
     row.label:SetText(label)
     local class = entry.extra and entry.extra.class
     if class then
-        local r, g, b = Util.ClassColor(class)
+        local r, g, b = Theme.ClassColor(class)
         row.label:SetTextColor(r, g, b)
     elseif entry.label == nil then
         row.label:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])

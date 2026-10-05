@@ -349,7 +349,7 @@ function View:FillCard(card, run)
     card.run = run
     card.time:SetText(date("%H:%M", run.at or 0))
     card.dungeon:SetText(run.dungeon or "?")
-    card.leader:SetText(Util.ColorByClass(run.leader or "?", run.class))
+    card.leader:SetText(Theme.ColorByClass(run.leader or "?", run.class))
 
     local teile = {}
     if run.note and run.note ~= "" then teile[#teile + 1] = run.note end
@@ -403,7 +403,7 @@ function View:FillCard(card, run)
             local me = Compat.GetPlayerIdentity().name
             local mine = me and Util.ShortName(me) == slot.name
             box.name:SetText(mine and L.DH_YOU or slot.name)
-            local r, g, b = Util.ClassColor(slot.class)
+            local r, g, b = Theme.ClassColor(slot.class)
             if mine then r, g, b = Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3] end
             box.name:SetTextColor(r, g, b)
             for _, line in ipairs(box.lines) do Theme.Paint(line, mine and Theme.color.goldDim or Theme.color.border) end

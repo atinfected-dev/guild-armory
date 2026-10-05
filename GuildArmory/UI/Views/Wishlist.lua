@@ -180,7 +180,7 @@ function WishlistView:Create(parent)
 
             -- Interessent oder Hinweiszeile.
             row.icon:Hide()
-            local r, g, b = Util.ClassColor(entry.class)
+            local r, g, b = Theme.ClassColor(entry.class)
             row.name:SetText(entry.name)
             row.name:SetTextColor(r, g, b)
 

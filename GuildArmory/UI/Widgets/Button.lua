@@ -73,19 +73,24 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     local button = CreateFrame("Button", nil, parent)
     button:SetHeight(20)
 
-    -- Schmiede: Kupfer fuer die Hauptaktion, Stahl fuer den Rest.
-    local forge = Theme.look == "forge"
-    local TINT = isPrimary and { 0.86, 0.40, 0.13, 1 } or { 0.34, 0.32, 0.30, 1 }
-    local TINT_HOVER = isPrimary and { 1.00, 0.55, 0.22, 1 } or { 0.46, 0.43, 0.40, 1 }
+    -- Eigener Look: Metall in den Farben des Looks (Schmiede: Kupfer und
+    -- Stahl; Twilight: Juwel und Tiefsee; Codex: Wachs und Pergament).
+    local look = Theme.Look()
+    local forge = look ~= nil
+    local TINT = look and (isPrimary and look.btnPrimary or look.btnSecondary)
+    local TINT_HOVER = look and (isPrimary and look.btnPrimaryHover or look.btnSecondaryHover)
     local background = Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
     if forge then Theme.Metal(background, TINT) end
-    local lines = Theme.Outline(button, forge and { 0.043, 0.039, 0.035, 1 }
+    local lines = Theme.Outline(button, forge and look.btnLine
         or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
 
     local label = Theme.Label(button, string.upper(text or ""), fonts.small,
         isPrimary and Theme.color.goldBright
-        or (Theme.look == "forge" and Theme.color.text or Theme.color.goldMid))
-    if Theme.look == "forge" and label.SetShadowOffset then label:SetShadowOffset(1, -1) end
+        or (forge and Theme.color.text or Theme.color.goldMid))
+    if forge and label.SetShadowOffset then
+        -- Schatten nur, wo die Schrift hell ist: Tinte auf Pergament bekommt keinen.
+        label:SetShadowOffset((isPrimary or not look.light) and 1 or 0, (isPrimary or not look.light) and -1 or 0)
+    end
     label:SetPoint("CENTER", button, "CENTER", 0, 0)
 
     button:SetWidth(label:GetStringWidth() + 22)
@@ -128,7 +133,7 @@ function Widgets.FlatButton(parent, text, onClick, variant)
         if enabled then
             self:Enable()
             local color = isPrimary and Theme.color.goldBright
-                or (Theme.look == "forge" and Theme.color.text or Theme.color.goldMid)
+                or (Theme.Look() and Theme.color.text or Theme.color.goldMid)
             label:SetTextColor(color[1], color[2], color[3])
             self.tooltip = nil
         else
@@ -394,11 +399,13 @@ function Widgets.Tab(owner, index, text, onClick)
 
     function tab:SetSelected(selected)
         self.selected = selected and true or false
-        local color = self.selected and Theme.color.gold or Theme.color.textDim
+        local look = Theme.Look()
+        local color = self.selected and Theme.color.gold
+            or (look and look.tabIdleText or Theme.color.textDim)
         label:SetTextColor(color[1], color[2], color[3])
-        if Theme.look == "forge" then
-            -- Stahlreiter; der gewaehlte gluehend angelaufen.
-            Theme.Metal(background, self.selected and { 0.46, 0.30, 0.18, 1 } or { 0.24, 0.22, 0.21, 1 })
+        if look then
+            -- Metallreiter; der gewaehlte in der Akzentfarbe des Looks.
+            Theme.Metal(background, self.selected and look.tabSelected or look.tabIdle)
         else
             Theme.Paint(background, self.selected and Theme.color.panelBg or Theme.color.sidebarBg)
         end

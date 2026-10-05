@@ -122,6 +122,12 @@ local function makeFont(key, path, size, flags, fallback)
         return fallback
     end
 
+    -- Grundfarbe aus dem Look: Wer die Schrift setzt und keine Farbe, soll
+    -- auf dem hellen Codex nicht weiss auf Pergament schreiben.
+    if font.SetTextColor and Theme.color.text then
+        local c = Theme.color.text
+        font:SetTextColor(c[1], c[2], c[3])
+    end
     created[key] = font
     return font
 end
@@ -160,84 +166,211 @@ function Theme.Fonts()
     }
 end
 
--- ------------------------------------------------------- Look: Schmiede ---
+-- ---------------------------------------------------------------- Looks -----
 --
--- Entwurf B "Ironforge Ember" (05.10.2026, vom Nutzer gewaehlt aus drei
--- Vorschlaegen): Stahl, Steinmaserung, Glut statt Gold. Eigene Texturen in
--- Media/, keine Blizzard-Grafik. Der alte Look bleibt in den Einstellungen
--- waehlbar ("blizzard") — dann gilt alles hier nicht.
+-- Drei eigene Looks aus den Entwuerfen vom 05.10.2026 plus Blizzards Fenster.
+-- Der Nutzer waehlt unter Einstellungen › UI + Language:
+--
+--   forge     Entwurf B "Ironforge Ember": Stahl, Steinmaserung, Glut.
+--   twilight  Entwurf A "Forever Twilight": Daemmerungshimmel wie die
+--             Forever-Seite, Juwel-Tuerkis, Bronze.
+--   codex     Entwurf C "Codex": Pergament, Tinte, Siegelwachs. Der einzige
+--             HELLE Look — Klassenfarben werden dafuer abgedunkelt.
+--   blizzard  Blizzards Vorlagen wie vor 0.1.35.
 --
 -- WIE ES WIRKT: Theme.ApplyLook() tauscht die Farbwerte DIESER Tabelle aus,
 -- sobald die Datenbank steht (Core/Events.lua). Alles, was Theme.color.x zur
 -- Laufzeit liest, folgt damit von selbst. Und Theme.CreateNative verweigert
 -- die rein optischen Blizzard-Vorlagen (Portraitfenster, Knopf, Reiter,
--- Einlage): Dann greifen ueberall die selbst gezeichneten Rueckfaelle, die
--- es schon gibt — und die tragen hier die Schmiede-Texturen.
+-- Einlage): Dann greifen ueberall die selbst gezeichneten Rueckfaelle, und
+-- die tragen die Texturen des Looks. Ein Wechsel wirkt nach /reload.
 --
--- NEUE DATEIEN IN Media/ LAEDT DER CLIENT ERST NACH EINEM NEUSTART des
--- Spiels, nicht nach /reload. Jede Textur wird darum ueber TextureExists
--- geprueft; laedt sie nicht, bleibt die flache Farbe.
+-- Eigene Texturen in Media/, keine Blizzard-Grafik. NEUE DATEIEN DORT LAEDT
+-- DER CLIENT ERST NACH EINEM NEUSTART des Spiels, nicht nach /reload. Jede
+-- Textur wird darum ueber TextureExists geprueft; laedt sie nicht, bleibt die
+-- flache Farbe.
 
+local M = [[Interface\AddOns\GuildArmory\Media\]]
 Theme.MEDIA = {
-    stone  = [[Interface\AddOns\GuildArmory\Media\Stone.tga]],
-    metal  = [[Interface\AddOns\GuildArmory\Media\Metal.tga]],
-    molten = [[Interface\AddOns\GuildArmory\Media\Molten.tga]],
-    notch  = [[Interface\AddOns\GuildArmory\Media\Notch.tga]],
-    rivet  = [[Interface\AddOns\GuildArmory\Media\Rivet.tga]],
-    glow   = [[Interface\AddOns\GuildArmory\Media\Glow.tga]],
-    logo   = [[Interface\AddOns\GuildArmory\Media\Logo.tga]],
+    stone     = M .. "Stone.tga",
+    metal     = M .. "Metal.tga",
+    molten    = M .. "Molten.tga",
+    notch     = M .. "Notch.tga",
+    rivet     = M .. "Rivet.tga",
+    glow      = M .. "Glow.tga",
+    logo      = M .. "Logo.tga",
+    sky       = M .. "Sky.tga",
+    jewel     = M .. "Jewel.tga",
+    parchment = M .. "Parchment.tga",
+    wax       = M .. "Wax.tga",
 }
 
---- Die Palette der Schmiede. Dieselben Schluessel wie oben; "gold" heisst
---- hier Glut — die Namen bleiben, damit kein Aufrufer umgeschrieben werden muss.
-Theme.FORGE_PALETTE = {
-    windowBg   = { 0.075, 0.067, 0.063, 0.97 },  -- Kohle      #131110
-    sidebarBg  = { 0.090, 0.082, 0.075, 1.00 },  --            #171513
-    panelBg    = { 0.118, 0.106, 0.094, 1.00 },  -- Amboss     #1e1b18
-    rowBg      = { 0.141, 0.129, 0.118, 1.00 },  --            #24211e
-    rowAltBg   = { 0.102, 0.094, 0.086, 1.00 },  --            #1a1816
-    rowHover   = { 0.180, 0.157, 0.137, 1.00 },  --            #2e2823
-    border     = { 0.290, 0.271, 0.251, 1.00 },  -- Stahl dunkel #4a4540
-    borderLit  = { 0.420, 0.396, 0.365, 1.00 },  -- Stahl      #6b655d
-    divider    = { 0.165, 0.149, 0.133, 1.00 },  --            #2a2622
-    text       = { 0.925, 0.894, 0.839 },        -- Asche      #ece4d6
-    textDim    = { 0.655, 0.616, 0.557 },        --            #a79d8e
-    textFaint  = { 0.463, 0.427, 0.380 },        --            #766d61
-    heading    = { 0.953, 0.773, 0.541 },        --            #f3c58a
-    gold       = { 0.961, 0.706, 0.416 },        -- Glut hell  #f5b46a
-    goldBright = { 1.000, 0.886, 0.737 },        --            #ffe2bc
-    goldMid    = { 0.886, 0.443, 0.169 },        -- Glut       #e2712b
-    goldDim    = { 0.659, 0.322, 0.110 },        --            #a8521c
-    goldDeep   = { 0.290, 0.137, 0.063, 1.00 },  -- Zunder     #4a2310
+--- Reihenfolge der Knoepfe in den Einstellungen.
+Theme.LOOK_ORDER = { "forge", "twilight", "codex", "blizzard" }
+Theme.DEFAULT_LOOK = "forge"
+
+local BLACK = { 0.043, 0.039, 0.035, 1 }
+
+--- Je Look: Palette (dieselben Schluessel wie Theme.color — "gold" ist dort
+--- der Akzent, auch wenn er Glut, Tuerkis oder Wachs ist) und die Texturen
+--- fuer Fenster, Inhalt, Kopfleiste, Knoepfe, Reiter und Balken.
+Theme.LOOKS = {
+    forge = {
+        palette = {
+            windowBg   = { 0.075, 0.067, 0.063, 0.97 },  -- Kohle      #131110
+            sidebarBg  = { 0.090, 0.082, 0.075, 1.00 },
+            panelBg    = { 0.118, 0.106, 0.094, 1.00 },  -- Amboss     #1e1b18
+            rowBg      = { 0.141, 0.129, 0.118, 1.00 },
+            rowAltBg   = { 0.102, 0.094, 0.086, 1.00 },
+            rowHover   = { 0.180, 0.157, 0.137, 1.00 },
+            border     = { 0.290, 0.271, 0.251, 1.00 },  -- Stahl dunkel
+            borderLit  = { 0.420, 0.396, 0.365, 1.00 },  -- Stahl
+            divider    = { 0.165, 0.149, 0.133, 1.00 },
+            text       = { 0.925, 0.894, 0.839 },        -- Asche
+            textDim    = { 0.655, 0.616, 0.557 },
+            textFaint  = { 0.463, 0.427, 0.380 },
+            heading    = { 0.953, 0.773, 0.541 },
+            gold       = { 0.961, 0.706, 0.416 },        -- Glut hell
+            goldBright = { 1.000, 0.886, 0.737 },
+            goldMid    = { 0.886, 0.443, 0.169 },        -- Glut
+            goldDim    = { 0.659, 0.322, 0.110 },
+            goldDeep   = { 0.290, 0.137, 0.063, 1.00 },  -- Zunder
+        },
+        window  = { tex = "stone", tile = true, tint = { 0.15, 0.137, 0.123, 0.98 } },
+        content = { tex = "stone", tile = true, tint = { 0.10, 0.092, 0.084, 1 } },
+        outer = BLACK, rivet = { 0.78, 0.74, 0.68, 1 },
+        header = { 0.36, 0.33, 0.30, 1 },
+        btnPrimary = { 0.86, 0.40, 0.13, 1 }, btnPrimaryHover = { 1.00, 0.55, 0.22, 1 },
+        btnSecondary = { 0.34, 0.32, 0.30, 1 }, btnSecondaryHover = { 0.46, 0.43, 0.40, 1 },
+        btnLine = BLACK,
+        tabSelected = { 0.46, 0.30, 0.18, 1 }, tabIdle = { 0.24, 0.22, 0.21, 1 },
+        bar = "molten", trough = { 0.035, 0.031, 0.028, 1 },
+    },
+
+    twilight = {
+        palette = {
+            windowBg   = { 0.039, 0.078, 0.133, 0.97 },  -- Daemmerung #0a1422
+            sidebarBg  = { 0.031, 0.071, 0.125, 1.00 },
+            panelBg    = { 0.059, 0.133, 0.204, 1.00 },  -- Tiefsee    #0f2234
+            rowBg      = { 0.075, 0.161, 0.239, 1.00 },
+            rowAltBg   = { 0.047, 0.110, 0.173, 1.00 },
+            rowHover   = { 0.094, 0.212, 0.314, 1.00 },
+            border     = { 0.369, 0.302, 0.212, 1.00 },  -- Bronze dunkel
+            borderLit  = { 0.659, 0.525, 0.353, 1.00 },  -- Bronze     #a8865a
+            divider    = { 0.102, 0.188, 0.271, 1.00 },
+            text       = { 0.910, 0.886, 0.831 },
+            textDim    = { 0.624, 0.698, 0.737 },
+            textFaint  = { 0.424, 0.510, 0.565 },
+            heading    = { 0.918, 0.851, 0.761 },        -- Pergament  #ead9c2
+            gold       = { 0.373, 0.878, 0.902 },        -- Juwel hell #5fe0e6
+            goldBright = { 0.867, 0.984, 0.988 },
+            goldMid    = { 0.224, 0.714, 0.761 },        -- Juwel      #39b6c2
+            goldDim    = { 0.122, 0.498, 0.541 },
+            goldDeep   = { 0.055, 0.235, 0.275, 1.00 },
+        },
+        window  = { tex = "sky", tile = false, tint = { 1, 1, 1, 0.98 } },
+        content = { fill = { 0.035, 0.075, 0.12, 0.72 } },
+        outer = { 0.659, 0.525, 0.353, 1 }, inner = { 0.224, 0.714, 0.761, 0.45 },
+        rivet = { 0.86, 0.70, 0.46, 1 },
+        header = { 0.13, 0.24, 0.34, 1 },
+        btnPrimary = { 0.17, 0.66, 0.71, 1 }, btnPrimaryHover = { 0.30, 0.85, 0.90, 1 },
+        btnSecondary = { 0.16, 0.24, 0.32, 1 }, btnSecondaryHover = { 0.22, 0.34, 0.44, 1 },
+        btnLine = { 0.659, 0.525, 0.353, 1 },
+        tabSelected = { 0.14, 0.45, 0.50, 1 }, tabIdle = { 0.10, 0.17, 0.24, 1 },
+        bar = "jewel", trough = { 0.024, 0.063, 0.102, 1 },
+    },
+
+    codex = {
+        light = true,
+        palette = {
+            windowBg   = { 0.914, 0.859, 0.733, 0.98 },  -- Vellum     #e9dbbb
+            sidebarBg  = { 0.886, 0.824, 0.682, 1.00 },
+            panelBg    = { 0.949, 0.906, 0.800, 1.00 },
+            rowBg      = { 0.918, 0.863, 0.741, 1.00 },
+            rowAltBg   = { 0.894, 0.831, 0.698, 1.00 },
+            rowHover   = { 0.863, 0.780, 0.620, 1.00 },
+            border     = { 0.549, 0.455, 0.337, 1.00 },
+            borderLit  = { 0.369, 0.290, 0.212, 1.00 },  -- Sepia
+            divider    = { 0.804, 0.725, 0.569, 1.00 },
+            text       = { 0.169, 0.114, 0.071 },        -- Tinte      #2b1d12
+            textDim    = { 0.369, 0.290, 0.212 },
+            textFaint  = { 0.502, 0.416, 0.322 },
+            heading    = { 0.431, 0.122, 0.086 },        -- Wachs dunkel
+            gold       = { 0.561, 0.165, 0.122 },        -- Siegelwachs #8f2a1f
+            goldBright = { 0.973, 0.922, 0.816 },
+            goldMid    = { 0.561, 0.165, 0.122 },
+            goldDim    = { 0.722, 0.537, 0.184 },        -- Blattgold  #b8892f
+            goldDeep   = { 0.431, 0.122, 0.086, 1.00 },
+            -- Zustaende und Rollen dunkler: hell auf Pergament waere unlesbar.
+            good       = { 0.200, 0.450, 0.180 },
+            warn       = { 0.620, 0.400, 0.050 },
+            bad        = { 0.620, 0.160, 0.100 },
+            info       = { 0.180, 0.360, 0.620 },
+            jade       = { 0.180, 0.480, 0.370 },
+            TANK       = { 0.180, 0.370, 0.560 },
+            HEALER     = { 0.180, 0.480, 0.370 },
+            DAMAGER    = { 0.560, 0.170, 0.120 },
+        },
+        window  = { tex = "parchment", tile = true, tint = { 1, 1, 1, 1 } },
+        content = { tex = "parchment", tile = true, tint = { 0.97, 0.95, 0.90, 1 } },
+        outer = { 0.16, 0.11, 0.07, 1 }, inner = { 0.722, 0.537, 0.184, 1 },
+        rivet = { 0.85, 0.65, 0.25, 1 },
+        header = { 0.42, 0.27, 0.16, 1 },
+        headerText = { 0.965, 0.914, 0.788 }, headerSub = { 0.85, 0.76, 0.60 },
+        btnPrimary = { 0.70, 0.20, 0.15, 1 }, btnPrimaryHover = { 0.85, 0.28, 0.20, 1 },
+        btnSecondary = { 0.95, 0.90, 0.80, 1 }, btnSecondaryHover = { 1.00, 0.97, 0.88, 1 },
+        btnLine = { 0.24, 0.16, 0.10, 1 },
+        tabSelected = { 0.98, 0.95, 0.86, 1 }, tabIdle = { 0.66, 0.56, 0.42, 1 },
+        tabIdleText = { 0.169, 0.114, 0.071 },
+        bar = "wax", trough = { 0.98, 0.95, 0.87, 1 },
+    },
 }
 
---- Diese Vorlagen sind nur Optik; im Schmiede-Look zeichnet das Addon selbst.
---- Eingabefelder, Suchfeld und Haken bleiben nativ: Ihre Rueckfaelle sind
---- nicht ueberall vorhanden, und sie tragen Verhalten, nicht nur Aussehen.
-Theme.FORGE_SKIP = {
+--- Fuer Aufrufer und Tests aus der ersten Fassung (nur Schmiede).
+Theme.FORGE_PALETTE = Theme.LOOKS.forge.palette
+
+--- Diese Vorlagen sind nur Optik; mit einem eigenen Look zeichnet das Addon
+--- selbst. Eingabefelder, Suchfeld und Haken bleiben nativ: Ihre Rueckfaelle
+--- sind nicht ueberall vorhanden, und sie tragen Verhalten, nicht nur Aussehen.
+Theme.NATIVE_SKIP = {
     PortraitFrameTemplate = true,
     UIPanelButtonTemplate = true,
     PanelTabButtonTemplate = true,
     CharacterFrameTabButtonTemplate = true,
     InsetFrameTemplate = true,
 }
+Theme.FORGE_SKIP = Theme.NATIVE_SKIP
 
---- Welcher Look gilt? "forge" (Standard) oder "blizzard".
-function Theme.IsForge()
+--- Der gewaehlte Look laut Einstellung: "forge" | "twilight" | "codex" | "blizzard".
+function Theme.LookKey()
     local Config = GA.Core and GA.Core.Config
-    if not Config or not Config.Get then return false end
+    if not Config or not Config.Get then return Theme.DEFAULT_LOOK end
     local ok, value = pcall(Config.Get, Config, "uiLook")
-    return ok and value ~= "blizzard"
+    if not ok then return Theme.DEFAULT_LOOK end
+    if value == "blizzard" or Theme.LOOKS[value] then return value end
+    return Theme.DEFAULT_LOOK
+end
+
+--- Gilt ein eigener Look (irgendeiner ausser Blizzard)?
+function Theme.IsForge()
+    return Theme.LookKey() ~= "blizzard"
+end
+
+--- Die Beschreibung des laufenden Looks, oder nil bei Blizzard.
+function Theme.Look()
+    return Theme.look and Theme.LOOKS[Theme.look] or nil
 end
 
 --- Einmal nach dem Laden der Datenbank: Farben tauschen, Look merken.
 function Theme.ApplyLook()
-    if not Theme.IsForge() then
+    local key = Theme.LookKey()
+    local def = Theme.LOOKS[key]
+    if not def then
         Theme.look = "blizzard"
         return
     end
-    for key, value in pairs(Theme.FORGE_PALETTE) do Theme.color[key] = value end
-    Theme.look = "forge"
+    for name, value in pairs(def.palette) do Theme.color[name] = value end
+    Theme.look = key
 end
 
 local mediaLoads = {}
@@ -266,20 +399,36 @@ function Theme.MetalFill(frame, tint, layer)
     return Theme.Metal(texture, tint)
 end
 
-local function goldish(color)
+--- Flaeche nach einer Beschreibung { tex, tile, tint } oder { fill }.
+function Theme.LookFill(frame, spec, layer)
+    if spec.fill then return Theme.Fill(frame, spec.fill, layer) end
+    if spec.tile then return Theme.TexturedFill(frame, Theme.MEDIA[spec.tex], spec.tint, layer) end
+    local texture = frame:CreateTexture(nil, layer or "BACKGROUND")
+    texture:SetAllPoints(frame)
+    local path = Theme.Media(spec.tex)
+    if path and pcall(texture.SetTexture, texture, path) then
+        local t = spec.tint
+        texture:SetVertexColor(t[1], t[2], t[3], t[4] or 1)
+        return texture
+    end
+    return Theme.Paint(texture, Theme.color.windowBg)
+end
+
+local function accent(color)
     local c = Theme.color
     return color == nil or color == c.gold or color == c.goldDim or color == c.goldMid
         or color == c.goldDeep or color == c.goldBright or color == c.warn
 end
 
---- Fuellung eines Fortschrittsbalkens. Im Schmiede-Look: Gluehendes Metall
---- fuer die Akzentfarbe, Stahl in der Wunschfarbe fuer alles andere (Rollen,
---- Zustaende). Sonst flach wie bisher.
+--- Fuellung eines Fortschrittsbalkens: die Balkentextur des Looks (Glut,
+--- Juwel, Wachs) fuer die Akzentfarbe, Stahl in der Wunschfarbe fuer alles
+--- andere (Rollen, Zustaende). Bei Blizzard flach wie bisher.
 function Theme.BarFill(texture, color)
     color = color or Theme.color.gold
-    if Theme.look == "forge" then
-        if goldish(color) then
-            local path = Theme.Media("molten")
+    local look = Theme.Look()
+    if look then
+        if accent(color) then
+            local path = Theme.Media(look.bar)
             if path and pcall(texture.SetTexture, texture, path) then
                 texture:SetVertexColor(1, 1, 1, 1)
                 return texture
@@ -287,8 +436,9 @@ function Theme.BarFill(texture, color)
         else
             local path = Theme.Media("metal")
             if path and pcall(texture.SetTexture, texture, path) then
-                texture:SetVertexColor(math.min(1, color[1] * 1.3), math.min(1, color[2] * 1.3),
-                    math.min(1, color[3] * 1.3), 1)
+                local k = look.light and 1 or 1.3
+                texture:SetVertexColor(math.min(1, color[1] * k), math.min(1, color[2] * k),
+                    math.min(1, color[3] * k), 1)
                 return texture
             end
         end
@@ -296,40 +446,43 @@ function Theme.BarFill(texture, color)
     return Theme.Paint(texture, color)
 end
 
---- Rinne eines Fortschrittsbalkens: tiefer als der Grund, damit die Glut leuchtet.
+--- Rinne eines Fortschrittsbalkens.
 function Theme.BarTrough(texture)
-    if Theme.look == "forge" then return Theme.Paint(texture, { 0.035, 0.031, 0.028, 1 }) end
+    local look = Theme.Look()
+    if look then return Theme.Paint(texture, look.trough) end
     return Theme.Paint(texture, Theme.color.windowBg)
 end
 
---- Rahmen der Schmiede: aussen schwarz, innen Stahl mit Glanzkante; beim
---- Fenster Steinmaserung und Nieten in den Ecken.
+--- Rahmen eines eigenen Looks: aussen dunkel (bei Twilight Bronze), innen
+--- eine Linie mit Glanzkante; beim Fenster die Flaeche des Looks und Nieten
+--- in den Ecken.
 --- @param kind string "window" | "panel"
 function Theme.ForgeFrame(frame, kind, bgColor)
     if frame.gaForge then return true end
     frame.gaForge = true
+    local look = Theme.Look() or Theme.LOOKS.forge
     local window = kind == "window"
 
     if window then
-        frame.gaFill = Theme.TexturedFill(frame, Theme.MEDIA.stone, { 0.15, 0.137, 0.123, 0.98 })
+        frame.gaFill = Theme.LookFill(frame, look.window)
     else
         frame.gaFill = Theme.Fill(frame, bgColor or Theme.color.panelBg)
     end
 
-    Theme.Outline(frame, { 0.043, 0.039, 0.035, 1 })
+    Theme.Outline(frame, window and look.outer or BLACK)
     local inner = CreateFrame("Frame", nil, frame)
     inner:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     inner:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-    Theme.Outline(inner, window and Theme.color.borderLit or Theme.color.border)
-    Theme.Edge(inner, "TOP", { 1, 1, 1, 0.08 }, 1)
+    Theme.Outline(inner, window and (look.inner or Theme.color.borderLit) or Theme.color.border)
+    Theme.Edge(inner, "TOP", look.light and { 1, 1, 1, 0.35 } or { 1, 1, 1, 0.08 }, 1)
 
     if window then
         local gap = CreateFrame("Frame", nil, frame)
         gap:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
         gap:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
-        Theme.Outline(gap, { 0.043, 0.039, 0.035, 1 })
+        Theme.Outline(gap, look.outer)
 
-        local rivet = Theme.Media("rivet")
+        local rivet = look.rivet and Theme.Media("rivet")
         if rivet then
             for _, corner in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
                 local dot = frame:CreateTexture(nil, "OVERLAY")
@@ -337,11 +490,50 @@ function Theme.ForgeFrame(frame, kind, bgColor)
                 dot:SetWidth(10) dot:SetHeight(10)
                 dot:SetPoint("CENTER", frame, corner, string.find(corner, "LEFT") and 3 or -3,
                     string.find(corner, "TOP") and -3 or 3)
-                dot:SetVertexColor(0.78, 0.74, 0.68, 1)
+                dot:SetVertexColor(look.rivet[1], look.rivet[2], look.rivet[3], 1)
             end
         end
     end
     return true
+end
+
+--- Klassenfarben fuer Text auf der Flaeche des Looks. Auf dem hellen Codex
+--- waeren Schurkengelb und Priesterweiss unlesbar — dort die Tintenfassung.
+local CLASS_INK = {
+    DRUID = { 0.635, 0.290, 0.000 }, ROGUE = { 0.478, 0.416, 0.000 }, WARRIOR = { 0.431, 0.310, 0.173 },
+    MAGE = { 0.059, 0.416, 0.522 }, WARLOCK = { 0.294, 0.298, 0.690 }, PRIEST = { 0.290, 0.290, 0.290 },
+    SHAMAN = { 0.000, 0.306, 0.612 }, PALADIN = { 0.627, 0.200, 0.416 }, HUNTER = { 0.294, 0.431, 0.118 },
+}
+
+function Theme.ClassColor(classFile)
+    local look = Theme.Look()
+    if look and look.light then
+        local ink = classFile and CLASS_INK[classFile]
+        if ink then return ink[1], ink[2], ink[3] end
+        local r, g, b = GA.Core.Util.ClassColor(classFile)
+        return r * 0.45, g * 0.45, b * 0.45
+    end
+    return GA.Core.Util.ClassColor(classFile)
+end
+
+function Theme.ColorByClass(text, classFile)
+    local r, g, b = Theme.ClassColor(classFile)
+    return string.format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, text or "")
+end
+
+--- Blizzards Eingabefeld auf einem hellen Look: helle Unterlage, Tinte als
+--- Schrift. Sonst stuende weisse Schrift auf Pergament.
+function Theme.StyleEditBox(box)
+    local look = Theme.Look()
+    if not look or not look.light or not box then return end
+    local back = box:CreateTexture(nil, "BACKGROUND", nil, -8)
+    back:SetPoint("TOPLEFT", box, "TOPLEFT", -4, 0)
+    back:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, 0)
+    Theme.Paint(back, { 0.99, 0.97, 0.91, 0.92 })
+    if box.SetTextColor then
+        local c = Theme.color.text
+        box:SetTextColor(c[1], c[2], c[3])
+    end
 end
 
 -- ------------------------------------------------------------- Hilfsmittel ---
@@ -576,7 +768,7 @@ end
 ---      wird der Backdrop wieder entfernt und false zurueckgegeben, damit der
 ---      Aufrufer den flachen Rahmen zeichnet.
 function Theme.Backdrop(frame, kind, bgColor, borderColor)
-    if Theme.look == "forge" then return Theme.ForgeFrame(frame, kind or "panel", bgColor) end
+    if Theme.Look() then return Theme.ForgeFrame(frame, kind or "panel", bgColor) end
     -- Schritt 1: deckende Flaeche, unabhaengig von allem Weiteren.
     if not frame.gaFill then
         frame.gaFill = Theme.Fill(frame, bgColor or Theme.color.panelBg)
@@ -894,7 +1086,7 @@ end
 --- @return Frame|nil frame   nil, wenn die Vorlage fehlt oder unvollstaendig ist
 --- @return string|nil reason
 function Theme.CreateNative(frameType, name, parent, template)
-    if Theme.look == "forge" and Theme.FORGE_SKIP[template] then
+    if Theme.look and Theme.look ~= "blizzard" and Theme.NATIVE_SKIP[template] then
         Theme.native[template] = false
         return nil, "forge"
     end
@@ -918,6 +1110,7 @@ function Theme.CreateNative(frameType, name, parent, template)
     end
 
     Theme.native[template] = true
+    if frameType == "EditBox" then Theme.StyleEditBox(frame) end
     return frame
 end
 

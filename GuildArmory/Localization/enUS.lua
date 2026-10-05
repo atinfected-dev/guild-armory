@@ -718,8 +718,15 @@ GA.Core.Locale:Register("enUS", {
     SET_LANGUAGE_RELOAD = "Takes full effect after a /reload — text already on screen was written in the old language.",
     SET_LANGUAGE_HINT  = "Default is English. \"Automatic\" follows the game client, which on Forever has been seen to change on its own.",
     BTN_RELOAD         = "Reload now",
-    SET_LOOK_BLIZZARD  = "Blizzard frames instead of the Forge look",
-    SET_LOOK_BLIZZARD_HINT = "The addon draws its own steel-and-ember frames, buttons and bars. Switch this on for Blizzard's window frames and buttons as before. Takes effect after a /reload.",
+    SET_UI_LANGUAGE    = "UI + Language",
+    SET_SUB_UI_LANGUAGE = "Look of the addon and its language",
+    SET_LOOK           = "Look",
+    SET_LOOK_HINT      = "Forge: steel, stone and ember. Forever Twilight: dusk sky, jewel teal and bronze, after the WoW: Forever site. Codex: parchment, ink and sealing wax — the one light look. Blizzard: the game's own window frames, as before.",
+    SET_LOOK_FORGE     = "Forge",
+    SET_LOOK_TWILIGHT  = "Forever Twilight",
+    SET_LOOK_CODEX     = "Codex",
+    SET_LOOK_BLIZZARD  = "Blizzard",
+    SET_LOOK_RELOAD    = "The new look takes effect after a /reload. New texture files need one full game restart.",
 
     -- /ga
     DASH_TRADABLES     = "Tradable Items",

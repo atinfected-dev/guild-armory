@@ -485,7 +485,7 @@ function Dashboard:BuildWhere(content, fonts)
                 return tostring(a.name or "") < tostring(b.name or "")
             end)
             for _, member in ipairs(liste) do
-                GameTooltip:AddDoubleLine(Util.ColorByClass(Util.ShortName(member.name or "?"), member.class),
+                GameTooltip:AddDoubleLine(Theme.ColorByClass(Util.ShortName(member.name or "?"), member.class),
                     member.level and tostring(member.level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
             end
             GameTooltip:Show()
@@ -526,7 +526,7 @@ function Dashboard:BuildWhere(content, fonts)
                     if member.class and Theme.SetClassPortrait(dot, member.class) then
                         dot:SetVertexColor(1, 1, 1, 1)
                     elseif member.class then
-                        Theme.Paint(dot, { Util.ClassColor(member.class) })
+                        Theme.Paint(dot, { Theme.ClassColor(member.class) })
                     else
                         Theme.Paint(dot, Theme.color.border)
                     end
@@ -656,7 +656,7 @@ function Dashboard:RefreshHubs()
     for index = 1, 2 do
         local request, line = requests[index], tile.lines[index]
         if request then
-            local wer = Util.ColorByClass(Util.ShortName(request.seeker or "?"), request.class)
+            local wer = Theme.ColorByClass(Util.ShortName(request.seeker or "?"), request.class)
             fillLine(line, request.title or "?",
                 (request.zone and (request.zone .. " \194\183 ") or "") .. wer .. " \194\183 " .. Util.TimeAgo(request.ts))
         else
@@ -690,7 +690,7 @@ function Dashboard:RefreshHubs()
                 elseif place and not place.name and Theme.SetRoleIcon(box, place.role) then
                     box:SetVertexColor(1, 1, 1, 0.75)
                 elseif place and place.name then
-                    local r, g, b = Util.ClassColor(place.class)
+                    local r, g, b = Theme.ClassColor(place.class)
                     Theme.Paint(box, { r or color[1], g or color[2], b or color[3], 1 })
                     box:SetVertexColor(1, 1, 1, 1)
                 else
@@ -842,7 +842,7 @@ function Dashboard:UpdateFeedRow(row, entry)
     end
 
     local what, tag, tagColor = self:DescribeActivity(entry)
-    local r, g, b = Util.ClassColor(entry.class)
+    local r, g, b = Theme.ClassColor(entry.class)
     row.text:SetText(string.format("%s %s", Util.Colorize(entry.name or "?", r, g, b), what))
     row.tag:SetText(tag)
     row.tag:SetTextColor(tagColor[1], tagColor[2], tagColor[3])
@@ -921,7 +921,7 @@ function Dashboard:RefreshHero(identity, character)
         for _, member in ipairs(GA.Modules.Guild:List()) do
             if member.rankIndex == 0 and member.name then
                 teile[#teile + 1] = string.format(L.DASH_GUILD_MASTER,
-                    Util.ColorByClass(Util.ShortName(member.name), member.class))
+                    Theme.ColorByClass(Util.ShortName(member.name), member.class))
                 break
             end
         end
@@ -1000,7 +1000,7 @@ function Dashboard:RefreshMine(identity, character)
     if not Theme.SetPortrait(self.portrait, "player") then
         Theme.Paint(self.portrait, Theme.color.rowAltBg)
     end
-    local r, g, b = Util.ClassColor(identity.class)
+    local r, g, b = Theme.ClassColor(identity.class)
     self.charName:SetText(Util.FullestName(identity.name, character and character.name) or "?")
     self.charName:SetTextColor(r, g, b)
 
@@ -1153,7 +1153,7 @@ function Dashboard:RefreshWhere()
     local feuer = Activity and Activity:Latest(Activity.CAMP)
     if feuer and (Util.Now() - (feuer.ts or 0)) < 1800 then
         self.campText:SetText(string.format(L.DASH_CAMP, tostring(feuer.zone or "?"),
-            Util.ColorByClass(feuer.name, feuer.class), Util.TimeAgo(feuer.ts)))
+            Theme.ColorByClass(feuer.name, feuer.class), Util.TimeAgo(feuer.ts)))
         self.camp:Show()
         self.zones:SetPoint("BOTTOMRIGHT", self.wherePanel.content, "BOTTOMRIGHT", 0, 34)
     else

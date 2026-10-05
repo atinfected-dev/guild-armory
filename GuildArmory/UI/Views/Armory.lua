@@ -341,7 +341,7 @@ end
 --- deshalb nichts Neues anlegen, nur setzen.
 function Armory:UpdateRow(row, character)
     local selected = character.guid == self.selectedGuid
-    local r, g, b = Util.ClassColor(character.class)
+    local r, g, b = Theme.ClassColor(character.class)
 
     -- Die gewaehlte Zeile: goldene Kante und der Hover-Grund, damit sie auch
     -- ohne Maus darueber als gewaehlt zu erkennen ist. ScrollList hat den
@@ -492,7 +492,7 @@ function Armory:RefreshDoll()
     end
 
     -- Kopf
-    local r, g, b = Util.ClassColor(character.class)
+    local r, g, b = Theme.ClassColor(character.class)
     self.name:SetText(character.name or "?")
     self.name:SetTextColor(r, g, b)
 
