@@ -113,15 +113,53 @@ local FONT_NARROW = [[Fonts\ARIALN.TTF]]    -- schmal, fuer Datenzeilen
 
 local created = {}
 
+--- Spielschriften fuer Alphabete, die die mitgelieferten Schriften nicht
+--- haben. Die Schriften der Looks kennen Latein samt Umlauten, aber kein
+--- Chinesisch, Koreanisch oder Kyrillisch — und in der Gilde steht ein
+--- Name in chinesischen Zeichen (05.10.2026).
+local FALLBACK_ALPHABETS = {
+    { alphabet = "korean",             file = [[Fonts\2002.TTF]] },
+    { alphabet = "simplifiedchinese",  file = [[Fonts\ARKai_T.ttf]] },
+    { alphabet = "traditionalchinese", file = [[Fonts\blei00d.TTF]] },
+    { alphabet = "russian",            file = [[Fonts\FRIZQT___CYR.TTF]] },
+}
+
+--- Eine Schriftfamilie: die Schrift des Looks fuer Latein, die Spielschriften
+--- fuer den Rest. Nur, wo der Client CreateFontFamily kennt.
+local function makeFamily(key, path, size, flags)
+    if type(_G.CreateFontFamily) ~= "function" then return nil end
+    local members = { { alphabet = "roman", file = path, height = size, flags = flags or "" } }
+    for _, entry in ipairs(FALLBACK_ALPHABETS) do
+        members[#members + 1] = { alphabet = entry.alphabet, file = entry.file, height = size, flags = flags or "" }
+    end
+    local ok, family = pcall(CreateFontFamily, "GuildArmoryFamily" .. key, members)
+    if ok and family then return family end
+    return nil
+end
+
 --- Erzeugt ein FontObject oder liefert den Rueckfall.
-local function makeFont(key, path, size, flags, fallback)
+---
+--- @param path string  die Schrift des Looks (oder die des Spiels)
+--- @param gamePath string|nil  die Spielschrift, falls path eine eigene ist:
+---   Neue Dateien laedt der Client erst nach einem Neustart — bis dahin
+---   schlaegt SetFont fehl, und dann gilt die Spielschrift.
+--- @param names boolean  traegt Spielernamen: dann als Familie mit Rueckfall
+---   fuer fremde Alphabete
+local function makeFont(key, path, size, flags, fallback, gamePath, names)
     if created[key] then return created[key] end
 
-    local font = CreateFont("GuildArmoryFont" .. key)
-    local ok = pcall(font.SetFont, font, path, size, flags)
-    if not ok then
-        created[key] = fallback
-        return fallback
+    local font
+    if gamePath and names then font = makeFamily(key, path, size, flags) end
+    if not font then
+        font = CreateFont("GuildArmoryFont" .. key)
+        local ok, result = pcall(font.SetFont, font, path, size, flags)
+        if (not ok or result == false) and gamePath then
+            ok, result = pcall(font.SetFont, font, gamePath, size, flags)
+        end
+        if not ok or result == false then
+            created[key] = fallback
+            return fallback
+        end
     end
 
     -- Grundfarbe aus dem Look: Wer die Schrift setzt und keine Farbe, soll
@@ -136,35 +174,50 @@ end
 
 --- Schriftrollen. Aufruf erst nach dem Laden, nicht zur Ladezeit der Datei.
 function Theme.Fonts()
+    -- Schriften des Looks (05.10.2026, OFL, in Media/Fonts mit Lizenzen).
+    -- Titel in der Zierschrift, Daten in der klaren Grotesk des Looks.
+    local look = Theme.Look()
+    local f = look and look.fonts
+    local FONT_SERIF = f and f.title or FONT_SERIF
+    local FONT_NARROW = f and f.data or FONT_NARROW
+    local FONT_BOLD = f and (f.dataBold or f.data) or FONT_NARROW
+    local GAME_SERIF = f and [[Fonts\FRIZQT__.TTF]] or nil
+    local GAME_NARROW = f and [[Fonts\ARIALN.TTF]] or nil
+    local ts = f and f.titleScale or 1
+    local ds = f and f.dataScale or 1
+    local function T(n) return math.floor(n * ts + 0.5) end
+    local function D(n) return math.floor(n * ds + 0.5) end
     return {
         -- Ueberschriften: Kapitalis, gesperrt, gold. Der Gilden-Look.
-        title   = makeFont("Title",   FONT_SERIF,  15, nil, GameFontNormal),
-        heading = makeFont("Heading", FONT_SERIF,  11, nil, GameFontNormalSmall),
-        brand   = makeFont("Brand",   FONT_SERIF,  17, nil, GameFontNormalLarge),
+        title   = makeFont("Title",   FONT_SERIF,  T(15), nil, GameFontNormal, GAME_SERIF),
+        heading = makeFont("Heading", FONT_SERIF,  T(11), nil, GameFontNormalSmall, GAME_SERIF),
+        brand   = makeFont("Brand",   FONT_SERIF,  T(17), nil, GameFontNormalLarge, GAME_SERIF),
 
         -- Daten: schmal und dicht.
-        row     = makeFont("Row",     FONT_NARROW, 13, nil, GameFontHighlightSmall),
-        rowBold = makeFont("RowBold", FONT_NARROW, 13, "OUTLINE", GameFontHighlightSmall),
-        small   = makeFont("Small",   FONT_NARROW, 11, nil, GameFontDisableSmall),
+        row     = makeFont("Row",     FONT_NARROW, D(13), nil, GameFontHighlightSmall, GAME_NARROW, true),
+        -- Die eigenen Schriften haben einen echten fetten Schnitt; der
+        -- Umriss war nur der Ersatz dafuer.
+        rowBold = makeFont("RowBold", FONT_BOLD,   D(13), (not f) and "OUTLINE" or nil, GameFontHighlightSmall, GAME_NARROW, true),
+        small   = makeFont("Small",   FONT_NARROW, D(11), nil, GameFontDisableSmall, GAME_NARROW, true),
 
         -- Die Beschriftung der Kartennadeln: so klein wie lesbar, und MIT
         -- UMRISS. Auf einer Karte ist der Untergrund unbekannt — heller
         -- Sand, dunkles Meer, Waldgruen —, und Text ohne Umriss
         -- verschwindet genau dort, wo jemand hinsieht. Dieselbe Ueberlegung
         -- wie der schwarze Rand um die Nadel selbst.
-        pin     = makeFont("Pin",     FONT_NARROW,  9, "OUTLINE", GameFontDisableSmall),
-        number  = makeFont("Number",  FONT_NARROW, 20, nil, GameFontNormalLarge),
+        pin     = makeFont("Pin",     FONT_NARROW,  9, "OUTLINE", GameFontDisableSmall, GAME_NARROW, true),
+        number  = makeFont("Number",  FONT_BOLD,   D(20), nil, GameFontNormalLarge, GAME_NARROW),
 
         -- WoW-nativ (19.09.2026): groessere Kapitalis fuer Charakternamen und
         -- Navigation, ohne gesperrte Versalien — wie im Charakterfenster.
-        hero    = makeFont("Hero",    FONT_SERIF,  22, nil, GameFontNormalHuge),
+        hero    = makeFont("Hero",    FONT_SERIF,  T(22), nil, GameFontNormalHuge, GAME_SERIF, true),
         -- Der Gildenname im Heroband des Dashboards (Entwurf D1, 27.09.2026):
         -- eine Stufe ueber hero. Nur dort — ein zweiter grosser Titel auf
         -- derselben Seite wuerde mit ihm streiten.
-        display = makeFont("Display", FONT_SERIF,  30, nil, GameFontNormalHuge),
-        big     = makeFont("Big",     FONT_SERIF,  16, nil, GameFontNormalLarge),
-        nav     = makeFont("Nav",     FONT_SERIF,  13, nil, GameFontNormal),
-        body    = makeFont("Body",    FONT_SERIF,  12, nil, GameFontHighlight),
+        display = makeFont("Display", FONT_SERIF,  T(30), nil, GameFontNormalHuge, GAME_SERIF, true),
+        big     = makeFont("Big",     FONT_SERIF,  T(16), nil, GameFontNormalLarge, GAME_SERIF),
+        nav     = makeFont("Nav",     f and FONT_BOLD or FONT_SERIF, f and D(12) or 13, nil, GameFontNormal, GAME_SERIF),
+        body    = makeFont("Body",    f and FONT_NARROW or FONT_SERIF, f and D(12) or 12, nil, GameFontHighlight, GAME_SERIF, true),
     }
 end
 
@@ -193,6 +246,7 @@ end
 -- flache Farbe.
 
 local M = [[Interface\AddOns\GuildArmory\Media\]]
+local F = [[Interface\AddOns\GuildArmory\Media\Fonts\]]
 Theme.MEDIA = {
     stone     = M .. "Stone.tga",
     metal     = M .. "Metal.tga",
@@ -249,6 +303,8 @@ Theme.LOOKS = {
             goldDim    = { 0.659, 0.322, 0.110 },
             goldDeep   = { 0.290, 0.137, 0.063, 1.00 },  -- Zunder
         },
+        fonts = { title = F .. "SpectralSC-Bold.ttf", data = F .. "BarlowSemiCondensed-Medium.ttf",
+                  dataBold = F .. "BarlowSemiCondensed-Bold.ttf", titleScale = 1.0, dataScale = 1.0 },
         window  = { tex = "stone", tile = true, tint = { 0.15, 0.137, 0.123, 0.98 } },
         content = { tex = "stone", tile = true, tint = { 0.10, 0.092, 0.084, 1 } },
         outer = BLACK, corner = "corner_bracket", medal = { 0.62, 0.59, 0.55, 1 },
@@ -283,6 +339,8 @@ Theme.LOOKS = {
             goldDim    = { 0.122, 0.498, 0.541 },
             goldDeep   = { 0.055, 0.235, 0.275, 1.00 },
         },
+        fonts = { title = F .. "Cinzel-Bold.ttf", data = F .. "AlegreyaSans-Medium.ttf",
+                  dataBold = F .. "AlegreyaSans-Bold.ttf", titleScale = 0.9, dataScale = 1.08 },
         window  = { tex = "sky", tile = false, tint = { 1, 1, 1, 0.98 } },
         content = { fill = { 0.035, 0.075, 0.12, 0.72 } },
         outer = { 0.659, 0.525, 0.353, 1 }, inner = { 0.224, 0.714, 0.761, 0.45 },
@@ -328,6 +386,8 @@ Theme.LOOKS = {
             HEALER     = { 0.180, 0.480, 0.370 },
             DAMAGER    = { 0.560, 0.170, 0.120 },
         },
+        fonts = { title = F .. "IMFellEnglishSC-Regular.ttf", data = F .. "AlegreyaSans-Medium.ttf",
+                  dataBold = F .. "AlegreyaSans-Bold.ttf", titleScale = 1.06, dataScale = 1.08 },
         window  = { tex = "parchment", tile = true, tint = { 1, 1, 1, 1 } },
         content = { tex = "parchment", tile = true, tint = { 0.97, 0.95, 0.90, 1 } },
         outer = { 0.16, 0.11, 0.07, 1 }, inner = { 0.722, 0.537, 0.184, 1 },
@@ -368,6 +428,10 @@ Theme.LOOKS.crimson = {
         goldDeep   = { 0.290, 0.110, 0.161, 1.00 },
         attn       = { 0.816, 0.478, 0.541 },        -- Rose #d07a8a
     },
+    -- Cormorant hat kleine Mittellaengen (groesser setzen), Montserrat ist
+    -- breit (kleiner setzen) — sonst laufen die Spalten ueber.
+    fonts = { title = F .. "Cormorant-Bold.ttf", data = F .. "Montserrat-Medium.ttf",
+              dataBold = F .. "Montserrat-Bold.ttf", titleScale = 1.15, dataScale = 0.86 },
     window  = { tex = "velvet", tile = true, tint = { 1, 1, 1, 0.98 } },
     content = { tex = "velvet", tile = true, tint = { 0.82, 0.80, 0.80, 1 } },
     outer = { 0.541, 0.416, 0.200, 1 }, inner = { 0.788, 0.639, 0.353, 0.55 },
