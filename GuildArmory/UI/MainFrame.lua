@@ -186,7 +186,10 @@ function MainFrame:Create()
         self:BuildFallbackHeader()
         -- Eigener Look: Die Reiter stehen als Band unter der Kopfleiste.
         local ribbon = Theme.Look() and TAB_RIBBON or 0
-        insets = { left = 12, right = -12, top = -(Theme.size.headerHeight + Theme.HeaderTop() + ribbon), bottom = 12 }
+        -- Der Inhalt sitzt 4 Pixel innerhalb dieser Werte (siehe unten):
+        -- so endet er buendig mit der Kopfleiste, auf allen Seiten im Rand.
+        local m = Theme.Look() and (Theme.Margin() - 4) or 12
+        insets = { left = m, right = -m, top = -(Theme.size.headerHeight + Theme.HeaderTop() + ribbon), bottom = m }
     end
 
     -- Inhalt: Werkzeugzeile oben, darunter die Ansicht.

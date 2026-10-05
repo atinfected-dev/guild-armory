@@ -278,21 +278,28 @@ Theme.MEDIA = {
 Theme.LOOK_ORDER = { "forge", "twilight", "codex", "crimson", "blizzard" }
 Theme.DEFAULT_LOOK = "forge"
 
---- Abstand der Kopfleiste vom oberen Fensterrand. In den eigenen Looks
---- groesser, damit die oberen Eckornamente so viel Luft haben wie die
---- unteren (Bild vom 05.10.2026: oben lag die Leiste an der Rahmenlinie).
-function Theme.HeaderTop()
-    return Theme.Look() and 20 or 12
+--- EIN RAND FUER ALLES (05.10.2026, nach drei Bildern): Kopfleiste und
+--- Inhalt halten in den eigenen Looks auf allen vier Seiten denselben
+--- Abstand zum Rahmen, ihre Kanten stehen buendig uebereinander. Die
+--- Eckornamente liegen ganz in diesem Rand und beruehren nichts — erst
+--- stiessen sie an die Kopfleiste, dann sassen sie aussen, dann war die
+--- Leiste schmaler als der Inhalt. Alles drei sah unsauber aus.
+Theme.FRAME_MARGIN = 24
+Theme.CORNER_SIZE = 20
+Theme.CORNER_INSET = 3
+
+function Theme.Margin()
+    return Theme.Look() and Theme.FRAME_MARGIN or 12
 end
 
---- Seitlicher Abstand der Kopfleiste. In den eigenen Looks so gross, dass
---- sie ZWISCHEN den oberen Eckornamenten liegt (Bild vom 05.10.2026: aussen
---- angesetzte Ecken sahen nicht aus — die Leiste wird schmaler, nicht die
---- Ecken verschoben).
-Theme.CORNER_SIZE = 34
-Theme.CORNER_INSET = 4
+--- Abstand der Kopfleiste vom oberen Fensterrand.
+function Theme.HeaderTop()
+    return Theme.Margin()
+end
+
+--- Seitlicher Abstand der Kopfleiste — derselbe wie der des Inhalts.
 function Theme.HeaderSide()
-    return Theme.Look() and (Theme.CORNER_SIZE + Theme.CORNER_INSET + 4) or 12
+    return Theme.Margin()
 end
 
 local BLACK = { 0.043, 0.039, 0.035, 1 }
