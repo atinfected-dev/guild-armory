@@ -6,7 +6,7 @@ Talent window: the trees carry their specialisation names and icons — Elementa
 
 Update notice: when someone in your guild or group runs a newer version, the chat says "GuildArmory Version X is available (you have Y). Update on CurseForge." — once per version and session. No extra messages are sent for it: the addon already exchanges its version with the guild at login.
 
-Dungeonhub: "Announce in Discord" turns Discord blue when it is on, and a Bot switch sits right beside it — the same as the Discord bot option in the settings, with its explanation on hover. It is dimmed while the run is not announced in Discord, since the bot only mirrors announced runs.
+Dungeonhub: "Announce in Discord" turns Discord blue when it is on, and a "Bot enabled" switch sits right beside it — the same as the Discord bot option in the settings, with its explanation on hover. It is dimmed while the run is not announced in Discord, since the bot only mirrors announced runs.
 
 ## 0.1.33
 

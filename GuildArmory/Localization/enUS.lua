@@ -1155,7 +1155,7 @@ GA.Core.Locale:Register("enUS", {
     DH_POSTED_AGO      = "posted %s",
     DH_POSTED          = "Run posted: %s at %s.",
     DH_DISCORD_CHIP    = "Announce in Discord",
-    DH_DISCORD_BOT_CHIP = "Bot",
+    DH_DISCORD_BOT_CHIP = "Bot enabled",
     DH_DC_NEW          = "Dungeon run: %s - %s %s - lead %s - %s%s",
     DH_DC_JOIN         = "%s joins as %s: %s - %s %s - %s",
     DH_DC_LEAVE        = "%s left %s - %s %s - %s",
