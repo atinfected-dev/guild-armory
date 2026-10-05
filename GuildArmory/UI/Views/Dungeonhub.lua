@@ -23,6 +23,14 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
+-- Discord-Blau fuer die gedrueckten Discord-Schalter (dasselbe Blau wie die
+-- Discord-Namen im Gildenchat der Mitgliederliste).
+local DISCORD_PALETTE = {
+    fill = { 0.20, 0.23, 0.52, 1 },
+    text = { 0.80, 0.83, 1 },
+    line = { 0.48, 0.53, 1 },
+}
+
 View.titleKey = "NAV_DUNGEONHUB"
 
 local FORM_W = 290
@@ -160,13 +168,32 @@ function View:Create(parent)
     end
     y = y - 32
 
-    -- Auch in Discord ankuendigen: nur, wenn die Gilde verbunden ist.
+    -- Auch in Discord ankuendigen: nur, wenn die Gilde verbunden ist. Aktiv
+    -- in Discord-Blau, damit man es auf einen Blick sieht (Wunsch des
+    -- Nutzers, 05.10.2026) — und gleich daneben der Schalter fuer den Bot,
+    -- derselbe wie in den Einstellungen.
     self.discordChip = Widgets.Chip(form, L.DH_DISCORD_CHIP, function(pressed)
         GA.Modules.Dungeonhub:SetDiscordDefault(pressed)
         View:RefreshForm()
     end)
     self.discordChip:SetHeight(20)
+    self.discordChip:SetPalette(DISCORD_PALETTE)
     self.discordChip:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
+
+    self.botChip = Widgets.Chip(form, L.DH_DISCORD_BOT_CHIP, function(pressed)
+        GA.Core.Config:Set("discordBot", pressed)
+        View:RefreshForm()
+    end)
+    self.botChip:SetHeight(20)
+    self.botChip:SetPalette(DISCORD_PALETTE)
+    self.botChip:SetPoint("LEFT", self.discordChip, "RIGHT", 6, 0)
+    self.botChip:HookScript("OnEnter", function(chip)
+        GameTooltip:SetOwner(chip, "ANCHOR_TOP")
+        GameTooltip:SetText(L.SET_DISCORD_BOT, 1, 1, 1)
+        GameTooltip:AddLine(L.SET_DISCORD_BOT_HINT, nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    self.botChip:HookScript("OnLeave", function() GameTooltip:Hide() end)
     y = y - 28
 
     self.postButton = Widgets.Button(form, L.DH_POST_BTN, function() View:Post() end, "primary")
@@ -492,6 +519,11 @@ function View:RefreshForm()
         local dc = GA.Modules.Dungeonhub:DiscordDefault()
         self.discordChip:SetShown(dc ~= nil)
         self.discordChip:SetPressed(dc == true)
+        -- Der Bot wirkt nur auf Laeufe, die in Discord angekuendigt werden:
+        -- ohne Ankuendigung bleibt der Schalter sichtbar, aber gedaempft.
+        self.botChip:SetShown(dc ~= nil)
+        self.botChip:SetPressed(GA.Core.Config:Get("discordBot") and true or false)
+        self.botChip:SetAlpha(dc == true and 1 or 0.45)
     end
     local on = GA.Core.Config:Get("notifyEnabled") ~= false and GA.Core.Config:Get("notifyDungeon") ~= false
     self.notifyState:SetText(string.format(L.DH_NOTIFY_STATE, on and L.SET_ON or L.SET_OFF))

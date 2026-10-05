@@ -215,12 +215,21 @@ function Widgets.Chip(parent, text, onToggle)
 
     chip.pressed = false
 
+    --- Eigene Farben fuer den gedrueckten Zustand (Standard: Gold).
+    --- @param palette table|nil { fill = {r,g,b,a}, text = {r,g,b}, line = {r,g,b} }
+    function chip:SetPalette(palette)
+        self.palette = palette
+        self:SetPressed(self.pressed)
+    end
+
     function chip:SetPressed(pressed)
         self.pressed = pressed and true or false
         if self.pressed then
-            Theme.Paint(background, Theme.color.goldDeep)
-            label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
-            for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end
+            local p = self.palette or {}
+            local fill, text, edge = p.fill or Theme.color.goldDeep, p.text or Theme.color.goldBright, p.line or Theme.color.goldDim
+            Theme.Paint(background, fill)
+            label:SetTextColor(text[1], text[2], text[3])
+            for _, line in ipairs(lines) do Theme.Paint(line, edge) end
         else
             Theme.Paint(background, { 0, 0, 0, 0 })
             label:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
