@@ -6,6 +6,8 @@ Talent window: a paladin's talents fell apart into twelve trees ("Tree 3" to "Tr
 
 Roster: right-click a member who is online for a small menu — Whisper or Invite.
 
+Chat in instances and combat: WoW: Forever hands addons some chat lines as protected "secret" values that may be shown but not compared. Reading one raised "attempt to compare … a secret string value" from the guild chat. Chat events with such content are now left to the game instead of being read, in every part of the addon (guild chat, rolls, loot); any other error about a secret value is reported once per event instead of every time.
+
 ## 0.1.35
 
 Choose your look: Settings › UI + Language (formerly Language) offers five looks beside the language, each with a colour sample. Forge (the new default): stone grain, steel frame with riveted brackets, copper and steel buttons, bars that glow like molten metal. Forever Twilight: a dusk sky after the WoW: Forever site, bronze frame with compass stars, jewel-teal bars and buttons. Codex: parchment, ink and sealing wax with illuminated gold-leaf corners — the one light look, with class colours darkened so every name stays readable. Crimson Court: wine velvet with a damask, antique gold, gold filigree. Blizzard: the game's window frames and buttons, as before. A new look applies after a /reload.

@@ -26,14 +26,49 @@ local handlers = {}
 --- Ereignisse, die dieser Client nicht kennt. Wird fuer die Diagnose gemerkt.
 Events.unsupported = {}
 
+--- GEHEIME WERTE (05.10.2026, Bild aus dem Spiel): WoW: Forever reicht
+--- Chattext in manchen Lagen — Instanzen, Kampf — als "secret string value"
+--- heraus. Anzeigen darf ein Addon ihn, vergleichen nicht: Jedes ==, jedes
+--- find wirft "attempt to compare ... a secret string value". Ein Chat-
+--- Ereignis mit geheimem Inhalt kann das Addon nicht auswerten — es wird
+--- nicht an die Handler gegeben, statt dort zu scheitern. Gezaehlt wird es.
+Events.secretSkipped = {}
+local isSecret = _G.issecretvalue
+local function anySecret(...)
+    if type(isSecret) ~= "function" then return false end
+    for i = 1, select("#", ...) do
+        local ok, secret = pcall(isSecret, (select(i, ...)))
+        if ok and secret then return true end
+    end
+    return false
+end
+Events.AnySecret = anySecret
+
+--- Eine Fehlermeldung zu geheimen Werten nur einmal je Ereignis und Sitzung —
+--- sonst flutet ein Kampf den Chat.
+local secretWarned = {}
+
 local function dispatch(_, event, ...)
     local list = handlers[event]
     if not list then return end
 
+    if string.sub(event, 1, 9) == "CHAT_MSG_" and anySecret(...) then
+        Events.secretSkipped[event] = (Events.secretSkipped[event] or 0) + 1
+        return
+    end
+
     for index = 1, #list do
         local ok, err = pcall(list[index].handler, event, ...)
         if not ok then
-            GA.Core.Debug:Warn("Fehler im Handler fuer %s: %s", event, tostring(err))
+            local text = tostring(err)
+            if string.find(text, "secret", 1, true) then
+                if not secretWarned[event] then
+                    secretWarned[event] = true
+                    GA.Core.Debug:Print("core", "Geheimer Wert in %s: %s", event, text)
+                end
+            else
+                GA.Core.Debug:Warn("Fehler im Handler fuer %s: %s", event, text)
+            end
         end
     end
 end

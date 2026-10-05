@@ -90,6 +90,10 @@ end
 --- Eine Zeile aus dem Chat — Text, dauerhaft.
 --- @param channel string "GUILD" | "OFFICER"
 function GuildChat:OnMessage(channel, text, sender, guid)
+    -- Ein geheimer Wert (Instanz, Kampf) laesst sich weder vergleichen noch
+    -- speichern; er steht ohnehin im Chatfenster des Spiels.
+    local isSecret = _G.issecretvalue
+    if type(isSecret) == "function" and (isSecret(text) or isSecret(sender)) then return nil end
     if type(text) ~= "string" or text == "" then return nil end
     if channel == "DISCORD" or isKey(text) then
         return self:Remember({ channel = channel, text = text, who = Util.ShortName(sender or "?"),
