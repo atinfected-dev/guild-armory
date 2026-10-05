@@ -623,9 +623,12 @@ function Theme.ForgeFrame(frame, kind, bgColor)
             for cornerPoint, tc in pairs(FLIP) do
                 local orn = layer:CreateTexture(nil, "OVERLAY")
                 orn:SetTexture(cornerTex)
-                orn:SetWidth(40) orn:SetHeight(40)
-                orn:SetPoint(cornerPoint, frame, cornerPoint, string.find(cornerPoint, "LEFT") and 3 or -3,
-                    string.find(cornerPoint, "TOP") and -3 or 3)
+                -- Klein und ueber die Rahmenkante hinaus, wie ein Beschlag:
+                -- Mit 40 Pixeln nach innen stiessen sie oben an die
+                -- Kopfleiste (Bild vom 05.10.2026).
+                orn:SetWidth(26) orn:SetHeight(26)
+                orn:SetPoint(cornerPoint, frame, cornerPoint, string.find(cornerPoint, "LEFT") and -5 or 5,
+                    string.find(cornerPoint, "TOP") and 5 or -5)
                 orn:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
             end
             frame.gaOrnaments = layer
