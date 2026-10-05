@@ -4,6 +4,8 @@
 
 Talent window: the trees carry their specialisation names and icons — Elemental, Enhancement and Restoration for a shaman, and so on for all nine classes, in English and German. The game on WoW: Forever hands the addon no tree names, so the window showed "Tree 1/2/3"; a name the game does provide still wins.
 
+Update notice: when someone in your guild or group runs a newer version, the chat says "GuildArmory Version X is available (you have Y). Update on CurseForge." — once per version and session. No extra messages are sent for it: the addon already exchanges its version with the guild at login.
+
 ## 0.1.33
 
 Guild chat in the roster: a third tab, Discord, beside Guild and Officers — the guild's linked Discord conversation, read and written the same way: the game's own history when you open it, every new line as it arrives, and a box to answer (it goes out like /discord). The tab only shows when your guild is linked to Discord. Discord lines live for the session only: the game hands them over as a key it resolves on screen, not as text, so they are never stored. The Officers tab now shows only for ranks allowed to listen to officer chat. Lines written in Discord show their author's name in Discord blue, and "Sent an attachment" / "Sent an emoji" where the game marks one; lines typed in game keep their class colour. `/ga clubchat discord` lists the raw fields of the latest Discord messages. New Discord messages no longer leave the "unread" mark on the guild button of the menu bar — the addon marks the Discord channel as read as they arrive, and the guild and officer channels when you have their tab open.

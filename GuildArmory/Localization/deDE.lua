@@ -538,6 +538,7 @@ GA.Core.Locale:Register("deDE", {
     VERSION_SUMMARY           = "%d aktuell · %d veraltet · %d ohne Antwort",
     VERSION_SCOPE_GROUP       = "Gruppe",
     VERSION_SCOPE_GUILD       = "Gilde",
+    VERSION_UPDATE_AVAILABLE  = "|cffe5cc80GuildArmory|r Version %s ist verfügbar (du hast %s). Update auf CurseForge.",
 
     -- Offene Uebergaben
     HANDOVER_TITLE            = "Offene Uebergaben",

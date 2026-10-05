@@ -210,10 +210,51 @@ function VersionCheck:Summary()
     return counts
 end
 
+-- ================================================================== Update ----
+
+--- Nur eine reine Zahlenfassung ("0.1.34") ist eine veroeffentlichte. Die
+--- Entwicklerkopie meldet sich als "0.1.34-dev" (tools/src/deploy.mjs setzt
+--- das beim Kopieren in den WoW-Ordner) — sie darf niemanden zu einem Update
+--- schicken, das es auf CurseForge noch nicht gibt.
+local function isRelease(text)
+    return type(text) == "string" and string.match(text, "^%d+[%.%d]*$") ~= nil
+end
+
+VersionCheck.IsRelease = isRelease
+
+--- Hat jemand in der Gilde oder Gruppe eine neuere veroeffentlichte Fassung?
+--- Dann einmal im Chat sagen (Wunsch des Nutzers, 05.10.2026, nach dem
+--- Vorbild von DungeonJournal). Gefragt wird dafuer nicht extra: HELLO beim
+--- Einloggen und die HERE-Antworten tragen die Fassung ohnehin mit.
+--- Einmal je Fassung und Sitzung; erst eine noch neuere meldet sich erneut.
+--- @return string|nil die gemeldete Fassung
+function VersionCheck:CheckForUpdate()
+    local Sync = GA.Modules.Sync
+    local own = GA.version
+    if not Sync or not parseVersion(own) then return nil end
+
+    local best
+    for _, peer in pairs(Sync.peers or {}) do
+        local version = peer.addon
+        if isRelease(version) and compareVersion(version, own) == 1
+           and (not best or compareVersion(version, best) == 1) then
+            best = version
+        end
+    end
+    if not best then return nil end
+    if self.announced and compareVersion(best, self.announced) ~= 1 then return nil end
+
+    self.announced = best
+    print(string.format(GA.L.VERSION_UPDATE_AVAILABLE, best, own))
+    return best
+end
+
 -- ================================================================== Start ------
 
 function VersionCheck:OnEnable()
-    -- Nichts zu tun: Die Antworten laufen ueber Sync, und gefragt wird nur
-    -- auf Anforderung. Ein Addon, das beim Einloggen ungefragt die Gilde
-    -- abfragt, ist genau der Nachrichtenverkehr, den Phase 8 abgestellt hat.
+    -- Gefragt wird nur auf Anforderung. Ein Addon, das beim Einloggen
+    -- ungefragt die Gilde abfragt, ist genau der Nachrichtenverkehr, den
+    -- Phase 8 abgestellt hat. Zugehoert wird aber: Jede Antwort, die Sync
+    -- ohnehin bekommt, kann eine neuere Fassung tragen.
+    GA.Core.Callbacks:On("SYNC_PEERS", function() VersionCheck:CheckForUpdate() end, "VersionCheck")
 end

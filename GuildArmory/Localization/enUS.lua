@@ -550,6 +550,7 @@ GA.Core.Locale:Register("enUS", {
     VERSION_SUMMARY           = "%d current · %d outdated · %d without reply",
     VERSION_SCOPE_GROUP       = "Group",
     VERSION_SCOPE_GUILD       = "Guild",
+    VERSION_UPDATE_AVAILABLE  = "|cffe5cc80GuildArmory|r Version %s is available (you have %s). Update on CurseForge.",
 
     -- Pending handovers
     HANDOVER_TITLE            = "Pending handovers",
