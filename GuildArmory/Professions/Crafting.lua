@@ -123,6 +123,48 @@ local function ownLines()
     return out
 end
 
+-- ============================================================= Plausibel ----
+
+--- Ab welcher Stufe ein Rang ueberhaupt erreichbar ist: Ueber 75 braucht den
+--- Gesellen (Stufe 10), ueber 150 den Experten (Stufe 20), ueber 225 den
+--- Fachmann (Stufe 35).
+local function levelForRank(rank)
+    rank = tonumber(rank) or 0
+    if rank > 225 then return 35 end
+    if rank > 150 then return 20 end
+    if rank > 75 then return 10 end
+    return 0
+end
+
+Crafting.LevelForRank = levelForRank
+
+--- Die Stufe eines Gildenmitglieds aus der Mitgliederliste, oder nil.
+local function memberLevel(name)
+    local guild = GA.Core.Database.account.guild
+    if type(guild) ~= "table" or type(guild.members) ~= "table" then return nil end
+    local kurz = Util.ShortName(name)
+    for _, member in pairs(guild.members) do
+        if member.name == kurz then return tonumber(member.level) end
+    end
+    return nil
+end
+
+--- Kann dieser Charakter den Rang ueberhaupt haben? (05.10.2026)
+---
+--- Gesehen: Verzauberkunst 225/225 bei einem Magier der Stufe 18 und bei
+--- einem Schurken, der den Beruf gar nicht hat — beide Male fast dieselbe
+--- Rezeptliste, also das Buch eines dritten Verzauberers. Die Eintraege
+--- stammten aus Fassungen vor der Sperre gegen fremde Berufsfenster (0.1.30)
+--- und wurden weiter verteilt. Was die Stufe ausschliesst, wird hier
+--- verworfen; was sie zulaesst, raeumt erst der Client des Charakters selbst
+--- auf (CheckOwn). Ohne bekannte Stufe wird nichts verworfen.
+--- @return boolean
+function Crafting:Plausible(name, rank)
+    local level = memberLevel(name)
+    if not level or level <= 0 then return true end
+    return level >= levelForRank(rank)
+end
+
 -- ================================================================ Kodierung --
 
 local function toBase36(value)
@@ -546,6 +588,15 @@ function Crafting:Prune()
         if (eintrag.ts or 0) < grenze then
             store()[name] = nil
             weg = weg + 1
+        elseif type(eintrag.lines) == "table" then
+            for lineID, line in pairs(eintrag.lines) do
+                if not self:Plausible(name, line.rank) then
+                    eintrag.lines[lineID] = nil
+                    weg = weg + 1
+                    Debug:Print("craft", "%s: %s %d passt nicht zur Stufe — verworfen.",
+                        tostring(name), tostring(line.name or lineID), tonumber(line.rank) or 0)
+                end
+            end
         end
     end
     if weg > 0 then self.dirty = true end
@@ -673,6 +724,15 @@ function Crafting:CheckOwn()
             eintrag.lines[lineID] = nil
             berichtigt = berichtigt + 1
             Debug:Print("craft", "Eigener Eintrag %s: Beruf nicht gelernt — entfernt.", tostring(line.name or id))
+        elseif rang and rang > 0 and (tonumber(line.rank) or 0) > rang then
+            -- HOEHER ALS DER ECHTE RANG: Fertigkeit sinkt nicht. Dann
+            -- stammen Rang UND Rezepte aus einem fremden Fenster — nur den
+            -- Rang zu berichtigen liesse das fremde Rezeptbuch stehen. Das
+            -- naechste Oeffnen des eigenen Fensters liest den Beruf neu.
+            eintrag.lines[lineID] = nil
+            berichtigt = berichtigt + 1
+            Debug:Print("craft", "Eigener Eintrag %s: Rang %d ueber dem echten %d — entfernt.",
+                tostring(line.name or id), tonumber(line.rank) or 0, rang)
         elseif rang and rang > 0 and line.rank ~= rang then
             line.rank = rang
             if (line.maxRank or 0) < rang then line.maxRank = 0 end
@@ -716,7 +776,17 @@ function Crafting:OnCraft(sender, text)
         lineID, rank, maxRank = tonumber(lineID), tonumber(rank), tonumber(maxRank)
         if lineID then genannt[lineID] = true else alleHeil = false end
 
-        if lineID and rank and maxRank and rank <= 1000 and maxRank <= 1000 then
+        if lineID and rank and not self:Plausible(kurz, rank) then
+            -- Gilt als genannt, aber nicht uebernommen: Ein frueher
+            -- abgelegter Stand dieses Berufs faellt mit heraus.
+            local alt = store()[kurz]
+            if alt and alt.lines and alt.lines[lineID] then
+                alt.lines[lineID] = nil
+                self.dirty = true
+                GA.Core.Callbacks:Fire("CRAFTING_CHANGED", kurz)
+            end
+            Debug:Print("craft", "%s: Rang %d passt nicht zur Stufe — verworfen.", tostring(kurz), rank)
+        elseif lineID and rank and maxRank and rank <= 1000 and maxRank <= 1000 then
             -- Beide Listen muessen lesbar sein. Eine kaputte Haelfte
             -- stillschweigend als leer abzulegen waere schlimmer als sie
             -- zu verwerfen: Der Beruf saehe dann aus wie einer ohne Rezepte.
