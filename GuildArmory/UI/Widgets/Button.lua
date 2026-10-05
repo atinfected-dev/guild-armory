@@ -85,7 +85,7 @@ function Widgets.FlatButton(parent, text, onClick, variant)
         or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
 
     local label = Theme.Label(button, string.upper(text or ""), fonts.small,
-        isPrimary and Theme.color.goldBright
+        isPrimary and (look and look.btnPrimaryText or Theme.color.goldBright)
         or (forge and Theme.color.text or Theme.color.goldMid))
     if forge and label.SetShadowOffset then
         -- Schatten nur, wo die Schrift hell ist: Tinte auf Pergament bekommt keinen.
@@ -397,6 +397,31 @@ function Widgets.Tab(owner, index, text, onClick)
     tab:SetWidth(label:GetStringWidth() + 28)
     tab.label = label
 
+    -- Eigener Look: ein Band statt Karteikarten. Kein Kasten; der gewaehlte
+    -- Reiter traegt eine Linie und die Marke des Looks (Raute, Juwel, Siegel).
+    local look = Theme.Look()
+    local underline, mark
+    if look then
+        Theme.Paint(background, { 0, 0, 0, 0 })
+        for _, line in ipairs(lines) do line:Hide() end
+        underline = tab:CreateTexture(nil, "ARTWORK")
+        underline:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 8, 0)
+        underline:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -8, 0)
+        underline:SetHeight(2)
+        Theme.Paint(underline, look.markLine or Theme.color.gold)
+        underline:Hide()
+        local markTex = look.mark and Theme.Media(look.mark.tex)
+        if markTex then
+            mark = tab:CreateTexture(nil, "OVERLAY")
+            local size = look.mark.size or 11
+            mark:SetWidth(size) mark:SetHeight(size)
+            mark:SetPoint("CENTER", tab, "BOTTOM", 0, 1)
+            mark:SetTexture(markTex)
+            Theme.Tint(mark, look.mark.tint)
+            mark:Hide()
+        end
+    end
+
     function tab:SetSelected(selected)
         self.selected = selected and true or false
         local look = Theme.Look()
@@ -404,13 +429,15 @@ function Widgets.Tab(owner, index, text, onClick)
             or (look and look.tabIdleText or Theme.color.textDim)
         label:SetTextColor(color[1], color[2], color[3])
         if look then
-            -- Metallreiter; der gewaehlte in der Akzentfarbe des Looks.
-            Theme.Metal(background, self.selected and look.tabSelected or look.tabIdle)
+            if underline then underline:SetShown(self.selected) end
+            if mark then mark:SetShown(self.selected) end
         else
             Theme.Paint(background, self.selected and Theme.color.panelBg or Theme.color.sidebarBg)
         end
-        for _, line in ipairs(lines) do
-            Theme.Paint(line, self.selected and Theme.color.goldDim or Theme.color.border)
+        if not look then
+            for _, line in ipairs(lines) do
+                Theme.Paint(line, self.selected and Theme.color.goldDim or Theme.color.border)
+            end
         end
     end
     tab:SetScript("OnEnter", function(self)

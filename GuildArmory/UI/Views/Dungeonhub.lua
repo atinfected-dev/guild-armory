@@ -276,6 +276,12 @@ function View:Card(index)
         slot.disc:SetSize(18, 18)
         slot.disc:SetPoint("TOP", slot, "TOP", 0, -5)
         if Theme.RoundTexture() then slot.disc:SetTexture(Theme.RoundTexture()) end
+        -- Eigener Look: Wappenschilde statt Scheiben (Entwuerfe vom
+        -- 05.10.2026). Belegt gefuellt, offen gestrichelt.
+        if Theme.Look() and Theme.Media("shield") and Theme.Media("shieldopen") then
+            slot.shield = true
+            slot.disc:SetSize(20, 22)
+        end
         slot.letter = Theme.Label(slot, "", fonts.small, Theme.color.windowBg)
         slot.letter:SetPoint("CENTER", slot.disc, "CENTER", 0, 0)
         -- Das Rollensymbol auf der Scheibe; der Buchstabe nur, wenn das
@@ -394,6 +400,7 @@ function View:FillCard(card, run)
                 box.badge:Hide()
                 box.badgeLetter:Hide()
                 box.disc:Show()
+                if box.shield then box.disc:SetTexture(Theme.MEDIA.shield) end
                 box.letter:SetShown(not hasIcon)
                 box.roleIcon:SetShown(hasIcon)
                 box.roleIcon:SetVertexColor(1, 1, 1, 1)
@@ -420,6 +427,14 @@ function View:FillCard(card, run)
             box.letter:SetTextColor(color[1], color[2], color[3])
             box.name:SetText(L.DH_OPEN)
             box.name:SetTextColor(color[1], color[2], color[3])
+            if box.shield then
+                -- Offener Platz: gestrichelter Schild, Name in der
+                -- Aufmerksamkeitsfarbe — die Luecke liest man vor der Zahl.
+                local a = Theme.color.attn
+                box.disc:SetTexture(Theme.MEDIA.shieldopen)
+                Theme.Tint(box.disc, a)
+                box.name:SetTextColor(a[1], a[2], a[3])
+            end
             for _, line in ipairs(box.lines) do Theme.Paint(line, { color[1] * 0.6, color[2] * 0.6, color[3] * 0.6 }) end
             Theme.Paint(box.fill, Theme.color.rowAltBg)
         end

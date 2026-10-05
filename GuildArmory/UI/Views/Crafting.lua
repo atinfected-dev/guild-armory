@@ -43,7 +43,15 @@ CraftingView.titleKey = "NAV_CRAFTING"
 
 local LIST_WIDTH = 300
 local TILE_SIZE = 44
-local BAR_WIDTH = 34
+local BAR_WIDTH = 60
+
+--- Die Stufen der Berufe: Bis 75 Lehrling, bis 150 Geselle, bis 225
+--- Experte, bis 300 Fachmann. Der Balken misst bis 300 und traegt bei 75,
+--- 150 und 225 eine Marke — so sieht man die Stufe, nicht nur die Zahl.
+--- Wer am Deckel seiner Stufe steht, muss zum Lehrer: Balken in der
+--- Aufmerksamkeitsfarbe und ein Hinweis (Entwuerfe vom 05.10.2026).
+local SKILL_MAX = 300
+local TIER_MARKS = { 75, 150, 225 }
 
 --- Als Funktionen, nicht als Tabellen: Eine beim Laden gebaute Spaltenliste
 --- traegt die Beschriftungen der Sprache, die beim Laden galt — und die
@@ -67,8 +75,8 @@ local function crafterColumns()
     return {
         { key = "crest",      label = "",                width = 16 },
         { key = "name",       label = L.COL_NAME,        width = 150 },
-        { key = "profession", label = L.COL_PROFESSION,  width = 120 },
-        { key = "skill",      label = L.COL_SKILL,       width = 84, justify = "RIGHT" },
+        { key = "profession", label = L.COL_PROFESSION,  width = 150 },
+        { key = "skill",      label = L.COL_SKILL,       width = 110, justify = "RIGHT" },
         { key = "read",       label = L.COL_READ,        width = 90 },
     }
 end
@@ -407,6 +415,15 @@ function CraftingView:BuildCrafterRow(row)
     row.barFill:SetHeight(5)
     row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
 
+    row.ticks = {}
+    for i, mark in ipairs(TIER_MARKS) do
+        local tick = row:CreateTexture(nil, "OVERLAY", nil, 2)
+        tick:SetWidth(1) tick:SetHeight(9)
+        tick:SetPoint("CENTER", row.barBg, "LEFT", math.floor(BAR_WIDTH * mark / SKILL_MAX), 0)
+        Theme.Paint(tick, Theme.color.borderLit)
+        row.ticks[i] = tick
+    end
+
     row.skillText = Theme.Label(row, "", fonts.rowBold, Theme.color.goldBright)
     row.skillText:SetPoint("LEFT", row, "LEFT", x.skill + BAR_WIDTH + 6, 0)
     row.skillText:SetWidth(w.skill - BAR_WIDTH - 6)
@@ -464,7 +481,16 @@ function CraftingView:UpdateCrafterRow(row, entry)
         Theme.Paint(row.dot, online and Theme.color.good or Theme.color.border)
     end
 
-    row.professionText:SetText(entry.lineName or tostring(entry.line or ""))
+    local rank0, max0 = tonumber(entry.rank), tonumber(entry.maxRank)
+    local atCap = rank0 and max0 and max0 > 0 and max0 < SKILL_MAX and rank0 >= max0
+    local professionName = entry.lineName or tostring(entry.line or "")
+    if atCap then
+        local tier = L["CRAFT_TIER_" .. max0]
+        local c = Theme.color.attn
+        professionName = professionName .. "  " .. string.format("|cff%02x%02x%02x%s|r",
+            c[1] * 255, c[2] * 255, c[3] * 255, string.format(L.CRAFT_TRAIN, tier or ""))
+    end
+    row.professionText:SetText(professionName)
 
     -- Die Fertigkeit: Zahl immer, Balken nur mit bekanntem Hoechstwert.
     -- Ohne Hoechstwert ist "wie voll" keine Frage, die sich beantworten
@@ -472,16 +498,17 @@ function CraftingView:UpdateCrafterRow(row, entry)
     local rank, maxRank = tonumber(entry.rank), tonumber(entry.maxRank)
     if rank and rank > 0 then
         row.skillText:SetText(tostring(rank))
-        if maxRank and maxRank > 0 then
-            local anteil = math.min(1, rank / maxRank)
-            row.barFill:SetWidth(math.max(1, math.floor(BAR_WIDTH * anteil)))
-            row.barBg:Show() row.barFill:Show()
-        else
-            row.barBg:Hide() row.barFill:Hide()
-        end
+        -- Gemessen bis 300, mit Stufenmarken — kein geratener Hoechstwert
+        -- noetig. Am Deckel der eigenen Stufe: Aufmerksamkeitsfarbe.
+        local anteil = math.min(1, rank / SKILL_MAX)
+        row.barFill:SetWidth(math.max(1, math.floor(BAR_WIDTH * anteil)))
+        Theme.BarFill(row.barFill, atCap and Theme.color.attn or Theme.color.goldDim)
+        row.barBg:Show() row.barFill:Show()
+        for _, tick in ipairs(row.ticks) do tick:Show() end
     else
         row.skillText:SetText("—")
         row.barBg:Hide() row.barFill:Hide()
+        for _, tick in ipairs(row.ticks) do tick:Hide() end
     end
 
     -- DAS ALTER STEHT DABEI, IMMER. Eine Rezeptliste von vor sechs Wochen

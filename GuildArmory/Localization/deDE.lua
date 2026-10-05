@@ -710,10 +710,11 @@ GA.Core.Locale:Register("deDE", {
     SET_UI_LANGUAGE    = "UI + Sprache",
     SET_SUB_UI_LANGUAGE = "Aussehen des Addons und seine Sprache",
     SET_LOOK           = "Aussehen",
-    SET_LOOK_HINT      = "Schmiede: Stahl, Stein und Glut. Forever Twilight: Daemmerungshimmel, Juwel-Tuerkis und Bronze, nach der WoW-Forever-Seite. Codex: Pergament, Tinte und Siegelwachs — der einzige helle Look. Blizzard: die Fensterrahmen des Spiels, wie bisher.",
+    SET_LOOK_HINT      = "Schmiede: Stahl, Stein und Glut. Forever Twilight: Daemmerungshimmel, Juwel-Tuerkis und Bronze, nach der WoW-Forever-Seite. Codex: Pergament, Tinte und Siegelwachs — der einzige helle Look. Crimson Court: Weinrot-Samt und Altgold. Blizzard: die Fensterrahmen des Spiels, wie bisher.",
     SET_LOOK_FORGE     = "Schmiede",
     SET_LOOK_TWILIGHT  = "Forever Twilight",
     SET_LOOK_CODEX     = "Codex",
+    SET_LOOK_CRIMSON   = "Crimson Court",
     SET_LOOK_BLIZZARD  = "Blizzard",
     SET_LOOK_RELOAD    = "Das neue Aussehen wirkt nach einem /reload. Neue Texturdateien brauchen einmal einen kompletten Neustart des Spiels.",
 
@@ -1104,6 +1105,10 @@ GA.Core.Locale:Register("deDE", {
     CRAFT_ERR_noguid   = "Die eigene Charakterkennung ist auf diesem Client nicht lesbar.",
 
     CRAFT_ASK_BUTTON   = "Fragen",
+    CRAFT_TRAIN        = "%s lernen",
+    CRAFT_TIER_75      = "Geselle",
+    CRAFT_TIER_150     = "Experte",
+    CRAFT_TIER_225     = "Fachmann",
     CRAFT_ASK          = "Koenntest du mir %s herstellen?",
     CRAFT_ASKED        = "%s bei %s angefragt.",
     CRAFT_ASK_ERR_noitem = "Kein Gegenstand gewaehlt.",

@@ -76,6 +76,8 @@ Theme.color = {
     warn       = { 0.851, 0.643, 0.255 },        -- --warn            #d9a441
     bad        = { 0.784, 0.251, 0.184 },        -- --danger          #c8402f
     info       = { 0.290, 0.565, 0.851 },        -- --info            #4a90d9
+    -- "Hier ist etwas zu tun": offener Platz, Beruf am Stufendeckel.
+    attn       = { 0.851, 0.643, 0.255 },
 
     -- Rollen. Tank und Heiler kommen direkt aus der Palette; Schaden ist die
     -- Danger-Farbe in Richtung Pergament abgemischt, damit eine Rollenmarkierung
@@ -203,10 +205,20 @@ Theme.MEDIA = {
     jewel     = M .. "Jewel.tga",
     parchment = M .. "Parchment.tga",
     wax       = M .. "Wax.tga",
+    velvet    = M .. "Velvet.tga",
+    gold      = M .. "Gold.tga",
+    corner_filigree = M .. "Corner_Filigree.tga",
+    corner_star     = M .. "Corner_Star.tga",
+    corner_bracket  = M .. "Corner_Bracket.tga",
+    corner_illum    = M .. "Corner_Illum.tga",
+    diamond   = M .. "Diamond.tga",
+    seal      = M .. "Seal.tga",
+    shield    = M .. "Shield.tga",
+    shieldopen = M .. "ShieldOpen.tga",
 }
 
 --- Reihenfolge der Knoepfe in den Einstellungen.
-Theme.LOOK_ORDER = { "forge", "twilight", "codex", "blizzard" }
+Theme.LOOK_ORDER = { "forge", "twilight", "codex", "crimson", "blizzard" }
 Theme.DEFAULT_LOOK = "forge"
 
 local BLACK = { 0.043, 0.039, 0.035, 1 }
@@ -217,6 +229,7 @@ local BLACK = { 0.043, 0.039, 0.035, 1 }
 Theme.LOOKS = {
     forge = {
         palette = {
+            attn       = { 1.000, 0.878, 0.541 },        -- weissgluehend: am Deckel
             windowBg   = { 0.075, 0.067, 0.063, 0.97 },  -- Kohle      #131110
             sidebarBg  = { 0.090, 0.082, 0.075, 1.00 },
             panelBg    = { 0.118, 0.106, 0.094, 1.00 },  -- Amboss     #1e1b18
@@ -227,8 +240,8 @@ Theme.LOOKS = {
             borderLit  = { 0.420, 0.396, 0.365, 1.00 },  -- Stahl
             divider    = { 0.165, 0.149, 0.133, 1.00 },
             text       = { 0.925, 0.894, 0.839 },        -- Asche
-            textDim    = { 0.655, 0.616, 0.557 },
-            textFaint  = { 0.463, 0.427, 0.380 },
+            textDim    = { 0.702, 0.663, 0.600 },        -- #b3a999, 7.2:1 auf Paneel
+            textFaint  = { 0.604, 0.561, 0.502 },        -- #9a8f80, 5.3:1
             heading    = { 0.953, 0.773, 0.541 },
             gold       = { 0.961, 0.706, 0.416 },        -- Glut hell
             goldBright = { 1.000, 0.886, 0.737 },
@@ -238,7 +251,8 @@ Theme.LOOKS = {
         },
         window  = { tex = "stone", tile = true, tint = { 0.15, 0.137, 0.123, 0.98 } },
         content = { tex = "stone", tile = true, tint = { 0.10, 0.092, 0.084, 1 } },
-        outer = BLACK, rivet = { 0.78, 0.74, 0.68, 1 },
+        outer = BLACK, corner = "corner_bracket", medal = { 0.62, 0.59, 0.55, 1 },
+        markLine = { 1.00, 0.60, 0.27, 1 },
         header = { 0.36, 0.33, 0.30, 1 },
         btnPrimary = { 0.86, 0.40, 0.13, 1 }, btnPrimaryHover = { 1.00, 0.55, 0.22, 1 },
         btnSecondary = { 0.34, 0.32, 0.30, 1 }, btnSecondaryHover = { 0.46, 0.43, 0.40, 1 },
@@ -249,6 +263,7 @@ Theme.LOOKS = {
 
     twilight = {
         palette = {
+            attn       = { 0.941, 0.639, 0.420 },        -- Abendrot #f0a36b
             windowBg   = { 0.039, 0.078, 0.133, 0.97 },  -- Daemmerung #0a1422
             sidebarBg  = { 0.031, 0.071, 0.125, 1.00 },
             panelBg    = { 0.059, 0.133, 0.204, 1.00 },  -- Tiefsee    #0f2234
@@ -259,8 +274,8 @@ Theme.LOOKS = {
             borderLit  = { 0.659, 0.525, 0.353, 1.00 },  -- Bronze     #a8865a
             divider    = { 0.102, 0.188, 0.271, 1.00 },
             text       = { 0.910, 0.886, 0.831 },
-            textDim    = { 0.624, 0.698, 0.737 },
-            textFaint  = { 0.424, 0.510, 0.565 },
+            textDim    = { 0.663, 0.733, 0.769 },        -- #a9bbc4, 8.2:1
+            textFaint  = { 0.518, 0.600, 0.647 },        -- #8499a5, 5.5:1
             heading    = { 0.918, 0.851, 0.761 },        -- Pergament  #ead9c2
             gold       = { 0.373, 0.878, 0.902 },        -- Juwel hell #5fe0e6
             goldBright = { 0.867, 0.984, 0.988 },
@@ -271,7 +286,8 @@ Theme.LOOKS = {
         window  = { tex = "sky", tile = false, tint = { 1, 1, 1, 0.98 } },
         content = { fill = { 0.035, 0.075, 0.12, 0.72 } },
         outer = { 0.659, 0.525, 0.353, 1 }, inner = { 0.224, 0.714, 0.761, 0.45 },
-        rivet = { 0.86, 0.70, 0.46, 1 },
+        corner = "corner_star", medal = { 0.66, 0.53, 0.35, 1 },
+        mark = { tex = "diamond", tint = { 0.373, 0.878, 0.902, 1 } }, markLine = { 0.66, 0.53, 0.35, 1 },
         header = { 0.13, 0.24, 0.34, 1 },
         btnPrimary = { 0.17, 0.66, 0.71, 1 }, btnPrimaryHover = { 0.30, 0.85, 0.90, 1 },
         btnSecondary = { 0.16, 0.24, 0.32, 1 }, btnSecondaryHover = { 0.22, 0.34, 0.44, 1 },
@@ -283,6 +299,7 @@ Theme.LOOKS = {
     codex = {
         light = true,
         palette = {
+            attn       = { 0.184, 0.369, 0.557 },        -- blaue Tinte #2f5e8e
             windowBg   = { 0.914, 0.859, 0.733, 0.98 },  -- Vellum     #e9dbbb
             sidebarBg  = { 0.886, 0.824, 0.682, 1.00 },
             panelBg    = { 0.949, 0.906, 0.800, 1.00 },
@@ -294,7 +311,7 @@ Theme.LOOKS = {
             divider    = { 0.804, 0.725, 0.569, 1.00 },
             text       = { 0.169, 0.114, 0.071 },        -- Tinte      #2b1d12
             textDim    = { 0.369, 0.290, 0.212 },
-            textFaint  = { 0.502, 0.416, 0.322 },
+            textFaint  = { 0.431, 0.353, 0.271 },        -- #6e5a45, 5.5:1
             heading    = { 0.431, 0.122, 0.086 },        -- Wachs dunkel
             gold       = { 0.561, 0.165, 0.122 },        -- Siegelwachs #8f2a1f
             goldBright = { 0.973, 0.922, 0.816 },
@@ -314,7 +331,8 @@ Theme.LOOKS = {
         window  = { tex = "parchment", tile = true, tint = { 1, 1, 1, 1 } },
         content = { tex = "parchment", tile = true, tint = { 0.97, 0.95, 0.90, 1 } },
         outer = { 0.16, 0.11, 0.07, 1 }, inner = { 0.722, 0.537, 0.184, 1 },
-        rivet = { 0.85, 0.65, 0.25, 1 },
+        corner = "corner_illum", medal = { 0.72, 0.54, 0.18, 1 },
+        mark = { tex = "seal", tint = { 1, 1, 1, 1 }, size = 12 }, markLine = { 0.561, 0.165, 0.122, 1 },
         header = { 0.42, 0.27, 0.16, 1 },
         headerText = { 0.965, 0.914, 0.788 }, headerSub = { 0.85, 0.76, 0.60 },
         btnPrimary = { 0.70, 0.20, 0.15, 1 }, btnPrimaryHover = { 0.85, 0.28, 0.20, 1 },
@@ -324,6 +342,45 @@ Theme.LOOKS = {
         tabIdleText = { 0.169, 0.114, 0.071 },
         bar = "wax", trough = { 0.98, 0.95, 0.87, 1 },
     },
+}
+
+Theme.LOOKS.crimson = {
+    -- Entwurf D "Crimson Court" (05.10.2026): Weinrot und Altgold, Samt mit
+    -- Damast, Goldfiligran in den Ecken, Kerzenlicht statt Glut.
+    palette = {
+        windowBg   = { 0.078, 0.024, 0.035, 0.97 },  -- Samt       #140609
+        sidebarBg  = { 0.098, 0.035, 0.051, 1.00 },
+        panelBg    = { 0.165, 0.063, 0.090, 1.00 },  -- Hofwein    #2a1017
+        rowBg      = { 0.196, 0.075, 0.106, 1.00 },
+        rowAltBg   = { 0.137, 0.051, 0.071, 1.00 },
+        rowHover   = { 0.227, 0.086, 0.125, 1.00 },
+        border     = { 0.420, 0.322, 0.188, 1.00 },  -- Altgold dunkel
+        borderLit  = { 0.788, 0.639, 0.353, 1.00 },  -- Altgold    #c9a35a
+        divider    = { 0.259, 0.106, 0.149, 1.00 },
+        text       = { 0.953, 0.914, 0.863 },        -- Creme      #f3e9dc
+        textDim    = { 0.788, 0.702, 0.651 },        -- #c9b3a6, 8.8:1
+        textFaint  = { 0.635, 0.541, 0.498 },        -- #a28a7f, 5.5:1
+        heading    = { 0.890, 0.776, 0.494 },        -- #e3c67e
+        gold       = { 0.890, 0.776, 0.494 },
+        goldBright = { 0.984, 0.945, 0.839 },
+        goldMid    = { 0.788, 0.639, 0.353 },
+        goldDim    = { 0.541, 0.416, 0.200 },
+        goldDeep   = { 0.290, 0.110, 0.161, 1.00 },
+        attn       = { 0.816, 0.478, 0.541 },        -- Rose #d07a8a
+    },
+    window  = { tex = "velvet", tile = true, tint = { 1, 1, 1, 0.98 } },
+    content = { tex = "velvet", tile = true, tint = { 0.82, 0.80, 0.80, 1 } },
+    outer = { 0.541, 0.416, 0.200, 1 }, inner = { 0.788, 0.639, 0.353, 0.55 },
+    corner = "corner_filigree", medal = { 0.79, 0.64, 0.35, 1 },
+    mark = { tex = "diamond", tint = { 0.890, 0.776, 0.494, 1 } }, markLine = { 0.890, 0.776, 0.494, 1 },
+    header = { 0.36, 0.13, 0.18, 1 },
+    btnPrimary = { 0.92, 0.78, 0.47, 1 }, btnPrimaryHover = { 1.00, 0.90, 0.62, 1 },
+    btnSecondary = { 0.36, 0.13, 0.19, 1 }, btnSecondaryHover = { 0.48, 0.18, 0.26, 1 },
+    btnLine = { 0.541, 0.416, 0.200, 1 },
+    -- Der goldene Hauptknopf traegt dunkle Schrift, wie im Entwurf.
+    btnPrimaryText = { 0.165, 0.051, 0.078 },
+    tabSelected = { 0.36, 0.13, 0.19, 1 }, tabIdle = { 0.20, 0.07, 0.10, 1 },
+    bar = "gold", trough = { 0.047, 0.012, 0.024, 1 },
 }
 
 --- Fuer Aufrufer und Tests aus der ersten Fassung (nur Schmiede).
@@ -482,7 +539,28 @@ function Theme.ForgeFrame(frame, kind, bgColor)
         gap:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
         Theme.Outline(gap, look.outer)
 
-        local rivet = look.rivet and Theme.Media("rivet")
+        -- Eckornamente des Looks, UEBER den Kindern (Kopfleiste, Inhalt):
+        -- Texturen eines Frames liegen immer unter seinen Kindern, darum ein
+        -- eigener Rahmen weit oben. Er nimmt keine Maus an.
+        local cornerTex = look.corner and Theme.Media(look.corner)
+        if cornerTex then
+            local layer = CreateFrame("Frame", nil, frame)
+            layer:SetAllPoints(frame)
+            layer:SetFrameLevel((frame:GetFrameLevel() or 1) + 30)
+            local FLIP = { TOPLEFT = { 0, 1, 0, 1 }, TOPRIGHT = { 1, 0, 0, 1 },
+                           BOTTOMLEFT = { 0, 1, 1, 0 }, BOTTOMRIGHT = { 1, 0, 1, 0 } }
+            for cornerPoint, tc in pairs(FLIP) do
+                local orn = layer:CreateTexture(nil, "OVERLAY")
+                orn:SetTexture(cornerTex)
+                orn:SetWidth(40) orn:SetHeight(40)
+                orn:SetPoint(cornerPoint, frame, cornerPoint, string.find(cornerPoint, "LEFT") and 3 or -3,
+                    string.find(cornerPoint, "TOP") and -3 or 3)
+                orn:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+            end
+            frame.gaOrnaments = layer
+        end
+
+        local rivet = not cornerTex and look.rivet and Theme.Media("rivet")
         if rivet then
             for _, corner in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
                 local dot = frame:CreateTexture(nil, "OVERLAY")

@@ -23,6 +23,8 @@ local Theme = GA.UI.Theme
 local Widgets = GA.UI.Widgets
 local Config = GA.Core.Config
 local L = GA.L
+--- Hoehe des Reiterbands unter der Kopfleiste (eigene Looks).
+local TAB_RIBBON = 28
 
 local FRAME_NAME = "GuildArmoryMainFrame"
 -- Der Portraitkreis der Vorlage ragt oben links etwa 60px in den Rahmen; die
@@ -182,7 +184,9 @@ function MainFrame:Create()
         insets = Theme.PanelInsets()
     else
         self:BuildFallbackHeader()
-        insets = { left = 12, right = -12, top = -(Theme.size.headerHeight + 12), bottom = 12 }
+        -- Eigener Look: Die Reiter stehen als Band unter der Kopfleiste.
+        local ribbon = Theme.Look() and TAB_RIBBON or 0
+        insets = { left = 12, right = -12, top = -(Theme.size.headerHeight + 12 + ribbon), bottom = 12 }
     end
 
     -- Inhalt: Werkzeugzeile oben, darunter die Ansicht.
@@ -299,10 +303,31 @@ function MainFrame:BuildFallbackHeader()
         Theme.MetalFill(header, look.header)
         Theme.Edge(header, "BOTTOM", { 0.043, 0.039, 0.035, 1 })
         if Theme.Media("logo") then
-            emblem = header:CreateTexture(nil, "ARTWORK")
-            emblem:SetTexture(Theme.MEDIA.logo)
-            emblem:SetWidth(36) emblem:SetHeight(36)
-            emblem:SetPoint("LEFT", header, "LEFT", 6, 0)
+            -- DAS WAPPEN SPRENGT DEN RAHMEN (Entwuerfe vom 05.10.2026): ein
+            -- Medaillon im Metall des Looks, das ueber die Kopfleiste ins
+            -- Reiterband ragt. Rund geschnitten, wo der Client Masken kennt.
+            emblem = CreateFrame("Frame", nil, self.frame)
+            emblem:SetWidth(58) emblem:SetHeight(58)
+            emblem:SetPoint("LEFT", header, "LEFT", 2, -8)
+            emblem:SetFrameLevel((header:GetFrameLevel() or 1) + 40)
+            local circle = Theme.RoundTexture()
+            local ring = emblem:CreateTexture(nil, "ARTWORK")
+            ring:SetAllPoints(emblem)
+            if circle then ring:SetTexture(circle) end
+            Theme.Tint(ring, look.medal or Theme.color.borderLit)
+            if not circle then Theme.Paint(ring, look.medal or Theme.color.borderLit) end
+            local logo = emblem:CreateTexture(nil, "OVERLAY")
+            logo:SetWidth(50) logo:SetHeight(50)
+            logo:SetPoint("CENTER", emblem, "CENTER", 0, 0)
+            logo:SetTexture(Theme.MEDIA.logo)
+            if circle and emblem.CreateMaskTexture and logo.AddMaskTexture then
+                local ok, mask = pcall(emblem.CreateMaskTexture, emblem)
+                if ok and mask then
+                    pcall(mask.SetTexture, mask, circle, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+                    mask:SetAllPoints(logo)
+                    pcall(logo.AddMaskTexture, logo, mask)
+                end
+            end
         end
     else
         Theme.Fill(header, Theme.color.panelBg)
@@ -311,7 +336,7 @@ function MainFrame:BuildFallbackHeader()
 
     local brand = Theme.Label(header, "Guild Armory", fonts.big,
         look and (look.headerText or Theme.color.heading) or Theme.color.gold)
-    if emblem then brand:SetPoint("LEFT", emblem, "RIGHT", 10, 0)
+    if emblem then brand:SetPoint("LEFT", emblem, "RIGHT", 10, 8)
     else brand:SetPoint("LEFT", header, "LEFT", 14, 0) end
     if brand.SetShadowOffset then brand:SetShadowOffset(1, -1) end
     local tagline = Theme.Label(header, "Forever Edition", fonts.small,
@@ -430,8 +455,15 @@ function MainFrame:BuildTabs()
                 tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 11, 2)
             end
         else
+            -- Eigener Look: Reiterband oben, rechts vom Wappen.
+            if Theme.Look() then
+                if previous then
+                    tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
+                else
+                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", 12 + 66, -(12 + Theme.size.headerHeight + 3))
+                end
             -- Gezeichnete Reiter liegen innen am unteren Rand.
-            if previous then
+            elseif previous then
                 tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
             else
                 tab:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)

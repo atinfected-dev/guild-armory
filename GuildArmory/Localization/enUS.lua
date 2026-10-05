@@ -721,10 +721,11 @@ GA.Core.Locale:Register("enUS", {
     SET_UI_LANGUAGE    = "UI + Language",
     SET_SUB_UI_LANGUAGE = "Look of the addon and its language",
     SET_LOOK           = "Look",
-    SET_LOOK_HINT      = "Forge: steel, stone and ember. Forever Twilight: dusk sky, jewel teal and bronze, after the WoW: Forever site. Codex: parchment, ink and sealing wax — the one light look. Blizzard: the game's own window frames, as before.",
+    SET_LOOK_HINT      = "Forge: steel, stone and ember. Forever Twilight: dusk sky, jewel teal and bronze, after the WoW: Forever site. Codex: parchment, ink and sealing wax — the one light look. Crimson Court: wine velvet and antique gold. Blizzard: the game's own window frames, as before.",
     SET_LOOK_FORGE     = "Forge",
     SET_LOOK_TWILIGHT  = "Forever Twilight",
     SET_LOOK_CODEX     = "Codex",
+    SET_LOOK_CRIMSON   = "Crimson Court",
     SET_LOOK_BLIZZARD  = "Blizzard",
     SET_LOOK_RELOAD    = "The new look takes effect after a /reload. New texture files need one full game restart.",
 
@@ -1116,6 +1117,10 @@ GA.Core.Locale:Register("enUS", {
     CRAFT_ERR_noguid   = "Your own character ID is unreadable on this client.",
 
     CRAFT_ASK_BUTTON   = "Ask",
+    CRAFT_TRAIN        = "train %s",
+    CRAFT_TIER_75      = "Journeyman",
+    CRAFT_TIER_150     = "Expert",
+    CRAFT_TIER_225     = "Artisan",
     CRAFT_ASK          = "Could you craft %s for me?",
     CRAFT_ASKED        = "Asked %s of %s.",
     CRAFT_ASK_ERR_noitem = "No item selected.",
