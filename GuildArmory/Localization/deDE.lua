@@ -1326,6 +1326,8 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_SRC_CLUB = "mit dem Verlauf des Spiels",
     ROSTER_CHAT_SRC_LIVE = "seit Login · die letzten %d bleiben ueber einen Reload",
     ROSTER_CHAT_SEND   = "Senden",
+    ROSTER_CHAT_OPEN   = "Chat zeigen",
+    ROSTER_CHAT_CLOSE  = "Chat ausblenden",
     ROSTER_CHAT_ERR_empty = "Nichts zu senden.",
     ROSTER_CHAT_ERR_noguild = "Dafuer braucht es eine Gilde.",
     ROSTER_CHAT_ERR_send = "Die Nachricht ging nicht hinaus.",

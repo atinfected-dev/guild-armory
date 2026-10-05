@@ -34,6 +34,8 @@ View.titleKey = "NAV_ROSTER"
 
 local DETAIL_W = 250
 local CHAT_H = 260
+--- Zugeklappt bleibt nur die Kopfzeile des Chats.
+local CHAT_FOLDED_H = 24
 local FILTERS = { "ALL", "ONLINE", "OFFICERS", "NONOTE" }
 
 --- Farbe je Rangstufe: die ersten drei tragen Farbe, der Rest ist grau.
@@ -639,8 +641,15 @@ function View:BuildChat(panel, fonts)
         self.chatChips[#self.chatChips + 1] = chip
         vorige = chip
     end
+    -- Auf- und zuklappen (05.10.2026): standardmaessig zu, die Liste wird
+    -- groesser; wer lesen will, klappt auf. Gemerkt wird es.
+    self.chatToggle = Widgets.Button(panel.header or content, L.ROSTER_CHAT_OPEN, function()
+        self:SetChatOpen(not self.chatOpen)
+    end)
+    self.chatToggle:SetHeight(18)
+    self.chatToggle:SetPoint("RIGHT", panel.header or content, "RIGHT", -6, 0)
     self.chatState = Theme.Label(panel.header or content, "", fonts.small, Theme.color.textFaint)
-    self.chatState:SetPoint("RIGHT", panel.header or content, "RIGHT", -8, 0)
+    self.chatState:SetPoint("RIGHT", self.chatToggle, "LEFT", -8, 0)
 
     self.chatInput = editBox(content, 100, function(text)
         local ok, grund = GA.Modules.GuildChat:Send(text, self.chatChannel)
@@ -687,9 +696,27 @@ function View:BuildChat(panel, fonts)
     self.chatLines:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 26)
 end
 
+--- Klappt den Chat auf oder zu. Die Liste haengt mit ihrer Unterkante am
+--- Chat und waechst darum von selbst mit.
+function View:SetChatOpen(open)
+    self.chatOpen = open and true or false
+    GA.Core.Config:Set("rosterChatOpen", self.chatOpen)
+    if not self.chatPanel then return end
+    self.chatPanel:SetHeight(self.chatOpen and CHAT_H or CHAT_FOLDED_H)
+    if self.chatPanel.inset then self.chatPanel.inset:SetShown(self.chatOpen) end
+    self.chatToggle:SetLabel(self.chatOpen and L.ROSTER_CHAT_CLOSE or L.ROSTER_CHAT_OPEN)
+    self:RefreshChat()
+end
+
 function View:RefreshChat()
     local GuildChat = GA.Modules.GuildChat
     if not GuildChat then return end
+    if self.chatOpen == nil then
+        self.chatOpen = GA.Core.Config:Get("rosterChatOpen") == true
+        self.chatPanel:SetHeight(self.chatOpen and CHAT_H or CHAT_FOLDED_H)
+        if self.chatPanel.inset then self.chatPanel.inset:SetShown(self.chatOpen) end
+        self.chatToggle:SetLabel(self.chatOpen and L.ROSTER_CHAT_CLOSE or L.ROSTER_CHAT_OPEN)
+    end
     -- Welche Reiter: Offiziere nur, wer zuhoeren darf; Discord nur mit Bruecke.
     local shown = { GUILD = true, OFFICER = Compat.CanListenOfficerChat() ~= false,
         DISCORD = type(Compat.IsDiscordBridgeEnabled) == "function" and Compat.IsDiscordBridgeEnabled() == true }
@@ -704,6 +731,9 @@ function View:RefreshChat()
             vorige = chip
         end
         chip:SetPressed(chip.channel == self.chatChannel)
+        -- Zugeklappt keine Kanalwahl: Die Kopfzeile zeigt nur Titel, Stand
+        -- und den Knopf zum Aufklappen.
+        if not self.chatOpen then chip:Hide() end
     end
     GuildChat:RequestHistory()
     GuildChat:PullHistory()
@@ -717,7 +747,8 @@ function View:RefreshChat()
     self.chatInput:SetShown(darf)
     self.chatSend:SetShown(darf)
     -- Was hier offen ist, ist gelesen: die Lesemarke im Spiel nachziehen.
-    if GuildChat.MarkRead then GuildChat:MarkRead(self.chatChannel) end
+    -- Zugeklappt hat niemand gelesen — dann bleibt die Marke stehen.
+    if self.chatOpen and GuildChat.MarkRead then GuildChat:MarkRead(self.chatChannel) end
 end
 
 -- ================================================================== Aktionen --

@@ -253,6 +253,10 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Menschen unlesbar in Discord.
         discordBot = false,
 
+        -- Gildenchat in der Mitgliederliste: zu, bis man ihn aufklappt
+        -- (05.10.2026) — die Liste bekommt den Platz.
+        rosterChatOpen = false,
+
         -- Look des Addons (05.10.2026): "forge" = eigene Schmiede-Texturen
         -- (Entwurf B), "blizzard" = Blizzards Fenstervorlagen wie bisher.
         uiLook = "forge",

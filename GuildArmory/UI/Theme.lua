@@ -275,6 +275,13 @@ Theme.MEDIA = {
 Theme.LOOK_ORDER = { "forge", "twilight", "codex", "crimson", "blizzard" }
 Theme.DEFAULT_LOOK = "forge"
 
+--- Abstand der Kopfleiste vom oberen Fensterrand. In den eigenen Looks
+--- groesser, damit die oberen Eckornamente so viel Luft haben wie die
+--- unteren (Bild vom 05.10.2026: oben lag die Leiste an der Rahmenlinie).
+function Theme.HeaderTop()
+    return Theme.Look() and 20 or 12
+end
+
 local BLACK = { 0.043, 0.039, 0.035, 1 }
 
 --- Je Look: Palette (dieselben Schluessel wie Theme.color — "gold" ist dort
@@ -308,7 +315,7 @@ Theme.LOOKS = {
         window  = { tex = "stone", tile = true, tint = { 0.15, 0.137, 0.123, 0.98 } },
         content = { tex = "stone", tile = true, tint = { 0.10, 0.092, 0.084, 1 } },
         outer = BLACK, corner = "corner_bracket", medal = { 0.62, 0.59, 0.55, 1 },
-        markLine = { 1.00, 0.60, 0.27, 1 },
+        mark = { tex = "diamond", tint = { 1.00, 0.60, 0.27, 1 } }, markLine = { 1.00, 0.60, 0.27, 1 },
         header = { 0.36, 0.33, 0.30, 1 },
         btnPrimary = { 0.86, 0.40, 0.13, 1 }, btnPrimaryHover = { 1.00, 0.55, 0.22, 1 },
         btnSecondary = { 0.34, 0.32, 0.30, 1 }, btnSecondaryHover = { 0.46, 0.43, 0.40, 1 },

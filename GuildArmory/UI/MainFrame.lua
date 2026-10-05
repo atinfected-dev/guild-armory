@@ -186,7 +186,7 @@ function MainFrame:Create()
         self:BuildFallbackHeader()
         -- Eigener Look: Die Reiter stehen als Band unter der Kopfleiste.
         local ribbon = Theme.Look() and TAB_RIBBON or 0
-        insets = { left = 12, right = -12, top = -(Theme.size.headerHeight + 12 + ribbon), bottom = 12 }
+        insets = { left = 12, right = -12, top = -(Theme.size.headerHeight + Theme.HeaderTop() + ribbon), bottom = 12 }
     end
 
     -- Inhalt: Werkzeugzeile oben, darunter die Ansicht.
@@ -292,9 +292,10 @@ function MainFrame:BuildFallbackHeader()
     local frame = self.frame
 
     local inset = 12
+    local top = Theme.HeaderTop()
     local header = CreateFrame("Frame", nil, frame)
-    header:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
-    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -inset)
+    header:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -top)
+    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -top)
     header:SetHeight(Theme.size.headerHeight)
     local emblem
     local look = Theme.Look()
@@ -460,7 +461,7 @@ function MainFrame:BuildTabs()
                 if previous then
                     tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
                 else
-                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", 12 + 66, -(12 + Theme.size.headerHeight + 3))
+                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", 12 + 66, -(Theme.HeaderTop() + Theme.size.headerHeight + 3))
                 end
             -- Gezeichnete Reiter liegen innen am unteren Rand.
             elseif previous then

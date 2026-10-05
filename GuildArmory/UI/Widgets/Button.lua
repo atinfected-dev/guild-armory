@@ -400,8 +400,11 @@ function Widgets.Tab(owner, index, text, onClick)
     -- Eigener Look: ein Band statt Karteikarten. Kein Kasten; der gewaehlte
     -- Reiter traegt eine Linie und die Marke des Looks (Raute, Juwel, Siegel).
     local look = Theme.Look()
-    local underline, mark
+    local underline, mark, glow
     if look then
+        -- Ueber dem Inhalt: Marke und Schein ragen unter den Reiter, und
+        -- der Inhaltsbereich liegt auf derselben Ebene — er deckte sie zu.
+        tab:SetFrameLevel((owner:GetFrameLevel() or 1) + 12)
         Theme.Paint(background, { 0, 0, 0, 0 })
         for _, line in ipairs(lines) do line:Hide() end
         underline = tab:CreateTexture(nil, "ARTWORK")
@@ -410,6 +413,20 @@ function Widgets.Tab(owner, index, text, onClick)
         underline:SetHeight(2)
         Theme.Paint(underline, look.markLine or Theme.color.gold)
         underline:Hide()
+        -- DAS LEUCHTEN UNTER DEM REITER (Bild vom 05.10.2026: fehlte
+        -- ueberall). Ein weicher Schein in der Farbe der Linie, additiv.
+        local glowTex = Theme.Media("glow")
+        if glowTex then
+            glow = tab:CreateTexture(nil, "ARTWORK", nil, 1)
+            glow:SetTexture(glowTex)
+            pcall(glow.SetBlendMode, glow, "ADD")
+            glow:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 2, -7)
+            glow:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -2, -7)
+            glow:SetHeight(16)
+            local c = look.markLine or Theme.color.gold
+            glow:SetVertexColor(c[1], c[2], c[3], look.light and 0.45 or 0.75)
+            glow:Hide()
+        end
         local markTex = look.mark and Theme.Media(look.mark.tex)
         if markTex then
             mark = tab:CreateTexture(nil, "OVERLAY")
@@ -431,6 +448,7 @@ function Widgets.Tab(owner, index, text, onClick)
         if look then
             if underline then underline:SetShown(self.selected) end
             if mark then mark:SetShown(self.selected) end
+            if glow then glow:SetShown(self.selected) end
         else
             Theme.Paint(background, self.selected and Theme.color.panelBg or Theme.color.sidebarBg)
         end
