@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.37
+
+In progress.
+
 ## 0.1.36
 
 Talent window: a paladin's talents fell apart into twelve trees ("Tree 3" to "Tree 12"). One talent sat a few units beside its column, and the window took that tiny offset for the grid step, so every ordinary column gap looked like the edge of a tree. The grid step now ignores such strays; the paladin shows Holy, Protection and Retribution again.
