@@ -253,6 +253,10 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Menschen unlesbar in Discord.
         discordBot = false,
 
+        -- Look des Addons (05.10.2026): "forge" = eigene Schmiede-Texturen
+        -- (Entwurf B), "blizzard" = Blizzards Fenstervorlagen wie bisher.
+        uiLook = "forge",
+
 
         -- Woher die Wurfzahl kommt: "MASTER" | "CHAT". Siehe
         -- Session:RollSource — es ist Nachpruefbarkeit gegen Ruhe, und die

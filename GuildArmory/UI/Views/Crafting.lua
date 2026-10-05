@@ -398,12 +398,12 @@ function CraftingView:BuildCrafterRow(row)
     -- Balken links, Zahl rechts — die Zahl ist die Auskunft, der Balken die
     -- Einordnung auf einen Blick. Wie das Itemlevel im Charakterfenster.
     row.barBg = row:CreateTexture(nil, "ARTWORK")
-    Theme.Paint(row.barBg, Theme.color.windowBg)
+    Theme.BarTrough(row.barBg)
     row.barBg:SetWidth(BAR_WIDTH) row.barBg:SetHeight(5)
     row.barBg:SetPoint("LEFT", row, "LEFT", x.skill, 0)
 
     row.barFill = row:CreateTexture(nil, "OVERLAY")
-    Theme.Paint(row.barFill, Theme.color.goldDim)
+    Theme.BarFill(row.barFill, Theme.color.goldDim)
     row.barFill:SetHeight(5)
     row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
 

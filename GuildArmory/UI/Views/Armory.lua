@@ -322,12 +322,12 @@ function Armory:BuildRow(row)
     -- Balken links, Zahl rechts — die Zahl ist die Auskunft, der Balken die
     -- Einordnung auf einen Blick.
     row.barBg = row:CreateTexture(nil, "ARTWORK")
-    Theme.Paint(row.barBg, Theme.color.windowBg)
+    Theme.BarTrough(row.barBg)
     row.barBg:SetWidth(34) row.barBg:SetHeight(5)
     row.barBg:SetPoint("LEFT", row, "LEFT", x.ilvl, 0)
 
     row.barFill = row:CreateTexture(nil, "OVERLAY")
-    Theme.Paint(row.barFill, Theme.color.goldDim)
+    Theme.BarFill(row.barFill, Theme.color.goldDim)
     row.barFill:SetHeight(5)
     row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
 

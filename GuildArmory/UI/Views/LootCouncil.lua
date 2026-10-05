@@ -515,12 +515,12 @@ function LootCouncil:BuildCandidateRow(row)
     row.value:SetJustifyH("LEFT")
 
     row.barBg = row:CreateTexture(nil, "ARTWORK")
-    Theme.Paint(row.barBg, Theme.color.windowBg)
+    Theme.BarTrough(row.barBg)
     row.barBg:SetWidth(BAR_WIDTH) row.barBg:SetHeight(5)
     row.barBg:SetPoint("LEFT", row, "LEFT", x.ilvl, 0)
 
     row.barFill = row:CreateTexture(nil, "OVERLAY")
-    Theme.Paint(row.barFill, Theme.color.goldDim)
+    Theme.BarFill(row.barFill, Theme.color.goldDim)
     row.barFill:SetHeight(5)
     row.barFill:SetPoint("LEFT", row.barBg, "LEFT", 0, 0)
 
@@ -788,7 +788,7 @@ function LootCouncil:BuildDecision(content, fonts)
         row.track:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
 
         row.fill = row:CreateTexture(nil, "OVERLAY")
-        Theme.Paint(row.fill, Theme.color.gold)
+        Theme.BarFill(row.fill, Theme.color.gold)
         row.fill:SetHeight(6)
         row.fill:SetPoint("LEFT", row.track, "LEFT", 0, 0)
         row.fill:SetWidth(1)

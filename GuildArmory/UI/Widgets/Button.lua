@@ -73,19 +73,28 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     local button = CreateFrame("Button", nil, parent)
     button:SetHeight(20)
 
+    -- Schmiede: Kupfer fuer die Hauptaktion, Stahl fuer den Rest.
+    local forge = Theme.look == "forge"
+    local TINT = isPrimary and { 0.86, 0.40, 0.13, 1 } or { 0.34, 0.32, 0.30, 1 }
+    local TINT_HOVER = isPrimary and { 1.00, 0.55, 0.22, 1 } or { 0.46, 0.43, 0.40, 1 }
     local background = Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
-    local lines = Theme.Outline(button, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+    if forge then Theme.Metal(background, TINT) end
+    local lines = Theme.Outline(button, forge and { 0.043, 0.039, 0.035, 1 }
+        or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
 
     local label = Theme.Label(button, string.upper(text or ""), fonts.small,
-        isPrimary and Theme.color.goldBright or Theme.color.goldMid)
+        isPrimary and Theme.color.goldBright
+        or (Theme.look == "forge" and Theme.color.text or Theme.color.goldMid))
+    if Theme.look == "forge" and label.SetShadowOffset then label:SetShadowOffset(1, -1) end
     label:SetPoint("CENTER", button, "CENTER", 0, 0)
 
     button:SetWidth(label:GetStringWidth() + 22)
 
     button:SetScript("OnEnter", function()
-        Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep)
+        if forge then Theme.Metal(background, TINT_HOVER)
+        else Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep) end
         label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
-        for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end
+        if not forge then for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end end
 
         if button.tooltip then
             GameTooltip:SetOwner(button, "ANCHOR_TOP")
@@ -95,11 +104,14 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     end)
 
     button:SetScript("OnLeave", function()
-        Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
-        local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+        if forge then Theme.Metal(background, TINT)
+        else Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 }) end
+        local color = isPrimary and Theme.color.goldBright or (forge and Theme.color.text or Theme.color.goldMid)
         label:SetTextColor(color[1], color[2], color[3])
-        for _, line in ipairs(lines) do
-            Theme.Paint(line, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+        if not forge then
+            for _, line in ipairs(lines) do
+                Theme.Paint(line, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+            end
         end
         GameTooltip:Hide()
     end)
@@ -115,7 +127,8 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     function button:SetEnabledState(enabled, reason)
         if enabled then
             self:Enable()
-            local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+            local color = isPrimary and Theme.color.goldBright
+                or (Theme.look == "forge" and Theme.color.text or Theme.color.goldMid)
             label:SetTextColor(color[1], color[2], color[3])
             self.tooltip = nil
         else
@@ -383,7 +396,12 @@ function Widgets.Tab(owner, index, text, onClick)
         self.selected = selected and true or false
         local color = self.selected and Theme.color.gold or Theme.color.textDim
         label:SetTextColor(color[1], color[2], color[3])
-        Theme.Paint(background, self.selected and Theme.color.panelBg or Theme.color.sidebarBg)
+        if Theme.look == "forge" then
+            -- Stahlreiter; der gewaehlte gluehend angelaufen.
+            Theme.Metal(background, self.selected and { 0.46, 0.30, 0.18, 1 } or { 0.24, 0.22, 0.21, 1 })
+        else
+            Theme.Paint(background, self.selected and Theme.color.panelBg or Theme.color.sidebarBg)
+        end
         for _, line in ipairs(lines) do
             Theme.Paint(line, self.selected and Theme.color.goldDim or Theme.color.border)
         end

@@ -457,7 +457,7 @@ local function setBar(card, ratio, color)
     end
     local breite = card.barTrack:GetWidth()
     if not breite or breite <= 0 then breite = 120 end
-    Theme.Paint(card.barFill, color)
+    Theme.BarFill(card.barFill, color)
     card.barFill:SetWidth(math.max(1, breite * math.min(1, math.max(0, ratio))))
     card.barTrack:Show() card.barFill:Show()
 end
@@ -571,7 +571,7 @@ function View:BuildHeader(index)
     header.barTrack:SetPoint("RIGHT", header.points, "LEFT", -8, 0)
 
     header.barFill = header:CreateTexture(nil, "OVERLAY")
-    Theme.Paint(header.barFill, Theme.color.goldDim)
+    Theme.BarFill(header.barFill, Theme.color.goldDim)
     header.barFill:SetHeight(5)
     header.barFill:SetPoint("LEFT", header.barTrack, "LEFT", 0, 0)
 
@@ -664,7 +664,7 @@ function View:BuildBoardRow(row)
     row.barTrack:SetWidth(34) row.barTrack:SetHeight(5)
     row.barTrack:SetPoint("LEFT", row, "LEFT", w.points.x, 0)
     row.barFill = row:CreateTexture(nil, "OVERLAY")
-    Theme.Paint(row.barFill, Theme.color.goldDim)
+    Theme.BarFill(row.barFill, Theme.color.goldDim)
     row.barFill:SetHeight(5)
     row.barFill:SetPoint("LEFT", row.barTrack, "LEFT", 0, 0)
 

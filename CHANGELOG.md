@@ -2,7 +2,7 @@
 
 ## 0.1.35
 
-In progress.
+New look, "Forge": the addon draws its own frames instead of Blizzard's window templates — a stone-grained window in a steel frame with rivets, a steel title bar carrying the guild emblem, copper and steel buttons, steel tabs, and progress bars that glow like molten metal. Ember replaces gold as the accent colour. All textures are the addon's own. Settings › Window has "Blizzard frames instead of the Forge look" for the previous style (after a /reload). The new texture files load only after a full game restart, not a /reload; until then the addon falls back to flat colours.
 
 ## 0.1.34
 

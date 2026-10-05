@@ -160,6 +160,190 @@ function Theme.Fonts()
     }
 end
 
+-- ------------------------------------------------------- Look: Schmiede ---
+--
+-- Entwurf B "Ironforge Ember" (05.10.2026, vom Nutzer gewaehlt aus drei
+-- Vorschlaegen): Stahl, Steinmaserung, Glut statt Gold. Eigene Texturen in
+-- Media/, keine Blizzard-Grafik. Der alte Look bleibt in den Einstellungen
+-- waehlbar ("blizzard") — dann gilt alles hier nicht.
+--
+-- WIE ES WIRKT: Theme.ApplyLook() tauscht die Farbwerte DIESER Tabelle aus,
+-- sobald die Datenbank steht (Core/Events.lua). Alles, was Theme.color.x zur
+-- Laufzeit liest, folgt damit von selbst. Und Theme.CreateNative verweigert
+-- die rein optischen Blizzard-Vorlagen (Portraitfenster, Knopf, Reiter,
+-- Einlage): Dann greifen ueberall die selbst gezeichneten Rueckfaelle, die
+-- es schon gibt — und die tragen hier die Schmiede-Texturen.
+--
+-- NEUE DATEIEN IN Media/ LAEDT DER CLIENT ERST NACH EINEM NEUSTART des
+-- Spiels, nicht nach /reload. Jede Textur wird darum ueber TextureExists
+-- geprueft; laedt sie nicht, bleibt die flache Farbe.
+
+Theme.MEDIA = {
+    stone  = [[Interface\AddOns\GuildArmory\Media\Stone.tga]],
+    metal  = [[Interface\AddOns\GuildArmory\Media\Metal.tga]],
+    molten = [[Interface\AddOns\GuildArmory\Media\Molten.tga]],
+    notch  = [[Interface\AddOns\GuildArmory\Media\Notch.tga]],
+    rivet  = [[Interface\AddOns\GuildArmory\Media\Rivet.tga]],
+    glow   = [[Interface\AddOns\GuildArmory\Media\Glow.tga]],
+    logo   = [[Interface\AddOns\GuildArmory\Media\Logo.tga]],
+}
+
+--- Die Palette der Schmiede. Dieselben Schluessel wie oben; "gold" heisst
+--- hier Glut — die Namen bleiben, damit kein Aufrufer umgeschrieben werden muss.
+Theme.FORGE_PALETTE = {
+    windowBg   = { 0.075, 0.067, 0.063, 0.97 },  -- Kohle      #131110
+    sidebarBg  = { 0.090, 0.082, 0.075, 1.00 },  --            #171513
+    panelBg    = { 0.118, 0.106, 0.094, 1.00 },  -- Amboss     #1e1b18
+    rowBg      = { 0.141, 0.129, 0.118, 1.00 },  --            #24211e
+    rowAltBg   = { 0.102, 0.094, 0.086, 1.00 },  --            #1a1816
+    rowHover   = { 0.180, 0.157, 0.137, 1.00 },  --            #2e2823
+    border     = { 0.290, 0.271, 0.251, 1.00 },  -- Stahl dunkel #4a4540
+    borderLit  = { 0.420, 0.396, 0.365, 1.00 },  -- Stahl      #6b655d
+    divider    = { 0.165, 0.149, 0.133, 1.00 },  --            #2a2622
+    text       = { 0.925, 0.894, 0.839 },        -- Asche      #ece4d6
+    textDim    = { 0.655, 0.616, 0.557 },        --            #a79d8e
+    textFaint  = { 0.463, 0.427, 0.380 },        --            #766d61
+    heading    = { 0.953, 0.773, 0.541 },        --            #f3c58a
+    gold       = { 0.961, 0.706, 0.416 },        -- Glut hell  #f5b46a
+    goldBright = { 1.000, 0.886, 0.737 },        --            #ffe2bc
+    goldMid    = { 0.886, 0.443, 0.169 },        -- Glut       #e2712b
+    goldDim    = { 0.659, 0.322, 0.110 },        --            #a8521c
+    goldDeep   = { 0.290, 0.137, 0.063, 1.00 },  -- Zunder     #4a2310
+}
+
+--- Diese Vorlagen sind nur Optik; im Schmiede-Look zeichnet das Addon selbst.
+--- Eingabefelder, Suchfeld und Haken bleiben nativ: Ihre Rueckfaelle sind
+--- nicht ueberall vorhanden, und sie tragen Verhalten, nicht nur Aussehen.
+Theme.FORGE_SKIP = {
+    PortraitFrameTemplate = true,
+    UIPanelButtonTemplate = true,
+    PanelTabButtonTemplate = true,
+    CharacterFrameTabButtonTemplate = true,
+    InsetFrameTemplate = true,
+}
+
+--- Welcher Look gilt? "forge" (Standard) oder "blizzard".
+function Theme.IsForge()
+    local Config = GA.Core and GA.Core.Config
+    if not Config or not Config.Get then return false end
+    local ok, value = pcall(Config.Get, Config, "uiLook")
+    return ok and value ~= "blizzard"
+end
+
+--- Einmal nach dem Laden der Datenbank: Farben tauschen, Look merken.
+function Theme.ApplyLook()
+    if not Theme.IsForge() then
+        Theme.look = "blizzard"
+        return
+    end
+    for key, value in pairs(Theme.FORGE_PALETTE) do Theme.color[key] = value end
+    Theme.look = "forge"
+end
+
+local mediaLoads = {}
+--- Pfad einer eigenen Textur — nur, wenn der Client sie wirklich laedt.
+function Theme.Media(key)
+    if mediaLoads[key] == nil then
+        local path = Theme.MEDIA[key]
+        mediaLoads[key] = (path and Theme.TextureExists(path)) and path or false
+    end
+    return mediaLoads[key] or nil
+end
+
+--- Gebuersteter Stahl, eingefaerbt. Ohne Textur: die Farbe flach.
+function Theme.Metal(texture, tint)
+    local path = Theme.Media("metal")
+    if path and pcall(texture.SetTexture, texture, path) then
+        texture:SetVertexColor(tint[1], tint[2], tint[3], tint[4] or 1)
+        return texture
+    end
+    return Theme.Paint(texture, tint)
+end
+
+function Theme.MetalFill(frame, tint, layer)
+    local texture = frame:CreateTexture(nil, layer or "BACKGROUND")
+    texture:SetAllPoints(frame)
+    return Theme.Metal(texture, tint)
+end
+
+local function goldish(color)
+    local c = Theme.color
+    return color == nil or color == c.gold or color == c.goldDim or color == c.goldMid
+        or color == c.goldDeep or color == c.goldBright or color == c.warn
+end
+
+--- Fuellung eines Fortschrittsbalkens. Im Schmiede-Look: Gluehendes Metall
+--- fuer die Akzentfarbe, Stahl in der Wunschfarbe fuer alles andere (Rollen,
+--- Zustaende). Sonst flach wie bisher.
+function Theme.BarFill(texture, color)
+    color = color or Theme.color.gold
+    if Theme.look == "forge" then
+        if goldish(color) then
+            local path = Theme.Media("molten")
+            if path and pcall(texture.SetTexture, texture, path) then
+                texture:SetVertexColor(1, 1, 1, 1)
+                return texture
+            end
+        else
+            local path = Theme.Media("metal")
+            if path and pcall(texture.SetTexture, texture, path) then
+                texture:SetVertexColor(math.min(1, color[1] * 1.3), math.min(1, color[2] * 1.3),
+                    math.min(1, color[3] * 1.3), 1)
+                return texture
+            end
+        end
+    end
+    return Theme.Paint(texture, color)
+end
+
+--- Rinne eines Fortschrittsbalkens: tiefer als der Grund, damit die Glut leuchtet.
+function Theme.BarTrough(texture)
+    if Theme.look == "forge" then return Theme.Paint(texture, { 0.035, 0.031, 0.028, 1 }) end
+    return Theme.Paint(texture, Theme.color.windowBg)
+end
+
+--- Rahmen der Schmiede: aussen schwarz, innen Stahl mit Glanzkante; beim
+--- Fenster Steinmaserung und Nieten in den Ecken.
+--- @param kind string "window" | "panel"
+function Theme.ForgeFrame(frame, kind, bgColor)
+    if frame.gaForge then return true end
+    frame.gaForge = true
+    local window = kind == "window"
+
+    if window then
+        frame.gaFill = Theme.TexturedFill(frame, Theme.MEDIA.stone, { 0.15, 0.137, 0.123, 0.98 })
+    else
+        frame.gaFill = Theme.Fill(frame, bgColor or Theme.color.panelBg)
+    end
+
+    Theme.Outline(frame, { 0.043, 0.039, 0.035, 1 })
+    local inner = CreateFrame("Frame", nil, frame)
+    inner:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    inner:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    Theme.Outline(inner, window and Theme.color.borderLit or Theme.color.border)
+    Theme.Edge(inner, "TOP", { 1, 1, 1, 0.08 }, 1)
+
+    if window then
+        local gap = CreateFrame("Frame", nil, frame)
+        gap:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
+        gap:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
+        Theme.Outline(gap, { 0.043, 0.039, 0.035, 1 })
+
+        local rivet = Theme.Media("rivet")
+        if rivet then
+            for _, corner in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
+                local dot = frame:CreateTexture(nil, "OVERLAY")
+                dot:SetTexture(rivet)
+                dot:SetWidth(10) dot:SetHeight(10)
+                dot:SetPoint("CENTER", frame, corner, string.find(corner, "LEFT") and 3 or -3,
+                    string.find(corner, "TOP") and -3 or 3)
+                dot:SetVertexColor(0.78, 0.74, 0.68, 1)
+            end
+        end
+    end
+    return true
+end
+
 -- ------------------------------------------------------------- Hilfsmittel ---
 
 --- Setzt eine einfarbige Textur. SetColorTexture fehlt in sehr alten Linien.
@@ -392,6 +576,7 @@ end
 ---      wird der Backdrop wieder entfernt und false zurueckgegeben, damit der
 ---      Aufrufer den flachen Rahmen zeichnet.
 function Theme.Backdrop(frame, kind, bgColor, borderColor)
+    if Theme.look == "forge" then return Theme.ForgeFrame(frame, kind or "panel", bgColor) end
     -- Schritt 1: deckende Flaeche, unabhaengig von allem Weiteren.
     if not frame.gaFill then
         frame.gaFill = Theme.Fill(frame, bgColor or Theme.color.panelBg)
@@ -709,6 +894,10 @@ end
 --- @return Frame|nil frame   nil, wenn die Vorlage fehlt oder unvollstaendig ist
 --- @return string|nil reason
 function Theme.CreateNative(frameType, name, parent, template)
+    if Theme.look == "forge" and Theme.FORGE_SKIP[template] then
+        Theme.native[template] = false
+        return nil, "forge"
+    end
     local ok, frame = pcall(CreateFrame, frameType, name, parent, template)
     if not ok or not frame then
         Theme.native[template] = false

@@ -158,7 +158,7 @@ function Widgets.BarRow(parent, label, color)
     Theme.Fill(track, Theme.color.rowAltBg)
 
     local fill = track:CreateTexture(nil, "ARTWORK")
-    Theme.Paint(fill, color or Theme.color.gold)
+    Theme.BarFill(fill, color or Theme.color.gold)
     fill:SetPoint("TOPLEFT", track, "TOPLEFT", 0, 0)
     fill:SetPoint("BOTTOMLEFT", track, "BOTTOMLEFT", 0, 0)
     fill:SetWidth(1)

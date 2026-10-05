@@ -718,6 +718,8 @@ GA.Core.Locale:Register("enUS", {
     SET_LANGUAGE_RELOAD = "Takes full effect after a /reload — text already on screen was written in the old language.",
     SET_LANGUAGE_HINT  = "Default is English. \"Automatic\" follows the game client, which on Forever has been seen to change on its own.",
     BTN_RELOAD         = "Reload now",
+    SET_LOOK_BLIZZARD  = "Blizzard frames instead of the Forge look",
+    SET_LOOK_BLIZZARD_HINT = "The addon draws its own steel-and-ember frames, buttons and bars. Switch this on for Blizzard's window frames and buttons as before. Takes effect after a /reload.",
 
     -- /ga
     DASH_TRADABLES     = "Tradable Items",

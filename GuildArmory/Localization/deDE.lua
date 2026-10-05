@@ -707,6 +707,8 @@ GA.Core.Locale:Register("deDE", {
     SET_LANGUAGE_RELOAD = "Vollstaendig erst nach einem /reload — was schon im Fenster steht, wurde in der alten Sprache geschrieben.",
 
     BTN_RELOAD         = "Jetzt neu laden",
+    SET_LOOK_BLIZZARD  = "Blizzard-Fenster statt Schmiede-Look",
+    SET_LOOK_BLIZZARD_HINT = "Das Addon zeichnet eigene Rahmen, Knoepfe und Balken aus Stahl und Glut. Eingeschaltet: Blizzards Fensterrahmen und Knoepfe wie bisher. Wirkt nach einem /reload.",
 
     -- /ga
     DASH_TRADABLES     = "Tauschbare Gegenstaende",

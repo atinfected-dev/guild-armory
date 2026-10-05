@@ -190,8 +190,13 @@ function MainFrame:Create()
     content:SetPoint("TOPLEFT", frame, "TOPLEFT", insets.left + 4, insets.top - 4)
     content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", insets.right - 4, insets.bottom + 4)
     if not self.native then
-        Theme.TexturedFill(content, "Interface\\FrameGeneral\\UI-Background-Rock",
-            { 0.42, 0.50, 0.46, 1 })
+        if Theme.look == "forge" then
+            -- Der Inhalt eine Spur dunkler als der Rahmen: wie eingelassen.
+            Theme.TexturedFill(content, Theme.MEDIA.stone, { 0.10, 0.092, 0.084, 1 })
+        else
+            Theme.TexturedFill(content, "Interface\\FrameGeneral\\UI-Background-Rock",
+                { 0.42, 0.50, 0.46, 1 })
+        end
     end
     self.content = content
 
@@ -287,11 +292,27 @@ function MainFrame:BuildFallbackHeader()
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -inset)
     header:SetHeight(Theme.size.headerHeight)
-    Theme.Fill(header, Theme.color.panelBg)
-    Theme.Edge(header, "BOTTOM", Theme.color.border)
+    local emblem
+    if Theme.look == "forge" then
+        -- Schmiede: Stahlleiste mit dem Gildenlogo als Wappen.
+        Theme.MetalFill(header, { 0.36, 0.33, 0.30, 1 })
+        Theme.Edge(header, "BOTTOM", { 0.043, 0.039, 0.035, 1 })
+        if Theme.Media("logo") then
+            emblem = header:CreateTexture(nil, "ARTWORK")
+            emblem:SetTexture(Theme.MEDIA.logo)
+            emblem:SetWidth(36) emblem:SetHeight(36)
+            emblem:SetPoint("LEFT", header, "LEFT", 6, 0)
+        end
+    else
+        Theme.Fill(header, Theme.color.panelBg)
+        Theme.Edge(header, "BOTTOM", Theme.color.border)
+    end
 
-    local brand = Theme.Label(header, "Guild Armory", fonts.big, Theme.color.gold)
-    brand:SetPoint("LEFT", header, "LEFT", 14, 0)
+    local brand = Theme.Label(header, "Guild Armory", fonts.big,
+        Theme.look == "forge" and Theme.color.heading or Theme.color.gold)
+    if emblem then brand:SetPoint("LEFT", emblem, "RIGHT", 10, 0)
+    else brand:SetPoint("LEFT", header, "LEFT", 14, 0) end
+    if brand.SetShadowOffset then brand:SetShadowOffset(1, -1) end
     local tagline = Theme.Label(header, "Forever Edition", fonts.small, Theme.color.textFaint)
     tagline:SetPoint("LEFT", brand, "RIGHT", 8, -1)
 

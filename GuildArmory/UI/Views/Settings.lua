@@ -309,6 +309,10 @@ function Settings:Create(parent)
 
     -- ------------------------------------------------------------ Fenster ---
     local window = self.pages.window
+    -- Look (05.10.2026): Schmiede ist Standard; wer Blizzards Fenster will,
+    -- schaltet hier um. Wirkt nach /reload — die Fenster sind dann schon gebaut.
+    self.rowLookBlizzard = makeRow(window, { label = L.SET_LOOK_BLIZZARD, hint = L.SET_LOOK_BLIZZARD_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("uiLook", on and "blizzard" or "forge") end })
     makeRow(window, { label = L.SET_SCALE_ROW, hint = L.SET_SCALE_HINT, build = function(row)
         local function setScale(delta)
             GA.UI.MainFrame:SetScale((GA.Core.Config:GetUI("main").scale or 1) + delta)
@@ -548,6 +552,7 @@ function Settings:Refresh()
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)
+    self.rowLookBlizzard.switch:SetChecked(Config:Get("uiLook") == "blizzard")
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
     self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)

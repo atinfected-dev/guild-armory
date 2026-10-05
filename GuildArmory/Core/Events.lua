@@ -117,6 +117,9 @@ bootstrap:SetScript("OnEvent", function(self, event, arg1)
         }
 
         GA.Core.Database:Initialize()
+        -- Der Look haengt an einer Einstellung — erst jetzt lesbar, und
+        -- noch bevor irgendein Fenster gebaut wird.
+        if GA.UI and GA.UI.Theme and GA.UI.Theme.ApplyLook then pcall(GA.UI.Theme.ApplyLook) end
         GA.Core.Debug:Print("core", "Datenbank geladen, Schema %s, Quelle %s",
             tostring(GA.Core.Database.account.schemaVersion),
             tostring(GA.Core.Database.storage.source))
