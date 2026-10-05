@@ -418,7 +418,12 @@ function View:FillCard(card, run)
                 box.badge:Hide()
                 box.badgeLetter:Hide()
                 box.disc:Show()
-                if box.shield then box.disc:SetTexture(Theme.MEDIA.shield) end
+                -- Belegt ohne Klassenbild: die runde Rollenscheibe, kein Schild —
+                -- Schilde stehen nur fuer leere Plaetze (Wunsch 05.10.2026).
+                if box.shield and Theme.RoundTexture() then
+                    box.disc:SetTexture(Theme.RoundTexture())
+                    box.disc:SetSize(18, 18)
+                end
                 box.letter:SetShown(not hasIcon)
                 box.roleIcon:SetShown(hasIcon)
                 box.roleIcon:SetVertexColor(1, 1, 1, 1)
@@ -458,34 +463,32 @@ function View:FillCard(card, run)
         end
     end
 
-    -- Wappenschilde ueber das Gezeichnete legen: Scheibe, Klassenbild und
-    -- Eckmarke weichen dem Schild.
+    -- WAPPENSCHILDE NUR FUER LEERE PLAETZE (Wunsch 05.10.2026): Belegt
+    -- zeigt das Klassensymbol wie bisher; offen steht der Schild —
+    -- gefuellt, gestrichelt umrandet in der Aufmerksamkeitsfarbe, innen
+    -- die gesuchte Rolle.
     for i, slot in ipairs(Hub:Slots(run)) do
         local box = card.slots[i]
         if box.heraldry then
-            box.disc:Hide() box.crest:Hide() box.badge:Hide()
-            box.badgeLetter:Hide() box.badgeIcon:Hide()
-            local color = ROLE_COLOR[slot.role]
-            local hasIcon = Theme.SetRoleIcon(box.roleIcon, slot.role)
             if slot.name then
-                box.shieldFill:Show()
-                Theme.Tint(box.shieldFill, Theme.color.rowBg)
-                box.shieldRim:SetTexture(Theme.MEDIA.shieldrim)
-                if slot.class then box.shieldRim:SetVertexColor(Theme.ClassColor(slot.class))
-                else Theme.Tint(box.shieldRim, color) end
-                box.roleIcon:SetVertexColor(1, 1, 1, 1)
-                box.letter:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
+                box.shieldFill:Hide()
+                box.shieldRim:Hide()
             else
                 local a = Theme.color.attn
-                box.shieldFill:Hide()
+                box.disc:Hide() box.crest:Hide() box.badge:Hide()
+                box.badgeLetter:Hide() box.badgeIcon:Hide()
+                local hasIcon = Theme.SetRoleIcon(box.roleIcon, slot.role)
+                box.shieldFill:Show()
+                Theme.Tint(box.shieldFill, Theme.color.rowBg)
+                box.shieldRim:Show()
                 box.shieldRim:SetTexture(Theme.MEDIA.shieldopen)
                 Theme.Tint(box.shieldRim, a)
-                box.roleIcon:SetVertexColor(1, 1, 1, 0.55)
+                box.roleIcon:SetVertexColor(1, 1, 1, 0.7)
+                box.roleIcon:SetShown(hasIcon)
+                box.letter:SetText(ROLE_LETTER[slot.role])
                 box.letter:SetTextColor(a[1], a[2], a[3])
+                box.letter:SetShown(not hasIcon)
             end
-            box.roleIcon:SetShown(hasIcon)
-            box.letter:SetText(ROLE_LETTER[slot.role])
-            box.letter:SetShown(not hasIcon)
         end
     end
 

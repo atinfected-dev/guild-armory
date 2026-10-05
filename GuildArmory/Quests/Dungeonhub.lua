@@ -42,9 +42,15 @@ local Util = GA.Core.Util
 local Debug = GA.Core.Debug
 local L = GA.L
 
-Dungeonhub.TTL = 24 * 3600          -- ab dem Eintragen
-Dungeonhub.HORIZON = 24 * 3600      -- wie weit im Voraus die Startzeit liegen darf
+-- "MORGEN 20:00" UM 13:45 GING NICHT (Bild vom 05.10.2026): Das Formular
+-- bietet "Morgen" an, die Grenze lag aber bei 24 Stunden — morgen 20:00 sind
+-- dann 30 Stunden. Und ein Lauf verschwand 24 Stunden nach dem Eintragen,
+-- also womoeglich vor seinem Start. Jetzt: Startzeit bis morgen 23:59 (hoechstens
+-- 48 Stunden voraus); ein Lauf lebt bis eine Stunde nach seinem Start. TTL
+-- bleibt nur als Sicherheitsdeckel fuer Altes, das nie endet.
+Dungeonhub.HORIZON = 48 * 3600      -- wie weit im Voraus die Startzeit liegen darf
 Dungeonhub.GRACE = 3600             -- so weit darf die Startzeit zurueckliegen
+Dungeonhub.TTL = Dungeonhub.HORIZON + Dungeonhub.GRACE  -- Deckel ab dem Eintragen
 Dungeonhub.NOTE_LEN = 60
 Dungeonhub.DUNGEON_LEN = 30
 Dungeonhub.REQUEST_COOLDOWN = 30
