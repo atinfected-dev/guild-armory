@@ -220,10 +220,13 @@ function View:Create(parent)
         columns = columns(),
         createRow = function(row) self:BuildRow(row) end,
         updateRow = function(row, member) self:UpdateRow(row, member) end,
-        onClickRow = function(member)
+        onClickRow = function(member, _, button)
             if member.header then return end
             self.selectedKey = member.name
             self:Refresh()
+            -- Rechtsklick auf jemanden, der online ist: Fluestern oder
+            -- Einladen (Wunsch 05.10.2026).
+            if button == "RightButton" then self:ShowMemberMenu(member) end
         end,
     })
     self.rows:SetPoint("TOPLEFT", list.content, "TOPLEFT", 0, 0)
@@ -753,6 +756,22 @@ function View:RefreshChat()
 end
 
 -- ================================================================== Aktionen --
+
+--- Das Menue an der Maus fuer ein Mitglied: Fluestern, Einladen. Nur fuer
+--- Mitglieder, die online sind, und nicht fuer sich selbst.
+function View:ShowMemberMenu(member)
+    if not member or not member.online then return end
+    local me = Compat.GetPlayerIdentity().name
+    if me and Util.ShortName(me) == Util.ShortName(member.name) then return end
+    local target = member.fullName or member.name
+    Widgets.ContextMenu(member.name, {
+        { text = L.QH_WHISPER, func = function() Compat.OpenWhisper(target) end },
+        { text = L.QH_INVITE, func = function()
+            local ok, how = Compat.InviteUnit(target)
+            GA.Core.Debug:Info(ok and L.QH_INVITED or L.QH_INVITE_FAILED, member.name, tostring(how))
+        end },
+    }, { Theme.ClassColor(member.class) })
+end
 
 function View:Selected()
     for _, member in ipairs(GA.Modules.Guild:List()) do

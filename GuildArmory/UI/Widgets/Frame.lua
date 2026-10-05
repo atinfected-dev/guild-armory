@@ -602,3 +602,85 @@ function Widgets.Stack(content, options)
 
     return stapel
 end
+
+-- ------------------------------------------------------------ Kontextmenue --
+
+--- Ein kleines Menue an der Maus (Rechtsklick, 05.10.2026: "invite oder
+--- whisper" auf einem Mitglied im Roster). Im Look des Addons, nicht
+--- Blizzards Dropdown — dessen Code im Ablauf kann geschuetzte Aufrufe
+--- anderer Fenster stoeren. Ein unsichtbarer Fang ueber dem ganzen
+--- Bildschirm schliesst es beim Klick daneben; Escape schliesst es auch.
+--- @param title string
+--- @param items table { { text, func, disabled } }
+--- @param titleColor table|nil {r,g,b}
+local menu
+function Widgets.ContextMenu(title, items, titleColor)
+    local fonts = Theme.Fonts()
+    if not menu then
+        local catcher = CreateFrame("Button", "GuildArmoryContextMenu", UIParent)
+        catcher:SetAllPoints(UIParent)
+        catcher:SetFrameStrata("FULLSCREEN_DIALOG")
+        catcher:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        catcher:SetScript("OnClick", function(self) self:Hide() end)
+        catcher:Hide()
+        if type(_G.UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GuildArmoryContextMenu") end
+
+        local m = CreateFrame("Frame", nil, catcher)
+        m:SetFrameLevel((catcher:GetFrameLevel() or 1) + 5)
+        Theme.Fill(m, { Theme.color.panelBg[1], Theme.color.panelBg[2], Theme.color.panelBg[3], 0.98 })
+        Theme.Outline(m, Theme.color.borderLit)
+        m.title = Theme.Label(m, "", fonts.rowBold or fonts.row, Theme.color.heading)
+        m.title:SetPoint("TOPLEFT", m, "TOPLEFT", 10, -8)
+        m.line = m:CreateTexture(nil, "ARTWORK")
+        m.line:SetHeight(1)
+        m.line:SetPoint("TOPLEFT", m, "TOPLEFT", 6, -28)
+        m.line:SetPoint("TOPRIGHT", m, "TOPRIGHT", -6, -28)
+        Theme.Paint(m.line, Theme.color.border)
+        m.buttons = {}
+        m.catcher = catcher
+        menu = m
+    end
+
+    menu.title:SetText(title or "")
+    local tc = titleColor or Theme.color.heading
+    menu.title:SetTextColor(tc[1], tc[2], tc[3])
+    local width = (menu.title:GetStringWidth() or 60) + 24
+
+    for i, item in ipairs(items) do
+        local b = menu.buttons[i]
+        if not b then
+            b = CreateFrame("Button", nil, menu)
+            b:SetHeight(20)
+            b.hl = Theme.Fill(b, { 0, 0, 0, 0 })
+            b.label = Theme.Label(b, "", fonts.row, Theme.color.text)
+            b.label:SetPoint("LEFT", b, "LEFT", 10, 0)
+            b:SetScript("OnEnter", function(self) if self:IsEnabled() then Theme.Paint(self.hl, Theme.color.rowHover) end end)
+            b:SetScript("OnLeave", function(self) Theme.Paint(self.hl, { 0, 0, 0, 0 }) end)
+            menu.buttons[i] = b
+        end
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -30 - (i - 1) * 20)
+        b:SetPoint("RIGHT", menu, "RIGHT", -1, 0)
+        b.label:SetText(item.text or "")
+        local c = item.disabled and Theme.color.textFaint or Theme.color.text
+        b.label:SetTextColor(c[1], c[2], c[3])
+        if item.disabled then b:Disable() else b:Enable() end
+        b:SetScript("OnClick", function()
+            menu.catcher:Hide()
+            if item.func then item.func() end
+        end)
+        Theme.Paint(b.hl, { 0, 0, 0, 0 })
+        b:Show()
+        width = math.max(width, (b.label:GetStringWidth() or 40) + 24)
+    end
+    for i = #items + 1, #menu.buttons do menu.buttons[i]:Hide() end
+
+    menu:SetWidth(math.max(140, width))
+    menu:SetHeight(30 + #items * 20 + 6)
+    local x, y = GetCursorPosition()
+    local s = UIParent:GetEffectiveScale()
+    menu:ClearAllPoints()
+    menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s + 2, y / s - 2)
+    menu.catcher:Show()
+    return menu
+end

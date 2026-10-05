@@ -4,6 +4,8 @@
 
 Talent window: a paladin's talents fell apart into twelve trees ("Tree 3" to "Tree 12"). One talent sat a few units beside its column, and the window took that tiny offset for the grid step, so every ordinary column gap looked like the edge of a tree. The grid step now ignores such strays; the paladin shows Holy, Protection and Retribution again.
 
+Roster: right-click a member who is online for a small menu — Whisper or Invite.
+
 ## 0.1.35
 
 Choose your look: Settings › UI + Language (formerly Language) offers five looks beside the language, each with a colour sample. Forge (the new default): stone grain, steel frame with riveted brackets, copper and steel buttons, bars that glow like molten metal. Forever Twilight: a dusk sky after the WoW: Forever site, bronze frame with compass stars, jewel-teal bars and buttons. Codex: parchment, ink and sealing wax with illuminated gold-leaf corners — the one light look, with class colours darkened so every name stays readable. Crimson Court: wine velvet with a damask, antique gold, gold filigree. Blizzard: the game's window frames and buttons, as before. A new look applies after a /reload.
