@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.35
+
+In progress.
+
 ## 0.1.34
 
 Talent window: the trees carry their specialisation names and icons — Elemental, Enhancement and Restoration for a shaman, and so on for all nine classes, in English and German. The game on WoW: Forever hands the addon no tree names, so the window showed "Tree 1/2/3"; a name the game does provide still wins.
