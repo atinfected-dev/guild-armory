@@ -8,8 +8,10 @@
 
     IM KAMPF FAENGT DIE ANZEIGE KEINE KLICKS: Sie liegt mitten im Bild, und
     ein Klick auf sie waere ein Klick, der in der Welt fehlt. Verschieben
-    laesst sie sich nur im Probelauf — dann haelt sie die Maus und merkt sich
-    die Lage.
+    laesst sie sich im Probelauf und im Verschiebemodus (/ga reminder move,
+    Einstellungen, 06.10.2026: "man muss sich die Reminder selbst an eine
+    Stelle ziehen koennen") — dann haelt sie die Maus, zeigt Beispielzeilen
+    und merkt sich die Lage. Beginnt ein Kampf, wird sie sofort gesperrt.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -96,12 +98,21 @@ function ReminderFrame:Create()
         frame.lines[i] = line
     end
 
+    -- Verschiebemodus: "Fertig" unter der Anzeige.
+    frame.done = GA.UI.Widgets.Button(frame, L.RP_REMINDER_LOCK, function() ReminderFrame:SetUnlocked(false) end, "primary")
+    frame.done:SetPoint("TOP", frame, "BOTTOM", 0, -6)
+    frame.done:Hide()
+
     local elapsed = 0
     frame:SetScript("OnUpdate", function(_, delta)
         elapsed = elapsed + delta
         if elapsed < TICK then return end
         elapsed = 0
-        ReminderFrame:Render(GA.Modules.Reminders:Tick())
+        local visible = GA.Modules.Reminders:Tick()
+        if #visible == 0 and not GA.Modules.Reminders.run and ReminderFrame.unlocked then
+            visible = ReminderFrame.Samples()
+        end
+        if ReminderFrame.frame:IsShown() then ReminderFrame:Render(visible) end
     end)
 
     self.frame = frame
@@ -166,21 +177,63 @@ function ReminderFrame:Render(visible)
     end
 end
 
-function ReminderFrame:OnStart(run)
+--- Beispielzeilen fuer den Verschiebemodus: jede Stufe einmal.
+function ReminderFrame.Samples()
+    return {
+        { mine = true, remaining = 3.4, reminder = { text = L.RP_DEMO_ALERT, level = "alert", lead = 5, dur = 4 } },
+        { mine = true, remaining = 7, reminder = { text = L.RP_DEMO_WARN, level = "warn", lead = 10, dur = 4 } },
+        { mine = true, remaining = -1, reminder = { text = L.RP_DEMO_INFO, level = "info", lead = 5, dur = 4 } },
+    }
+end
+
+--- Maus und Hinweis: nur im Verschiebemodus oder Probelauf.
+function ReminderFrame:UpdateMode()
+    local run = GA.Modules.Reminders.run
+    local movable = self.unlocked or (run and run.preview) or false
+    self.frame:EnableMouse(movable and true or false)
+    self.frame.hintBg:SetShown(movable and true or false)
+    self.frame.hint:SetShown(movable and true or false)
+    self.frame.done:SetShown(self.unlocked and true or false)
+    if run or self.unlocked then
+        self.frame:Show()
+    else
+        self:Render({})
+        self.frame:Hide()
+    end
+end
+
+--- Verschiebemodus an oder aus. Im Kampf nicht.
+--- @return boolean an
+function ReminderFrame:SetUnlocked(on)
     self:Create()
-    -- Nur im Probelauf faengt die Anzeige die Maus — zum Verschieben.
-    self.frame:EnableMouse(run.preview and true or false)
-    self.frame.hintBg:SetShown(run.preview and true or false)
-    self.frame.hint:SetShown(run.preview and true or false)
-    self.frame:Show()
+    if on and GA.Core.Compat.InCombat() then on = false end
+    self.unlocked = on and true or false
+    self:UpdateMode()
+    return self.unlocked
+end
+
+function ReminderFrame:ToggleUnlocked() return self:SetUnlocked(not self.unlocked) end
+
+--- Zurueck an die Ausgangsstelle (oben in der Mitte).
+function ReminderFrame:ResetPlacement()
+    GA.Core.Database.account.ui.reminder = { point = "TOP", x = 0, y = -160 }
+    if self.frame then self:ApplyPlacement() end
+end
+
+function ReminderFrame:OnStart()
+    self:Create()
+    self:UpdateMode()
 end
 
 function ReminderFrame:OnStop()
     if not self.frame then return end
-    self.frame:EnableMouse(false)
-    self:Render({})
-    self.frame:Hide()
+    self:UpdateMode()
 end
 
 GA.Core.Callbacks:On("REMINDERS_START", function(run) ReminderFrame:OnStart(run) end, "ReminderFrame")
 GA.Core.Callbacks:On("REMINDERS_STOP", function() ReminderFrame:OnStop() end, "ReminderFrame")
+
+-- Ein Kampf beginnt: Verschiebemodus aus, die Anzeige faengt keine Klicks mehr.
+GA.Core.Events:Register("PLAYER_REGEN_DISABLED", function()
+    if ReminderFrame.unlocked then ReminderFrame:SetUnlocked(false) end
+end, "ReminderFrame")

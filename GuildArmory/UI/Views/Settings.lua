@@ -437,6 +437,16 @@ function Settings:Create(parent)
         set = function(on) GA.Core.Config:Set("raidReminders", on) end })
     self.rowReminderSound = makeRow(onscreen, { label = L.SET_REMINDER_SOUND, hint = L.SET_REMINDER_SOUND_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("raidReminderSound", on) end })
+    -- Verschieben und Testen ohne Boss (06.10.2026).
+    makeRow(onscreen, { label = L.SET_REMINDER_PLACE, hint = L.SET_REMINDER_PLACE_HINT, build = function(row)
+        local move = Widgets.Button(row, L.SET_REMINDER_MOVE_BTN, function() GA.UI.ReminderFrame:ToggleUnlocked() end)
+        move:SetHeight(20)
+        move:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        local test = Widgets.Button(row, L.SET_REMINDER_TEST_BTN, function() GA.Modules.Reminders:Demo() end)
+        test:SetHeight(20)
+        test:SetPoint("LEFT", move, "RIGHT", 6, 0)
+        return function() return 28 end
+    end })
 
     -- Discord-Bot (03.10.2026): haengt Maschinenmarken an die Discord-Zeilen
     -- des Dungeonhubs. Aus, bis die Gilde den Bot laufen hat.

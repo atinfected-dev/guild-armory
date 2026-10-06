@@ -120,6 +120,30 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local value = tonumber(rest)
         if value then Debug:Info(L.SLASH_SCALE_SET, MainFrame:SetScale(value))
         else Debug:Info(L.SLASH_SCALE_CURRENT, GA.Core.Config:GetUI("main").scale or 1) end
+    elseif command == "reminder" or command == "erinnerung" then
+        -- Raidplan-Erinnerungen testen und verschieben (06.10.2026).
+        local sub, arg = string.match(rest or "", "^(%S*)%s*(.*)$")
+        local Reminders, Frame = GA.Modules.Reminders, GA.UI.ReminderFrame
+        if sub == "move" or sub == "verschieben" then
+            if Frame:ToggleUnlocked() then Debug:Info(L.RP_REMINDER_UNLOCKED)
+            elseif GA.Core.Compat.InCombat() then Debug:Warn(L.RP_REMINDER_COMBAT)
+            else Debug:Info(L.RP_REMINDER_LOCKED) end
+        elseif sub == "test" then
+            Reminders:Demo()
+            Debug:Info(L.RP_REMINDER_DEMO)
+        elseif sub == "pull" then
+            local ok, why, boss = Reminders:SimulatePull(arg)
+            if ok then Debug:Info(L.RP_REMINDER_PULLED, boss.name or tostring(boss.encounterID))
+            elseif why == "nothing" then Debug:Info(L.RP_REMINDER_NOTHING, boss.name or tostring(boss.encounterID))
+            else Debug:Warn(L["RP_REMINDER_" .. string.upper(why)] or why, arg) end
+        elseif sub == "stop" then
+            Reminders:Stop("command")
+        elseif sub == "reset" then
+            Frame:ResetPlacement()
+            Debug:Info(L.RP_REMINDER_RESET)
+        else
+            Debug:Info("%s", L.RP_REMINDER_HELP)
+        end
     elseif command == "arrange" or command == "ordnen" then
         -- Raid nach dem aktiven Raidplan ordnen (06.10.2026) — als Makro
         -- fuer den Raidleiter, ohne das Fenster zu oeffnen.

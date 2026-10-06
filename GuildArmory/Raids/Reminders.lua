@@ -107,15 +107,62 @@ function Reminders:Tick(now)
     return visible
 end
 
+-- ================================================================ Testen ---
+--
+-- Zum Ausprobieren ohne Boss (06.10.2026: "ich muss die irgendwie testen
+-- koennen durch einen Befehl"):
+--   /ga reminder test         drei Beispiel-Erinnerungen, jede Stufe einmal
+--   /ga reminder pull [boss]  ein Pull wie im Kampf — mit den EIGENEN
+--                             Erinnerungen des aktiven Plans
+
+--- Drei Beispiele in zwoelf Sekunden: info, warn, alert — mit Ton.
+function Reminders:Demo()
+    local L = GA.L
+    local function demo(at, level, text)
+        return { at = at, phase = 1, time = at, lead = 4, dur = 3, level = level, sound = level, text = text, to = { "all" } }
+    end
+    local plan = { groups = {}, roles = {}, bosses = {} }
+    for g = 1, 8 do plan.groups[g] = {} end
+    local boss = { name = "Demo", reminders = {
+        demo(4, "info", L.RP_DEMO_INFO), demo(8, "warn", L.RP_DEMO_WARN), demo(12, "alert", L.RP_DEMO_ALERT),
+    } }
+    return self:Start(plan, boss, { preview = true })
+end
+
+--- Ein Pull wie im echten Kampf, ohne Boss. Der Boss ist die Nummer in der
+--- Liste, die Kennung oder der Name — ohne Angabe der erste.
+--- @return boolean gestartet, string|nil grund
+function Reminders:SimulatePull(which)
+    local RaidPlan = GA.Modules.RaidPlan
+    local entry = RaidPlan and RaidPlan:Active()
+    if not entry then return false, "noplan" end
+    local plan, boss = entry.plan, nil
+    local n = tonumber(which)
+    if not which or which == "" then boss = plan.bosses[1]
+    elseif n and plan.bosses[n] and n <= #plan.bosses and n < 1000 then boss = plan.bosses[n]
+    else boss = RaidPlan.FindBoss(plan, n, which) end
+    if not boss then return false, "noboss" end
+    if GA.Core.Config:Get("raidReminders") == false then return false, "off" end
+    if not self:Start(plan, boss) then return false, "nothing", boss end
+    return true, nil, boss
+end
+
 -- ================================================================ Kampf ----
 
 --- Ein Bosskampf beginnt: passt ein Boss des aktiven Plans, laeuft die Uhr.
 function Reminders:OnEncounterStart(encounterID, encounterName)
     local RaidPlan = GA.Modules.RaidPlan
-    local entry = RaidPlan and RaidPlan:Active()
-    if not entry then return false end
     -- Eine verschleierte Kennung ist keine Kennung.
     if not Compat.IsReadableNumber(encounterID) then encounterID = nil end
+    -- Gesehene Bosse merken: Im Editor stehen sie zur Auswahl, damit niemand
+    -- Kennungen nachschlagen muss.
+    if encounterID and type(encounterName) == "string" and Compat.IsReadable(encounterName) then
+        local account = GA.Core.Database.account
+        account.seenEncounters = account.seenEncounters or {}
+        account.seenEncounters[encounterID] = encounterName
+    end
+    local entry = RaidPlan and RaidPlan:Active()
+    if not entry then return false end
     local boss = RaidPlan.FindBoss(entry.plan, encounterID, encounterName)
     if not boss then return false end
     return self:Start(entry.plan, boss)
