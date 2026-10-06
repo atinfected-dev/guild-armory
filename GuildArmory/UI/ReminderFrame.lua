@@ -63,7 +63,10 @@ function ReminderFrame:Create()
     frame:Hide()
 
     -- Im Probelauf sichtbar: wo die Anzeige sitzt, und dass man sie ziehen kann.
-    frame.hintBg = Theme.Fill(frame, { 0, 0, 0, 0.35 })
+    -- KEIN HINTERGRUND (06.10.2026: "Geht das ohne background?"): Die Zeilen
+    -- stehen frei im Bild. Nur im Verschiebemodus zeigt ein duenner Rahmen,
+    -- wo die Anzeige liegt und wo man sie greift.
+    frame.outline = Theme.Outline(frame, { 1, 0.82, 0.1, 0.45 })
     frame.hint = Theme.Label(frame, L.RP_REMINDER_DRAG, Theme.Fonts().small, Theme.color.textDim)
     frame.hint:SetPoint("BOTTOM", frame, "TOP", 0, 4)
 
@@ -191,7 +194,7 @@ function ReminderFrame:UpdateMode()
     local run = GA.Modules.Reminders.run
     local movable = self.unlocked or (run and run.preview) or false
     self.frame:EnableMouse(movable and true or false)
-    self.frame.hintBg:SetShown(movable and true or false)
+    for _, edge in ipairs(self.frame.outline) do edge:SetShown(self.unlocked and true or false) end
     self.frame.hint:SetShown(movable and true or false)
     self.frame.done:SetShown(self.unlocked and true or false)
     if run or self.unlocked then
