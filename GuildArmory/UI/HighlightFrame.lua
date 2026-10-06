@@ -132,6 +132,29 @@ end
 --- [unit] = das versteckte Symbol, damit es beim Abhaengen zurueckkommt.
 local hidden = {}
 
+--- DAS SPIEL SETZT DIE DECKKRAFT SELBST (gemessen 06.10.2026: Symbol am
+--- richtigen Ort gefunden — UnitFrame.SoftTargetFrame —, und trotzdem zu
+--- sehen). Es blendet das Symbol nach Reichweite ab und auf, grau und
+--- farbig, und ueberschreibt dabei ein einmaliges SetAlpha(0). Deshalb
+--- haengt sich das Addon NACH jedes SetAlpha und Show des Spiels und setzt
+--- die Deckkraft wieder auf 0, solange das Symbol versteckt sein soll.
+--- hooksecurefunc ruft hinterher auf und veraendert den Aufruf des Spiels
+--- nicht. Einmal je Rahmen — das Spiel verwendet Schilder wieder.
+local function keepHidden(frame)
+    if frame.gaHideHooked or type(_G.hooksecurefunc) ~= "function" then return end
+    frame.gaHideHooked = true
+    local function reapply(self)
+        if self.gaHidden and not self.gaHiding then
+            self.gaHiding = true
+            pcall(self.SetAlpha, self, 0)
+            self.gaHiding = nil
+        end
+    end
+    pcall(hooksecurefunc, frame, "SetAlpha", reapply)
+    pcall(hooksecurefunc, frame, "Show", reapply)
+    pcall(hooksecurefunc, frame, "SetShown", reapply)
+end
+
 function HighlightFrame:HideGameIcon(unit)
     if GA.Core.Config:Get("highlightHideGameIcon") == false then return end
     local api = _G.C_NamePlate
@@ -139,12 +162,24 @@ function HighlightFrame:HideGameIcon(unit)
     local ok, plate = pcall(api.GetNamePlateForUnit, unit)
     if not ok or not plate or (plate.IsForbidden and plate:IsForbidden()) then return end
     local icon = HighlightFrame.GameIcon(plate)
-    if icon and pcall(icon.SetAlpha, icon, 0) then hidden[unit] = icon end
+    if not icon then return end
+    -- Der Rahmen UND das Bild darin: Fuehrt das Bild seine Deckkraft
+    -- unabhaengig vom Rahmen, haelt es sonst sichtbar.
+    local parts = { icon }
+    if type(icon.Icon) == "table" and type(icon.Icon.SetAlpha) == "function" then parts[2] = icon.Icon end
+    for _, part in ipairs(parts) do
+        keepHidden(part)
+        part.gaHidden = true
+        pcall(part.SetAlpha, part, 0)
+    end
+    hidden[unit] = parts
 end
 
 function HighlightFrame:RestoreGameIcon(unit)
-    local icon = hidden[unit]
-    if icon then pcall(icon.SetAlpha, icon, 1) end
+    for _, part in ipairs(hidden[unit] or {}) do
+        part.gaHidden = nil
+        pcall(part.SetAlpha, part, 1)
+    end
     hidden[unit] = nil
 end
 
