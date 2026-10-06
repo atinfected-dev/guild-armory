@@ -257,6 +257,10 @@ Schema.ACCOUNT_DEFAULTS = {
         -- (05.10.2026) — die Liste bekommt den Platz.
         rosterChatOpen = false,
 
+        -- Gildenbank (06.10.2026): Wer sie oeffnet, teilt den gelesenen
+        -- Stand mit der Gilde — abschaltbar.
+        guildBankShare = true,
+
         -- Look des Addons (05.10.2026): "forge" = eigene Schmiede-Texturen
         -- (Entwurf B), "blizzard" = Blizzards Fenstervorlagen wie bisher.
         uiLook = "forge",

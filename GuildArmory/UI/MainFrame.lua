@@ -71,6 +71,7 @@ local SECTIONS = {
         { key = "armory",       label = "NAV_EQUIPMENT" },
         { key = "characters",   label = "NAV_CHARACTERS" },
         { key = "achievements", label = "NAV_ACHIEVEMENTS" },
+        { key = "guildbank",    label = "NAV_GUILDBANK" },
     } },
 
     { key = "questhub", label = "NAV_QUESTHUB", views = {

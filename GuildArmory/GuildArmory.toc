@@ -59,6 +59,7 @@ Raids\History.lua
 Raids\CombatLog.lua
 Armory\Tradables.lua
 Armory\Talents.lua
+Armory\GuildBank.lua
 # Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
 Camp\Catalog.lua
 Camp\Camp.lua
@@ -110,6 +111,7 @@ UI\Views\LootHistory.lua
 UI\Views\Wishlist.lua
 UI\Views\Crafting.lua
 UI\Views\Achievements.lua
+UI\Views\GuildBank.lua
 UI\Views\Analytics.lua
 UI\DkpFrame.lua
 UI\Views\LootRules.lua

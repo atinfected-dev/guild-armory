@@ -2989,6 +2989,52 @@ function Compat.OpenWhisper(name)
     return false
 end
 
+-- ============================================================ Gildenbank ------
+--
+-- Nur lesbar, solange die Bank an einem Tresor offen ist (06.10.2026).
+-- UNGEMESSEN auf Forever: Jede Funktion wird geprueft; fehlt eine, kommt nil.
+
+--- @return table|nil { { index, name, icon, viewable } }
+function Compat.GetGuildBankTabs()
+    if not isFunction(_G.GetNumGuildBankTabs) or not isFunction(_G.GetGuildBankTabInfo) then return nil end
+    local ok, n = pcall(GetNumGuildBankTabs)
+    if not ok or type(n) ~= "number" then return nil end
+    local out = {}
+    for i = 1, n do
+        local okTab, name, icon, viewable = pcall(GetGuildBankTabInfo, i)
+        if okTab then out[#out + 1] = { index = i, name = name, icon = icon, viewable = viewable ~= false } end
+    end
+    return out
+end
+
+function Compat.QueryGuildBankTab(index)
+    if not isFunction(_G.QueryGuildBankTab) then return false end
+    return pcall(QueryGuildBankTab, index) and true or false
+end
+
+--- Ein Fach als { [itemID] = Anzahl }. nil, wenn das Spiel nicht liefert.
+function Compat.ReadGuildBankTab(index)
+    if not isFunction(_G.GetGuildBankItemInfo) or not isFunction(_G.GetGuildBankItemLink) then return nil end
+    local slots = tonumber(_G.MAX_GUILDBANK_SLOTS_PER_TAB) or 98
+    local items = {}
+    for slot = 1, slots do
+        local okInfo, icon, count = pcall(GetGuildBankItemInfo, index, slot)
+        if okInfo and icon then
+            local okLink, link = pcall(GetGuildBankItemLink, index, slot)
+            local id = okLink and type(link) == "string" and tonumber(string.match(link, "item:(%d+)"))
+            if id then items[id] = (items[id] or 0) + (tonumber(count) or 1) end
+        end
+    end
+    return items
+end
+
+--- Gold in der Gildenbank, in Kupfer.
+function Compat.GetGuildBankMoney()
+    if not isFunction(_G.GetGuildBankMoney) then return nil end
+    local ok, money = pcall(GetGuildBankMoney)
+    return ok and tonumber(money) or nil
+end
+
 -- ============================================================ Gildenverwaltung
 --
 -- Was Blizzards Gildenfenster tut, tun diese Funktionen — soweit der Client

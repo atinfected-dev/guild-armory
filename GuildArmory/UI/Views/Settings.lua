@@ -545,6 +545,9 @@ function Settings:Create(parent)
 
     -- Sammlerbetrieb: eine Einstellung fuer genau einen Client, nicht fuer
     -- jeden Spieler — deshalb hier unten.
+    -- Gildenbank (06.10.2026): teilen, was man am Tresor liest.
+    self.rowGbankShare = makeRow(data, { label = L.SET_GBANK_SHARE, hint = L.SET_GBANK_SHARE_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("guildBankShare", on) end })
     self.rowCollector = makeRow(data, { label = L.SET_COLLECTOR, hint = "", control = "switch",
         set = function(on) GA.Core.Config:Set("collectorMode", on) end })
     self.rowDebug = makeRow(data, { label = L.SET_DEBUG_ROW, hint = L.SET_DEBUG_HINT, control = "switch",
@@ -684,6 +687,7 @@ function Settings:Refresh()
     local storageColor = storage.accountLoaded and Theme.color.textDim or Theme.color.warn
     self.rowStats.hint:SetTextColor(storageColor[1], storageColor[2], storageColor[3])
 
+    self.rowGbankShare.switch:SetChecked(Config:Get("guildBankShare") ~= false)
     self.rowCollector.switch:SetChecked(Config:Get("collectorMode") and true or false)
     self.rowCollector.hint:SetText(string.format(L.SET_COLLECTOR_HINT, tonumber(Config:Get("collectorMinutes")) or 60))
     self.rowDebug.switch:SetChecked(GA.Core.Database.char.debug and true or false)
