@@ -280,6 +280,9 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Hinweis zum markierten Objekt (Beruf, Quest) und ein Ton, wenn
         -- man es brauchen kann.
         highlightHints = true,
+        -- Eigenes Zeichen am Namensschild des Objekts (gemessen: das Spiel
+        -- legt fuer markierte Objekte eines an).
+        highlightMarker = true,
         highlightSound = false,
         readyEnchants = true,
         readyConsumables = true,

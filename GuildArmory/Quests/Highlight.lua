@@ -170,6 +170,7 @@ function Highlight.Assess(guid, name, professions, quests)
         end
         out.lines[#out.lines + 1] = { text = text, color = color }
         out.wanted = rank ~= nil and rank >= required
+        out.node = line
     end
 
     if name then
@@ -240,6 +241,7 @@ function Highlight:OnSoftInteract(newGUID)
     self.currentGUID = newGUID
     local okName, name = pcall(_G.UnitName or function() end, "softinteract")
     local result = Highlight.Assess(newGUID, okName and name or nil, readProfessions(), readQuests())
+    self.currentResult = result
     GA.Core.Callbacks:Fire("HIGHLIGHT_HINT", result)
     if result and result.wanted and GA.Core.Config:Get("highlightSound") == true then
         -- Ein Ton je Objekt und Minute — nicht bei jedem Flackern.
@@ -250,6 +252,46 @@ function Highlight:OnSoftInteract(newGUID)
             Compat.PlaySoundKit("MAP_PING", 3175)
         end
     end
+end
+
+-- ================================================================ Zeichen ---
+--
+-- EIN EIGENES ZEICHEN AM OBJEKT (06.10.2026). Gemessen am selben Abend: Fuer
+-- das markierte Objekt legt das Spiel ein Namensschild an
+-- (NAME_PLATE_UNIT_ADDED "nameplate1", UnitGUID = die Objekt-GUID) — auch
+-- mit SoftTargetNameplateInteract=0. Ein Namensschild sitzt in der Welt
+-- ueber dem Objekt; was man daran haengt, wandert mit. Das Zeichen lebt
+-- deshalb genau so lange wie das Schild: Ein Addon kann einen Ort in der
+-- Welt nicht selbst festhalten.
+--
+-- Nur fuer OBJEKTE — Namensschilder kommen auch fuer jede Kreatur, und die
+-- gehen dieses Modul nichts an.
+
+--- Ein Namensschild ist erschienen.
+--- @return table|nil das Ergebnis, das am Schild gezeigt wird
+function Highlight:OnPlateAdded(unit)
+    if GA.Core.Config:Get("highlightMarker") == false then return nil end
+    if type(unit) ~= "string" or not _G.UnitGUID then return nil end
+    local ok, guid = pcall(_G.UnitGUID, unit)
+    if not ok or not guid then return nil end
+    local kind = Highlight.ParseGUID(guid)
+    if kind ~= "GameObject" then return nil end
+    local result = self.currentResult
+    if guid ~= self.currentGUID or not result then
+        local okName, name = pcall(_G.UnitName or function() end, unit)
+        result = Highlight.Assess(guid, okName and name or nil, readProfessions(), readQuests())
+    end
+    if not result then return nil end
+    self.plates = self.plates or {}
+    self.plates[unit] = true
+    GA.Core.Callbacks:Fire("HIGHLIGHT_PLATE", unit, result)
+    return result
+end
+
+function Highlight:OnPlateRemoved(unit)
+    if not self.plates or not self.plates[unit] then return end
+    self.plates[unit] = nil
+    GA.Core.Callbacks:Fire("HIGHLIGHT_PLATE_GONE", unit)
 end
 
 -- ================================================================ Reichweite --
@@ -357,6 +399,8 @@ end
 function Highlight:OnEnable()
     local Events = GA.Core.Events
     Events:Register("PLAYER_SOFT_INTERACT_CHANGED", function(_, _, newGUID) Highlight:OnSoftInteract(newGUID) end, "Highlight")
+    Events:Register("NAME_PLATE_UNIT_ADDED", function(_, unit) Highlight:OnPlateAdded(unit) end, "Highlight")
+    Events:Register("NAME_PLATE_UNIT_REMOVED", function(_, unit) Highlight:OnPlateRemoved(unit) end, "Highlight")
     Events:Register("PLAYER_REGEN_ENABLED", function()
         if Highlight.deferred ~= nil then Highlight:Apply(Highlight.deferred) end
     end, "Highlight")

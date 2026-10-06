@@ -1362,6 +1362,8 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_OPEN   = "Show chat",
     NAV_RAIDPLAN       = "Raid Plan",
     RP_IMPORT          = "Import",
+    SET_HIGHLIGHT_MARKER = "Own marker on the object",
+    SET_HIGHLIGHT_MARKER_HINT = "Above the game's icon, attached to the object in the world: the profession icon with a frame in the colour of your skill and the skill needed, or a yellow \"!\" for quest objects. It stays while the game keeps the object marked.",
     HL_HERBALISM       = "Herbalism",
     HL_MINING          = "Mining",
     HL_NEEDS           = "%s %d",

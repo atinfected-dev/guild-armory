@@ -1348,6 +1348,8 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_OPEN   = "Chat zeigen",
     NAV_RAIDPLAN       = "Raidplan",
     RP_IMPORT          = "Importieren",
+    SET_HIGHLIGHT_MARKER = "Eigenes Zeichen am Objekt",
+    SET_HIGHLIGHT_MARKER_HINT = "Über dem Symbol des Spiels, am Objekt in der Welt: das Berufssymbol mit einem Rahmen in der Farbe deiner Stufe und der nötigen Stufe darunter, bei Questobjekten ein gelbes „!“. Es bleibt, solange das Spiel das Objekt markiert hält.",
     HL_HERBALISM       = "Kräuterkunde",
     HL_MINING          = "Bergbau",
     HL_NEEDS           = "%s %d",

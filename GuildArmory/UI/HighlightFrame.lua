@@ -72,4 +72,85 @@ function HighlightFrame:Show(result)
     frame:Show()
 end
 
+-- ================================================================ Zeichen ---
+--
+-- Das eigene Zeichen am Namensschild des Objekts (Quests/Highlight). Ueber
+-- dem Symbol des Spiels: Berufssymbol mit einem Rahmen in der Farbe der
+-- Stufe, darunter die Stufe — bei einem Questobjekt ein gelbes Ausrufe-
+-- zeichen. Die Bilder sind die des Spiels, ueber ihren Pfad.
+
+local MARKER_ICON = {
+    [182] = [[Interface\Icons\Spell_Nature_NatureTouchGrow]],   -- Kraeuterkunde
+    [186] = [[Interface\Icons\Trade_Mining]],                   -- Bergbau
+    quest = [[Interface\GossipFrame\AvailableQuestIcon]],
+}
+
+function HighlightFrame:CreateMarker()
+    if self.marker then return self.marker end
+    local marker = CreateFrame("Frame", "GuildArmoryObjectMarker", UIParent)
+    marker:SetSize(34, 34)
+    marker:SetFrameStrata("LOW")
+    marker:EnableMouse(false)
+    marker:Hide()
+    marker.border = marker:CreateTexture(nil, "BACKGROUND")
+    marker.border:SetPoint("TOPLEFT", marker, "TOPLEFT", -2, 2)
+    marker.border:SetPoint("BOTTOMRIGHT", marker, "BOTTOMRIGHT", 2, -2)
+    marker.icon = marker:CreateTexture(nil, "ARTWORK")
+    marker.icon:SetAllPoints(marker)
+    marker.text = marker:CreateFontString(nil, "OVERLAY")
+    marker.text:SetFontObject(font("GuildArmoryObjectMarkerText", 12))
+    marker.text:SetPoint("TOP", marker, "BOTTOM", 0, -2)
+    -- Ein sanftes Pulsieren: Es soll ins Auge fallen, nicht blinken.
+    if marker.CreateAnimationGroup then
+        local group = marker:CreateAnimationGroup()
+        group:SetLooping("BOUNCE")
+        local fade = group:CreateAnimation("Alpha")
+        fade:SetFromAlpha(1) fade:SetToAlpha(0.55) fade:SetDuration(0.8)
+        marker.pulse = group
+    end
+    self.marker = marker
+    return marker
+end
+
+--- Haengt das Zeichen an das Namensschild. Ein geschuetztes Schild (in
+--- Instanzen) bleibt unberuehrt.
+function HighlightFrame:AttachMarker(unit, result)
+    local api = _G.C_NamePlate
+    if type(api) ~= "table" or type(api.GetNamePlateForUnit) ~= "function" then return end
+    local ok, plate = pcall(api.GetNamePlateForUnit, unit)
+    if not ok or not plate then return end
+    if plate.IsForbidden and plate:IsForbidden() then return end
+    local marker = self:CreateMarker()
+    marker:ClearAllPoints()
+    if not pcall(marker.SetPoint, marker, "BOTTOM", plate, "TOP", 0, 26) then return end
+
+    local first = result.lines[1] or {}
+    local node = result.node
+    local icon = (node and MARKER_ICON[node]) or (first.color == "quest" and MARKER_ICON.quest) or MARKER_ICON[182]
+    marker.icon:SetTexture(icon)
+    if first.color == "quest" then
+        marker.icon:SetTexCoord(0, 1, 0, 1)
+    else
+        marker.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    end
+    local c = COLORS[first.color] or COLORS.gray
+    marker.border:SetColorTexture(c[1], c[2], c[3], 0.95)
+    marker.text:SetText(node and string.match(first.text or "", "%d+") or "")
+    marker.text:SetTextColor(c[1], c[2], c[3])
+    marker.unit = unit
+    marker:Show()
+    if marker.pulse then marker.pulse:Play() end
+end
+
+function HighlightFrame:DetachMarker(unit)
+    local marker = self.marker
+    if not marker or (unit and marker.unit ~= unit) then return end
+    if marker.pulse then marker.pulse:Stop() end
+    marker:Hide()
+    marker:ClearAllPoints()
+    marker.unit = nil
+end
+
 GA.Core.Callbacks:On("HIGHLIGHT_HINT", function(result) HighlightFrame:Show(result) end, "HighlightFrame")
+GA.Core.Callbacks:On("HIGHLIGHT_PLATE", function(unit, result) HighlightFrame:AttachMarker(unit, result) end, "HighlightFrame")
+GA.Core.Callbacks:On("HIGHLIGHT_PLATE_GONE", function(unit) HighlightFrame:DetachMarker(unit) end, "HighlightFrame")

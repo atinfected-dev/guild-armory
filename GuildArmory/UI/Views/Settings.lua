@@ -487,6 +487,8 @@ function Settings:Create(parent)
         less:SetPoint("RIGHT", more, "LEFT", -4, 0)
         return function() return 0 end
     end })
+    self.rowHighlightMarker = makeRow(onscreen, { label = L.SET_HIGHLIGHT_MARKER, hint = L.SET_HIGHLIGHT_MARKER_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("highlightMarker", on) if not on then GA.UI.HighlightFrame:DetachMarker() end end })
     self.rowHighlightHints = makeRow(onscreen, { label = L.SET_HIGHLIGHT_HINTS, hint = L.SET_HIGHLIGHT_HINTS_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("highlightHints", on) if not on then GA.UI.HighlightFrame:Show(nil) end end })
     self.rowHighlightSound = makeRow(onscreen, { label = L.SET_HIGHLIGHT_SOUND, hint = L.SET_HIGHLIGHT_SOUND_HINT, control = "switch",
@@ -735,6 +737,7 @@ function Settings:Refresh()
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
     self.rowHighlight.switch:SetChecked(Config:Get("objectHighlight") == true)
     self.rowHighlightHints.switch:SetChecked(Config:Get("highlightHints") ~= false)
+    self.rowHighlightMarker.switch:SetChecked(Config:Get("highlightMarker") ~= false)
     self.rowHighlightSound.switch:SetChecked(Config:Get("highlightSound") == true)
     if self.rangeValue then self.rangeValue:SetText(string.format(L.HL_RANGE_VALUE, GA.Modules.Highlight.Range())) end
     self.rowReadyEnchants.switch:SetChecked(Config:Get("readyEnchants") ~= false)
