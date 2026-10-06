@@ -4,6 +4,8 @@
 
 Guild › Guild Bank (new): what is in stock in the guild bank. The game only hands the contents out while someone has the bank open at a guild vault, so whoever opens it has their addon read every tab they may see and share the stock with the guild — everyone then sees it, with when and by whom it was read and the gold in the bank. Tabs as chips (All or one tab), a search, item counts with the tabs they lie in, item tooltips on hover. Settings › Data has "Share the guild bank with the guild" (on by default) for anyone who wants to keep what they read to themselves.
 
+Equipment: each character shows how long it has been played, in total and at its current level — the same numbers as /played. The addon asks once per login and after every level-up, quietly (no "Total time played" line in the chat); typing /played yourself still prints as usual. The time travels to the guild with the character, so everyone sees it for members running the addon.
+
 ## 0.1.38
 
 Guild Armory has a Discord: https://discord.gg/uVq98htFnA — for bug reports, suggestions and questions; we are happy about every idea. Settings › About now links there (bug reports & suggestions) and explains how to request the Dungeonhub bot for your own guild's Discord; the Discord bot option in the settings points there too.

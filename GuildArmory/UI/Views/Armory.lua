@@ -179,6 +179,12 @@ function Armory:Create(parent)
     self.stamp:SetPoint("RIGHT", self.ilvlValue, "LEFT", -12, 0)
     self.stamp:SetJustifyH("LEFT")
 
+    -- Spielzeit (06.10.2026): wie /played, gesamt und auf dieser Stufe.
+    self.played = Theme.Label(doll, "", fonts.small, Theme.color.textDim)
+    self.played:SetPoint("TOPLEFT", self.stamp, "BOTTOMLEFT", 0, -3)
+    self.played:SetPoint("RIGHT", self.ilvlValue, "LEFT", -12, 0)
+    self.played:SetJustifyH("LEFT")
+
     -- Slots
     self.slots = {}
     local columnTop = -92
@@ -547,6 +553,15 @@ function Armory:RefreshDoll()
     else
         self.stamp:SetText(L.ARMORY_NO_DATA)
         self.stamp:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+    end
+
+    local played = character.played
+    local total = played and GA.Modules.Equipment.FormatPlayed(played.total)
+    if total then
+        local level = GA.Modules.Equipment.FormatPlayed(played.level)
+        self.played:SetText(level and string.format(L.ARMORY_PLAYED_LEVEL, total, level) or string.format(L.ARMORY_PLAYED, total))
+    else
+        self.played:SetText("")
     end
 
     -- Slots — und ihre Namen: gedaempft, wo etwas steckt, leise, wo nichts.

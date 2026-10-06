@@ -208,8 +208,69 @@ end
 
 -- ================================================================== Start ------
 
+-- ================================================================ Spielzeit --
+--
+-- Wie lange der Charakter gespielt wurde — dieselbe Abfrage wie /played
+-- (06.10.2026, Wunsch: "wieviel die Charaktere gespielt wurden"). Gefragt
+-- wird einmal je Login und nach jedem Stufenaufstieg, STILL: Fuer die eigene
+-- Abfrage hoeren die Chatfenster das Ereignis kurz nicht, sonst stuende bei
+-- jedem Login "Total time played" im Chat. Tippt jemand selbst /played,
+-- liest das Addon mit, und die Meldung erscheint wie gewohnt.
+
+--- Sekunden als "12 d 4 h", "3 h 20 min" oder "45 min".
+function Equipment.FormatPlayed(seconds)
+    seconds = tonumber(seconds)
+    if not seconds or seconds < 0 then return nil end
+    local L = GA.L
+    local d, h, m = math.floor(seconds / 86400), math.floor(seconds / 3600) % 24, math.floor(seconds / 60) % 60
+    if d > 0 then return string.format(L.PLAYED_DH, d, h) end
+    if h > 0 then return string.format(L.PLAYED_HM, h, m) end
+    return string.format(L.PLAYED_M, m)
+end
+
+function Equipment:RequestPlayed()
+    if not Compat.RequestTimePlayed then return false end
+    local muted = {}
+    for i = 1, tonumber(_G.NUM_CHAT_WINDOWS) or 10 do
+        local frame = _G["ChatFrame" .. i]
+        if frame and frame.IsEventRegistered and frame:IsEventRegistered("TIME_PLAYED_MSG") then
+            frame:UnregisterEvent("TIME_PLAYED_MSG")
+            muted[#muted + 1] = frame
+        end
+    end
+    self.mutedChat = muted
+    local ok = Compat.RequestTimePlayed()
+    -- Sicherheitsnetz: Kommt keine Antwort, hoeren die Chatfenster wieder zu.
+    Compat.After(5, function() Equipment:UnmuteChat() end)
+    return ok
+end
+
+function Equipment:UnmuteChat()
+    for _, frame in ipairs(self.mutedChat or {}) do
+        if frame.RegisterEvent then pcall(frame.RegisterEvent, frame, "TIME_PLAYED_MSG") end
+    end
+    self.mutedChat = nil
+end
+
+--- Die Antwort des Spiels: gesamt und auf dieser Stufe, in Sekunden.
+function Equipment:OnPlayed(total, level)
+    total, level = tonumber(total), tonumber(level)
+    if self.mutedChat then Compat.After(0.2, function() Equipment:UnmuteChat() end) end
+    if not total then return end
+    local identity = Compat.GetPlayerIdentity()
+    if not identity or not identity.guid then return end
+    local character = GA.Core.Database.account.characters[identity.guid]
+    if not character then return end
+    character.played = { total = total, level = level, ts = Util.Now() }
+    GA.Core.Callbacks:Fire("EQUIPMENT_UPDATED", identity.guid)
+end
+
 function Equipment:OnEnable()
     local Events = GA.Core.Events
+
+    Events:Register("TIME_PLAYED_MSG", function(_, total, level) Equipment:OnPlayed(total, level) end, "Equipment")
+    Events:Register("PLAYER_LEVEL_UP", function() Compat.After(3, function() Equipment:RequestPlayed() end) end, "Equipment")
+    Compat.After(25, function() Equipment:RequestPlayed() end)
 
     Events:Register("PLAYER_EQUIPMENT_CHANGED", function()
         Equipment:RequestCapture("Ausruestung geaendert")

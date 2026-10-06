@@ -125,6 +125,10 @@ function Sync:BuildCharacterPayload()
         sp = character.specID,
         lo = character.loadout and character.loadout.value or nil,
         lt = character.loadout and character.loadout.ts or nil,
+        -- Spielzeit in Sekunden, gesamt und auf dieser Stufe (06.10.2026).
+        pl = character.played and character.played.total or nil,
+        pv = character.played and character.played.level or nil,
+        pt = character.played and character.played.ts or nil,
     })
 end
 
@@ -265,6 +269,12 @@ function Sync:OnCharacter(sender, text)
             if tonumber(data.sp) then character.specID = tonumber(data.sp) end
             GA.Core.Callbacks:Fire("TALENTS_CHANGED", data.guid)
         end
+    end
+
+    -- Die Spielzeit sagt nur der Besitzer — die juengere gewinnt.
+    local pl, pt = tonumber(data.pl), tonumber(data.pt)
+    if pl and pl >= 0 and pl < 3e8 and character.source ~= "self" and (not character.played or (character.played.ts or 0) < (pt or 0)) then
+        character.played = { total = pl, level = tonumber(data.pv), ts = pt or Util.Now() }
     end
 
     -- Eine eigene Messung wird NICHT von einer Fremdmeldung ueberschrieben.

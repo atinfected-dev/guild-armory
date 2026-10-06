@@ -2989,6 +2989,14 @@ function Compat.OpenWhisper(name)
     return false
 end
 
+-- ============================================================ Spielzeit -------
+
+--- Fragt die Spielzeit an (wie /played). Die Antwort kommt als TIME_PLAYED_MSG.
+function Compat.RequestTimePlayed()
+    if not isFunction(_G.RequestTimePlayed) then return false end
+    return pcall(RequestTimePlayed) and true or false
+end
+
 -- ============================================================ Gildenbank ------
 --
 -- Nur lesbar, solange die Bank an einem Tresor offen ist (06.10.2026).
