@@ -216,8 +216,10 @@ end
 --- Das markierte Objekt hat gewechselt.
 --- So lange bleibt der Hinweis stehen, nachdem die Markierung weg ist.
 Highlight.LINGER = 5
---- So lange klingt dasselbe Objekt nicht noch einmal.
-local SOUND_QUIET = 60
+--- So lange klingt dasselbe Objekt nicht noch einmal — gegen das Flackern
+--- der Markierung, nicht laenger (06.10.2026: eine Minute war zu lang, "der
+--- Sound muss schneller nochmal erklingen").
+local SOUND_QUIET = 8
 
 function Highlight:OnSoftInteract(newGUID)
     if not newGUID or not Compat.IsReadable(newGUID) then
@@ -243,7 +245,7 @@ function Highlight:OnSoftInteract(newGUID)
     self.currentResult = result
     GA.Core.Callbacks:Fire("HIGHLIGHT_HINT", result)
     if result and result.wanted and GA.Core.Config:Get("highlightSound") == true then
-        -- Ein Ton je Objekt und Minute — nicht bei jedem Flackern.
+        -- Ein Ton je Objekt und SOUND_QUIET — nicht bei jedem Flackern.
         self.sounded = self.sounded or {}
         local now = Compat.GetTime()
         if not self.sounded[newGUID] or now - self.sounded[newGUID] > SOUND_QUIET then
@@ -291,6 +293,20 @@ function Highlight:OnPlateRemoved(unit)
     if not self.plates or not self.plates[unit] then return end
     self.plates[unit] = nil
     GA.Core.Callbacks:Fire("HIGHLIGHT_PLATE_GONE", unit)
+end
+
+-- ================================================================ Taste ------
+
+--- Blizzards Aktion "Mit Ziel interagieren". Mit eingeschalteter Markierung
+--- gilt sie dem markierten Objekt — Kraut abbauen, Erz abbauen, Truhe
+--- oeffnen, alles mit einer Taste. Die Aktion fuehrt das SPIEL aus; das
+--- Addon legt nur die Taste darauf.
+Highlight.INTERACT_ACTION = "INTERACTTARGET"
+
+--- @return boolean gesetzt, string|nil grund
+function Highlight:SetInteractKey(key)
+    if type(key) ~= "string" or key == "" then return false, "failed" end
+    return Compat.SetBindingKey(key, Highlight.INTERACT_ACTION)
 end
 
 -- ================================================================ Reichweite --

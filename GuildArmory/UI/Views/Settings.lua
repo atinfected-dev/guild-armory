@@ -249,6 +249,31 @@ function Settings:NavEntry(section, index)
     return button
 end
 
+--- Sammeln-Taste: der naechste Tastendruck wird die Taste (ESC bricht ab).
+function Settings:CaptureGatherKey()
+    if GA.Core.Compat.InCombat() then GA.Core.Debug:Warn(L.SET_GATHER_KEY_COMBAT) return end
+    self.capturingKey = true
+    self.gatherKeyButton:SetLabel(L.SET_GATHER_KEY_PRESS)
+    if self.gatherKeyButton.EnableKeyboard then self.gatherKeyButton:EnableKeyboard(true) end
+    if self.gatherKeyButton.SetPropagateKeyboardInput then pcall(self.gatherKeyButton.SetPropagateKeyboardInput, self.gatherKeyButton, false) end
+end
+
+local MODIFIER_ONLY = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true }
+
+function Settings:OnGatherKey(key)
+    if not self.capturingKey or MODIFIER_ONLY[key] then return end
+    self.capturingKey = false
+    if self.gatherKeyButton.EnableKeyboard then self.gatherKeyButton:EnableKeyboard(false) end
+    if key ~= "ESCAPE" then
+        local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
+            .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+        local ok, why = GA.Modules.Highlight:SetInteractKey(full)
+        if ok then GA.Core.Debug:Info(L.SET_GATHER_KEY_SET, full)
+        else GA.Core.Debug:Warn(L["SET_GATHER_KEY_" .. string.upper(tostring(why))] or tostring(why)) end
+    end
+    self:Refresh()
+end
+
 --- Wechselt den Abschnitt: Leiste und Seiten folgen.
 function Settings:ShowSection(key)
     self.current = key
@@ -486,6 +511,19 @@ function Settings:Create(parent)
         less:SetWidth(24) less:SetHeight(20)
         less:SetPoint("RIGHT", more, "LEFT", -4, 0)
         return function() return 0 end
+    end })
+    -- Sammeln per Taste (06.10.2026): Blizzards eigene Aktion "Mit Ziel
+    -- interagieren" — bei eingeschalteter Markierung sammelt sie das
+    -- markierte Objekt. Selbst sammeln darf ein Addon nicht (geschuetzt);
+    -- eine Taste auf die Spielaktion legen darf es, ausser im Kampf.
+    makeRow(onscreen, { label = L.SET_GATHER_KEY, hint = L.SET_GATHER_KEY_HINT, build = function(row)
+        local button = Widgets.Button(row, "", function() Settings:CaptureGatherKey() end)
+        button:SetHeight(20)
+        button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        button:SetScript("OnKeyDown", function(_, key) Settings:OnGatherKey(key) end)
+        if button.EnableKeyboard then button:EnableKeyboard(false) end
+        Settings.gatherKeyButton = button
+        return function() return 28 end
     end })
     self.rowHighlightMarker = makeRow(onscreen, { label = L.SET_HIGHLIGHT_MARKER, hint = L.SET_HIGHLIGHT_MARKER_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("highlightMarker", on) if not on then GA.UI.HighlightFrame:DetachMarker() end end })
@@ -735,6 +773,10 @@ function Settings:Refresh()
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
     self.rowHighlight.switch:SetChecked(Config:Get("objectHighlight") == true)
     self.rowHighlightMarker.switch:SetChecked(Config:Get("highlightMarker") ~= false)
+    if self.gatherKeyButton and not self.capturingKey then
+        local key = GA.Core.Compat.GetBindingKey(GA.Modules.Highlight.INTERACT_ACTION)
+        self.gatherKeyButton:SetLabel(string.format(L.SET_GATHER_KEY_BTN, key or L.SET_GATHER_KEY_NONE))
+    end
     self.rowHighlightSound.switch:SetChecked(Config:Get("highlightSound") == true)
     if self.rangeValue then self.rangeValue:SetText(string.format(L.HL_RANGE_VALUE, GA.Modules.Highlight.Range())) end
     self.rowReadyEnchants.switch:SetChecked(Config:Get("readyEnchants") ~= false)

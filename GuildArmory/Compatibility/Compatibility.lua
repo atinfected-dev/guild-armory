@@ -3836,6 +3836,38 @@ function Compat.GuildFrameKey()
     return nil
 end
 
+--- Die erste Taste, die auf einer Aktion liegt (z. B. "INTERACTTARGET").
+--- @return string|nil
+function Compat.GetBindingKey(action)
+    if not isFunction(_G.GetBindingKey) then return nil end
+    local ok, key = pcall(GetBindingKey, action)
+    if ok and type(key) == "string" and key ~= "" then return key end
+    return nil
+end
+
+--- Legt eine Taste dauerhaft auf eine Aktion des Spiels (wie im Menue
+--- Tastaturbelegung) und speichert die Belegung. Nicht im Kampf — das
+--- Spiel verbietet es dort. Erfolg heisst: Beim Zuruecklesen liegt die
+--- Taste auf der Aktion.
+--- @return boolean gesetzt, string|nil grund ("combat", "noapi", "failed")
+function Compat.SetBindingKey(key, action)
+    if Compat.InCombat() then return false, "combat" end
+    if not isFunction(_G.SetBinding) then return false, "noapi" end
+    -- Die bisherige Taste der Aktion wird frei, damit nicht zwei darauf liegen.
+    local old = Compat.GetBindingKey(action)
+    if old and old ~= key then pcall(_G.SetBinding, old) end
+    if not pcall(_G.SetBinding, key, action) then return false, "failed" end
+    if isFunction(_G.SaveBindings) then
+        local set = isFunction(_G.GetCurrentBindingSet) and select(2, pcall(GetCurrentBindingSet)) or 1
+        pcall(_G.SaveBindings, tonumber(set) or 1)
+    end
+    if isFunction(_G.GetBindingAction) then
+        local ok, now = pcall(GetBindingAction, key)
+        if not ok or now ~= action then return false, "failed" end
+    end
+    return true
+end
+
 -- ============================================================ Charakterfenster
 
 --- Der Name eines Ausruestungsplatzes in der Sprache des Clients.

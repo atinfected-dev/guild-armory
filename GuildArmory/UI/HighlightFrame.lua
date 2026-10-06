@@ -58,24 +58,33 @@ function HighlightFrame:CreateMarker()
     -- bleibt.
     local halo = CreateFrame("Frame", nil, marker)
     halo:SetPoint("CENTER", marker, "CENTER", 0, 0)
-    halo:SetSize(110, 110)
+    halo:SetSize(160, 160)
     halo:SetFrameLevel(math.max(0, marker:GetFrameLevel() - 1))
-    halo.tex = halo:CreateTexture(nil, "BACKGROUND")
-    halo.tex:SetAllPoints(halo)
+    -- KRAEFTIGER (06.10.2026: "der Glow muss noch staerker werden"): drei
+    -- Schichten uebereinander, additiv — ein weiter Schein, ein mittlerer
+    -- und ein heller Kern direkt hinter dem Symbol.
     local glow = Theme.Media("glow")
-    if glow and pcall(halo.tex.SetTexture, halo.tex, glow) then
-        pcall(halo.tex.SetBlendMode, halo.tex, "ADD")
-    else
-        halo.tex:Hide()
+    halo.layers = {}
+    for i, size in ipairs({ 160, 110, 70 }) do
+        local tex = halo:CreateTexture(nil, "BACKGROUND", nil, i)
+        tex:SetPoint("CENTER", halo, "CENTER", 0, 0)
+        tex:SetSize(size, size)
+        if glow and pcall(tex.SetTexture, tex, glow) then
+            pcall(tex.SetBlendMode, tex, "ADD")
+        else
+            tex:Hide()
+        end
+        halo.layers[i] = tex
     end
+    halo.tex = halo.layers[1]
     if halo.CreateAnimationGroup then
         local group = halo:CreateAnimationGroup()
         group:SetLooping("BOUNCE")
         local fade = group:CreateAnimation("Alpha")
-        fade:SetFromAlpha(1) fade:SetToAlpha(0.45) fade:SetDuration(0.9)
+        fade:SetFromAlpha(1) fade:SetToAlpha(0.7) fade:SetDuration(0.9)
         local grow = group:CreateAnimation("Scale")
-        if grow.SetScaleFrom then grow:SetScaleFrom(0.85, 0.85) grow:SetScaleTo(1.1, 1.1)
-        elseif grow.SetFromScale then grow:SetFromScale(0.85, 0.85) grow:SetToScale(1.1, 1.1) end
+        if grow.SetScaleFrom then grow:SetScaleFrom(0.9, 0.9) grow:SetScaleTo(1.2, 1.2)
+        elseif grow.SetFromScale then grow:SetFromScale(0.9, 0.9) grow:SetToScale(1.2, 1.2) end
         grow:SetDuration(0.9)
         halo.pulse = group
     end
@@ -116,7 +125,7 @@ function HighlightFrame:AttachMarker(unit, result)
     end
     local c = COLORS[first.color] or COLORS.gray
     Theme.Paint(marker.border, { c[1], c[2], c[3], 0.95 })
-    marker.halo.tex:SetVertexColor(c[1], c[2], c[3], 0.9)
+    for _, tex in ipairs(marker.halo.layers) do tex:SetVertexColor(c[1], c[2], c[3], 1) end
     marker.text:SetText(node and string.match(first.text or "", "%d+") or "")
     marker.text:SetTextColor(c[1], c[2], c[3])
     marker.unit = unit
