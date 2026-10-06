@@ -145,6 +145,14 @@ function Highlight.SkillColor(rank, required)
     return "gray"
 end
 
+--- Die ersten zwei Woerter ("rocket car") — nil bei nur einem Wort, damit
+--- "Iron Deposit" nicht zu jedem Ziel mit "Iron" passt.
+function Highlight.TwoWords(text)
+    if type(text) ~= "string" then return nil end
+    local a, b = string.match(text, "^%s*(%S+)%s+(%S+)")
+    return a and (a .. " " .. b) or nil
+end
+
 --- Was ist dieses Objekt fuer mich?
 --- @param professions table|nil [linie] = stufe (nil = nicht messbar)
 --- @param quests table|nil { { title, objectives = { { text, finished } } } }
@@ -179,10 +187,16 @@ function Highlight.Assess(guid, name, professions, quests)
 
     if name then
         local lower = string.lower(name)
+        local prefix = Highlight.TwoWords(lower)
         for _, quest in ipairs(quests or {}) do
             for _, objective in ipairs(quest.objectives or {}) do
-                if not objective.finished and type(objective.text) == "string"
-                    and string.find(string.lower(objective.text), lower, 1, true) then
+                local text = type(objective.text) == "string" and string.lower(objective.text) or nil
+                -- Gleicher Name ("Silverleaf" — "Silverleaf: 2/10"), oder dieselben
+                -- ersten zwei Woerter: Das Objekt "Rocket Car Rubble" liefert das
+                -- Questziel "Rocket Car Parts".
+                local item = text and (string.match(text, "^(.-):") or text)
+                if not objective.finished and text and (string.find(text, lower, 1, true)
+                    or (prefix and prefix == Highlight.TwoWords(item))) then
                     out.lines[#out.lines + 1] = { text = string.format(L.HL_QUEST, quest.title or "?", objective.text), color = "quest" }
                     out.wanted = true
                 end
