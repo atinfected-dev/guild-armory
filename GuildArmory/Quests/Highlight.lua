@@ -414,6 +414,24 @@ function Highlight.PlateInfo()
     return "ja  soft=[" .. table.concat(keys, ", ") .. "]  symbol=" .. (icon and "gefunden" or "NICHT gefunden")
 end
 
+--- Was die Tabelle und die Bewertung zum markierten Objekt sagen.
+function Highlight.NodeInfo()
+    local ok, guid = pcall(_G.UnitGUID or function() end, "softinteract")
+    local kind, id = Highlight.ParseGUID(ok and guid or nil)
+    if kind ~= "GameObject" then return "objekt=keins" end
+    local node = id and Highlight.NODES[id]
+    local parts = { "objekt=" .. tostring(id) }
+    if node then
+        parts[#parts + 1] = "tabelle=" .. (node[1] == Highlight.HERBALISM and "Kraut" or "Erz") .. ":" .. node[2]
+    else
+        parts[#parts + 1] = "tabelle=UNBEKANNT"
+    end
+    local okName, name = pcall(_G.UnitName or function() end, "softinteract")
+    local result = Highlight.Assess(guid, okName and name or nil, readProfessions(), nil)
+    parts[#parts + 1] = "zeichen=" .. (result and (result.node and "Beruf" or "Quest") or "keins")
+    return table.concat(parts, "  ")
+end
+
 function Highlight:Log(line)
     local log = self.measureLog
     if not log then return end
@@ -429,6 +447,19 @@ function Highlight:StartMeasure()
     end
     values[#values + 1] = "SoftTargetNameplateInteract=" .. tostring(Compat.GetCVar("SoftTargetNameplateInteract"))
     self:Log("Start. " .. table.concat(values, "  "))
+    -- Berufe, wie das Addon sie liest (06.10.2026: "das Erz funktioniert
+    -- nicht" — liegt es am Beruf, an der Kennung oder markiert das Spiel die
+    -- Ader gar nicht?).
+    local professions = readProfessions()
+    if not professions then
+        self:Log("Berufe: NICHT MESSBAR (GetProfessions liefert nichts) — Zeichen kommen fuer alles")
+    else
+        local parts = {}
+        for line, rank in pairs(professions) do parts[#parts + 1] = line .. "=" .. rank end
+        table.sort(parts)
+        self:Log("Berufe (Linie=Stufe): " .. (#parts > 0 and table.concat(parts, "  ") or "keine")
+            .. "  — Kraeuterkunde=" .. Highlight.HERBALISM .. ", Bergbau=" .. Highlight.MINING)
+    end
     local Events = GA.Core.Events
     for _, event in ipairs(MEASURE_EVENTS) do
         local ok = Events:Register(event, function(name, ...)
@@ -438,7 +469,7 @@ function Highlight:StartMeasure()
                 args[#args + 1] = (v == nil or Compat.IsReadable(v)) and tostring(v) or "<verschleiert>"
             end
             Highlight:Log(name .. "(" .. table.concat(args, ", ") .. ")  " .. Highlight.Describe("softinteract")
-                .. "  plate=" .. Highlight.PlateInfo())
+                .. "  plate=" .. Highlight.PlateInfo() .. "  " .. Highlight.NodeInfo())
         end, "HighlightMeasure")
         self:Log(event .. (ok and ": registriert" or ": GIBT ES NICHT"))
     end
