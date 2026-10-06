@@ -432,6 +432,12 @@ function Settings:Create(parent)
     self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("levelUpAnnounce", on) end })
 
+    -- Raidplan-Erinnerungen (06.10.2026).
+    self.rowReminders = makeRow(onscreen, { label = L.SET_REMINDERS, hint = L.SET_REMINDERS_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("raidReminders", on) end })
+    self.rowReminderSound = makeRow(onscreen, { label = L.SET_REMINDER_SOUND, hint = L.SET_REMINDER_SOUND_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("raidReminderSound", on) end })
+
     -- Discord-Bot (03.10.2026): haengt Maschinenmarken an die Discord-Zeilen
     -- des Dungeonhubs. Aus, bis die Gilde den Bot laufen hat.
     self.rowDiscordBot = makeRow(onscreen, { label = L.SET_DISCORD_BOT, hint = L.SET_DISCORD_BOT_HINT, control = "switch",
@@ -627,6 +633,8 @@ function Settings:Refresh()
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    self.rowReminders.switch:SetChecked(Config:Get("raidReminders") ~= false)
+    self.rowReminderSound.switch:SetChecked(Config:Get("raidReminderSound") ~= false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end

@@ -261,6 +261,10 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Stand mit der Gilde — abschaltbar.
         guildBankShare = true,
 
+        -- Raidplan-Erinnerungen im Bosskampf (06.10.2026) und ihr Ton.
+        raidReminders = true,
+        raidReminderSound = true,
+
         -- Look des Addons (05.10.2026): "forge" = eigene Schmiede-Texturen
         -- (Entwurf B), "blizzard" = Blizzards Fenstervorlagen wie bisher.
         uiLook = "forge",
@@ -375,6 +379,8 @@ Schema.ACCOUNT_DEFAULTS = {
         --- gezogen hat.
         camp = { point = "CENTER", x = -320, y = 220, width = 248,
                  hidden = false, collapsed = false },
+        -- Erinnerungen des Raidplans: verschiebbar im Probelauf.
+        reminder = { point = "TOP", x = 0, y = -160 },
     },
 
     --- [guid] = Charakterdatensatz

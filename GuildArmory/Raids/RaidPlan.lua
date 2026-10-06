@@ -383,6 +383,24 @@ function RaidPlan.Matches(reminder, who)
     return false
 end
 
+--- Lesbare Ziele einer Erinnerung.
+function RaidPlan.TargetText(reminder)
+    local parts = {}
+    for _, sel in ipairs(reminder.to or {}) do
+        local kind, value = string.match(sel, "^(%a+):(.+)$")
+        if sel == "all" then parts[#parts + 1] = GA.L.RP_TO_ALL
+        elseif kind == "role" then parts[#parts + 1] = GA.L["RP_ROLE_" .. string.upper(value)] or value
+        elseif kind == "group" then parts[#parts + 1] = string.format(GA.L.RP_GROUP, tonumber(value) or 0)
+        elseif kind == "class" then
+            local token = string.upper(value)
+            local name = _G.LOCALIZED_CLASS_NAMES_MALE and _G.LOCALIZED_CLASS_NAMES_MALE[token]
+            parts[#parts + 1] = name or token
+        elseif kind == "name" then parts[#parts + 1] = value
+        end
+    end
+    return table.concat(parts, ", ")
+end
+
 --- Der eigene Platz in einem Plan: Gruppe und Rolle laut Plan.
 function RaidPlan.WhoAmI(plan, identity)
     identity = identity or Compat.GetPlayerIdentity() or {}

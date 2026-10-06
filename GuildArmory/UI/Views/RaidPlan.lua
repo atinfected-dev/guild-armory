@@ -32,23 +32,8 @@ function View.Clock(seconds)
     return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
---- Lesbare Ziele einer Erinnerung.
-function View.Targets(reminder)
-    local parts = {}
-    for _, sel in ipairs(reminder.to or {}) do
-        local kind, value = string.match(sel, "^(%a+):(.+)$")
-        if sel == "all" then parts[#parts + 1] = L.RP_TO_ALL
-        elseif kind == "role" then parts[#parts + 1] = L["RP_ROLE_" .. string.upper(value)] or value
-        elseif kind == "group" then parts[#parts + 1] = string.format(L.RP_GROUP, tonumber(value) or 0)
-        elseif kind == "class" then
-            local token = string.upper(value)
-            local name = _G.LOCALIZED_CLASS_NAMES_MALE and _G.LOCALIZED_CLASS_NAMES_MALE[token]
-            parts[#parts + 1] = name or token
-        elseif kind == "name" then parts[#parts + 1] = value
-        end
-    end
-    return table.concat(parts, ", ")
-end
+--- Lesbare Ziele einer Erinnerung (die Funktion steht im Modul).
+function View.Targets(reminder) return plans().TargetText(reminder) end
 
 --- Klasse eines Namens aus dem Gildenroster, falls bekannt.
 local function classOf(name)
@@ -137,6 +122,13 @@ function View:Create(parent)
     bosses:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 4)
     self.bossPanel = bosses
 
+    -- Probelauf (Schritt 4): die Erinnerungen des gewaehlten Bosses so, wie
+    -- sie im Kampf erscheinen — alle, nicht nur die eigenen. Dabei laesst
+    -- sich die Anzeige verschieben.
+    self.previewButton = Widgets.Button(bosses.header or bosses, L.RP_PREVIEW, function() View:TogglePreview() end)
+    self.previewButton:SetHeight(18)
+    self.previewButton:SetPoint("RIGHT", bosses.header or bosses, "RIGHT", -4, 0)
+
     self.bossList = Widgets.ScrollList(bosses.content, {
         rowHeight = ROW_H,
         createRow = function(row) View:BuildBossRow(row) end,
@@ -173,7 +165,7 @@ function View:Create(parent)
     self.empty:SetSpacing(3)
     self.empty:Hide()
 
-    for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE" }) do
+    for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE", "REMINDERS_START", "REMINDERS_STOP" }) do
         GA.Core.Callbacks:On(name, function()
             if View.frame and View.frame:IsVisible() then View:Refresh() end
         end, "RaidPlanView")
@@ -344,11 +336,15 @@ function View:Refresh()
         self.note:SetText(note)
         for _, r in ipairs(boss.reminders) do rows[#rows + 1] = { reminder = r, mine = Plans.Matches(r, me) } end
         self.bossPanel:SetTitle(boss.name or L.RP_BOSSES)
+        self.previewButton:SetEnabledState(#boss.reminders > 0)
     else
         self.note:SetText(L.RP_NO_BOSSES)
+        self.previewButton:SetEnabledState(false)
         self.bossPanel:SetTitle(L.RP_BOSSES)
     end
     self.reminders:SetData(rows)
+    local Reminders = GA.Modules.Reminders
+    self.previewButton:SetLabel(Reminders and Reminders:IsPreview() and L.RP_PREVIEW_STOP or L.RP_PREVIEW)
     GA.UI.MainFrame:SetContext(plan.title or "")
 end
 
@@ -364,6 +360,14 @@ function View:OpenImport()
         View:Refresh()
         return true
     end)
+end
+
+function View:TogglePreview()
+    local Reminders = GA.Modules.Reminders
+    if Reminders:IsPreview() then Reminders:Stop("preview") return end
+    local entry = plans():Active()
+    local boss = entry and self.bossIndex and entry.plan.bosses[self.bossIndex]
+    if boss then Reminders:Start(entry.plan, boss, { preview = true }) end
 end
 
 function View:Arrange()

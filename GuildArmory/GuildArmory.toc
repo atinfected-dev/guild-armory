@@ -58,6 +58,7 @@ Raids\Attendance.lua
 Raids\History.lua
 Raids\CombatLog.lua
 Raids\RaidPlan.lua
+Raids\Reminders.lua
 Armory\Tradables.lua
 Armory\Talents.lua
 Armory\GuildBank.lua
@@ -94,6 +95,7 @@ UI\MainFrame.lua
 UI\MinimapButton.lua
 UI\Notifications.lua
 UI\MapPins.lua
+UI\ReminderFrame.lua
 UI\BidFrame.lua
 UI\CampFrame.lua
 UI\Tooltips.lua

@@ -298,6 +298,22 @@ function Compat.IsArrangeBlocked()
     return false
 end
 
+--- Sekunden mit Bruchteil, fuer Countdowns (Uhr des Clients, nicht des Servers).
+function Compat.GetTime()
+    if isFunction(_G.GetTime) then return GetTime() end
+    return time()
+end
+
+--- Spielt einen Ton aus Blizzards SOUNDKIT-Tabelle, sonst die Ersatz-ID.
+--- Ueber den Kanal "Master": Erinnerungen sollen auch bei leiser Musik und
+--- abgeschalteten Effekten ankommen.
+function Compat.PlaySoundKit(name, fallback)
+    if not isFunction(_G.PlaySound) then return false end
+    local kit = type(_G.SOUNDKIT) == "table" and _G.SOUNDKIT[name] or fallback
+    if not kit then return false end
+    return pcall(_G.PlaySound, kit, "Master") and true or false
+end
+
 --- Setzt ein Mitglied in eine Gruppe mit freiem Platz.
 function Compat.SetRaidSubgroup(index, group)
     if not isFunction(_G.SetRaidSubgroup) then return false end
