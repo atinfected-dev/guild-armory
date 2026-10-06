@@ -1360,7 +1360,6 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_SRC_LIVE = "since login · the last %d survive a reload",
     ROSTER_CHAT_SEND   = "Send",
     ROSTER_CHAT_OPEN   = "Show chat",
-    NAV_RAIDLOOT       = "Raid & Loot",
     NAV_RAIDPLAN       = "Raid Plan",
     RP_IMPORT          = "Import",
     RP_SHARE           = "Send to guild",

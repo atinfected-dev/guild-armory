@@ -1346,7 +1346,6 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_SRC_LIVE = "seit Login · die letzten %d bleiben ueber einen Reload",
     ROSTER_CHAT_SEND   = "Senden",
     ROSTER_CHAT_OPEN   = "Chat zeigen",
-    NAV_RAIDLOOT       = "Raid & Loot",
     NAV_RAIDPLAN       = "Raidplan",
     RP_IMPORT          = "Importieren",
     RP_SHARE           = "An die Gilde",
