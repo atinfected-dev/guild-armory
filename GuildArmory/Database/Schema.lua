@@ -271,6 +271,11 @@ Schema.ACCOUNT_DEFAULTS = {
 
         -- Ausgeblendete Bereiche (06.10.2026): [Bereichsschluessel] = true.
         hiddenSections = {},
+
+        -- Objekte hervorheben (06.10.2026): Soft-Interact-Symbole ueber
+        -- Kraeutern, Erz, Questobjekten. Aus, bis jemand es will — es
+        -- aendert Spieleinstellungen.
+        objectHighlight = false,
         readyEnchants = true,
         readyConsumables = true,
 

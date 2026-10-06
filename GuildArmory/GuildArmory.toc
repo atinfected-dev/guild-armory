@@ -70,6 +70,7 @@ Professions\Crafting.lua
 Map\Positions.lua
 Quests\Questhub.lua
 Quests\Dungeonhub.lua
+Quests\Highlight.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua

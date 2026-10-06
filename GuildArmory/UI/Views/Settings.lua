@@ -42,6 +42,9 @@ local SECTIONS = {
     { key = "language", title = "SET_UI_LANGUAGE", sub = "SET_SUB_UI_LANGUAGE" },
     { key = "window",   title = "SET_WINDOW",   sub = "SET_SUB_WINDOW" },
     { key = "onscreen", title = "SET_ONSCREEN", sub = "SET_SUB_ONSCREEN" },
+    -- Raid (06.10.2026): Erinnerungen, Ready Check, Kampflog — vorher auf
+    -- "Am Bildschirm" verstreut, wo man sie schwer fand.
+    { key = "raid",     title = "SET_RAID",     sub = "SET_SUB_RAID" },
     { key = "notify",   title = "SET_NOTIFY",   sub = "SET_SUB_NOTIFY" },
     { key = "loot",     title = "SET_LOOT",     sub = "SET_SUB_LOOT" },
     { key = "data",     title = "SET_DATA",     sub = "SET_SUB_DATA" },
@@ -92,6 +95,21 @@ local function makeRow(page, spec)
     return row
 end
 
+--- Eine Zwischenueberschrift in einer Seite (06.10.2026: "ordne die
+--- Einstellungen in Unterkategorien, man tut sich schwer, was zu finden").
+--- Eine Zeile wie die anderen — misst sich, bekommt ihre Trennlinie —, nur
+--- niedriger, in der Ueberschriftschrift und mit einem leichten Band.
+local function makeHeading(page, text)
+    local row = makeRow(page, { label = string.upper(text or "") })
+    row.isHeading = true
+    row.minHeight = 30
+    local fonts = Theme.Fonts()
+    row.title:SetFontObject(fonts.heading or fonts.body)
+    row.title:SetTextColor(Theme.color.heading[1], Theme.color.heading[2], Theme.color.heading[3])
+    row.band = Theme.Fill(row, { 1, 1, 1, 0.035 })
+    return row
+end
+
 -- LAYOUT ANFANG (herausgeschnitten von tools/test/settingslayout.test.js)
 
 --- Wie breit der Text einer Zeile sein darf: Breite minus Raender und Bedienelement.
@@ -126,7 +144,8 @@ function Settings.MeasureRow(row, width)
         height = height + (row.measureCustom(tw) or 0)
     end
     height = height + ROW_PAD
-    if height < ROW_MIN then height = ROW_MIN end
+    local minimum = row.minHeight or ROW_MIN
+    if height < minimum then height = minimum end
     row:SetHeight(height)
     return height
 end
@@ -342,6 +361,7 @@ function Settings:Create(parent)
 
     -- ------------------------------------------------------------ Fenster ---
     local window = self.pages.window
+    makeHeading(window, L.SET_H_WINDOW)
     makeRow(window, { label = L.SET_SCALE_ROW, hint = L.SET_SCALE_HINT, build = function(row)
         local function setScale(delta)
             GA.UI.MainFrame:SetScale((GA.Core.Config:GetUI("main").scale or 1) + delta)
@@ -359,6 +379,7 @@ function Settings:Create(parent)
     end })
     self.rowMinimap = makeRow(window, { label = L.SET_MINIMAP, hint = L.SET_MINIMAP_HINT, control = "switch",
         set = function(on) GA.UI.MinimapButton:SetShown(on) end })
+    makeHeading(window, L.SET_H_CONTROLS)
     self.rowTooltips = makeRow(window, { label = L.SET_TOOLTIPS, hint = L.SET_TOOLTIPS_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("tooltipItems", on) GA.Core.Config:Set("tooltipPlayers", on) end })
     -- DIE J-TASTE (28.09.2026): Blizzards Gildenfenster fuehrt zum
@@ -368,6 +389,7 @@ function Settings:Create(parent)
         set = function(on) GA.Core.Config:Set("guildKeyOpensAddon", on) end })
 
     -- Bereiche ausblenden (06.10.2026): ein Schalter je Reiter.
+    makeHeading(window, L.SET_H_TABS)
     self.sectionRows = {}
     for _, section in ipairs(GA.UI.MainFrame.HideableSections()) do
         local key = section.key
@@ -382,11 +404,14 @@ function Settings:Create(parent)
 
     -- ------------------------------------------------------ Am Bildschirm ---
     local onscreen = self.pages.onscreen
+    local raid = self.pages.raid
+    makeHeading(onscreen, L.SET_H_CAMP)
     self.rowCamp = makeRow(onscreen, { label = L.SET_CAMP, hint = L.SET_CAMP_HINT, control = "switch",
         set = function(on)
             GA.Core.Config:Set("campEnabled", on)
             if on then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
         end })
+    makeHeading(onscreen, L.SET_H_MAP)
     self.rowMap = makeRow(onscreen, { label = L.SET_MAP, hint = L.SET_MAP_HINT, control = "switch",
         set = function(on)
             GA.Core.Config:Set("mapShare", on)
@@ -440,26 +465,26 @@ function Settings:Create(parent)
         return function() return 30 end
     end })
 
+    -- Sammeln & Quests (06.10.2026): das naechste benutzbare Objekt markieren.
+    makeHeading(onscreen, L.SET_H_GATHER)
+    self.rowHighlight = makeRow(onscreen, { label = L.SET_HIGHLIGHT, hint = L.SET_HIGHLIGHT_HINT, control = "switch",
+        set = function(on) GA.Modules.Highlight:SetEnabled(on) end })
+
+    makeHeading(onscreen, L.SET_H_GUILDCHAT)
     -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT: Wer ihn anstellt, soll
     -- vorher wissen, dass die Gilde es liest.
     self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("levelUpAnnounce", on) end })
 
+    -- ---------------------------------------------------------------- Raid --
     -- Raidplan-Erinnerungen (06.10.2026).
-    self.rowReminders = makeRow(onscreen, { label = L.SET_REMINDERS, hint = L.SET_REMINDERS_HINT, control = "switch",
+    makeHeading(raid, L.SET_H_REMINDERS)
+    self.rowReminders = makeRow(raid, { label = L.SET_REMINDERS, hint = L.SET_REMINDERS_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("raidReminders", on) end })
-    self.rowReminderSound = makeRow(onscreen, { label = L.SET_REMINDER_SOUND, hint = L.SET_REMINDER_SOUND_HINT, control = "switch",
+    self.rowReminderSound = makeRow(raid, { label = L.SET_REMINDER_SOUND, hint = L.SET_REMINDER_SOUND_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("raidReminderSound", on) end })
-    -- Ready Check fuer sich selbst (06.10.2026).
-    self.rowReady = makeRow(onscreen, { label = L.SET_READY, hint = L.SET_READY_HINT, control = "switch",
-        set = function(on) GA.Core.Config:Set("readyCheck", on) end })
-    self.rowReadyEnchants = makeRow(onscreen, { label = L.SET_READY_ENCHANTS, hint = L.SET_READY_ENCHANTS_HINT, control = "switch",
-        set = function(on) GA.Core.Config:Set("readyEnchants", on) end })
-    self.rowReadyConsumables = makeRow(onscreen, { label = L.SET_READY_CONSUMABLES, hint = L.SET_READY_CONSUMABLES_HINT, control = "switch",
-        set = function(on) GA.Core.Config:Set("readyConsumables", on) end })
-
     -- Verschieben und Testen ohne Boss (06.10.2026).
-    makeRow(onscreen, { label = L.SET_REMINDER_PLACE, hint = L.SET_REMINDER_PLACE_HINT, build = function(row)
+    makeRow(raid, { label = L.SET_REMINDER_PLACE, hint = L.SET_REMINDER_PLACE_HINT, build = function(row)
         local move = Widgets.Button(row, L.SET_REMINDER_MOVE_BTN, function() GA.UI.ReminderFrame:ToggleUnlocked() end)
         move:SetHeight(20)
         move:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
@@ -468,6 +493,15 @@ function Settings:Create(parent)
         test:SetPoint("LEFT", move, "RIGHT", 6, 0)
         return function() return 28 end
     end })
+
+    -- Ready Check fuer sich selbst (06.10.2026).
+    makeHeading(raid, L.SET_H_READY)
+    self.rowReady = makeRow(raid, { label = L.SET_READY, hint = L.SET_READY_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyCheck", on) end })
+    self.rowReadyEnchants = makeRow(raid, { label = L.SET_READY_ENCHANTS, hint = L.SET_READY_ENCHANTS_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyEnchants", on) end })
+    self.rowReadyConsumables = makeRow(raid, { label = L.SET_READY_CONSUMABLES, hint = L.SET_READY_CONSUMABLES_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyConsumables", on) end })
 
     -- Discord-Bot (03.10.2026): haengt Maschinenmarken an die Discord-Zeilen
     -- des Dungeonhubs. Aus, bis die Gilde den Bot laufen hat.
@@ -493,6 +527,7 @@ function Settings:Create(parent)
 
     -- ------------------------------------------------------------ Loot ------
     local loot = self.pages.loot
+    makeHeading(loot, L.SET_H_SESSION)
     self.thresholdButtons = {}
     self.rowThreshold = makeRow(loot, { label = "", hint = L.SET_LOOT_THRESHOLD_HINT, build = function(row)
         local previous
@@ -520,17 +555,20 @@ function Settings:Create(parent)
     -- eine Bruecke am Gildenchat hat.
     self.rowAnnounce = makeRow(loot, { label = L.SET_ANNOUNCE, hint = L.SET_ANNOUNCE_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("announceLoot", on) end })
+    makeHeading(loot, L.SET_H_ROTATION)
     self.rowRotation = makeRow(loot, { label = L.ROTATION_ENABLED, hint = L.SET_ROTATION_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("rotationEnabled", on) end })
     self.rowRotationAnnounce = makeRow(loot, { label = L.ROTATION_ANNOUNCE_OPT, hint = "", control = "switch",
         set = function(on) GA.Core.Config:Set("rotationAnnounce", on) end })
+    makeHeading(loot, L.SET_H_TRACKING)
     self.rowSolo = makeRow(loot, { label = L.SET_LOOT_SOLO, hint = L.SET_LOOT_SOLO_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("trackOutsideGroup", on) end })
     -- Combat Log: legt etwas AUSSERHALB des Spiels an — aus, bis jemand
     -- es einschaltet. Der Hinweis sagt die Wahrheit ueber diesen Client:
     -- Kann er es nicht, steht das da statt eines Schalters, hinter dem
     -- nichts passiert.
-    self.rowCombatLog = makeRow(loot, { label = L.SET_COMBATLOG, hint = L.SET_COMBATLOG_HINT, control = "switch",
+    makeHeading(raid, L.SET_H_COMBATLOG)
+    self.rowCombatLog = makeRow(raid, { label = L.SET_COMBATLOG, hint = L.SET_COMBATLOG_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("autoCombatLog", on) end })
     self.rowMeasured = makeRow(loot, { label = L.SET_MEASURED_ROW, hint = "" })
 
@@ -542,12 +580,17 @@ function Settings:Create(parent)
     -- Ausruestungsdaten geteilt werden. Ein Kaestchen, das man nicht mehr
     -- abwaehlen kann, waere eine Luege — also steht hier, was hinausgeht.
     local data = self.pages.data
+    makeHeading(data, L.SET_H_SHARE)
     self.rowPublish = makeRow(data, { label = L.SET_PUBLISH, hint = L.SET_PUBLISH_HINT, build = function(row)
         row.chip:SetText(L.SET_PUBLISH_ON)
         row.chip:SetTextColor(Theme.color.jade[1], Theme.color.jade[2], Theme.color.jade[3])
         row.chip:Show()
         return function() return 0 end
     end })
+    -- Gildenbank (06.10.2026): teilen, was man am Tresor liest.
+    self.rowGbankShare = makeRow(data, { label = L.SET_GBANK_SHARE, hint = L.SET_GBANK_SHARE_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("guildBankShare", on) end })
+    makeHeading(data, L.SET_H_SYNC)
     self.rowSync = makeRow(data, { label = L.SET_SYNC_ROW, hint = "" })
     self.rowStats = makeRow(data, { label = L.SET_CLIENT, hint = "" })
     -- ------------------------------------------------------------ Ueber ---
@@ -582,9 +625,7 @@ function Settings:Create(parent)
 
     -- Sammlerbetrieb: eine Einstellung fuer genau einen Client, nicht fuer
     -- jeden Spieler — deshalb hier unten.
-    -- Gildenbank (06.10.2026): teilen, was man am Tresor liest.
-    self.rowGbankShare = makeRow(data, { label = L.SET_GBANK_SHARE, hint = L.SET_GBANK_SHARE_HINT, control = "switch",
-        set = function(on) GA.Core.Config:Set("guildBankShare", on) end })
+    makeHeading(data, L.SET_H_ADVANCED)
     self.rowCollector = makeRow(data, { label = L.SET_COLLECTOR, hint = "", control = "switch",
         set = function(on) GA.Core.Config:Set("collectorMode", on) end })
     self.rowDebug = makeRow(data, { label = L.SET_DEBUG_ROW, hint = L.SET_DEBUG_HINT, control = "switch",
@@ -670,6 +711,7 @@ function Settings:Refresh()
     self.rowReminders.switch:SetChecked(Config:Get("raidReminders") ~= false)
     self.rowReminderSound.switch:SetChecked(Config:Get("raidReminderSound") ~= false)
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
+    self.rowHighlight.switch:SetChecked(Config:Get("objectHighlight") == true)
     self.rowReadyEnchants.switch:SetChecked(Config:Get("readyEnchants") ~= false)
     self.rowReadyConsumables.switch:SetChecked(Config:Get("readyConsumables") ~= false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)

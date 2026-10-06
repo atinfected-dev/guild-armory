@@ -298,6 +298,28 @@ function Compat.IsArrangeBlocked()
     return false
 end
 
+--- Konsolenvariable lesen. nil, wenn es sie nicht gibt oder sie nicht lesbar ist.
+function Compat.GetCVar(name)
+    local api = _G.C_CVar
+    local fn = (isTable(api) and isFunction(api.GetCVar)) and api.GetCVar or _G.GetCVar
+    if not isFunction(fn) then return nil end
+    local ok, value = pcall(fn, name)
+    if not ok or value == nil or not Compat.IsReadable(value) then return nil end
+    return tostring(value)
+end
+
+--- Konsolenvariable setzen — ueber C_CVar, weil manche geschuetzt sind und
+--- /console sie nicht aendern darf. Erfolg heisst: Beim Zuruecklesen steht
+--- der neue Wert da, nicht bloss "kein Fehler".
+--- @return boolean gesetzt
+function Compat.SetCVar(name, value)
+    local api = _G.C_CVar
+    local fn = (isTable(api) and isFunction(api.SetCVar)) and api.SetCVar or _G.SetCVar
+    if not isFunction(fn) then return false end
+    if not pcall(fn, name, tostring(value)) then return false end
+    return Compat.GetCVar(name) == tostring(value)
+end
+
 --- Haltbarkeit eines eigenen Ausruestungsplatzes. nil, wenn der Platz keine
 --- hat (Ringe, Schmuck) oder leer ist.
 --- @return number|nil aktuell, number|nil hoechstens

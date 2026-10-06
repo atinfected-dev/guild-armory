@@ -1144,6 +1144,13 @@ SlashCmdList["GUILDARMORY"] = function(input)
         -- Von aussen nicht zu beantworten: Forever traegt die komplette
         -- Retail-API mit sich, auch fuer Dinge, die es im Spiel nicht gibt.
         -- Gemessen wird deshalb der Rueckgabewert, nicht die Existenz.
+        -- Soft-Interact messen (06.10.2026): was der Client ueber das
+        -- markierte Objekt sagt. Zweiter Aufruf beendet und zeigt das Protokoll.
+        if rest == "softinteract" then
+            local started, text = GA.Modules.Highlight:ToggleMeasure()
+            if not started then GA.UI.Widgets.CopyDialog(L.HL_MEASURE_TITLE, text) end
+            return
+        end
         local text, counts = GA.Core.Probe:Report()
         Debug:Info(L.PROBE_RESULT, counts.ja or 0, counts.leer or 0, counts.nein or 0)
         GA.UI.Widgets.CopyDialog(L.PROBE_TITLE, text)
