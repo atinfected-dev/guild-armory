@@ -1395,7 +1395,7 @@ GA.Core.Locale:Register("enUS", {
     SET_H_SYNC         = "Sync & this client",
     SET_H_ADVANCED     = "Advanced",
     SET_HIGHLIGHT      = "Highlight objects (herbs, ore, quest objects)",
-    SET_HIGHLIGHT_HINT = "Uses the game's own soft interact: an icon above the nearest usable object in front of you, up to about 20 yards — herbs, ore, chests, quest objects. It changes four game settings (SoftTargetInteract, SoftTargetIconGameObject, SoftTargetIconInteract, SoftTargetInteractRange); switching off puts your previous values back. Only the nearest object is marked, not everything around.",
+    SET_HIGHLIGHT_HINT = "Uses the game's own soft interact: an icon above the nearest usable object in front of you, up to about 20 yards — herbs, ore, chests, quest objects. It changes five game settings (SoftTargetInteract, SoftTargetIconGameObject, SoftTargetIconInteract, SoftTargetInteractRange, SoftTargetInteractArc — all around you, not only in front, so the mark does not jump off when you turn); switching off puts your previous values back. Only the nearest object is marked, not everything around.",
     HL_LATER           = "In combat the game does not allow this — it is applied after the fight.",
     HL_FAILED          = "These game settings could not be set on this client: %s",
     HL_MEASURE_TITLE   = "Soft interact measurement",

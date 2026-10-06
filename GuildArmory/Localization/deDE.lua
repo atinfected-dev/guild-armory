@@ -1381,7 +1381,7 @@ GA.Core.Locale:Register("deDE", {
     SET_H_SYNC         = "Abgleich & dieser Client",
     SET_H_ADVANCED     = "Fortgeschritten",
     SET_HIGHLIGHT      = "Objekte hervorheben (Kräuter, Erz, Questobjekte)",
-    SET_HIGHLIGHT_HINT = "Nutzt das Soft-Interact des Spiels: ein Symbol über dem nächsten benutzbaren Objekt vor dir, bis etwa 20 Meter — Kräuter, Erz, Truhen, Questobjekte. Ändert vier Spieleinstellungen (SoftTargetInteract, SoftTargetIconGameObject, SoftTargetIconInteract, SoftTargetInteractRange); ausgeschaltet kommen deine vorherigen Werte zurück. Markiert wird nur das nächste Objekt, nicht alles ringsum.",
+    SET_HIGHLIGHT_HINT = "Nutzt das Soft-Interact des Spiels: ein Symbol über dem nächsten benutzbaren Objekt vor dir, bis etwa 20 Meter — Kräuter, Erz, Truhen, Questobjekte. Ändert fünf Spieleinstellungen (SoftTargetInteract, SoftTargetIconGameObject, SoftTargetIconInteract, SoftTargetInteractRange, SoftTargetInteractArc — rundum statt nur vor dir, damit die Markierung beim Drehen nicht abspringt); ausgeschaltet kommen deine vorherigen Werte zurück. Markiert wird nur das nächste Objekt, nicht alles ringsum.",
     HL_LATER           = "Im Kampf lässt das Spiel das nicht zu — es wird nach dem Kampf gesetzt.",
     HL_FAILED          = "Diese Spieleinstellungen ließen sich auf diesem Client nicht setzen: %s",
     HL_MEASURE_TITLE   = "Messung Soft-Interact",

@@ -41,6 +41,10 @@ Highlight.CVARS = {
     { "SoftTargetIconGameObject", "1" },
     { "SoftTargetIconInteract", "1" },
     { "SoftTargetInteractRange", "20" },   -- ersetzt durch Highlight.Range()
+    -- Rundum statt nur vor einem (06.10.2026). Gemessen: Beim Laufen springt
+    -- die Markierung mehrmals je Sekunde zwischen Kraut und "nichts", weil
+    -- das Objekt aus dem Bogen vor der Figur faellt. 2 = in jeder Richtung.
+    { "SoftTargetInteractArc", "2" },
 }
 
 local function config() return GA.Core.Database.account.config end
@@ -209,20 +213,42 @@ local function readQuests()
 end
 
 --- Das markierte Objekt hat gewechselt.
+--- So lange bleibt der Hinweis stehen, nachdem die Markierung weg ist.
+Highlight.LINGER = 5
+--- So lange klingt dasselbe Objekt nicht noch einmal.
+local SOUND_QUIET = 60
+
 function Highlight:OnSoftInteract(newGUID)
     if GA.Core.Config:Get("highlightHints") == false then return end
-    if newGUID == self.currentGUID then return end      -- dasselbe Objekt meldet sich mehrfach
-    self.currentGUID = newGUID
     if not newGUID or not Compat.IsReadable(newGUID) then
-        self.currentGUID = nil
-        GA.Core.Callbacks:Fire("HIGHLIGHT_HINT", nil)
+        -- MARKIERUNG WEG — DER HINWEIS BLEIBT NOCH EIN WENIG. Gemessen: Sie
+        -- flackert beim Laufen mehrmals je Sekunde ab und wieder an. Kommt
+        -- dasselbe Objekt binnen LINGER zurueck, hat der Hinweis nie
+        -- gewackelt.
+        if not self.currentGUID then return end
+        self.lingerToken = (self.lingerToken or 0) + 1
+        local token = self.lingerToken
+        Compat.After(Highlight.LINGER, function()
+            if Highlight.lingerToken ~= token then return end
+            Highlight.currentGUID = nil
+            GA.Core.Callbacks:Fire("HIGHLIGHT_HINT", nil)
+        end)
         return
     end
+    self.lingerToken = (self.lingerToken or 0) + 1      -- ein laufendes Ausblenden faellt weg
+    if newGUID == self.currentGUID then return end      -- dasselbe Objekt meldet sich mehrfach
+    self.currentGUID = newGUID
     local okName, name = pcall(_G.UnitName or function() end, "softinteract")
     local result = Highlight.Assess(newGUID, okName and name or nil, readProfessions(), readQuests())
     GA.Core.Callbacks:Fire("HIGHLIGHT_HINT", result)
     if result and result.wanted and GA.Core.Config:Get("highlightSound") == true then
-        Compat.PlaySoundKit("MAP_PING", 3175)
+        -- Ein Ton je Objekt und Minute — nicht bei jedem Flackern.
+        self.sounded = self.sounded or {}
+        local now = Compat.GetTime()
+        if not self.sounded[newGUID] or now - self.sounded[newGUID] > SOUND_QUIET then
+            self.sounded[newGUID] = now
+            Compat.PlaySoundKit("MAP_PING", 3175)
+        end
     end
 end
 
@@ -248,7 +274,10 @@ end
 
 -- ================================================================ Messung ---
 
-local MEASURE_EVENTS = { "PLAYER_SOFT_TARGET_INTERACTION", "PLAYER_SOFT_INTERACT_CHANGED" }
+local MEASURE_EVENTS = { "PLAYER_SOFT_TARGET_INTERACTION", "PLAYER_SOFT_INTERACT_CHANGED",
+    -- Legt das Spiel fuer markierte Objekte ein Namensschild an? Dann liesse
+    -- sich dort ein eigenes Zeichen anhaengen (06.10.2026).
+    "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED" }
 
 --- Was der Client ueber das markierte Objekt sagt — jeder Wert einzeln
 --- geprueft, nichts davon vorausgesetzt.
@@ -270,6 +299,15 @@ function Highlight.Describe(unit)
     return table.concat(parts, "  ")
 end
 
+--- Gibt es ein Namensschild fuer das markierte Objekt?
+function Highlight.PlateInfo()
+    local api = _G.C_NamePlate
+    if type(api) ~= "table" or type(api.GetNamePlateForUnit) ~= "function" then return "<keine API>" end
+    local ok, plate = pcall(api.GetNamePlateForUnit, "softinteract")
+    if not ok then return "<Fehler>" end
+    return plate and "ja" or "nein"
+end
+
 function Highlight:Log(line)
     local log = self.measureLog
     if not log then return end
@@ -283,6 +321,7 @@ function Highlight:StartMeasure()
     for _, entry in ipairs(Highlight.CVARS) do
         values[#values + 1] = entry[1] .. "=" .. tostring(Compat.GetCVar(entry[1]))
     end
+    values[#values + 1] = "SoftTargetNameplateInteract=" .. tostring(Compat.GetCVar("SoftTargetNameplateInteract"))
     self:Log("Start. " .. table.concat(values, "  "))
     local Events = GA.Core.Events
     for _, event in ipairs(MEASURE_EVENTS) do
@@ -292,7 +331,8 @@ function Highlight:StartMeasure()
                 local v = select(i, ...)
                 args[#args + 1] = (v == nil or Compat.IsReadable(v)) and tostring(v) or "<verschleiert>"
             end
-            Highlight:Log(name .. "(" .. table.concat(args, ", ") .. ")  " .. Highlight.Describe("softinteract"))
+            Highlight:Log(name .. "(" .. table.concat(args, ", ") .. ")  " .. Highlight.Describe("softinteract")
+                .. "  plate=" .. Highlight.PlateInfo())
         end, "HighlightMeasure")
         self:Log(event .. (ok and ": registriert" or ": GIBT ES NICHT"))
     end
