@@ -66,6 +66,12 @@ function Highlight:Apply(on)
         for _, entry in ipairs(Highlight.CVARS) do
             local name, value = entry[1], entry[2]
             if name == "SoftTargetInteractRange" then value = tostring(Highlight.Range()) end
+            -- Das Interaktionsrad in Reichweite (06.10.2026: "wenn ich ganz nah
+            -- dran bin, kommt das Interaktionsrad wieder") ist ein eigenes
+            -- Symbol des Spiels — aus, solange "Symbol des Spiels ausblenden"
+            -- an ist. SoftTargetIconGameObject bleibt: Daran haengt das
+            -- Namensschild fuer das eigene Zeichen.
+            if name == "SoftTargetIconInteract" and GA.Core.Config:Get("highlightHideGameIcon") ~= false then value = "0" end
             local current = Compat.GetCVar(name)
             if current == nil then
                 failed[#failed + 1] = name

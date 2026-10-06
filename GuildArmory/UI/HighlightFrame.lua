@@ -84,11 +84,11 @@ function HighlightFrame:CreateMarker()
         local group = halo:CreateAnimationGroup()
         group:SetLooping("BOUNCE")
         local fade = group:CreateAnimation("Alpha")
-        fade:SetFromAlpha(1) fade:SetToAlpha(0.7) fade:SetDuration(0.9)
-        local grow = group:CreateAnimation("Scale")
-        if grow.SetScaleFrom then grow:SetScaleFrom(0.9, 0.9) grow:SetScaleTo(1.2, 1.2)
-        elseif grow.SetFromScale then grow:SetFromScale(0.9, 0.9) grow:SetToScale(1.2, 1.2) end
-        grow:SetDuration(0.9)
+        -- NUR HELLIGKEIT, KEIN WACHSEN (06.10.2026: "pulsiert zu stark, sieht
+        -- aus, als wuerde es ruckeln"). Beim Skalieren wird der Schein jedes
+        -- Bild neu auf Pixel gerundet und zittert. Langsam und flach atmen.
+        fade:SetFromAlpha(1) fade:SetToAlpha(0.8) fade:SetDuration(1.6)
+        if fade.SetSmoothing then fade:SetSmoothing("IN_OUT") end
         halo.pulse = group
     end
     marker.halo = halo

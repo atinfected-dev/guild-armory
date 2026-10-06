@@ -531,6 +531,9 @@ function Settings:Create(parent)
         set = function(on)
             GA.Core.Config:Set("highlightHideGameIcon", on)
             if not on then GA.UI.HighlightFrame:RestoreAllGameIcons() end
+            -- Das Interaktionsrad haengt an einer Spieleinstellung: neu setzen.
+            local H = GA.Modules.Highlight
+            if H:IsOn() then H:Apply(true) end
         end })
     self.rowHighlightSound = makeRow(onscreen, { label = L.SET_HIGHLIGHT_SOUND, hint = L.SET_HIGHLIGHT_SOUND_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("highlightSound", on) end })
