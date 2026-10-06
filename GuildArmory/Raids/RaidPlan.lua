@@ -234,10 +234,14 @@ local function normalizeBoss(raw, warnings)
         table.sort(boss.phases, function(a, b) return a.phase < b.phase end)
     end
     if type(raw.reminders) == "table" then
-        for _, r in ipairs(raw.reminders) do
+        for index, r in ipairs(raw.reminders) do
             if #boss.reminders >= MAX_REMINDERS then warnings.tooMany = true break end
             local reminder = normalizeReminder(r, phaseStart, warnings)
-            if reminder then boss.reminders[#boss.reminders + 1] = reminder end
+            -- src: die Stelle in der Rohform — der Editor findet sie darueber wieder.
+            if reminder then
+                reminder.src = index
+                boss.reminders[#boss.reminders + 1] = reminder
+            end
         end
     end
     table.sort(boss.reminders, function(a, b)
@@ -312,10 +316,13 @@ function RaidPlan.Normalize(raw)
         end
     end
     if type(raw.bosses) == "table" then
-        for _, b in ipairs(raw.bosses) do
+        for index, b in ipairs(raw.bosses) do
             if #plan.bosses >= MAX_BOSSES then warnings.tooMany = true break end
             local boss = normalizeBoss(b, warnings)
-            if boss then plan.bosses[#plan.bosses + 1] = boss end
+            if boss then
+                boss.src = index
+                plan.bosses[#plan.bosses + 1] = boss
+            end
         end
     end
     return plan
@@ -360,6 +367,242 @@ function RaidPlan.Summary(plan)
     end
     return { players = players, bosses = #(plan.bosses or {}), reminders = reminders,
              bench = #(plan.bench or {}), skipped = skipped }
+end
+
+-- ================================================================ Entwurf ---
+--
+-- Von Hand im Addon planen (06.10.2026: "Man muss das alles auch im Addon
+-- von Hand eintragen koennen"). Bearbeitet wird die ROHFORM — genau das
+-- Format, das die Webapp liefert. Speichern laeuft durch dieselbe Pruefung
+-- wie ein Import, und der Plan reist danach wie jeder andere: hoehere
+-- Revision, an die Gilde. Eine Webapp-Fassung und eine Hand-Fassung sind
+-- damit dasselbe Ding.
+
+--- "1:30" oder "90" -> 90. nil, wenn es keine Zeit ist.
+function RaidPlan.ParseClock(text)
+    text = Util.Trim(tostring(text or "")) or ""
+    local m, sec = string.match(text, "^(%d+):(%d%d?)$")
+    if m then
+        sec = tonumber(sec)
+        if sec >= 60 then return nil end
+        return tonumber(m) * 60 + sec
+    end
+    local n = tonumber(text)
+    if n and n >= 0 then return n end
+    return nil
+end
+
+function RaidPlan.FormatClock(seconds)
+    seconds = math.floor(tonumber(seconds) or 0)
+    return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
+--- Phasen als Text, je Zeile "2 2:30 Luftphase".
+function RaidPlan.PhasesToText(phases)
+    local lines = {}
+    for _, p in ipairs(phases or {}) do
+        lines[#lines + 1] = p.phase .. " " .. RaidPlan.FormatClock(p.at) .. (p.name and (" " .. p.name) or "")
+    end
+    return table.concat(lines, "\n")
+end
+
+--- @return table|nil phasen, string|nil fehlerhafte Zeile
+function RaidPlan.ParsePhases(text)
+    local out = {}
+    for line in string.gmatch(tostring(text or "") .. "\n", "([^\n]*)\n") do
+        line = Util.Trim(line) or ""
+        if line ~= "" then
+            local phase, clock, name = string.match(line, "^(%d+)%s+([%d:]+)%s*(.*)$")
+            local at = clock and RaidPlan.ParseClock(clock)
+            phase = tonumber(phase)
+            if not phase or phase < 2 or phase > 20 or not at then return nil, line end
+            out[#out + 1] = { phase = phase, at = at, name = name ~= "" and name or nil }
+        end
+    end
+    return out
+end
+
+--- Ziele als Text: "all, role:healer, group:2, Larrin Lasereule".
+--- @return table|nil liste, string|nil unbekannter Teil
+function RaidPlan.ParseTargets(text)
+    local out = {}
+    for part in string.gmatch(tostring(text or ""), "[^,]+") do
+        part = Util.Trim(part) or ""
+        if part ~= "" then
+            if not selector(part) then return nil, part end
+            out[#out + 1] = part
+        end
+    end
+    if #out == 0 then out[1] = "all" end
+    return out
+end
+
+--- "08.10.2026" + "20:00" -> Unix-Zeit (Ortszeit). Leeres Datum = kein Beginn.
+function RaidPlan.ParseStart(dateText, clockText)
+    dateText = Util.Trim(dateText or "") or ""
+    if dateText == "" then return nil, true end
+    local d, m, y = string.match(dateText, "^(%d%d?)%.(%d%d?)%.(%d*)$")
+    if not d then return nil, false end
+    local now = date("*t")
+    y = tonumber(y) or now.year
+    if y < 100 then y = y + 2000 end
+    -- Ohne Uhrzeit 20:00; eine unlesbare Uhrzeit ist ein Fehler, kein 20:00.
+    local clock = Util.Trim(clockText or "") or ""
+    local hh, mm = string.match(clock, "^(%d%d?):(%d%d)$")
+    if clock ~= "" and not hh then return nil, false end
+    hh, mm = tonumber(hh) or 20, tonumber(mm) or 0
+    d, m = tonumber(d), tonumber(m)
+    if m < 1 or m > 12 or d < 1 or d > 31 or hh > 23 or mm > 59 then return nil, false end
+    return time({ year = y, month = m, day = d, hour = hh, min = mm, sec = 0 }), true
+end
+
+--- Ein gespeicherter Plan zurueck in die Rohform — zum Bearbeiten und als Text.
+function RaidPlan.ToRaw(plan)
+    -- Namen in der Schreibweise des Plans, nicht als Vergleichsschluessel.
+    local display = {}
+    for g = 1, 8 do
+        for _, name in ipairs(plan.groups[g] or {}) do display[RaidPlan.NameKey(name)] = name end
+    end
+    for _, name in ipairs(plan.bench or {}) do display[RaidPlan.NameKey(name)] = display[RaidPlan.NameKey(name)] or name end
+
+    local raw = {
+        format = RaidPlan.FORMAT, version = RaidPlan.VERSION, id = plan.id, rev = plan.rev, updated = plan.updated,
+        title = plan.title, author = plan.author, guild = plan.guild, start = plan.start,
+        raid = { name = plan.raid and plan.raid.name, instanceID = plan.raid and plan.raid.instanceID },
+        note = plan.note, groups = {}, roles = {}, bench = {}, bosses = {},
+    }
+    for g = 1, 8 do
+        raw.groups[g] = {}
+        for i, name in ipairs(plan.groups[g] or {}) do raw.groups[g][i] = name end
+    end
+    for key, role in pairs(plan.roles or {}) do raw.roles[display[key] or key] = role end
+    for i, name in ipairs(plan.bench or {}) do raw.bench[i] = name end
+    for _, boss in ipairs(plan.bosses or {}) do
+        local b = { encounterID = boss.encounterID, name = boss.name, note = boss.note, phases = {}, reminders = {} }
+        for i, p in ipairs(boss.phases or {}) do b.phases[i] = { phase = p.phase, at = p.at, name = p.name } end
+        -- In der Reihenfolge der Rohform, nicht nach Zeit sortiert: Der Editor
+        -- haengt Neues hinten an, und src muss danach noch stimmen.
+        local reminders = {}
+        for _, r in ipairs(boss.reminders or {}) do reminders[#reminders + 1] = r end
+        table.sort(reminders, function(x, y) return (x.src or 0) < (y.src or 0) end)
+        for _, r in ipairs(reminders) do
+            local to = {}
+            for _, sel in ipairs(r.to or {}) do
+                local kind, value = string.match(sel, "^(%a+):(.+)$")
+                if sel == "all" then to[#to + 1] = "all"
+                elseif kind == "name" then to[#to + 1] = display[value] or value
+                elseif kind == "class" then to[#to + 1] = "class:" .. string.upper(value)
+                else to[#to + 1] = sel end
+            end
+            b.reminders[#b.reminders + 1] = { at = r.at, phase = r.phase, text = r.text, spell = r.spell, to = to,
+                lead = r.lead, dur = r.dur, level = r.level, sound = r.sound }
+        end
+        raw.bosses[#raw.bosses + 1] = b
+    end
+    return raw
+end
+
+--- Ein leerer Plan, gleich mit acht leeren Gruppen.
+function RaidPlan.NewDraft(title)
+    local identity = Compat.GetPlayerIdentity() or {}
+    local raw = {
+        format = RaidPlan.FORMAT, version = RaidPlan.VERSION,
+        id = string.format("ga-%x-%04x", Util.Now(), math.random(0, 65535)),
+        rev = 0, title = title or GA.L.RP_NEW_TITLE,
+        author = identity.name and Util.ShortName(identity.name) or nil,
+        raid = {}, groups = {}, roles = {}, bench = {}, bosses = {},
+    }
+    for g = 1, 8 do raw.groups[g] = {} end
+    return raw
+end
+
+--- Der Text zum Weitergeben (wie ein Webapp-Export).
+function RaidPlan.EncodeRaw(raw)
+    return RaidPlan.PREFIX .. RaidPlan.Base64Encode(GA.Core.Json.Encode(raw))
+end
+
+--- Speichert einen bearbeiteten Plan: neue Revision, pruefen, ablegen,
+--- aktiv setzen, an die Gilde.
+--- @return table|nil plan, string|nil grund
+function RaidPlan:SaveDraft(raw)
+    local old = self:Get(raw.id)
+    raw.rev = math.max(tonumber(raw.rev) or 0, old and old.plan.rev or 0) + 1
+    raw.updated = Util.Now()
+    local identity = Compat.GetPlayerIdentity() or {}
+    local me = identity.name and Util.ShortName(identity.name) or nil
+    raw.author = raw.author or me
+    local plan, reason = RaidPlan.Normalize(raw)
+    if not plan then return nil, reason end
+    local wire = RaidPlan.EncodeRaw(raw)
+    if #wire > MAX_INPUT then return nil, "toolong" end
+    local ok, why = self:Store(plan, wire, me)
+    if not ok then return nil, why end
+    self:SetActive(plan.id)
+    self:Publish(plan.id)
+    return plan
+end
+
+--- Die Aufstellung des Raids als Gruppen eines Plans.
+function RaidPlan.GroupsFromRoster(roster)
+    local groups = {}
+    for g = 1, 8 do groups[g] = {} end
+    for _, m in ipairs(roster or {}) do
+        local g = tonumber(m.group)
+        if g and groups[g] and #groups[g] < 5 then groups[g][#groups[g] + 1] = Util.ShortName(m.name) end
+    end
+    return groups
+end
+
+--- Wo steht ein Name in der Rohform? @return gruppe, platz | nil
+function RaidPlan.FindInGroups(raw, name)
+    local key = RaidPlan.NameKey(name)
+    for g = 1, 8 do
+        for i, n in ipairs(raw.groups[g] or {}) do
+            if RaidPlan.NameKey(n) == key then return g, i end
+        end
+    end
+    return nil
+end
+
+--- Setzt einen Namen auf einen Platz. Steht er schon woanders, wird er dort
+--- entfernt — zwei Plaetze kann niemand einnehmen. Ein belegter Platz wird
+--- ersetzt, ein freier haengt hinten an.
+--- @return boolean gesetzt
+function RaidPlan.PlaceName(raw, group, slot, name)
+    name = clean(name, 48)
+    local list = raw.groups[group]
+    if not name or not list then return false end
+    local og, oi = RaidPlan.FindInGroups(raw, name)
+    if og == group and oi == slot then return true end
+    if not list[slot] and #list >= 5 and og ~= group then return false end
+    if og then
+        table.remove(raw.groups[og], oi)
+        if og == group and oi < slot then slot = slot - 1 end
+    end
+    if list[slot] then list[slot] = name else list[#list + 1] = name end
+    -- Von der Bank geholt: dort nicht mehr.
+    local key = RaidPlan.NameKey(name)
+    for i = #raw.bench, 1, -1 do
+        if RaidPlan.NameKey(raw.bench[i]) == key then table.remove(raw.bench, i) end
+    end
+    return true
+end
+
+--- Rolle eines Namens setzen (nil = keine).
+function RaidPlan.SetRole(raw, name, role)
+    local key = RaidPlan.NameKey(name)
+    for n in pairs(raw.roles) do
+        if RaidPlan.NameKey(n) == key then raw.roles[n] = nil end
+    end
+    if role and RaidPlan.ROLES[role] then raw.roles[name] = role end
+end
+
+function RaidPlan.RoleOf(raw, name)
+    local key = RaidPlan.NameKey(name)
+    for n, role in pairs(raw.roles or {}) do
+        if RaidPlan.NameKey(n) == key then return role end
+    end
+    return nil
 end
 
 -- ================================================================ Wer bin ich --

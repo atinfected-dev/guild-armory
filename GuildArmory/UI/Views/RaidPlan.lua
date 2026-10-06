@@ -1,13 +1,22 @@
 --[[----------------------------------------------------------------------------
-    UI/Views/RaidPlan — der Raidplan aus der Webapp (06.10.2026).
+    UI/Views/RaidPlan — der Raidplan (06.10.2026).
 
-    Oben die Wahl des Plans und der Import, darunter links die Gruppen 1–8,
-    rechts die Bosse und je Boss Notiz und Erinnerungen. Was fuer einen
-    selbst gilt (eigener Name, eigene Gruppe, eigene Rolle), steht hervor-
-    gehoben — das ist die Frage, mit der jemand diese Seite oeffnet.
+    Oben die Wahl des Plans, Import und das Plan-Menue, darunter links die
+    Gruppen 1–8, rechts die Bosse und je Boss Notiz und Erinnerungen. Was
+    fuer einen selbst gilt (eigener Name, eigene Gruppe, eigene Rolle), steht
+    hervorgehoben — das ist die Frage, mit der jemand diese Seite oeffnet.
 
-    Die Daten kommen aus Raids/RaidPlan. Bearbeitet wird hier nichts: Der
-    Plan entsteht in der Webapp und kommt per Import.
+    VON HAND BEARBEITEN (06.10.2026: "Man muss das alles auch im Addon von
+    Hand eintragen koennen"): Plan › Neu oder Bearbeiten schaltet die Seite
+    in den Bearbeitungsmodus. Dann
+      * ist jeder Platz in den Gruppen anklickbar (Name, Rolle, Bank,
+        entfernen), und "Aus dem Raid" uebernimmt die aktuelle Aufstellung,
+      * haengt unter Bossen und Erinnerungen je eine Zeile "+ hinzufuegen",
+      * oeffnet Klick auf eine Erinnerung ihr Formular, Rechtsklick auf Boss
+        oder Erinnerung ein Menue (bearbeiten, verschieben, entfernen).
+    Bearbeitet wird ein ENTWURF in der Rohform (Raids/RaidPlan, "Entwurf").
+    Erst "Speichern" legt ihn ab — mit neuer Revision, und er geht an die
+    Gilde wie ein importierter Plan. "Verwerfen" laesst alles, wie es war.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -27,10 +36,7 @@ local ROW_H = 20
 local function plans() return GA.Modules.RaidPlan end
 
 --- "1:05" aus Sekunden.
-function View.Clock(seconds)
-    seconds = math.floor(tonumber(seconds) or 0)
-    return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
-end
+function View.Clock(seconds) return plans().FormatClock(seconds) end
 
 --- Lesbare Ziele einer Erinnerung (die Funktion steht im Modul).
 function View.Targets(reminder) return plans().TargetText(reminder) end
@@ -57,7 +63,11 @@ function View:Create(parent)
     bar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
     bar:SetHeight(24)
 
-    self.picker = Widgets.Dropdown(bar, {
+    -- Leiste im Ansichtsmodus.
+    local normal = CreateFrame("Frame", nil, bar)
+    normal:SetAllPoints(bar)
+    self.normalBar = normal
+    self.picker = Widgets.Dropdown(normal, {
         width = 280,
         placeholder = L.RP_NONE_SHORT,
         getOptions = function()
@@ -69,16 +79,27 @@ function View:Create(parent)
         end,
         onSelect = function(id) plans():SetActive(id) end,
     })
-    self.picker:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    self.picker:SetPoint("LEFT", normal, "LEFT", 0, 0)
+    self.importButton = Widgets.Button(normal, L.RP_IMPORT, function() View:OpenImport() end)
+    self.importButton:SetPoint("RIGHT", normal, "RIGHT", 0, 0)
+    self.menuButton = Widgets.Button(normal, L.RP_MENU, function() View:PlanMenu() end)
+    self.menuButton:SetPoint("RIGHT", self.importButton, "LEFT", -6, 0)
+    self.arrangeButton = Widgets.Button(normal, L.RP_ARRANGE, function() View:Arrange() end, "primary")
+    self.arrangeButton:SetPoint("RIGHT", self.menuButton, "LEFT", -12, 0)
 
-    self.importButton = Widgets.Button(bar, L.RP_IMPORT, function() View:OpenImport() end, "primary")
-    self.importButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
-    self.deleteButton = Widgets.Button(bar, L.RP_DELETE, function() View:DeleteActive() end)
-    self.deleteButton:SetPoint("RIGHT", self.importButton, "LEFT", -6, 0)
-    self.shareButton = Widgets.Button(bar, L.RP_SHARE, function() View:ShareActive() end)
-    self.shareButton:SetPoint("RIGHT", self.deleteButton, "LEFT", -6, 0)
-    self.arrangeButton = Widgets.Button(bar, L.RP_ARRANGE, function() View:Arrange() end, "primary")
-    self.arrangeButton:SetPoint("RIGHT", self.shareButton, "LEFT", -12, 0)
+    -- Leiste im Bearbeitungsmodus.
+    local edit = CreateFrame("Frame", nil, bar)
+    edit:SetAllPoints(bar)
+    edit:Hide()
+    self.editBar = edit
+    self.editTitle = Theme.Label(edit, "", fonts.nav or fonts.row, Theme.color.heading)
+    self.editTitle:SetPoint("LEFT", edit, "LEFT", 4, 0)
+    self.saveButton = Widgets.Button(edit, L.RP_SAVE, function() View:SaveEdit() end, "primary")
+    self.saveButton:SetPoint("RIGHT", edit, "RIGHT", 0, 0)
+    self.discardButton = Widgets.Button(edit, L.RP_DISCARD, function() View:DiscardEdit() end)
+    self.discardButton:SetPoint("RIGHT", self.saveButton, "LEFT", -6, 0)
+    self.propsButton = Widgets.Button(edit, L.RP_PROPS, function() View:EditProps() end)
+    self.propsButton:SetPoint("RIGHT", self.discardButton, "LEFT", -12, 0)
 
     self.status = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
     self.status:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 2, -6)
@@ -91,6 +112,9 @@ function View:Create(parent)
     groups:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4, 4)
     groups:SetWidth(GROUP_W * 2 + 30)
     self.groupsPanel = groups
+    self.fromRaidButton = Widgets.Button(groups.header or groups, L.RP_FROM_RAID, function() View:TakeFromRaid() end)
+    self.fromRaidButton:SetHeight(18)
+    self.fromRaidButton:SetPoint("RIGHT", groups.header or groups, "RIGHT", -4, 0)
     self.groupBoxes = {}
     for g = 1, 8 do
         local box = CreateFrame("Frame", nil, groups.content)
@@ -99,7 +123,7 @@ function View:Create(parent)
         box:SetPoint("TOPLEFT", groups.content, "TOPLEFT", col * (GROUP_W + 12), -row * (18 + GROUP_ROW * 5 + 10))
         box.title = Theme.Label(box, string.format(L.RP_GROUP, g), fonts.small, Theme.color.heading)
         box.title:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
-        box.lines = {}
+        box.lines, box.slots = {}, {}
         for i = 1, 5 do
             local line = Theme.Label(box, "", fonts.row, Theme.color.text)
             line:SetPoint("TOPLEFT", box, "TOPLEFT", 6, -16 - (i - 1) * GROUP_ROW)
@@ -107,6 +131,16 @@ function View:Create(parent)
             line:SetJustifyH("LEFT")
             line:SetWordWrap(false)
             box.lines[i] = line
+            -- Im Bearbeitungsmodus: der Platz als Knopf.
+            local slot = CreateFrame("Button", nil, box)
+            slot:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -15 - (i - 1) * GROUP_ROW)
+            slot:SetSize(GROUP_W - 2, GROUP_ROW)
+            slot:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            local hl = Theme.Fill(slot, Theme.color.rowHover, "HIGHLIGHT")
+            hl:SetAlpha(0.6)
+            slot:SetScript("OnClick", function() View:SlotMenu(g, i) end)
+            slot:Hide()
+            box.slots[i] = slot
         end
         self.groupBoxes[g] = box
     end
@@ -115,6 +149,13 @@ function View:Create(parent)
     self.bench:SetPoint("RIGHT", groups.content, "RIGHT", 0, 0)
     self.bench:SetJustifyH("LEFT")
     self.bench:SetSpacing(2)
+    self.benchButton = CreateFrame("Button", nil, groups.content)
+    self.benchButton:SetPoint("TOPLEFT", self.bench, "TOPLEFT", -2, 2)
+    self.benchButton:SetPoint("RIGHT", groups.content, "RIGHT", 0, 0)
+    self.benchButton:SetHeight(32)
+    Theme.Fill(self.benchButton, Theme.color.rowHover, "HIGHLIGHT"):SetAlpha(0.6)
+    self.benchButton:SetScript("OnClick", function() View:EditBench() end)
+    self.benchButton:Hide()
 
     -- Rechts: Bosse, Notiz, Erinnerungen.
     local bosses = Widgets.Panel(frame, L.RP_BOSSES, "")
@@ -123,17 +164,20 @@ function View:Create(parent)
     self.bossPanel = bosses
 
     -- Probelauf (Schritt 4): die Erinnerungen des gewaehlten Bosses so, wie
-    -- sie im Kampf erscheinen — alle, nicht nur die eigenen. Dabei laesst
-    -- sich die Anzeige verschieben.
+    -- sie im Kampf erscheinen — alle, nicht nur die eigenen.
     self.previewButton = Widgets.Button(bosses.header or bosses, L.RP_PREVIEW, function() View:TogglePreview() end)
     self.previewButton:SetHeight(18)
     self.previewButton:SetPoint("RIGHT", bosses.header or bosses, "RIGHT", -4, 0)
+    self.bossEditButton = Widgets.Button(bosses.header or bosses, L.RP_BOSS_EDIT, function() View:EditBoss(View.bossIndex) end)
+    self.bossEditButton:SetHeight(18)
+    self.bossEditButton:SetPoint("RIGHT", self.previewButton, "LEFT", -6, 0)
+    self.bossEditButton:Hide()
 
     self.bossList = Widgets.ScrollList(bosses.content, {
         rowHeight = ROW_H,
         createRow = function(row) View:BuildBossRow(row) end,
         updateRow = function(row, entry) View:UpdateBossRow(row, entry) end,
-        onClickRow = function(entry) View.bossIndex = entry.index View:Refresh() end,
+        onClickRow = function(entry, _, button) View:OnBossClick(entry, button) end,
     })
     self.bossList:SetPoint("TOPLEFT", bosses.content, "TOPLEFT", 0, 0)
     self.bossList:SetPoint("BOTTOMLEFT", bosses.content, "BOTTOMLEFT", 0, 0)
@@ -154,6 +198,7 @@ function View:Create(parent)
         },
         createRow = function(row) View:BuildReminderRow(row) end,
         updateRow = function(row, entry) View:UpdateReminderRow(row, entry) end,
+        onClickRow = function(entry, _, button) View:OnReminderClick(entry, button) end,
     })
     self.reminders:SetPoint("TOPLEFT", self.note, "BOTTOMLEFT", -2, -8)
     self.reminders:SetPoint("BOTTOMRIGHT", bosses.content, "BOTTOMRIGHT", 0, 0)
@@ -164,6 +209,9 @@ function View:Create(parent)
     self.empty:SetJustifyH("CENTER")
     self.empty:SetSpacing(3)
     self.empty:Hide()
+    self.newButton = Widgets.Button(frame, L.RP_NEW, function() View:NewPlan() end, "primary")
+    self.newButton:SetPoint("TOP", self.empty, "BOTTOM", 0, -14)
+    self.newButton:Hide()
 
     for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE", "REMINDERS_START", "REMINDERS_STOP" }) do
         GA.Core.Callbacks:On(name, function()
@@ -192,6 +240,12 @@ function View:BuildBossRow(row)
 end
 
 function View:UpdateBossRow(row, entry)
+    if entry.add then
+        row.label:SetText(L.RP_ADD_BOSS)
+        row.label:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        row.count:SetText("")
+        return
+    end
     row.label:SetText(entry.boss.name or ("#" .. tostring(entry.boss.encounterID)))
     local c = entry.index == self.bossIndex and Theme.color.heading or Theme.color.text
     row.label:SetTextColor(c[1], c[2], c[3])
@@ -220,6 +274,13 @@ end
 local LEVEL_COLOR = { info = "text", warn = "heading", alert = "bad" }
 
 function View:UpdateReminderRow(row, entry)
+    if entry.add then
+        row.time:SetText("")
+        row.to:SetText("")
+        row.text:SetText(L.RP_ADD_REMINDER)
+        row.text:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+        return
+    end
     local r = entry.reminder
     local clock = View.Clock(r.time)
     if r.phase > 1 then clock = clock .. " P" .. r.phase end
@@ -232,7 +293,7 @@ function View:UpdateReminderRow(row, entry)
     end
     row.text:SetText(text)
     local c = Theme.color[LEVEL_COLOR[r.level] or "text"] or Theme.color.text
-    if not entry.mine then c = Theme.color.textDim end
+    if not entry.mine and not self.draft then c = Theme.color.textDim end
     row.text:SetTextColor(c[1], c[2], c[3])
     local tc = entry.mine and Theme.color.heading or Theme.color.textDim
     row.to:SetTextColor(tc[1], tc[2], tc[3])
@@ -240,38 +301,59 @@ end
 
 -- ================================================================== Inhalt ----
 
+--- Der Plan, der gerade gezeigt wird: im Bearbeitungsmodus der Entwurf,
+--- sonst der aktive. @return plan|nil, entry|nil
+function View:CurrentPlan()
+    if self.draft then return plans().Normalize(self.draft), nil end
+    local entry = plans():Active()
+    return entry and entry.plan, entry
+end
+
 function View:Refresh()
     if not self.frame then return end
     local Plans = plans()
-    local entry = Plans:Active()
-    local has = entry ~= nil
+    local editing = self.draft ~= nil
+    local plan, entry = self:CurrentPlan()
+    local has = plan ~= nil
+
+    self.normalBar:SetShown(not editing)
+    self.editBar:SetShown(editing)
     self.empty:SetShown(not has)
+    self.newButton:SetShown(not has)
     self.groupsPanel:SetShown(has)
     self.bossPanel:SetShown(has)
-    self.deleteButton:SetEnabledState(has)
-    self.shareButton:SetEnabledState(has and entry.wire ~= nil)
+    self.fromRaidButton:SetShown(editing)
+    self.fromRaidButton:SetEnabledState(GA.Core.Compat.IsInRaid(), L.RP_ARRANGE_NORAID)
+    self.bossEditButton:SetShown(editing)
+    self.benchButton:SetShown(editing)
     local problem = Plans.arranging and "running" or Plans:ArrangeProblem()
     self.arrangeButton:SetEnabledState(problem == nil, problem and L["RP_ARRANGE_" .. string.upper(problem)] or nil)
     if not has then
         self.picker:SetDisplay(nil)
-        self.status:SetText("")
+        self.status:SetText(editing and L.RP_ERR_DRAFT or "")
         GA.UI.MainFrame:SetContext("")
         return
     end
 
-    local plan = entry.plan
-    if self.planId ~= plan.id then self.planId, self.bossIndex = plan.id, nil end
+    local planKey = editing and ("draft:" .. plan.id) or plan.id
+    if self.planId ~= planKey then self.planId, self.bossIndex = planKey, nil end
     self.picker:SetDisplay(View.PlanLabel(plan))
+    self.editTitle:SetText(string.format(L.RP_EDITING, View.PlanLabel(plan)))
     local me = Plans.WhoAmI(plan)
     local myKey = Plans.NameKey(me.name)
     local sum = Plans.Summary(plan)
 
-    local parts = { string.format(L.RP_REV, plan.rev) }
-    if plan.author then parts[#parts + 1] = string.format(L.RP_AUTHOR, plan.author) end
-    if entry.from then parts[#parts + 1] = string.format(L.RP_FROM, entry.from, Util.TimeAgo(entry.at)) end
+    local parts = {}
+    if editing then
+        parts[#parts + 1] = "|cffffd100" .. (self.dirty and L.RP_UNSAVED or L.RP_EDIT_HINT) .. "|r"
+    else
+        parts[#parts + 1] = string.format(L.RP_REV, plan.rev)
+        if plan.author then parts[#parts + 1] = string.format(L.RP_AUTHOR, plan.author) end
+        if entry and entry.from then parts[#parts + 1] = string.format(L.RP_FROM, entry.from, Util.TimeAgo(entry.at)) end
+    end
     parts[#parts + 1] = string.format(L.RP_COUNTS, sum.players, sum.bosses, sum.reminders)
     if me.group then parts[#parts + 1] = "|cffffd100" .. string.format(L.RP_YOU, me.group) .. "|r"
-    else parts[#parts + 1] = L.RP_YOU_NOT end
+    elseif not editing then parts[#parts + 1] = L.RP_YOU_NOT end
     -- Im Raid: Plan gegen Aufstellung.
     local roster = GA.Core.Compat.GetRaidRoster()
     local cmp = #roster > 0 and Plans.Compare(plan, roster) or nil
@@ -286,6 +368,8 @@ function View:Refresh()
         local names = plan.groups[g] or {}
         for i = 1, 5 do
             local line, name = box.lines[i], names[i]
+            -- Im Bearbeitungsmodus: belegte Plaetze und der erste freie sind anklickbar.
+            box.slots[i]:SetShown(editing and i <= #names + 1)
             if name then
                 local role = plan.roles[Plans.NameKey(name)]
                 local roleText = role and (" |cff8a8a8a" .. (L["RP_ROLE_" .. string.upper(role)] or role) .. "|r") or ""
@@ -298,6 +382,9 @@ function View:Refresh()
                 local class = classOf(name)
                 if class and not (cmp and not member) then line:SetTextColor(Theme.ClassColor(class))
                 else line:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3]) end
+            elseif editing and i == #names + 1 then
+                line:SetText(L.RP_SLOT_FREE)
+                line:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
             else
                 line:SetText("")
             end
@@ -306,7 +393,8 @@ function View:Refresh()
         box.title:SetText(g == me.group and ("|cffffd100" .. title .. "|r") or title)
     end
     local benchLines = {}
-    if #plan.bench > 0 then benchLines[#benchLines + 1] = string.format(L.RP_BENCH, table.concat(plan.bench, ", ")) end
+    if #plan.bench > 0 then benchLines[#benchLines + 1] = string.format(L.RP_BENCH, table.concat(plan.bench, ", "))
+    elseif editing then benchLines[#benchLines + 1] = L.RP_BENCH_EDIT end
     if cmp and #cmp.extras > 0 then
         benchLines[#benchLines + 1] = "|cffffd100" .. string.format(L.RP_EXTRAS, table.concat(cmp.extras, ", ")) .. "|r"
     end
@@ -319,7 +407,8 @@ function View:Refresh()
         for _, r in ipairs(boss.reminders) do if Plans.Matches(r, me) then mine = mine + 1 end end
         list[#list + 1] = { index = index, boss = boss, mine = mine }
     end
-    if not self.bossIndex or not plan.bosses[self.bossIndex] then self.bossIndex = #list > 0 and 1 or nil end
+    if not self.bossIndex or not plan.bosses[self.bossIndex] then self.bossIndex = #plan.bosses > 0 and 1 or nil end
+    if editing then list[#list + 1] = { add = true } end
     self.bossList:SetData(list)
 
     local boss = self.bossIndex and plan.bosses[self.bossIndex]
@@ -335,11 +424,14 @@ function View:Refresh()
         end
         self.note:SetText(note)
         for _, r in ipairs(boss.reminders) do rows[#rows + 1] = { reminder = r, mine = Plans.Matches(r, me) } end
+        if editing then rows[#rows + 1] = { add = true } end
         self.bossPanel:SetTitle(boss.name or L.RP_BOSSES)
         self.previewButton:SetEnabledState(#boss.reminders > 0)
+        self.bossEditButton:SetEnabledState(true)
     else
-        self.note:SetText(L.RP_NO_BOSSES)
+        self.note:SetText(editing and L.RP_NO_BOSSES_EDIT or L.RP_NO_BOSSES)
         self.previewButton:SetEnabledState(false)
+        self.bossEditButton:SetEnabledState(false)
         self.bossPanel:SetTitle(L.RP_BOSSES)
     end
     self.reminders:SetData(rows)
@@ -362,12 +454,24 @@ function View:OpenImport()
     end)
 end
 
+--- Das Plan-Menue: neu, bearbeiten, als Text, an die Gilde, entfernen.
+function View:PlanMenu()
+    local entry = plans():Active()
+    Widgets.ContextMenu(L.RP_MENU, {
+        { text = L.RP_NEW, func = function() View:NewPlan() end },
+        { text = L.RP_EDIT, disabled = not entry, func = function() View:EditPlan() end },
+        { text = L.RP_COPY, disabled = not entry, func = function() View:CopyText() end },
+        { text = L.RP_SHARE, disabled = not (entry and entry.wire), func = function() View:ShareActive() end },
+        { text = L.RP_DELETE, disabled = not entry, func = function() View:DeleteActive() end },
+    })
+end
+
 function View:TogglePreview()
     local Reminders = GA.Modules.Reminders
     if Reminders:IsPreview() then Reminders:Stop("preview") return end
-    local entry = plans():Active()
-    local boss = entry and self.bossIndex and entry.plan.bosses[self.bossIndex]
-    if boss then Reminders:Start(entry.plan, boss, { preview = true }) end
+    local plan = self:CurrentPlan()
+    local boss = plan and self.bossIndex and plan.bosses[self.bossIndex]
+    if boss then Reminders:Start(plan, boss, { preview = true }) end
 end
 
 function View:Arrange()
@@ -389,6 +493,378 @@ function View:DeleteActive()
     local entry = plans():Active()
     if not entry then return end
     plans():Delete(entry.plan.id)
+end
+
+--- Der Plan als Text zum Weitergeben — derselbe Text wie aus der Webapp.
+function View:CopyText()
+    local entry = plans():Active()
+    if not entry then return end
+    Widgets.CopyDialog(L.RP_COPY_TITLE, entry.wire or plans().EncodeRaw(plans().ToRaw(entry.plan)))
+end
+
+-- ================================================================ Bearbeiten -
+
+function View:StartEdit(raw)
+    self.draft = raw
+    self.dirty = false
+    self.planId = nil
+    self:Refresh()
+end
+
+--- Nach jeder Aenderung am Entwurf.
+function View:Changed()
+    self.dirty = true
+    self:Refresh()
+end
+
+function View:NewPlan()
+    self:StartEdit(plans().NewDraft())
+    self:EditProps()
+end
+
+function View:EditPlan()
+    local entry = plans():Active()
+    if entry then self:StartEdit(plans().ToRaw(entry.plan)) end
+end
+
+function View:SaveEdit()
+    if not self.draft then return end
+    local plan, why = plans():SaveDraft(self.draft)
+    if not plan then
+        GA.Core.Debug:Warn(L["RP_ERR_" .. tostring(why)] or tostring(why))
+        return
+    end
+    self.draft, self.dirty = nil, false
+    GA.Core.Debug:Info(L.RP_SAVED, plan.title or plan.id, plan.rev)
+    self:Refresh()
+end
+
+--- Verwerfen. Mit ungespeicherten Aenderungen erst beim zweiten Klick.
+function View:DiscardEdit()
+    local now = GA.Core.Compat.GetTime()
+    if self.dirty and not (self.discardArmed and now - self.discardArmed < 5) then
+        self.discardArmed = now
+        GA.Core.Debug:Info(L.RP_DISCARD_CONFIRM)
+        return
+    end
+    self.discardArmed = nil
+    self.draft, self.dirty = nil, false
+    self:Refresh()
+end
+
+-- ---------------------------------------------------------- Eigenschaften --
+
+local PROPS_FIELDS = {
+    { key = "title", label = L.RP_F_TITLE },
+    { key = "raid",  label = L.RP_F_RAID },
+    { key = "date",  label = L.RP_F_DATE, hint = L.RP_F_DATE_HINT },
+    { key = "clock", label = L.RP_F_CLOCK, hint = L.RP_F_CLOCK_HINT },
+    { key = "note",  label = L.RP_F_NOTE, kind = "multiline", height = 70 },
+}
+
+function View:EditProps()
+    local raw = self.draft
+    if not raw then return end
+    Widgets.FormDialog("rpProps", L.RP_PROPS, PROPS_FIELDS, {
+        title = raw.title, raid = raw.raid and raw.raid.name,
+        date = raw.start and date("%d.%m.%Y", raw.start), clock = raw.start and date("%H:%M", raw.start),
+        note = raw.note,
+    }, function(v)
+        local start, ok = plans().ParseStart(v.date, v.clock)
+        if not ok then return false, L.RP_ERR_DATE end
+        local title = Util.Trim(v.title or "") or ""
+        if title == "" then return false, L.RP_ERR_TITLE end
+        raw.title, raw.start = title, start
+        raw.raid = raw.raid or {}
+        raw.raid.name = Util.Trim(v.raid or "") ~= "" and Util.Trim(v.raid) or nil
+        raw.note = Util.Trim(v.note or "") ~= "" and v.note or nil
+        View:Changed()
+        return true
+    end)
+end
+
+-- ------------------------------------------------------------------ Plaetze --
+
+--- Wen man auf einen Platz setzen kann: wer im Raid ist, sonst wer aus der
+--- Gilde online ist — jeweils ohne die, die schon einen Platz haben.
+function View:Candidates()
+    local Plans, raw = plans(), self.draft
+    local out, seen = {}, {}
+    local function add(name)
+        name = Util.ShortName(name)
+        local key = Plans.NameKey(name)
+        if key and not seen[key] and not Plans.FindInGroups(raw, name) then
+            seen[key] = true
+            out[#out + 1] = name
+        end
+    end
+    for _, m in ipairs(GA.Core.Compat.GetRaidRoster()) do add(m.name) end
+    for _, name in ipairs(raw.bench or {}) do add(name) end
+    if #out == 0 and GA.Modules.Guild then
+        for _, member in ipairs(GA.Modules.Guild:List(true)) do add(member.name) end
+    end
+    table.sort(out)
+    return out
+end
+
+local ROLE_ORDER = { "tank", "healer", "melee", "ranged" }
+
+function View:SlotMenu(g, i)
+    local raw = self.draft
+    if not raw then return end
+    local Plans = plans()
+    local name = raw.groups[g][i]
+    local items = {}
+    if name then
+        local current = Plans.RoleOf(raw, name)
+        for _, role in ipairs(ROLE_ORDER) do
+            items[#items + 1] = { text = (current == role and "> " or "   ") .. L["RP_ROLE_" .. string.upper(role)],
+                func = function() Plans.SetRole(raw, name, role) View:Changed() end }
+        end
+        items[#items + 1] = { text = (current and "   " or "> ") .. L.RP_ROLE_NONE,
+            func = function() Plans.SetRole(raw, name, nil) View:Changed() end }
+        items[#items + 1] = { text = L.RP_TO_BENCH, func = function()
+            table.remove(raw.groups[g], i)
+            raw.bench[#raw.bench + 1] = name
+            View:Changed()
+        end }
+        items[#items + 1] = { text = L.RP_REMOVE, func = function() table.remove(raw.groups[g], i) View:Changed() end }
+    end
+    items[#items + 1] = { text = L.RP_ENTER_NAME, func = function() View:EnterName(g, i) end }
+    local candidates = self:Candidates()
+    for n = 1, math.min(#candidates, 15) do
+        local cand = candidates[n]
+        items[#items + 1] = { text = "+ " .. cand, func = function()
+            if Plans.PlaceName(raw, g, i, cand) then View:Changed() end
+        end }
+    end
+    Widgets.ContextMenu(name or string.format(L.RP_SLOT_TITLE, g), items)
+end
+
+local NAME_FIELDS = { { key = "name", label = L.RP_F_NAME } }
+
+function View:EnterName(g, i)
+    local raw = self.draft
+    Widgets.FormDialog("rpName", string.format(L.RP_SLOT_TITLE, g), NAME_FIELDS, { name = raw.groups[g][i] }, function(v)
+        local name = Util.Trim(v.name or "") or ""
+        if name == "" then return false, L.RP_ERR_NAME end
+        if not plans().PlaceName(raw, g, i, name) then return false, L.RP_ERR_FULL end
+        View:Changed()
+        return true
+    end)
+end
+
+local BENCH_FIELDS = { { key = "bench", label = L.RP_F_BENCH, kind = "multiline", height = 90, hint = L.RP_F_BENCH_HINT } }
+
+function View:EditBench()
+    local raw = self.draft
+    if not raw then return end
+    Widgets.FormDialog("rpBench", L.RP_F_BENCH, BENCH_FIELDS, { bench = table.concat(raw.bench or {}, "\n") }, function(v)
+        local list = {}
+        for part in string.gmatch(v.bench or "", "[^,\n]+") do
+            local name = Util.Trim(part) or ""
+            -- Wer einen Platz hat, steht nicht auch auf der Bank.
+            if name ~= "" and not plans().FindInGroups(raw, name) then list[#list + 1] = name end
+        end
+        raw.bench = list
+        View:Changed()
+        return true
+    end)
+end
+
+function View:TakeFromRaid()
+    local raw = self.draft
+    if not raw then return end
+    raw.groups = plans().GroupsFromRoster(GA.Core.Compat.GetRaidRoster())
+    View:Changed()
+end
+
+-- -------------------------------------------------------------------- Bosse --
+
+function View:OnBossClick(entry, button)
+    if entry.add then self:EditBoss(nil) return end
+    self.bossIndex = entry.index
+    if self.draft and button == "RightButton" then self:BossMenu(entry.boss.src or entry.index) return end
+    self:Refresh()
+end
+
+local BOSS_FIELDS = {
+    { key = "known", label = L.RP_F_KNOWN, kind = "select",
+      options = function()
+          local out = {}
+          for id, name in pairs(GA.Core.Database.account.seenEncounters or {}) do
+              out[#out + 1] = { text = name .. "  (" .. id .. ")", value = id }
+          end
+          table.sort(out, function(a, b) return a.text < b.text end)
+          if #out == 0 then out[1] = { text = L.RP_F_KNOWN_NONE, value = nil, disabled = true } end
+          return out
+      end,
+      onSelect = function(id, dlg)
+          local name = (GA.Core.Database.account.seenEncounters or {})[id]
+          if name then dlg:SetValue("name", name) dlg:SetValue("id", id) end
+      end },
+    { key = "name",   label = L.RP_F_BOSS },
+    { key = "id",     label = L.RP_F_ENCOUNTER, hint = L.RP_F_ENCOUNTER_HINT },
+    { key = "phases", label = L.RP_F_PHASES, kind = "multiline", height = 50, hint = L.RP_F_PHASES_HINT },
+    { key = "note",   label = L.RP_F_NOTE, kind = "multiline", height = 80 },
+}
+
+--- @param src number|nil  Stelle in draft.bosses; nil = neuer Boss
+function View:EditBoss(src)
+    local raw = self.draft
+    if not raw then return end
+    local boss = src and raw.bosses[src]
+    Widgets.FormDialog("rpBoss", boss and (boss.name or L.RP_BOSSES) or L.RP_ADD_BOSS, BOSS_FIELDS, {
+        name = boss and boss.name, id = boss and boss.encounterID,
+        phases = boss and plans().PhasesToText(boss.phases), note = boss and boss.note,
+    }, function(v)
+        local name = Util.Trim(v.name or "") or ""
+        local idText = Util.Trim(tostring(v.id or "")) or ""
+        local id = tonumber(idText)
+        if idText ~= "" and not id then return false, L.RP_ERR_ENCOUNTER end
+        if name == "" and not id then return false, L.RP_ERR_BOSS end
+        local phases, badLine = plans().ParsePhases(v.phases)
+        if not phases then return false, string.format(L.RP_ERR_PHASES, badLine) end
+        local target = boss or { reminders = {} }
+        target.name = name ~= "" and name or nil
+        target.encounterID = id
+        target.phases = phases
+        target.note = Util.Trim(v.note or "") ~= "" and v.note or nil
+        if not boss then
+            raw.bosses[#raw.bosses + 1] = target
+            View.bossIndex = #raw.bosses
+        end
+        View:Changed()
+        return true
+    end, boss and function() View:RemoveBoss(src) end or nil)
+end
+
+function View:RemoveBoss(src)
+    table.remove(self.draft.bosses, src)
+    self.bossIndex = math.max(1, src - 1)
+    self:Changed()
+end
+
+function View:MoveBoss(src, delta)
+    local list = self.draft.bosses
+    local to = src + delta
+    if not list[to] then return end
+    list[src], list[to] = list[to], list[src]
+    self.bossIndex = to
+    self:Changed()
+end
+
+function View:BossMenu(src)
+    local boss = self.draft.bosses[src]
+    if not boss then return end
+    Widgets.ContextMenu(boss.name or L.RP_BOSSES, {
+        { text = L.RP_EDIT, func = function() View:EditBoss(src) end },
+        { text = L.RP_UP, disabled = src <= 1, func = function() View:MoveBoss(src, -1) end },
+        { text = L.RP_DOWN, disabled = src >= #self.draft.bosses, func = function() View:MoveBoss(src, 1) end },
+        { text = L.RP_REMOVE, func = function() View:RemoveBoss(src) end },
+    })
+end
+
+-- ------------------------------------------------------------- Erinnerungen --
+
+local function targetOptions()
+    local out = { { text = L.RP_TO_ALL, value = "all" } }
+    for _, role in ipairs({ "tank", "healer", "melee", "ranged", "dps" }) do
+        out[#out + 1] = { text = L["RP_ROLE_" .. string.upper(role)], value = "role:" .. role }
+    end
+    for g = 1, 8 do out[#out + 1] = { text = string.format(L.RP_GROUP, g), value = "group:" .. g } end
+    for _, class in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
+        local name = _G.LOCALIZED_CLASS_NAMES_MALE and _G.LOCALIZED_CLASS_NAMES_MALE[class] or class
+        out[#out + 1] = { text = name, value = "class:" .. class }
+    end
+    local raw = View.draft
+    for g = 1, 8 do
+        for _, name in ipairs(raw and raw.groups[g] or {}) do out[#out + 1] = { text = name, value = name } end
+    end
+    return out
+end
+
+local REMINDER_FIELDS = {
+    { key = "clock", label = L.RP_F_TIME, hint = L.RP_F_TIME_HINT },
+    { key = "phase", label = L.RP_F_PHASE },
+    { key = "to",    label = L.RP_F_TO, append = targetOptions, hint = L.RP_F_TO_HINT },
+    { key = "text",  label = L.RP_F_TEXT },
+    { key = "spell", label = L.RP_F_SPELL },
+    { key = "level", label = L.RP_F_LEVEL, kind = "select", options = function()
+        return { { text = L.RP_LEVEL_INFO, value = "info" }, { text = L.RP_LEVEL_WARN, value = "warn" },
+                 { text = L.RP_LEVEL_ALERT, value = "alert" } }
+    end },
+    { key = "sound", label = L.RP_F_SOUND, kind = "select", options = function()
+        return { { text = L.RP_SOUND_AUTO, value = "auto" }, { text = L.RP_SOUND_NONE, value = "none" },
+                 { text = L.RP_LEVEL_INFO, value = "info" }, { text = L.RP_LEVEL_WARN, value = "warn" },
+                 { text = L.RP_LEVEL_ALERT, value = "alert" } }
+    end },
+    { key = "lead",  label = L.RP_F_LEAD },
+    { key = "dur",   label = L.RP_F_DUR },
+}
+
+--- @param bossSrc number  Stelle in draft.bosses
+--- @param src number|nil  Stelle in boss.reminders; nil = neue Erinnerung
+function View:EditReminder(bossSrc, src)
+    local raw = self.draft
+    local boss = raw and raw.bosses[bossSrc]
+    if not boss then return end
+    local r = src and boss.reminders[src]
+    Widgets.FormDialog("rpReminder", r and L.RP_EDIT_REMINDER or L.RP_ADD_REMINDER, REMINDER_FIELDS, {
+        clock = plans().FormatClock(r and r.at or 0), phase = r and r.phase or 1,
+        to = table.concat(r and r.to or { "all" }, ", "), text = r and r.text, spell = r and r.spell,
+        level = r and r.level or "warn", sound = r and r.sound or "auto",
+        lead = r and r.lead or 5, dur = r and r.dur or 4,
+    }, function(v)
+        local at = plans().ParseClock(v.clock)
+        if not at or at > 3600 then return false, L.RP_ERR_TIME end
+        local phase = tonumber(v.phase)
+        if not phase or phase < 1 or phase > 20 then return false, L.RP_ERR_PHASE end
+        local to, bad = plans().ParseTargets(v.to)
+        if not to then return false, string.format(L.RP_ERR_TO, bad) end
+        local text = Util.Trim(v.text or "") or ""
+        local spellText = Util.Trim(tostring(v.spell or "")) or ""
+        local spell = tonumber(spellText)
+        if spellText ~= "" and not spell then return false, L.RP_ERR_SPELL end
+        if text == "" and not spell then return false, L.RP_ERR_TEXT end
+        local lead, dur = tonumber(v.lead) or 5, tonumber(v.dur) or 4
+        if lead < 0 or lead > 30 or dur < 1 or dur > 60 then return false, L.RP_ERR_LEADDUR end
+        local target = r or {}
+        target.at, target.phase, target.to = at, math.floor(phase), to
+        target.text = text ~= "" and text or nil
+        target.spell = spell and math.floor(spell) or nil
+        target.level = v.level or "warn"
+        target.sound = (v.sound and v.sound ~= "auto") and v.sound or nil
+        target.lead, target.dur = lead, dur
+        if not r then boss.reminders[#boss.reminders + 1] = target end
+        View:Changed()
+        return true
+    end, r and function() table.remove(boss.reminders, src) View:Changed() end or nil)
+end
+
+function View:OnReminderClick(entry, button)
+    if not self.draft then return end
+    local plan = self:CurrentPlan()
+    local boss = plan and plan.bosses[self.bossIndex]
+    if not boss then return end
+    local bossSrc = boss.src or self.bossIndex
+    if entry.add then self:EditReminder(bossSrc, nil) return end
+    local src = entry.reminder.src
+    if button ~= "RightButton" then self:EditReminder(bossSrc, src) return end
+    local list = self.draft.bosses[bossSrc].reminders
+    Widgets.ContextMenu(entry.reminder.text or L.RP_EDIT_REMINDER, {
+        { text = L.RP_EDIT, func = function() View:EditReminder(bossSrc, src) end },
+        { text = L.RP_DUPLICATE, func = function()
+            local copy = {}
+            for k, value in pairs(list[src]) do copy[k] = value end
+            copy.to = {}
+            for i, sel in ipairs(list[src].to or {}) do copy.to[i] = sel end
+            list[#list + 1] = copy
+            View:Changed()
+            View:EditReminder(bossSrc, #list)
+        end },
+        { text = L.RP_REMOVE, func = function() table.remove(list, src) View:Changed() end },
+    })
 end
 
 function View:OnShow() self:Refresh() end
