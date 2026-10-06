@@ -254,6 +254,8 @@ Theme.MEDIA = {
     notch     = M .. "Notch.tga",
     rivet     = M .. "Rivet.tga",
     glow      = M .. "Glow.tga",
+    -- Goldenes Ausrufezeichen fuer Questobjekte (06.10.2026), 128x256.
+    questmark = M .. "QuestMark.tga",
     logo      = M .. "Logo.tga",
     sky       = M .. "Sky.tga",
     jewel     = M .. "Jewel.tga",

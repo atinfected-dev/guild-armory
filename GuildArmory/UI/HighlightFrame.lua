@@ -34,6 +34,9 @@ local COLORS = {
 local MARKER_ICON = {
     [182] = [[Interface\Icons\Spell_Nature_NatureTouchGrow]],   -- Kraeuterkunde
     [186] = [[Interface\Icons\Trade_Mining]],                   -- Bergbau
+    -- Questobjekt: eigenes goldenes "!" (Media/QuestMark, 06.10.2026: "kannst
+    -- du das Ausrufezeichen schoener machen … mehr HD"). Faellt die Textur
+    -- aus, bleibt Blizzards kleines Questsymbol.
     quest = [[Interface\GossipFrame\AvailableQuestIcon]],
 }
 
@@ -116,15 +119,27 @@ function HighlightFrame:AttachMarker(unit, result)
 
     local first = result.lines[1] or {}
     local node = result.node
-    local icon = (node and MARKER_ICON[node]) or (first.color == "quest" and MARKER_ICON.quest) or MARKER_ICON[182]
-    marker.icon:SetTexture(icon)
-    if first.color == "quest" then
-        marker.icon:SetTexCoord(0, 1, 0, 1)
-    else
-        marker.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    end
     local c = COLORS[first.color] or COLORS.gray
-    Theme.Paint(marker.border, { c[1], c[2], c[3], 0.95 })
+    local questMark = not node and first.color == "quest" and Theme.Media("questmark")
+    if questMark then
+        -- Das "!" steht frei, ohne Rahmen: hoch statt quadratisch.
+        marker:SetSize(28, 56)
+        marker.icon:SetTexture(questMark)
+        marker.icon:SetTexCoord(0, 1, 0, 1)
+        marker.border:Hide()
+    else
+        marker:SetSize(34, 34)
+        local icon = (node and MARKER_ICON[node]) or (first.color == "quest" and MARKER_ICON.quest) or MARKER_ICON[182]
+        marker.icon:SetTexture(icon)
+        if first.color == "quest" then
+            marker.icon:SetTexCoord(0, 1, 0, 1)
+            marker.border:Hide()
+        else
+            marker.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            Theme.Paint(marker.border, { c[1], c[2], c[3], 0.95 })
+            marker.border:Show()
+        end
+    end
     for _, tex in ipairs(marker.halo.layers) do tex:SetVertexColor(c[1], c[2], c[3], 1) end
     marker.text:SetText(node and string.match(first.text or "", "%d+") or "")
     marker.text:SetTextColor(c[1], c[2], c[3])
