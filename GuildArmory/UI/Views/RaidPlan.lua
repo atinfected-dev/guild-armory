@@ -106,9 +106,37 @@ function View:Create(parent)
     self.status:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
     self.status:SetJustifyH("LEFT")
 
+    -- Anmeldung (06.10.2026): die eigene Zu-/Absage und wer sonst kommt.
+    local sign = CreateFrame("Frame", nil, frame)
+    sign:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -24)
+    sign:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
+    sign:SetHeight(20)
+    self.signRow = sign
+    local signLabel = Theme.Label(sign, L.RP_SIGN_YOU, fonts.small, Theme.color.textDim)
+    signLabel:SetPoint("LEFT", sign, "LEFT", 2, 0)
+    self.signChips = {}
+    local previous = signLabel
+    for _, status in ipairs({ "yes", "maybe", "no" }) do
+        local chip = Widgets.Chip(sign, L["RP_SIGN_" .. string.upper(status)])
+        chip:SetHeight(18)
+        chip:SetPoint("LEFT", previous, "RIGHT", previous == signLabel and 8 or 4, 0)
+        chip:SetScript("OnClick", function() View:SetSignup(status) end)
+        self.signChips[status] = chip
+        previous = chip
+    end
+    -- Die Zahlen; darueber zeigt der Tooltip die Namen.
+    local counts = CreateFrame("Button", nil, sign)
+    counts:SetPoint("LEFT", previous, "RIGHT", 14, 0)
+    counts:SetSize(260, 18)
+    counts.label = Theme.Label(counts, "", fonts.small, Theme.color.text)
+    counts.label:SetPoint("LEFT", counts, "LEFT", 0, 0)
+    counts:SetScript("OnEnter", function(btn) View:ShowSignupTooltip(btn) end)
+    counts:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    self.signCounts = counts
+
     -- Links: die Gruppen.
     local groups = Widgets.Panel(frame, L.RP_GROUPS, "")
-    groups:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -26)
+    groups:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -50)
     groups:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4, 4)
     groups:SetWidth(GROUP_W * 2 + 30)
     self.groupsPanel = groups
@@ -213,7 +241,8 @@ function View:Create(parent)
     self.newButton:SetPoint("TOP", self.empty, "BOTTOM", 0, -14)
     self.newButton:Hide()
 
-    for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE", "REMINDERS_START", "REMINDERS_STOP" }) do
+    for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE", "REMINDERS_START", "REMINDERS_STOP",
+                            "RAIDPLAN_SIGNUPS" }) do
         GA.Core.Callbacks:On(name, function()
             if View.frame and View.frame:IsVisible() then View:Refresh() end
         end, "RaidPlanView")
@@ -330,10 +359,21 @@ function View:Refresh()
     local problem = Plans.arranging and "running" or Plans:ArrangeProblem()
     self.arrangeButton:SetEnabledState(problem == nil, problem and L["RP_ARRANGE_" .. string.upper(problem)] or nil)
     if not has then
+        self.signRow:Hide()
         self.picker:SetDisplay(nil)
         self.status:SetText(editing and L.RP_ERR_DRAFT or "")
         GA.UI.MainFrame:SetContext("")
         return
+    end
+
+    -- Anmeldung: eigene Wahl und Zahlen (nicht im Bearbeitungsmodus).
+    self.signRow:SetShown(not editing)
+    local signups = Plans:Signups(plan.id)
+    if not editing then
+        local mine = Plans:SignupOf(plan.id, (GA.Core.Compat.GetPlayerIdentity() or {}).name)
+        for status, chip in pairs(self.signChips) do chip:SetPressed(mine ~= nil and mine.status == status) end
+        local c = Plans:SignupCounts(plan.id)
+        self.signCounts.label:SetText(string.format(L.RP_SIGN_COUNTS, c.yes, c.maybe, c.no))
     end
 
     local planKey = editing and ("draft:" .. plan.id) or plan.id
@@ -379,6 +419,10 @@ function View:Refresh()
                 local member = cmp and cmp.byKey[Plans.NameKey(name)]
                 if cmp and not member then where = " |cffff5050" .. L.RP_MISSING_TAG .. "|r"
                 elseif member and member.group ~= g then where = " |cffffd100" .. string.format(L.RP_NOW_IN, member.group) .. "|r" end
+                -- Anmeldung: wer abgesagt hat oder noch unsicher ist.
+                local signed = signups[Plans.NameKey(name)]
+                if signed and signed.status == "no" then where = where .. " |cffff5050" .. L.RP_SIGN_TAG_NO .. "|r"
+                elseif signed and signed.status == "maybe" then where = where .. " |cffffd100" .. L.RP_SIGN_TAG_MAYBE .. "|r" end
                 line:SetText((Plans.NameKey(name) == myKey and "> " or "") .. name .. roleText .. where)
                 local class = classOf(name)
                 if class and not (cmp and not member) then line:SetTextColor(Theme.ClassColor(class))
@@ -474,6 +518,40 @@ function View:PlanMenu()
         { text = L.RP_SHARE, disabled = not (entry and entry.wire), func = function() View:ShareActive() end },
         { text = L.RP_DELETE, disabled = not entry, func = function() View:DeleteActive() end },
     })
+end
+
+function View:SetSignup(status)
+    local entry = plans():Active()
+    if not entry then return end
+    local ok, why = plans():SetSignup(entry.plan.id, status)
+    if why == "later" then GA.Core.Debug:Info(L.RP_SHARE_LATER) end
+    self:Refresh()
+end
+
+--- Wer zugesagt, vielleicht oder abgesagt hat — in Klassenfarbe.
+function View:ShowSignupTooltip(owner)
+    local entry = plans():Active()
+    if not entry then return end
+    local byStatus = { yes = {}, maybe = {}, no = {} }
+    for _, s in pairs(plans():Signups(entry.plan.id)) do
+        if byStatus[s.status] then table.insert(byStatus[s.status], s) end
+    end
+    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOMLEFT")
+    GameTooltip:AddLine(L.RP_SIGN_TITLE)
+    for _, status in ipairs({ "yes", "maybe", "no" }) do
+        local list = byStatus[status]
+        table.sort(list, function(a, b) return a.name < b.name end)
+        if #list > 0 then
+            local names = {}
+            for _, s in ipairs(list) do
+                names[#names + 1] = s.class and Theme.ColorByClass(s.name, s.class) or s.name
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(L["RP_SIGN_" .. string.upper(status)] .. " (" .. #list .. ")", 1, 0.82, 0.1)
+            GameTooltip:AddLine(table.concat(names, ", "), 1, 1, 1, true)
+        end
+    end
+    GameTooltip:Show()
 end
 
 function View:TogglePreview()
@@ -608,13 +686,20 @@ function View:Candidates()
             out[#out + 1] = name
         end
     end
+    -- Wer abgesagt hat, wird nicht angeboten; wer zugesagt hat, zuerst.
+    local signups = Plans:Signups(raw.id)
+    for key, s in pairs(signups) do
+        if s.status == "no" then seen[key] = true end
+    end
+    for _, s in pairs(signups) do
+        if s.status ~= "no" then add(s.name) end
+    end
     for _, m in ipairs(GA.Core.Compat.GetRaidRoster()) do add(m.name) end
     for _, name in ipairs(raw.bench or {}) do add(name) end
     if #out == 0 and GA.Modules.Guild then
         for _, member in ipairs(GA.Modules.Guild:List(true)) do add(member.name) end
     end
-    table.sort(out)
-    return out
+    return Plans.SortCandidates(out, signups)
 end
 
 local ROLE_ORDER = { "tank", "healer", "melee", "ranged" }
@@ -642,9 +727,13 @@ function View:SlotMenu(g, i)
     end
     items[#items + 1] = { text = L.RP_ENTER_NAME, func = function() View:EnterName(g, i) end }
     local candidates = self:Candidates()
+    local signups = Plans:Signups(raw.id)
     for n = 1, math.min(#candidates, 15) do
         local cand = candidates[n]
-        items[#items + 1] = { text = "+ " .. cand, func = function()
+        local signed = signups[Plans.NameKey(cand)]
+        local tag = signed and signed.status == "yes" and (" |cff40c040" .. L.RP_SIGN_TAG_YES .. "|r")
+            or (signed and signed.status == "maybe" and (" |cffffd100" .. L.RP_SIGN_TAG_MAYBE .. "|r")) or ""
+        items[#items + 1] = { text = "+ " .. cand .. tag, func = function()
             if Plans.PlaceName(raw, g, i, cand) then View:Changed() end
         end }
     end

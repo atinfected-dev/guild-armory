@@ -144,6 +144,16 @@ SlashCmdList["GUILDARMORY"] = function(input)
         else
             Debug:Info("%s", L.RP_REMINDER_HELP)
         end
+    elseif command == "signup" or command == "anmelden" then
+        -- Zu- oder Absage zum aktiven Raidplan (06.10.2026).
+        local status = ({ yes = "yes", ja = "yes", maybe = "maybe", vielleicht = "maybe", no = "no", nein = "no" })[rest]
+        local entry = GA.Modules.RaidPlan:Active()
+        if not entry then Debug:Warn(L.RP_REMINDER_NOPLAN)
+        elseif not status then Debug:Info("%s", L.RP_SIGN_HELP)
+        else
+            GA.Modules.RaidPlan:SetSignup(entry.plan.id, status)
+            Debug:Info(L.RP_SIGN_DONE, entry.plan.title or entry.plan.id, L["RP_SIGN_" .. string.upper(status)])
+        end
     elseif command == "ready" or command == "bereit" then
         -- Der eigene Ready Check, jederzeit (06.10.2026). Mit Boss:
         -- Listennummer, Kennung oder Name im aktiven Plan.

@@ -647,6 +647,7 @@ function RaidPlan:SaveDraft(raw)
     if #wire > MAX_INPUT then return nil, "toolong" end
     local ok, why = self:Store(plan, wire, me)
     if not ok then return nil, why end
+    self:Get(plan.id).mine = true
     self:SetActive(plan.id)
     self:Publish(plan.id)
     return plan
@@ -851,6 +852,13 @@ function RaidPlan:Prune()
     end
     local list = {}
     for _, entry in pairs(plans) do list[#list + 1] = entry end
+    -- Anmeldungen zu Plaenen, die es nicht mehr gibt, fallen mit weg.
+    local signups = GA.Core.Database.account.raidSignups
+    if signups then
+        for id in pairs(signups) do
+            if not plans[id] then signups[id] = nil end
+        end
+    end
     if #list <= MAX_PLANS then return end
     table.sort(list, function(a, b) return (a.at or 0) > (b.at or 0) end)
     for i = MAX_PLANS + 1, #list do plans[list[i].plan.id] = nil end
@@ -863,7 +871,7 @@ function RaidPlan:Store(plan, wire, from)
     local entry = plans[plan.id]
     if entry and entry.plan.rev == plan.rev and entry.plan.updated == plan.updated then return false, "same" end
     if not newer(plan, entry) then return false, "older" end
-    plans[plan.id] = { plan = plan, wire = wire, from = from, at = Util.Now() }
+    plans[plan.id] = { plan = plan, wire = wire, from = from, at = Util.Now(), mine = entry and entry.mine or nil }
     self:Prune()
     GA.Core.Callbacks:Fire("RAIDPLAN_CHANGED", plan.id)
     return true
@@ -877,6 +885,8 @@ function RaidPlan:Import(text)
     local identity = Compat.GetPlayerIdentity() or {}
     local ok, why = self:Store(plan, wire, identity.name and Util.ShortName(identity.name) or nil)
     if not ok and why == "older" then return nil, "older" end
+    -- Selbst importiert: Dieser Client verteilt die Anmeldeliste.
+    if self:Get(plan.id) then self:Get(plan.id).mine = true end
     self:SetActive(plan.id)
     self:Publish(plan.id)
     return plan, why
@@ -907,8 +917,9 @@ end
 
 --- Was wartete, geht jetzt hinaus.
 function RaidPlan:Flush()
-    if not self.pending or not self:CanSend() then return end
-    for id in pairs(self.pending) do self:Publish(id) end
+    if not self:CanSend() then return end
+    for id in pairs(self.pending or {}) do self:Publish(id) end
+    for id in pairs(self.pendingSignups or {}) do self:SendSignup(id) end
 end
 
 function RaidPlan:OnPlan(sender, text)
@@ -949,6 +960,12 @@ function RaidPlan:OnRequest(sender, fields)
     local Comm = GA.Core.Comm
     if Comm and Comm:IsSelf(sender) then return end
     local theirs = RaidPlan.ParseInventory(fields and fields[1])
+    -- Anmeldungen fuer den, der gerade kommt: die eigenen, und wer den Plan
+    -- verwaltet, die ganze Liste. Gestreut, einmal je Anfrage.
+    Compat.After(3 + math.random() * 9, function()
+        RaidPlan:SendOwnSignups()
+        RaidPlan:PublishSignupLists()
+    end)
     local answered = 0
     for _, entry in ipairs(self:All()) do
         local plan = entry.plan
@@ -968,6 +985,164 @@ end
 function RaidPlan:Request()
     if not self:CanSend() then return false end
     return GA.Core.Comm:Send("RPREQ", { self:Inventory() }, "GUILD", nil, true) and true or false
+end
+
+-- ================================================================ Anmeldung --
+--
+-- Wer kommt? (06.10.2026). Zu jedem Plan sagt jeder fuer SICH zu, vielleicht
+-- oder ab. Gespeichert je Plan unter dem Namen des Absenders — der kommt vom
+-- Server und ist nicht faelschbar, also kann niemand fuer andere zusagen.
+--
+-- VERTEILT WIE DER PLAN, VOR DEM RAID: Eine Anmeldung geht als kurze
+-- Nachricht an die Gilde. Wer spaeter einloggt, fragt ohnehin nach Plaenen
+-- (RPREQ) — dann schickt jeder seine eigenen Anmeldungen noch einmal, und
+-- wer den Plan angelegt oder importiert hat, die gesammelte Liste. So sieht
+-- auch, wer spaet kommt, wer zugesagt hat, der gerade nicht online ist.
+-- In gesperrten Instanzen wartet der Versand wie beim Plan.
+
+RaidPlan.SIGN = { yes = true, maybe = true, no = true }
+--- Anmeldungen gelten fuer Plaene, die heute oder spaeter beginnen.
+local SIGNUP_WINDOW = 12 * 3600
+
+local function signupStore()
+    local account = GA.Core.Database.account
+    account.raidSignups = account.raidSignups or {}
+    return account.raidSignups
+end
+
+--- [nameKey] = { name, status, ts, class }
+function RaidPlan:Signups(planId)
+    return planId and signupStore()[planId] or {}
+end
+
+function RaidPlan:SignupCounts(planId)
+    local counts = { yes = 0, maybe = 0, no = 0 }
+    for _, s in pairs(self:Signups(planId)) do
+        if counts[s.status] then counts[s.status] = counts[s.status] + 1 end
+    end
+    return counts
+end
+
+function RaidPlan:SignupOf(planId, name)
+    local key = RaidPlan.NameKey(name)
+    return key and self:Signups(planId)[key] or nil
+end
+
+--- Uebernimmt eine Anmeldung, wenn sie neuer ist als die bekannte.
+--- @return boolean uebernommen
+function RaidPlan:MergeSignup(planId, name, status, ts, class)
+    name = clean(name, 48)
+    if type(planId) ~= "string" or not string.match(planId, "^[%w_%-]+$") then return false end
+    if not name or not RaidPlan.SIGN[status] then return false end
+    ts = tonumber(ts)
+    if not ts or ts > Util.Now() + 300 then return false end
+    local list = signupStore()
+    list[planId] = list[planId] or {}
+    local key = RaidPlan.NameKey(name)
+    local old = list[planId][key]
+    if old and (old.ts or 0) >= ts then return false end
+    list[planId][key] = { name = name, status = status, ts = ts, class = clean(class, 20) }
+    GA.Core.Callbacks:Fire("RAIDPLAN_SIGNUPS", planId)
+    return true
+end
+
+--- Die eigene Anmeldung setzen und an die Gilde schicken.
+function RaidPlan:SetSignup(planId, status)
+    if not self:Get(planId) or not RaidPlan.SIGN[status] then return false end
+    local identity = Compat.GetPlayerIdentity() or {}
+    if not identity.name then return false end
+    self:MergeSignup(planId, Util.ShortName(identity.name), status, Util.Now(), identity.class)
+    return self:SendSignup(planId)
+end
+
+function RaidPlan:SendSignup(planId)
+    local identity = Compat.GetPlayerIdentity() or {}
+    local mine = identity.name and self:SignupOf(planId, Util.ShortName(identity.name))
+    if not mine then return false end
+    if not self:CanSend() then
+        self.pendingSignups = self.pendingSignups or {}
+        self.pendingSignups[planId] = true
+        return false, "later"
+    end
+    if self.pendingSignups then self.pendingSignups[planId] = nil end
+    return GA.Core.Comm:Send("RPSIGN", { planId, mine.status, mine.ts, mine.class or "" }, "GUILD", nil, true) and true or false
+end
+
+function RaidPlan:OnSignup(sender, fields)
+    local Comm = GA.Core.Comm
+    if Comm and Comm:IsSelf(sender) then return end
+    fields = fields or {}
+    -- Der Name ist der des Absenders, nie ein Feld der Nachricht.
+    self:MergeSignup(fields[1], Util.ShortName(sender), fields[2], fields[3], fields[4])
+end
+
+--- Laeuft dieser Plan noch (heute oder spaeter, oder ohne Datum)?
+local function upcoming(entry)
+    local start = entry.plan.start
+    return not start or start >= Util.Now() - SIGNUP_WINDOW
+end
+
+--- Die eigenen Anmeldungen noch einmal — fuer alle, die gerade eingeloggt sind.
+function RaidPlan:SendOwnSignups()
+    local identity = Compat.GetPlayerIdentity() or {}
+    if not identity.name then return end
+    for _, entry in ipairs(self:All()) do
+        if upcoming(entry) and self:SignupOf(entry.plan.id, Util.ShortName(identity.name)) then
+            self:SendSignup(entry.plan.id)
+        end
+    end
+end
+
+--- Vorschlaege fuer einen Platz: Zusagen zuerst, dann Vielleicht, dann der
+--- Rest — je nach Name.
+function RaidPlan.SortCandidates(names, signups)
+    local rank = { yes = 1, maybe = 2 }
+    local function r(name)
+        local s = signups and signups[RaidPlan.NameKey(name)]
+        return s and rank[s.status] or 3
+    end
+    table.sort(names, function(a, b)
+        local ra, rb = r(a), r(b)
+        if ra ~= rb then return ra < rb end
+        return a < b
+    end)
+    return names
+end
+
+--- Die gesammelte Liste eines Plans als Text: "planId\nname~status~ts~klasse;…"
+function RaidPlan.EncodeSignups(planId, list)
+    local parts = {}
+    for _, s in pairs(list or {}) do
+        local name = string.gsub(s.name or "", "[~;]", "")
+        -- In Klammern: gsub liefert zwei Werte, der zweite gehoert nicht in die Liste.
+        local class = (string.gsub(s.class or "", "[~;]", ""))
+        parts[#parts + 1] = table.concat({ name, s.status, s.ts, class }, "~")
+    end
+    table.sort(parts)
+    return planId .. "\n" .. table.concat(parts, ";")
+end
+
+function RaidPlan:OnSignupList(sender, text)
+    local Comm = GA.Core.Comm
+    if Comm and Comm:IsSelf(sender) then return end
+    local planId, rest = string.match(tostring(text or ""), "^([%w_%-]+)\n(.*)$")
+    if not planId then return end
+    for rec in string.gmatch(rest, "[^;]+") do
+        local name, status, ts, class = string.match(rec, "^([^~]+)~(%a+)~(%d+)~([^~]*)$")
+        if name then self:MergeSignup(planId, name, status, ts, class) end
+    end
+end
+
+--- Die gesammelte Liste — nur von dem, der den Plan angelegt oder
+--- importiert hat; sonst schickten sie alle.
+function RaidPlan:PublishSignupLists()
+    if not self:CanSend() then return end
+    for _, entry in ipairs(self:All()) do
+        local list = self:Signups(entry.plan.id)
+        if entry.mine and upcoming(entry) and next(list) then
+            GA.Core.Comm:SendBlob("RPSIGNS", RaidPlan.EncodeSignups(entry.plan.id, list), "GUILD", nil, true)
+        end
+    end
 end
 
 -- ================================================================ Ordnen ----
@@ -1151,6 +1326,8 @@ function RaidPlan:OnEnable()
     if Comm then
         Comm:OnBlob("RPLAN", function(sender, text) RaidPlan:OnPlan(sender, text) end, "RaidPlan")
         Comm:On("RPREQ", function(sender, fields) RaidPlan:OnRequest(sender, fields) end, "RaidPlan")
+        Comm:On("RPSIGN", function(sender, fields) RaidPlan:OnSignup(sender, fields) end, "RaidPlan")
+        Comm:OnBlob("RPSIGNS", function(sender, text) RaidPlan:OnSignupList(sender, text) end, "RaidPlan")
     end
     local Events = GA.Core.Events
     local function flush() Compat.After(5, function() RaidPlan:Flush() end) end
@@ -1162,5 +1339,9 @@ function RaidPlan:OnEnable()
     Events:Register("PLAYER_REGEN_DISABLED", function()
         if RaidPlan.arranging then RaidPlan:StopArrange("combat") end
     end, "RaidPlan")
-    Compat.After(REQUEST_DELAY, function() RaidPlan:Request() end)
+    Compat.After(REQUEST_DELAY, function()
+        RaidPlan:Request()
+        -- Wer einloggt, meldet seine Anmeldungen selbst noch einmal.
+        Compat.After(5 + math.random() * 10, function() RaidPlan:SendOwnSignups() end)
+    end)
 end
