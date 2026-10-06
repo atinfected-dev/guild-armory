@@ -291,7 +291,8 @@ function View:UpdateReminderRow(row, entry)
         local name = GA.Core.Compat.GetSpellName and GA.Core.Compat.GetSpellName(r.spell)
         if name and text == "" then text = name end
     end
-    row.text:SetText(text)
+    if r.marker then text = "|T" .. plans().MarkerTexture(r.marker) .. ":0|t " .. text end
+    row.text:SetText(plans().RenderText(text))
     local c = Theme.color[LEVEL_COLOR[r.level] or "text"] or Theme.color.text
     if not entry.mine and not self.draft then c = Theme.color.textDim end
     row.text:SetTextColor(c[1], c[2], c[3])
@@ -784,11 +785,26 @@ local function targetOptions()
     return out
 end
 
+--- Die acht Markierungen zur Auswahl — mit Symbol und dem Namen des Spiels.
+--- @param asToken boolean  Wert ist "{square}" (zum Einfuegen in den Text)
+function View.MarkerOptions(asToken)
+    local out = {}
+    if not asToken then out[1] = { text = L.RP_MARKER_NONE, value = "none" } end
+    for index, name in ipairs(plans().MARKER_NAMES) do
+        local label = _G["RAID_TARGET_" .. index] or L["RP_MARK_" .. index]
+        out[#out + 1] = { text = "|T" .. plans().MarkerTexture(index) .. ":14|t " .. label,
+                          value = asToken and ("{" .. name .. "}") or name }
+    end
+    return out
+end
+
 local REMINDER_FIELDS = {
     { key = "clock", label = L.RP_F_TIME, hint = L.RP_F_TIME_HINT },
     { key = "phase", label = L.RP_F_PHASE },
     { key = "to",    label = L.RP_F_TO, append = targetOptions, hint = L.RP_F_TO_HINT },
-    { key = "text",  label = L.RP_F_TEXT },
+    { key = "text",  label = L.RP_F_TEXT, append = function() return View.MarkerOptions(true) end, appendSep = " ",
+      hint = L.RP_F_TEXT_HINT },
+    { key = "marker", label = L.RP_F_MARKER, kind = "select", options = function() return View.MarkerOptions(false) end },
     { key = "spell", label = L.RP_F_SPELL },
     { key = "level", label = L.RP_F_LEVEL, kind = "select", options = function()
         return { { text = L.RP_LEVEL_INFO, value = "info" }, { text = L.RP_LEVEL_WARN, value = "warn" },
@@ -815,6 +831,7 @@ function View:EditReminder(bossSrc, src)
         to = table.concat(r and r.to or { "all" }, ", "), text = r and r.text, spell = r and r.spell,
         level = r and r.level or "warn", sound = r and r.sound or "auto",
         lead = r and r.lead or 5, dur = r and r.dur or 4,
+        marker = r and r.marker and plans().MARKER_NAMES[plans().MarkerIndex(r.marker)] or "none",
     }, function(v)
         local at = plans().ParseClock(v.clock)
         if not at or at > 3600 then return false, L.RP_ERR_TIME end
@@ -826,7 +843,8 @@ function View:EditReminder(bossSrc, src)
         local spellText = Util.Trim(tostring(v.spell or "")) or ""
         local spell = tonumber(spellText)
         if spellText ~= "" and not spell then return false, L.RP_ERR_SPELL end
-        if text == "" and not spell then return false, L.RP_ERR_TEXT end
+        local marker = v.marker ~= "none" and v.marker or nil
+        if text == "" and not spell and not marker then return false, L.RP_ERR_TEXT end
         local lead, dur = tonumber(v.lead) or 5, tonumber(v.dur) or 4
         if lead < 0 or lead > 30 or dur < 1 or dur > 60 then return false, L.RP_ERR_LEADDUR end
         local target = r or {}
@@ -836,6 +854,7 @@ function View:EditReminder(bossSrc, src)
         target.level = v.level or "warn"
         target.sound = (v.sound and v.sound ~= "auto") and v.sound or nil
         target.lead, target.dur = lead, dur
+        target.marker = marker
         if not r then boss.reminders[#boss.reminders + 1] = target end
         View:Changed()
         return true

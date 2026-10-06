@@ -28,9 +28,9 @@ local WIDTH = 460
 local TICK = 0.05
 
 local STYLE = {
-    info  = { size = 16, color = { 0.92, 0.92, 0.92 } },
-    warn  = { size = 21, color = { 1.00, 0.82, 0.10 } },
-    alert = { size = 26, color = { 1.00, 0.25, 0.20 } },
+    info  = { size = 16, icon = 22, color = { 0.92, 0.92, 0.92 } },
+    warn  = { size = 21, icon = 28, color = { 1.00, 0.82, 0.10 } },
+    alert = { size = 26, icon = 32, color = { 1.00, 0.25, 0.20 } },
 }
 
 local fontCache = {}
@@ -78,7 +78,6 @@ function ReminderFrame:Create()
         line.icon = line:CreateTexture(nil, "ARTWORK")
         line.icon:SetSize(26, 26)
         line.icon:SetPoint("LEFT", line, "LEFT", 0, 2)
-        line.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         line.text = line:CreateFontString(nil, "OVERLAY")
         line.text:SetFontObject(font("warn"))
         line.text:SetPoint("LEFT", line.icon, "RIGHT", 8, 0)
@@ -149,6 +148,8 @@ function ReminderFrame:Render(visible)
 
             local text = r.text
             if not text and r.spell then text = GA.Core.Compat.GetSpellName(r.spell) end
+            -- {square} usw. als Symbol im Text.
+            text = GA.Modules.RaidPlan.RenderText(text)
             -- Im Probelauf steht bei fremden Erinnerungen, fuer wen sie sind.
             if not item.mine then
                 text = "|cff9a9a9a[" .. GA.Modules.RaidPlan.TargetText(r) .. "]|r " .. (text or "")
@@ -158,8 +159,20 @@ function ReminderFrame:Render(visible)
             line.text:SetTextColor(style.color[1], style.color[2], style.color[3], alpha)
             line.count:SetTextColor(style.color[1], style.color[2], style.color[3], alpha)
 
-            local icon = r.spell and GA.Core.Compat.GetSpellIcon(r.spell)
-            if icon and pcall(line.icon.SetTexture, line.icon, icon) then line.icon:Show() else line.icon:Hide() end
+            -- Links das grosse Symbol: die Markierung, sonst der Zauber.
+            local icon, coords
+            if r.marker then
+                icon, coords = GA.Modules.RaidPlan.MarkerTexture(r.marker), { 0, 1, 0, 1 }
+            elseif r.spell then
+                icon, coords = GA.Core.Compat.GetSpellIcon(r.spell), { 0.08, 0.92, 0.08, 0.92 }
+            end
+            if icon and pcall(line.icon.SetTexture, line.icon, icon) then
+                line.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+                line.icon:SetSize(style.icon, style.icon)
+                line.icon:Show()
+            else
+                line.icon:Hide()
+            end
 
             -- Countdown bis zum Zeitpunkt; danach "jetzt", solange sie steht.
             if item.remaining > 0 then
@@ -184,7 +197,7 @@ end
 function ReminderFrame.Samples()
     return {
         { mine = true, remaining = 3.4, reminder = { text = L.RP_DEMO_ALERT, level = "alert", lead = 5, dur = 4 } },
-        { mine = true, remaining = 7, reminder = { text = L.RP_DEMO_WARN, level = "warn", lead = 10, dur = 4 } },
+        { mine = true, remaining = 7, reminder = { text = L.RP_DEMO_WARN, level = "warn", lead = 10, dur = 4, marker = 6 } },
         { mine = true, remaining = -1, reminder = { text = L.RP_DEMO_INFO, level = "info", lead = 5, dur = 4 } },
     }
 end

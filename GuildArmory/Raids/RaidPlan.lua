@@ -172,6 +172,56 @@ local function selector(value)
     return key and ("name:" .. key) or nil
 end
 
+-- ================================================================ Markierungen --
+--
+-- Schlachtzugsmarkierungen (06.10.2026: "bei 30 Sekunden zum Viereck moven,
+-- dass man ein blaues Viereck angezeigt bekommt"). Zwei Wege:
+--   * im Text: {square}, {viereck}, {rt6} … wird beim Anzeigen zum Symbol —
+--     wie im Chat. Gespeichert bleibt das Wort; das "|" der Textur-Sequenz
+--     entsteht erst in der Anzeige, sonst fiele es durch clean().
+--   * als Feld "marker": das grosse Symbol links neben der Erinnerung.
+-- Die Grafiken sind die des Spiels, ueber ihren Pfad — nichts davon liegt im
+-- Addon.
+
+RaidPlan.MARKER_NAMES = { "star", "circle", "diamond", "triangle", "moon", "square", "cross", "skull" }
+local MARKER_ALIAS = {
+    star = 1, stern = 1, yellow = 1,
+    circle = 2, kreis = 2, orange = 2,
+    diamond = 3, diamant = 3, raute = 3, purple = 3,
+    triangle = 4, dreieck = 4, green = 4,
+    moon = 5, mond = 5,
+    square = 6, quadrat = 6, viereck = 6, blue = 6, blau = 6,
+    cross = 7, x = 7, kreuz = 7, red = 7,
+    skull = 8, totenkopf = 8, schaedel = 8,
+}
+
+--- Markierung aus Name, Alias, "rt6" oder Zahl -> 1..8 (oder nil).
+function RaidPlan.MarkerIndex(value)
+    if type(value) == "number" then
+        return (value >= 1 and value <= 8 and value == math.floor(value)) and value or nil
+    end
+    if type(value) ~= "string" then return nil end
+    local lower = string.lower(Util.Trim(value) or "")
+    local n = tonumber(string.match(lower, "^rt(%d)$") or lower)
+    if n then return RaidPlan.MarkerIndex(n) end
+    return MARKER_ALIAS[lower]
+end
+
+function RaidPlan.MarkerTexture(index)
+    return index and ("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. index) or nil
+end
+
+--- Ersetzt {square} usw. durch das Symbol — nur fuer die Anzeige.
+--- @param size number|nil  Pixel; 0 = so hoch wie die Schrift
+function RaidPlan.RenderText(text, size)
+    if type(text) ~= "string" then return text end
+    return (string.gsub(text, "{([%w]+)}", function(word)
+        local index = RaidPlan.MarkerIndex(word)
+        if not index then return nil end
+        return "|T" .. RaidPlan.MarkerTexture(index) .. ":" .. (size or 0) .. "|t"
+    end))
+end
+
 local function selectors(value)
     local list = type(value) == "table" and value or { value or "all" }
     local out, seen = {}, {}
@@ -191,7 +241,11 @@ local function normalizeReminder(raw, phaseStart, warnings)
     if not at then warnings.badTime = (warnings.badTime or 0) + 1 return nil end
     local text = clean(raw.text, 200)
     local spell = number(raw.spell, 1, 10000000)
-    if not text and not spell then warnings.noText = (warnings.noText or 0) + 1 return nil end
+    -- Eine Markierung allein reicht auch ("zum Viereck" als blosses Symbol).
+    if not text and not spell and not RaidPlan.MarkerIndex(raw.marker) then
+        warnings.noText = (warnings.noText or 0) + 1
+        return nil
+    end
     local phase = math.floor(number(raw.phase, 1, 20) or 1)
     local level = type(raw.level) == "string" and RaidPlan.LEVELS[raw.level] and raw.level or "warn"
     local sound = type(raw.sound) == "string" and RaidPlan.SOUNDS[raw.sound] and raw.sound or DEFAULT_SOUND[level]
@@ -204,6 +258,7 @@ local function normalizeReminder(raw, phaseStart, warnings)
         time = (phaseStart[phase] or 0) + at,
         text = text,
         spell = spell and math.floor(spell) or nil,
+        marker = RaidPlan.MarkerIndex(raw.marker),
         to = to,
         lead = number(raw.lead, 0, 30) or 5,
         dur = number(raw.dur, 1, 60) or 4,
@@ -495,6 +550,7 @@ function RaidPlan.ToRaw(plan)
                 else to[#to + 1] = sel end
             end
             b.reminders[#b.reminders + 1] = { at = r.at, phase = r.phase, text = r.text, spell = r.spell, to = to,
+                marker = r.marker and RaidPlan.MARKER_NAMES[r.marker] or nil,
                 lead = r.lead, dur = r.dur, level = r.level, sound = r.sound }
         end
         raw.bosses[#raw.bosses + 1] = b

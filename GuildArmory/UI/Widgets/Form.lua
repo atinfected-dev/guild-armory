@@ -5,7 +5,7 @@
 
     Feldarten:
       text       einzeilig; mit `append` steht rechts eine Auswahl, deren
-                 Wahl an den Text angehaengt wird (", " dazwischen)
+                 Wahl an den Text angehaengt wird (`appendSep`, sonst ", ")
       multiline  mehrzeilig, `height` Pixel hoch
       select     Auswahl aus `options()` -> { { text, value } }; `onSelect`
                  darf andere Felder fuellen (dlg:SetValue)
@@ -110,7 +110,7 @@ local function build(key, fields)
                     onSelect = function(value)
                         local edit = control.edit
                         local text = GA.Core.Util.Trim(edit:GetText() or "") or ""
-                        edit:SetText(text == "" and value or (text .. ", " .. value))
+                        edit:SetText(text == "" and value or (text .. (f.appendSep or ", ") .. value))
                     end,
                 })
                 add:SetHeight(20)

@@ -9,6 +9,8 @@ Analytics › Raid Plan (new): plan the raid in the web app — groups, roles, b
 
 Raid plans can be made and changed right in the addon, no web app needed: "Plan ▾" › New plan or Edit switches the page into editing. Click a slot in the groups to put someone there (raid members and online guild members are offered, or type a name), give them a role, send them to the bench or remove them; "From raid" takes over the current raid setup. Under the bosses and the reminders a "+ add" line opens a small form — boss name, encounter ID (bosses you have pulled with the addon running are offered, so nobody has to look IDs up), estimated phases and note; for a reminder time, phase, who it is for, text or spell ID, level, sound, lead and how long it stays. Right-click a boss or reminder to move, duplicate or remove it. Save stores the plan as a new revision and sends it to the guild; Discard drops the changes. "Plan ▾" › Copy as text gives the same text the web app exports, to pass a plan on.
 
+Raid markers in reminders: write {square}, {skull}, {star} … (or {viereck}, {totenkopf}, {rt6}) in a reminder text and the marker shows as its icon, like in chat — "Move to {square}" shows the blue square. A reminder can also carry a marker of its own, shown large on the left (or on its own, without text). The editor offers all eight with their icons. /ga reminder test now shows it too.
+
 Licence: from this version on, Guild Armory is All Rights Reserved instead of MIT. You may download it from its official pages and use it in the game as before; copying, modifying or re-uploading it, or building it into other addons, needs permission. Versions released earlier keep the MIT licence they were published with. The bundled fonts stay under the SIL Open Font License.
 
 ## 0.1.38

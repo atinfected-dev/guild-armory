@@ -126,6 +126,8 @@ function Reminders:Demo()
     local boss = { name = "Demo", reminders = {
         demo(4, "info", L.RP_DEMO_INFO), demo(8, "warn", L.RP_DEMO_WARN), demo(12, "alert", L.RP_DEMO_ALERT),
     } }
+    -- Die Warnung zeigt die Markierung: gross links und im Text.
+    boss.reminders[2].marker = 6
     return self:Start(plan, boss, { preview = true })
 end
 
