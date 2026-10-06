@@ -531,46 +531,102 @@ end
 --- Reiter am unteren Rand — ein BEREICH je Reiter.
 function MainFrame:BuildTabs()
     local frame = self.frame
-    local previous
-
     for index, entry in ipairs(SECTIONS) do
         local tab = Widgets.Tab(frame, index, L[entry.label], function()
             MainFrame:ShowSection(index)
         end)
         tab.sectionKey = entry.key
+        self.tabs[index] = tab
+    end
+    self:LayoutTabs()
+end
 
-        if tab.native then
-            -- Wie CharacterFrame.xml: erster Reiter unter der linken Ecke,
-            -- die weiteren daneben. Die alte Vorlage ueberlappt, die neue nicht.
-            local gap = Theme.native.PanelTabButtonTemplate and 3 or -15
-            if previous then
-                tab:SetPoint("LEFT", previous, "RIGHT", gap, 0)
+-- ============================================================ Bereiche aus ---
+--
+-- Bereiche ausblenden (06.10.2026, "das Addon nicht ueberladen"): Wer den
+-- Questhub oder die Berufe nie benutzt, schaltet den Reiter ab. Die Funktion
+-- bleibt im Addon — Daten, Abgleich, Slash-Befehle laufen weiter —, nur die
+-- Navigation wird kuerzer. Die Uebersicht bleibt immer: Ein Fenster ohne
+-- Reiter waere eine Sackgasse.
+
+--- Bereiche, die man ausblenden kann (alle ausser der Uebersicht).
+function MainFrame.HideableSections()
+    local out = {}
+    for _, section in ipairs(SECTIONS) do
+        if section.key ~= "overview" then out[#out + 1] = { key = section.key, label = section.label } end
+    end
+    return out
+end
+
+function MainFrame:IsSectionHidden(key)
+    if key == "overview" then return false end
+    local hidden = Config:Get("hiddenSections")
+    return type(hidden) == "table" and hidden[key] == true
+end
+
+function MainFrame:SetSectionHidden(key, hidden)
+    if key == "overview" then return end
+    local config = GA.Core.Database.account.config
+    config.hiddenSections = type(config.hiddenSections) == "table" and config.hiddenSections or {}
+    config.hiddenSections[key] = hidden and true or nil
+    self:LayoutTabs()
+    -- Steht man gerade im ausgeblendeten Bereich, geht es zur Uebersicht.
+    local current = self.current and SECTION_OF[self.current]
+    if hidden and current and SECTIONS[current].key == key and self.frame and self.frame:IsShown() then
+        self:ShowView("dashboard")
+    end
+end
+
+--- Ordnet die sichtbaren Reiter nebeneinander; ausgeblendete fallen heraus.
+function MainFrame:LayoutTabs()
+    local frame = self.frame
+    if not frame then return end
+    local previous
+    for index, entry in ipairs(SECTIONS) do
+        local tab = self.tabs[index]
+        if tab then
+            tab:ClearAllPoints()
+            if self:IsSectionHidden(entry.key) then
+                tab:Hide()
             else
-                tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 11, 2)
-            end
-        else
-            -- Eigener Look: Reiterband oben, rechts vom Wappen.
-            if Theme.Look() then
-                if previous then
-                    tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
-                else
-                    tab:SetPoint("TOPLEFT", frame, "TOPLEFT", Theme.HeaderSide() + 66, -(Theme.HeaderTop() + Theme.size.headerHeight + 3))
-                end
-            -- Gezeichnete Reiter liegen innen am unteren Rand.
-            elseif previous then
-                tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
-            else
-                tab:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
-                -- Der Inhalt endet oberhalb der gezeichneten Reiter. Gemerkt
-                -- statt gesetzt: LayoutBody setzt beide Anker gemeinsam neu,
-                -- sooft die Unterreiterzeile kommt oder geht.
-                self.bodyBottom = 30
-                self:LayoutBody(false)
+                tab:Show()
+                self:AnchorTab(tab, previous)
+                previous = tab
             end
         end
+    end
+end
 
-        self.tabs[index] = tab
-        previous = tab
+function MainFrame:AnchorTab(tab, previous)
+    local frame = self.frame
+    if tab.native then
+        -- Wie CharacterFrame.xml: erster Reiter unter der linken Ecke,
+        -- die weiteren daneben. Die alte Vorlage ueberlappt, die neue nicht.
+        local gap = Theme.native.PanelTabButtonTemplate and 3 or -15
+        if previous then
+            tab:SetPoint("LEFT", previous, "RIGHT", gap, 0)
+        else
+            tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 11, 2)
+        end
+    else
+        -- Eigener Look: Reiterband oben, rechts vom Wappen.
+        if Theme.Look() then
+            if previous then
+                tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
+            else
+                tab:SetPoint("TOPLEFT", frame, "TOPLEFT", Theme.HeaderSide() + 66, -(Theme.HeaderTop() + Theme.size.headerHeight + 3))
+            end
+        -- Gezeichnete Reiter liegen innen am unteren Rand.
+        elseif previous then
+            tab:SetPoint("LEFT", previous, "RIGHT", 2, 0)
+        else
+            tab:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
+            -- Der Inhalt endet oberhalb der gezeichneten Reiter. Gemerkt
+            -- statt gesetzt: LayoutBody setzt beide Anker gemeinsam neu,
+            -- sooft die Unterreiterzeile kommt oder geht.
+            self.bodyBottom = 30
+            self:LayoutBody(false)
+        end
     end
 end
 
@@ -728,7 +784,11 @@ function MainFrame:Show()
         return
     end
     self.frame:Show()
-    self:ShowView(self.current or Config:GetUI("main").lastView or "dashboard")
+    local key = self.current or Config:GetUI("main").lastView or "dashboard"
+    -- Zuletzt in einem Bereich, der inzwischen ausgeblendet ist: Uebersicht.
+    local section = SECTION_OF[key] and SECTIONS[SECTION_OF[key]]
+    if section and self:IsSectionHidden(section.key) then key = "dashboard" end
+    self:ShowView(key)
 end
 
 function MainFrame:Hide()

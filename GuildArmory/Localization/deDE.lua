@@ -1348,6 +1348,8 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_OPEN   = "Chat zeigen",
     NAV_RAIDPLAN       = "Raidplan",
     RP_IMPORT          = "Importieren",
+    SET_SECTION        = "Reiter: %s",
+    SET_SECTION_HINT   = "Schalte die Reiter ab, die du nicht nutzt — das Fenster wird kürzer, die Funktionen laufen im Hintergrund weiter (Daten, Abgleich, Befehle). Die Übersicht bleibt immer.",
     RP_SIGN_YOU        = "Deine Anmeldung:",
     RP_SIGN_YES        = "Zusage",
     RP_SIGN_MAYBE      = "Vielleicht",

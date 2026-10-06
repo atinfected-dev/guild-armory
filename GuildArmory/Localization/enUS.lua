@@ -1362,6 +1362,8 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_OPEN   = "Show chat",
     NAV_RAIDPLAN       = "Raid Plan",
     RP_IMPORT          = "Import",
+    SET_SECTION        = "Tab: %s",
+    SET_SECTION_HINT   = "Switch off the tabs you do not use — the window gets shorter, the features keep running in the background (data, sync, commands). Overview always stays.",
     RP_SIGN_YOU        = "Your sign-up:",
     RP_SIGN_YES        = "Coming",
     RP_SIGN_MAYBE      = "Maybe",

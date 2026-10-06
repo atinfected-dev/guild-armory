@@ -268,6 +268,9 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Ready Check fuer sich selbst (06.10.2026): Vor-dem-Pull-Hinweise
         -- des Plans, Haltbarkeit, Verzauberungen, Flaeschchen/Elixier.
         readyCheck = true,
+
+        -- Ausgeblendete Bereiche (06.10.2026): [Bereichsschluessel] = true.
+        hiddenSections = {},
         readyEnchants = true,
         readyConsumables = true,
 

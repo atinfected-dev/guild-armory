@@ -367,6 +367,19 @@ function Settings:Create(parent)
     self.rowGuildKey = makeRow(window, { label = L.SET_GUILDKEY, hint = L.SET_GUILDKEY_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("guildKeyOpensAddon", on) end })
 
+    -- Bereiche ausblenden (06.10.2026): ein Schalter je Reiter.
+    self.sectionRows = {}
+    for _, section in ipairs(GA.UI.MainFrame.HideableSections()) do
+        local key = section.key
+        local row = makeRow(window, {
+            label = string.format(L.SET_SECTION, L[section.label] or key),
+            hint = self.sectionRows[1] and "" or L.SET_SECTION_HINT,
+            control = "switch",
+            set = function(on) GA.UI.MainFrame:SetSectionHidden(key, not on) end })
+        row.sectionKey = key
+        self.sectionRows[#self.sectionRows + 1] = row
+    end
+
     -- ------------------------------------------------------ Am Bildschirm ---
     local onscreen = self.pages.onscreen
     self.rowCamp = makeRow(onscreen, { label = L.SET_CAMP, hint = L.SET_CAMP_HINT, control = "switch",
@@ -643,6 +656,9 @@ function Settings:Refresh()
     self.rowMinimap.switch:SetChecked(not Config:GetUI("minimap").hidden)
     self.rowTooltips.switch:SetChecked(Config:Get("tooltipItems") and true or false)
     self.rowGuildKey.switch:SetChecked(Config:Get("guildKeyOpensAddon") and true or false)
+    for _, row in ipairs(self.sectionRows or {}) do
+        row.switch:SetChecked(not GA.UI.MainFrame:IsSectionHidden(row.sectionKey))
+    end
 
     -- ~= false, nicht "and true or false": Die Voreinstellung ist AN, und ein
     -- noch nie gesetzter Wert ist nil. Wer hier auf Wahrheit prueft, zeigt
