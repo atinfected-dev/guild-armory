@@ -10,7 +10,7 @@
 ## DefaultState: enabled
 ## X-Category: Guild
 ## X-Website: https://isnotalone.de
-## X-License: MIT
+## X-License: All Rights Reserved
 
 # Interface 16001 ist gemessen (WoW: Forever Beta, Build 1.60.1, 18.09.2026).
 # Kein Flavor-Suffix im Dateinamen: die unsuffigierte .toc laedt in jeder Linie.
