@@ -198,7 +198,10 @@ function HighlightFrame:AttachMarker(unit, result)
     if plate.IsForbidden and plate:IsForbidden() then return end
     local marker = self:CreateMarker()
     marker:ClearAllPoints()
-    if not pcall(marker.SetPoint, marker, "BOTTOM", plate, "TOP", 0, 26) then return end
+    -- NAEHER AM OBJEKT (06.10.2026): mitten auf dem Schild, wo das Symbol des
+    -- Spiels sass — das ist ausgeblendet, der Platz frei. Vorher 26 Pixel
+    -- ueber dem Schild.
+    if not pcall(marker.SetPoint, marker, "CENTER", plate, "CENTER", 0, 0) then return end
 
     local first = result.lines[1] or {}
     local node = result.node
