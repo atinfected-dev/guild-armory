@@ -2,7 +2,7 @@
 
 ## 0.1.41
 
-In progress.
+Gathering markers: ore veins work now. Measured on WoW: Forever: "Poor Copper Vein" is a Forever-only vein whose ID no vanilla table knows — the marker never appeared because the addon only knew vanilla IDs. Herbs and veins are now recognised by name as well ("… Vein", "… Deposit", "… Ader", "… Vorkommen", and the known herb names, with prefixes like "Poor"), in English and German, and the skill needed comes from the metal or herb in the name; where it cannot be told, the marker shows "?" in light blue instead of a number. /ga probe softinteract also logs the professions as read and, per marked object, its ID, table entry and what the addon makes of it.
 
 ## 0.1.40
 

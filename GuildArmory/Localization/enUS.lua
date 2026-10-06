@@ -1362,6 +1362,7 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_OPEN   = "Show chat",
     NAV_RAIDPLAN       = "Raid Plan",
     RP_IMPORT          = "Import",
+    HL_NEEDS_UNKNOWN   = "%s ?",
     SET_HIDE_GAME_ICON = "Hide the game's interact icon",
     SET_HIDE_GAME_ICON_HINT = "Makes the game's own soft-interact icon above objects invisible, so only Guild Armory's marker shows. The object stays marked and the gather key still works. Switch off to see the game's icon again.",
     SET_GATHER_KEY     = "Gather key",

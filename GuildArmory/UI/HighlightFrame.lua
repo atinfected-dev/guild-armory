@@ -27,7 +27,7 @@ GA.UI.HighlightFrame = HighlightFrame
 local Theme = GA.UI.Theme
 
 local COLORS = {
-    red = { 1, 0.25, 0.2 }, orange = { 1, 0.5, 0.15 }, yellow = { 1, 0.85, 0.1 },
+    red = { 1, 0.25, 0.2 }, orange = { 1, 0.5, 0.15 }, yellow = { 1, 0.85, 0.1 }, unknown = { 0.6, 0.8, 1 },
     green = { 0.3, 0.9, 0.3 }, gray = { 0.6, 0.6, 0.6 }, quest = { 1, 0.82, 0.1 },
 }
 
@@ -227,7 +227,7 @@ function HighlightFrame:AttachMarker(unit, result)
         end
     end
     for _, tex in ipairs(marker.halo.layers) do tex:SetVertexColor(c[1], c[2], c[3], 1) end
-    marker.text:SetText(node and string.match(first.text or "", "%d+") or "")
+    marker.text:SetText(node and (string.match(first.text or "", "%d+") or "?") or "")
     marker.text:SetTextColor(c[1], c[2], c[3])
     marker.unit = unit
     marker:Show()

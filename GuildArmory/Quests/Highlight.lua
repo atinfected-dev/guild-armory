@@ -120,6 +120,8 @@ Highlight.HERBALISM, Highlight.MINING = 182, 186
 
 --- [Objektkennung] = { Fertigkeitslinie, noetige Stufe }
 Highlight.NODES = {
+    -- Forever-eigene Adern (gemessen 06.10.2026): "Poor Copper Vein".
+    [562111] = { 186, 1 },
     -- Kraeuterkunde
     [1618] = { 182, 1 }, [1617] = { 182, 1 }, [1619] = { 182, 15 }, [1620] = { 182, 50 },
     [1621] = { 182, 70 }, [2045] = { 182, 85 }, [1622] = { 182, 100 }, [1623] = { 182, 115 },
@@ -134,6 +136,65 @@ Highlight.NODES = {
     [2040] = { 186, 175 }, [2047] = { 186, 230 }, [165658] = { 186, 230 }, [324] = { 186, 245 },
     [175404] = { 186, 275 },
 }
+
+-- ================================================================ Nach Namen --
+--
+-- FOREVER HAT EIGENE ADERN UND KRAEUTER (gemessen 06.10.2026: "Poor Copper
+-- Vein", Kennung 562111 — in keiner Vanilla-Tabelle). Eine Tabelle von
+-- Kennungen ist deshalb nie vollstaendig. Kennt das Addon die Kennung
+-- nicht, bestimmt es Beruf und Stufe ueber den NAMEN: Adern heissen
+-- "… Vein", "… Deposit", "… Ader", "… Vorkommen"; Kraeuter tragen ihren
+-- bekannten Namen, auch mit Vorsatz ("Poor Silverleaf"). Die Stufe kommt
+-- vom Metall oder Kraut im Namen — fehlt beides, bleibt sie offen ("?").
+-- Englisch und Deutsch, weil Objektnamen uebersetzt sind.
+
+local MINING_WORDS = { "vein", "deposit", "lode", "ader", "vorkommen" }
+--- In dieser Reihenfolge: das Laengere vor dem Kuerzeren ("dark iron" vor
+--- "iron", "truesilver" vor "silver", "rich thorium" vor "thorium").
+local METALS = {
+    { "rich thorium", 275 }, { "reiches thorium", 275 }, { "small thorium", 245 }, { "kleines thorium", 245 },
+    { "thorium", 245 }, { "dark iron", 230 }, { "dunkeleisen", 230 }, { "truesilver", 230 }, { "echtsilber", 230 },
+    { "mithril", 175 }, { "gold", 155 }, { "indurium", 150 }, { "iron", 125 }, { "eisen", 125 },
+    { "lesser bloodstone", 75 }, { "silver", 75 }, { "silber", 75 }, { "incendicite", 65 },
+    { "tin", 65 }, { "zinn", 65 }, { "copper", 1 }, { "kupfer", 1 },
+}
+local HERBS = {
+    { "peacebloom", 1 }, { "friedensblume", 1 }, { "silverleaf", 1 }, { "silberblatt", 1 },
+    { "earthroot", 15 }, { "erdwurzel", 15 }, { "mageroyal", 50 }, { "maguskönigskraut", 50 },
+    { "briarthorn", 70 }, { "wilddornrose", 70 }, { "stranglekelp", 85 }, { "würgetang", 85 },
+    { "bruiseweed", 100 }, { "beulengras", 100 }, { "wild steelbloom", 115 }, { "wildstahlblume", 115 },
+    { "grave moss", 120 }, { "grabmoos", 120 }, { "kingsblood", 125 }, { "königsblut", 125 },
+    { "liferoot", 150 }, { "lebenswurz", 150 }, { "fadeleaf", 160 }, { "blassblatt", 160 },
+    { "goldthorn", 170 }, { "golddorn", 170 }, { "khadgar's whisker", 185 }, { "khadgars schnurrbart", 185 },
+    { "wintersbite", 195 }, { "winterbiss", 195 }, { "firebloom", 205 }, { "feuerblüte", 205 },
+    { "purple lotus", 210 }, { "lila lotus", 210 }, { "arthas' tears", 220 }, { "arthas' tränen", 220 },
+    { "sungrass", 230 }, { "sonnengras", 230 }, { "blindweed", 235 }, { "blindkraut", 235 },
+    { "ghost mushroom", 245 }, { "geisterpilz", 245 }, { "gromsblood", 250 }, { "gromsblut", 250 },
+    { "golden sansam", 260 }, { "goldener sansam", 260 }, { "dreamfoil", 270 }, { "traumblatt", 270 },
+    { "mountain silversage", 280 }, { "bergsilbersalbei", 280 }, { "plaguebloom", 285 }, { "pestblüte", 285 },
+    { "icecap", 290 }, { "eiskappe", 290 }, { "black lotus", 300 }, { "schwarzer lotus", 300 },
+}
+
+--- Beruf und Stufe aus dem Objektnamen.
+--- @return table|nil { linie, stufe|nil }
+function Highlight.ClassifyName(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    local lower = string.lower(name)
+    -- Kraeuter zuerst: "Silverleaf" enthaelt "silver", "Mountain Silversage"
+    -- auch — ein Kraut ist aber nie eine Ader.
+    for _, herb in ipairs(HERBS) do
+        if string.find(lower, herb[1], 1, true) then return { Highlight.HERBALISM, herb[2] } end
+    end
+    local mining = false
+    for _, word in ipairs(MINING_WORDS) do
+        if string.find(lower, word, 1, true) then mining = true break end
+    end
+    if not mining then return nil end
+    for _, metal in ipairs(METALS) do
+        if string.find(lower, metal[1], 1, true) then return { Highlight.MINING, metal[2] } end
+    end
+    return { Highlight.MINING, nil }
+end
 
 --- "GameObject-0-4621-1-35165-1617-…" -> "GameObject", 1617
 function Highlight.ParseGUID(guid)
@@ -170,7 +231,8 @@ function Highlight.Assess(guid, name, professions, quests)
     local L = GA.L
     local out = { name = name, lines = {}, wanted = false }
 
-    local node = id and Highlight.NODES[id]
+    -- Kennung bekannt — sonst der Name (Forever hat eigene Adern).
+    local node = (id and Highlight.NODES[id]) or Highlight.ClassifyName(name)
     -- NUR WAS DU KANNST (06.10.2026): Ohne Bergbau keine Erzadern, ohne
     -- Kraeuterkunde keine Kraeuter. Kann der Client die Berufe nicht nennen
     -- (nil), wird gezeigt — lieber eine Erzader zu viel als gar nichts.
@@ -179,15 +241,24 @@ function Highlight.Assess(guid, name, professions, quests)
         local line, required = node[1], node[2]
         local profName = line == Highlight.HERBALISM and L.HL_HERBALISM or L.HL_MINING
         local rank = professions and professions[line]
-        local color = Highlight.SkillColor(rank, required)
-        local text = string.format(L.HL_NEEDS, profName, required)
-        if professions and not rank then
-            text = text .. "  " .. L.HL_NOT_LEARNED
-        elseif rank and rank < required then
-            text = text .. "  " .. string.format(L.HL_YOU_HAVE, rank)
+        local color, text
+        if required then
+            color = Highlight.SkillColor(rank, required)
+            text = string.format(L.HL_NEEDS, profName, required)
+            if professions and not rank then
+                text = text .. "  " .. L.HL_NOT_LEARNED
+            elseif rank and rank < required then
+                text = text .. "  " .. string.format(L.HL_YOU_HAVE, rank)
+            end
+            out.wanted = rank ~= nil and rank >= required
+        else
+            -- Stufe unbekannt: Das Spiel markiert nur, was man benutzen kann —
+            -- mit dem Beruf gilt es als brauchbar.
+            color = "unknown"
+            text = string.format(L.HL_NEEDS_UNKNOWN, profName)
+            out.wanted = rank ~= nil
         end
         out.lines[#out.lines + 1] = { text = text, color = color }
-        out.wanted = rank ~= nil and rank >= required
         out.node = line
     end
 
@@ -424,7 +495,10 @@ function Highlight.NodeInfo()
     if node then
         parts[#parts + 1] = "tabelle=" .. (node[1] == Highlight.HERBALISM and "Kraut" or "Erz") .. ":" .. node[2]
     else
-        parts[#parts + 1] = "tabelle=UNBEKANNT"
+        local okN, nm = pcall(_G.UnitName or function() end, "softinteract")
+        local byName = Highlight.ClassifyName(okN and nm or nil)
+        parts[#parts + 1] = "tabelle=UNBEKANNT" .. (byName and (" name=" .. (byName[1] == Highlight.HERBALISM and "Kraut" or "Erz")
+            .. ":" .. tostring(byName[2] or "?")) or " name=kein Treffer")
     end
     local okName, name = pcall(_G.UnitName or function() end, "softinteract")
     local result = Highlight.Assess(guid, okName and name or nil, readProfessions(), nil)

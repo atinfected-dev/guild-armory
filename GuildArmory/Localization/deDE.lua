@@ -1348,6 +1348,7 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_OPEN   = "Chat zeigen",
     NAV_RAIDPLAN       = "Raidplan",
     RP_IMPORT          = "Importieren",
+    HL_NEEDS_UNKNOWN   = "%s ?",
     SET_HIDE_GAME_ICON = "Symbol des Spiels ausblenden",
     SET_HIDE_GAME_ICON_HINT = "Macht das Soft-Interact-Symbol des Spiels über Objekten unsichtbar, damit nur das Zeichen von Guild Armory zu sehen ist. Das Objekt bleibt markiert, die Sammeln-Taste funktioniert weiter. Ausschalten zeigt das Symbol des Spiels wieder.",
     SET_GATHER_KEY     = "Sammeln-Taste",
