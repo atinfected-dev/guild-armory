@@ -119,6 +119,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local value = tonumber(rest)
         if value then Debug:Info(L.SLASH_SCALE_SET, MainFrame:SetScale(value))
         else Debug:Info(L.SLASH_SCALE_CURRENT, GA.Core.Config:GetUI("main").scale or 1) end
+    elseif command == "resetwindow" or command == "fenster" then
+        -- Fuer ein Fenster, das niemand mehr greifen kann (06.10.2026).
+        MainFrame:ResetWindow()
+        MainFrame:Show()
+        Debug:Info(L.SLASH_WINDOW_RESET)
     elseif command == "debug" then
         if rest ~= "" then Debug:ToggleChannel(rest) else Debug:Toggle() end
     elseif command == "language" or command == "sprache" then

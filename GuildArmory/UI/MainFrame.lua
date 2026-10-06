@@ -146,6 +146,12 @@ function MainFrame:Create()
     end
     self.frame = frame
 
+    -- NIE GROESSER ALS DER BILDSCHIRM (Fehlerbericht 06.10.2026: Fenster so
+    -- gross aufgezogen, dass nur ein Viertel zu sehen war; Aufloesung,
+    -- UI-Skalierung, Neuinstallation halfen nicht — die Groesse liegt in den
+    -- SavedVariables unter WTF). Beim Laden wird eingepasst, der Griff hat
+    -- eine Hoechstgroesse, und /ga resetwindow setzt alles zurueck.
+    self:FitToScreen(saved)
     frame:SetWidth(saved.width)
     frame:SetHeight(saved.height)
     frame:SetPoint(saved.point, UIParent, saved.point, saved.x, saved.y)
@@ -174,8 +180,10 @@ function MainFrame:Create()
     end)
 
     frame:SetResizable(true)
-    if not pcall(frame.SetResizeBounds, frame, 860, 540) then
-        pcall(frame.SetMinResize, frame, 860, 540)
+    local maxW, maxH = self:MaxSize(saved.scale or 1)
+    if not pcall(frame.SetResizeBounds, frame, math.min(860, maxW), math.min(540, maxH), maxW, maxH) then
+        pcall(frame.SetMinResize, frame, math.min(860, maxW), math.min(540, maxH))
+        pcall(frame.SetMaxResize, frame, maxW, maxH)
     end
 
     local insets
@@ -736,6 +744,45 @@ function MainFrame:SavePosition()
     saved.y = math.floor((y or 0) + 0.5)
     saved.width = math.floor(self.frame:GetWidth() + 0.5)
     saved.height = math.floor(self.frame:GetHeight() + 0.5)
+end
+
+--- Die groesste Fenstergroesse, die bei dieser Skalierung ganz auf den
+--- Bildschirm passt (mit etwas Rand).
+function MainFrame:MaxSize(scale)
+    scale = tonumber(scale) or 1
+    local w = (UIParent and UIParent:GetWidth() or 1920) / scale
+    local h = (UIParent and UIParent:GetHeight() or 1080) / scale
+    return math.floor(w * 0.96), math.floor(h * 0.94)
+end
+
+--- Passt die gespeicherte Groesse und Skalierung an den Bildschirm an.
+--- Wurde etwas geaendert, kommt das Fenster in die Mitte.
+--- @return boolean geaendert
+function MainFrame:FitToScreen(saved)
+    local changed = false
+    local scale = math.max(0.6, math.min(1.4, tonumber(saved.scale) or 1))
+    if scale ~= saved.scale then saved.scale = scale changed = true end
+    local maxW, maxH = self:MaxSize(scale)
+    local w, h = tonumber(saved.width) or 1000, tonumber(saved.height) or 640
+    if w > maxW or w < 200 then saved.width = math.min(1000, maxW) changed = true end
+    if h > maxH or h < 200 then saved.height = math.min(640, maxH) changed = true end
+    if changed then saved.point, saved.x, saved.y = "CENTER", 0, 0 end
+    return changed
+end
+
+--- Groesse, Position und Skalierung auf die Grundwerte.
+function MainFrame:ResetWindow()
+    local saved = Config:GetUI("main")
+    saved.width, saved.height, saved.scale = 1000, 640, 1.0
+    saved.point, saved.x, saved.y = "CENTER", 0, 0
+    self:FitToScreen(saved)
+    if self.frame then
+        self.frame:SetScale(saved.scale)
+        self.frame:ClearAllPoints()
+        self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        self.frame:SetWidth(saved.width)
+        self.frame:SetHeight(saved.height)
+    end
 end
 
 function MainFrame:SetScale(scale)

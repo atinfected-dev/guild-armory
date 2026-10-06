@@ -4,6 +4,10 @@
 
 Roster: Whisper and Invite in the right-click menu used the name with the realm ("Hoffi Sin-ClassicBetaPvE2"), which the game does not find on WoW: Forever — "Cannot find player". They use the plain name now, like the buttons in the member panel.
 
+Window too big to reach: the main window could be dragged larger than the screen, and the size was kept in the saved variables — after that only a corner was visible and the resize grip out of reach; resolution, UI scale and reinstalling did not help. The window now never loads larger than the screen (it is fitted and centred), the grip has a maximum size, and /ga resetwindow (or the new button) puts size, position and scale back to normal.
+
+Settings › About (new): feedback and bug reports — a button copies the link to the addon's CurseForge page for comments; the window reset; the version.
+
 ## 0.1.36
 
 Talent window: a paladin's talents fell apart into twelve trees ("Tree 3" to "Tree 12"). One talent sat a few units beside its column, and the window took that tiny offset for the grid step, so every ordinary column gap looked like the edge of a tree. The grid step now ignores such strays; the paladin shows Holy, Protection and Retribution again.

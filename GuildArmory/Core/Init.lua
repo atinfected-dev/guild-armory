@@ -44,6 +44,9 @@ GA.const = {
 
     -- Praefix fuer Addon-Nachrichten. Maximal 16 Zeichen.
     COMM_PREFIX = "GuildArmory",
+    -- Wo man Fehler meldet und Wuensche schreibt: die Kommentare auf
+    -- CurseForge (die Projektnummer fuehrt immer auf die Seite).
+    FEEDBACK_URL = "https://www.curseforge.com/projects/1704444",
 
     -- Kopfzeile von Export-Strings. Formatversion, nicht Addon-Version.
     EXPORT_PREFIX = "GA1:",

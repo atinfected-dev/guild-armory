@@ -45,6 +45,7 @@ local SECTIONS = {
     { key = "notify",   title = "SET_NOTIFY",   sub = "SET_SUB_NOTIFY" },
     { key = "loot",     title = "SET_LOOT",     sub = "SET_SUB_LOOT" },
     { key = "data",     title = "SET_DATA",     sub = "SET_SUB_DATA" },
+    { key = "about",    title = "SET_ABOUT",    sub = "SET_SUB_ABOUT" },
 }
 
 -- ================================================================== Zeilen ----
@@ -512,6 +513,28 @@ function Settings:Create(parent)
     end })
     self.rowSync = makeRow(data, { label = L.SET_SYNC_ROW, hint = "" })
     self.rowStats = makeRow(data, { label = L.SET_CLIENT, hint = "" })
+    -- ------------------------------------------------------------ Ueber ---
+    -- Kontakt und Hilfe (06.10.2026: "baut eine Kontaktart ein" — ein Spieler
+    -- wollte einen Fehler melden und fand keinen Weg).
+    local about = self.pages.about
+    makeRow(about, { label = L.SET_FEEDBACK, hint = L.SET_FEEDBACK_HINT, build = function(row)
+        local button = Widgets.Button(row, L.SET_FEEDBACK_BTN, function()
+            Widgets.CopyDialog(L.SET_FEEDBACK, GA.const.FEEDBACK_URL)
+        end, "primary")
+        button:SetHeight(20)
+        button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        return function() return 28 end
+    end })
+    makeRow(about, { label = L.SET_WINDOW_RESET, hint = L.SET_WINDOW_RESET_HINT, build = function(row)
+        local button = Widgets.Button(row, L.SET_WINDOW_RESET_BTN, function()
+            GA.UI.MainFrame:ResetWindow()
+        end)
+        button:SetHeight(20)
+        button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        return function() return 28 end
+    end })
+    makeRow(about, { label = L.SET_ABOUT_VERSION, hint = string.format(L.SET_ABOUT_VERSION_HINT, tostring(GA.version)) })
+
     -- Sammlerbetrieb: eine Einstellung fuer genau einen Client, nicht fuer
     -- jeden Spieler — deshalb hier unten.
     self.rowCollector = makeRow(data, { label = L.SET_COLLECTOR, hint = "", control = "switch",
