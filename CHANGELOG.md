@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.40
+
+In progress.
+
 ## 0.1.39
 
 Guild › Guild Bank (new): what is in stock in the guild bank. The game only hands the contents out while someone has the bank open at a guild vault, so whoever opens it has their addon read every tab they may see and share the stock with the guild — everyone then sees it, with when and by whom it was read and the gold in the bank. Tabs as chips (All or one tab), a search, item counts with the tabs they lie in, item tooltips on hover. Settings › Data has "Share the guild bank with the guild" (on by default) for anyone who wants to keep what they read to themselves.
