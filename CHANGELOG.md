@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.41
+
+In progress.
+
 ## 0.1.40
 
 Own ready check: when a ready check starts, a small window under the reminder display tells you what concerns you — and only then; when nothing is missing, nothing appears. It shows the "before the pull" hints of the next boss in the raid plan (resistance gear, potions — meant for everyone or only for some, like reminders; the next boss is the first one in the plan not yet killed today), durability below 30 %, missing enchants on back, chest, wrists, hands, feet and weapons, and a missing flask or elixir. Only your own character is read and nothing is sent, so it keeps working under the new restrictions. It goes away 15 seconds after the ready check, when combat starts, or with the X. /ga ready shows it any time (/ga ready 2 or /ga ready sapphiron for a given boss). Settings › On screen has switches for the window, the enchant check and the flask check. In the raid plan editor each boss has a "Before the pull" field (one hint per line, [role:tank] in front for some only), and the plan page shows them with the boss.
