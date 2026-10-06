@@ -469,6 +469,28 @@ function Settings:Create(parent)
     makeHeading(onscreen, L.SET_H_GATHER)
     self.rowHighlight = makeRow(onscreen, { label = L.SET_HIGHLIGHT, hint = L.SET_HIGHLIGHT_HINT, control = "switch",
         set = function(on) GA.Modules.Highlight:SetEnabled(on) end })
+    -- Reichweite: einstellbar, weil nicht gemessen ist, ob Forever mehr als 20 annimmt.
+    makeRow(onscreen, { label = L.SET_HIGHLIGHT_RANGE, hint = L.SET_HIGHLIGHT_RANGE_HINT, build = function(row)
+        local function step(delta)
+            local H = GA.Modules.Highlight
+            local range, accepted, now = H:SetRange(H.Range() + delta)
+            if accepted == false then GA.Core.Debug:Warn(L.HL_RANGE_REFUSED, range, tostring(now)) end
+            Settings:Refresh()
+        end
+        Settings.rangeValue = Theme.Label(row, "", fonts.body, Theme.color.goldMid)
+        Settings.rangeValue:SetPoint("RIGHT", row, "RIGHT", -18, 0)
+        local more = Widgets.Button(row, "+", function() step(GA.Modules.Highlight.RANGE_STEP) end)
+        more:SetWidth(24) more:SetHeight(20)
+        more:SetPoint("RIGHT", Settings.rangeValue, "LEFT", -10, 0)
+        local less = Widgets.Button(row, "-", function() step(-GA.Modules.Highlight.RANGE_STEP) end)
+        less:SetWidth(24) less:SetHeight(20)
+        less:SetPoint("RIGHT", more, "LEFT", -4, 0)
+        return function() return 0 end
+    end })
+    self.rowHighlightHints = makeRow(onscreen, { label = L.SET_HIGHLIGHT_HINTS, hint = L.SET_HIGHLIGHT_HINTS_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("highlightHints", on) if not on then GA.UI.HighlightFrame:Show(nil) end end })
+    self.rowHighlightSound = makeRow(onscreen, { label = L.SET_HIGHLIGHT_SOUND, hint = L.SET_HIGHLIGHT_SOUND_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("highlightSound", on) end })
 
     makeHeading(onscreen, L.SET_H_GUILDCHAT)
     -- DIESER SCHALTER SCHREIBT IN DEN GILDENCHAT: Wer ihn anstellt, soll
@@ -712,6 +734,9 @@ function Settings:Refresh()
     self.rowReminderSound.switch:SetChecked(Config:Get("raidReminderSound") ~= false)
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
     self.rowHighlight.switch:SetChecked(Config:Get("objectHighlight") == true)
+    self.rowHighlightHints.switch:SetChecked(Config:Get("highlightHints") ~= false)
+    self.rowHighlightSound.switch:SetChecked(Config:Get("highlightSound") == true)
+    if self.rangeValue then self.rangeValue:SetText(string.format(L.HL_RANGE_VALUE, GA.Modules.Highlight.Range())) end
     self.rowReadyEnchants.switch:SetChecked(Config:Get("readyEnchants") ~= false)
     self.rowReadyConsumables.switch:SetChecked(Config:Get("readyConsumables") ~= false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)

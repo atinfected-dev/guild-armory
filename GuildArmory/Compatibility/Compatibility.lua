@@ -1219,7 +1219,9 @@ function Compat.ParseGUID(guid)
 
     local kind = string.match(guid, "^(%a+)%-")
     if not kind then return nil end
-    if kind == "Creature" or kind == "Vehicle" or kind == "Pet" then
+    -- GameObject hat dasselbe Feld (gemessen 06.10.2026: "GameObject-0-4621-
+    -- 1-35165-1617-…", 1617 = Silberblatt) — die Objektkennung.
+    if kind == "Creature" or kind == "Vehicle" or kind == "Pet" or kind == "GameObject" then
         local npcID = string.match(guid, "^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
         return kind, tonumber(npcID)
     end
@@ -1242,6 +1244,10 @@ function Compat.GetLootSource(slot)
     if not ok or type(guid) ~= "string" then return nil end
 
     local kind, npcID = Compat.ParseGUID(guid)
+    -- Eine Truhe ist kein NPC: Seit ParseGUID auch Objektkennungen liefert
+    -- (06.10.2026), bleibt die NPC-Kennung hier bei Objekten leer — sonst
+    -- stuende in Statistik und Export "NPC 1617".
+    if kind ~= "Creature" and kind ~= "Vehicle" and kind ~= "Pet" then npcID = nil end
     local name
     -- Compat.SameGUID statt "==": Der Rueckgabewert von UnitGUID ist auf
     -- diesem Client verschleiert, und schon der Vergleich wirft.

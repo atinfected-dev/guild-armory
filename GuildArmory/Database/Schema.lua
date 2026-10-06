@@ -276,6 +276,11 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Kraeutern, Erz, Questobjekten. Aus, bis jemand es will — es
         -- aendert Spieleinstellungen.
         objectHighlight = false,
+        objectHighlightRange = 20,
+        -- Hinweis zum markierten Objekt (Beruf, Quest) und ein Ton, wenn
+        -- man es brauchen kann.
+        highlightHints = true,
+        highlightSound = false,
         readyEnchants = true,
         readyConsumables = true,
 
