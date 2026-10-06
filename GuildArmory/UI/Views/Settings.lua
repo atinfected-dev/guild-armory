@@ -527,6 +527,11 @@ function Settings:Create(parent)
     end })
     self.rowHighlightMarker = makeRow(onscreen, { label = L.SET_HIGHLIGHT_MARKER, hint = L.SET_HIGHLIGHT_MARKER_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("highlightMarker", on) if not on then GA.UI.HighlightFrame:DetachMarker() end end })
+    self.rowHideGameIcon = makeRow(onscreen, { label = L.SET_HIDE_GAME_ICON, hint = L.SET_HIDE_GAME_ICON_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("highlightHideGameIcon", on)
+            if not on then GA.UI.HighlightFrame:RestoreAllGameIcons() end
+        end })
     self.rowHighlightSound = makeRow(onscreen, { label = L.SET_HIGHLIGHT_SOUND, hint = L.SET_HIGHLIGHT_SOUND_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("highlightSound", on) end })
 
@@ -773,6 +778,7 @@ function Settings:Refresh()
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
     self.rowHighlight.switch:SetChecked(Config:Get("objectHighlight") == true)
     self.rowHighlightMarker.switch:SetChecked(Config:Get("highlightMarker") ~= false)
+    self.rowHideGameIcon.switch:SetChecked(Config:Get("highlightHideGameIcon") ~= false)
     if self.gatherKeyButton and not self.capturingKey then
         local key = GA.Core.Compat.GetBindingKey(GA.Modules.Highlight.INTERACT_ACTION)
         self.gatherKeyButton:SetLabel(string.format(L.SET_GATHER_KEY_BTN, key or L.SET_GATHER_KEY_NONE))

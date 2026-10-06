@@ -289,12 +289,17 @@ end
 --- Ein Namensschild ist erschienen.
 --- @return table|nil das Ergebnis, das am Schild gezeigt wird
 function Highlight:OnPlateAdded(unit)
-    if GA.Core.Config:Get("highlightMarker") == false then return nil end
     if type(unit) ~= "string" or not _G.UnitGUID then return nil end
     local ok, guid = pcall(_G.UnitGUID, unit)
     if not ok or not guid then return nil end
     local kind = Highlight.ParseGUID(guid)
     if kind ~= "GameObject" then return nil end
+    -- Jedes Objekt-Schild — fuer das Ausblenden des Spielsymbols, auch dort,
+    -- wo kein eigenes Zeichen hinkommt.
+    self.objectPlates = self.objectPlates or {}
+    self.objectPlates[unit] = true
+    GA.Core.Callbacks:Fire("HIGHLIGHT_OBJECT_PLATE", unit)
+    if GA.Core.Config:Get("highlightMarker") == false then return nil end
     local result = self.currentResult
     if guid ~= self.currentGUID or not result then
         local okName, name = pcall(_G.UnitName or function() end, unit)
@@ -308,6 +313,10 @@ function Highlight:OnPlateAdded(unit)
 end
 
 function Highlight:OnPlateRemoved(unit)
+    if self.objectPlates and self.objectPlates[unit] then
+        self.objectPlates[unit] = nil
+        GA.Core.Callbacks:Fire("HIGHLIGHT_OBJECT_PLATE_GONE", unit)
+    end
     if not self.plates or not self.plates[unit] then return end
     self.plates[unit] = nil
     GA.Core.Callbacks:Fire("HIGHLIGHT_PLATE_GONE", unit)
@@ -380,7 +389,23 @@ function Highlight.PlateInfo()
     if type(api) ~= "table" or type(api.GetNamePlateForUnit) ~= "function" then return "<keine API>" end
     local ok, plate = pcall(api.GetNamePlateForUnit, "softinteract")
     if not ok then return "<Fehler>" end
-    return plate and "ja" or "nein"
+    if not plate then return "nein" end
+    -- Der Aufbau des Schilds: wo sitzt das Symbol des Spiels? (06.10.2026)
+    local keys = {}
+    local function scan(prefix, frame)
+        if type(frame) ~= "table" then return end
+        for key, value in pairs(frame) do
+            if type(key) == "string" and type(value) == "table" and type(value.GetObjectType) == "function"
+                and string.find(string.lower(key), "soft", 1, true) then
+                local okType, kind = pcall(value.GetObjectType, value)
+                keys[#keys + 1] = prefix .. key .. "(" .. (okType and tostring(kind) or "?") .. ")"
+            end
+        end
+    end
+    scan("", plate)
+    scan("UnitFrame.", plate.UnitFrame)
+    local icon = GA.UI.HighlightFrame and GA.UI.HighlightFrame.GameIcon(plate)
+    return "ja  soft=[" .. table.concat(keys, ", ") .. "]  symbol=" .. (icon and "gefunden" or "NICHT gefunden")
 end
 
 function Highlight:Log(line)

@@ -1362,6 +1362,8 @@ GA.Core.Locale:Register("enUS", {
     ROSTER_CHAT_OPEN   = "Show chat",
     NAV_RAIDPLAN       = "Raid Plan",
     RP_IMPORT          = "Import",
+    SET_HIDE_GAME_ICON = "Hide the game's interact icon",
+    SET_HIDE_GAME_ICON_HINT = "Makes the game's own soft-interact icon above objects invisible, so only Guild Armory's marker shows. The object stays marked and the gather key still works. Switch off to see the game's icon again.",
     SET_GATHER_KEY     = "Gather key",
     SET_GATHER_KEY_HINT = "Puts a key on the game's own \"Interact with target\" action. With the highlight on, it gathers the marked herb or ore, opens the marked chest — one key, no clicking. Click the button, then press the key (with Shift/Ctrl/Alt if you like); ESC cancels. Not in combat.",
     SET_GATHER_KEY_BTN = "Key: %s",

@@ -105,6 +105,54 @@ function HighlightFrame:CreateMarker()
     return marker
 end
 
+-- ========================================================== Spielsymbol ---
+--
+-- BLIZZARDS SYMBOL AUSBLENDEN (06.10.2026: "kannst du das Softinteract-
+-- Symbol komplett ausblenden?"). Nicht ueber die Spieleinstellung: Das
+-- Namensschild entsteht vermutlich gerade WEGEN des Symbols (gemessen: es
+-- kommt auch mit SoftTargetNameplateInteract=0) — ohne Symbol kein Schild,
+-- ohne Schild kein eigenes Zeichen. Stattdessen wird das Symbol auf DIESEM
+-- Schild unsichtbar, solange unser Zeichen daran haengt, und beim Abhaengen
+-- wieder sichtbar: Schilder werden vom Spiel wiederverwendet.
+--
+-- WO ES SITZT, IST AUF FOREVER NICHT GEMESSEN. Versucht werden die Stellen,
+-- an denen Retail es fuehrt; /ga probe softinteract schreibt den Aufbau des
+-- Schilds mit, falls keine passt.
+
+--- Das Symbol des Spiels am Schild — oder nil.
+function HighlightFrame.GameIcon(plate)
+    local uf = plate and plate.UnitFrame
+    for _, frame in ipairs({ uf and uf.SoftTargetFrame, plate and plate.SoftTargetFrame,
+                             uf and uf.softTargetFrame }) do
+        if type(frame) == "table" and type(frame.SetAlpha) == "function" then return frame end
+    end
+    return nil
+end
+
+--- [unit] = das versteckte Symbol, damit es beim Abhaengen zurueckkommt.
+local hidden = {}
+
+function HighlightFrame:HideGameIcon(unit)
+    if GA.Core.Config:Get("highlightHideGameIcon") == false then return end
+    local api = _G.C_NamePlate
+    if type(api) ~= "table" or type(api.GetNamePlateForUnit) ~= "function" then return end
+    local ok, plate = pcall(api.GetNamePlateForUnit, unit)
+    if not ok or not plate or (plate.IsForbidden and plate:IsForbidden()) then return end
+    local icon = HighlightFrame.GameIcon(plate)
+    if icon and pcall(icon.SetAlpha, icon, 0) then hidden[unit] = icon end
+end
+
+function HighlightFrame:RestoreGameIcon(unit)
+    local icon = hidden[unit]
+    if icon then pcall(icon.SetAlpha, icon, 1) end
+    hidden[unit] = nil
+end
+
+--- Alle wieder sichtbar (Schalter aus).
+function HighlightFrame:RestoreAllGameIcons()
+    for unit in pairs(hidden) do self:RestoreGameIcon(unit) end
+end
+
 --- Haengt das Zeichen an das Namensschild. Ein geschuetztes Schild (in
 --- Instanzen) bleibt unberuehrt.
 function HighlightFrame:AttachMarker(unit, result)
@@ -157,5 +205,7 @@ function HighlightFrame:DetachMarker(unit)
     marker.unit = nil
 end
 
+GA.Core.Callbacks:On("HIGHLIGHT_OBJECT_PLATE", function(unit) HighlightFrame:HideGameIcon(unit) end, "HighlightFrame")
+GA.Core.Callbacks:On("HIGHLIGHT_OBJECT_PLATE_GONE", function(unit) HighlightFrame:RestoreGameIcon(unit) end, "HighlightFrame")
 GA.Core.Callbacks:On("HIGHLIGHT_PLATE", function(unit, result) HighlightFrame:AttachMarker(unit, result) end, "HighlightFrame")
 GA.Core.Callbacks:On("HIGHLIGHT_PLATE_GONE", function(unit) HighlightFrame:DetachMarker(unit) end, "HighlightFrame")

@@ -1348,6 +1348,8 @@ GA.Core.Locale:Register("deDE", {
     ROSTER_CHAT_OPEN   = "Chat zeigen",
     NAV_RAIDPLAN       = "Raidplan",
     RP_IMPORT          = "Importieren",
+    SET_HIDE_GAME_ICON = "Symbol des Spiels ausblenden",
+    SET_HIDE_GAME_ICON_HINT = "Macht das Soft-Interact-Symbol des Spiels über Objekten unsichtbar, damit nur das Zeichen von Guild Armory zu sehen ist. Das Objekt bleibt markiert, die Sammeln-Taste funktioniert weiter. Ausschalten zeigt das Symbol des Spiels wieder.",
     SET_GATHER_KEY     = "Sammeln-Taste",
     SET_GATHER_KEY_HINT = "Legt eine Taste auf Blizzards Aktion „Mit Ziel interagieren“. Mit eingeschalteter Markierung baut sie das markierte Kraut oder Erz ab, öffnet die markierte Truhe — eine Taste, kein Klicken. Knopf drücken, dann die Taste (gern mit Umschalt/Strg/Alt); ESC bricht ab. Nicht im Kampf.",
     SET_GATHER_KEY_BTN = "Taste: %s",

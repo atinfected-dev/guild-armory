@@ -281,6 +281,9 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Eigenes Zeichen am Namensschild des Objekts (gemessen: das Spiel
         -- legt fuer markierte Objekte eines an).
         highlightMarker = true,
+        -- Blizzards Soft-Interact-Symbol am Schild unsichtbar, solange unser
+        -- Zeichen daran haengt.
+        highlightHideGameIcon = true,
         highlightSound = false,
         readyEnchants = true,
         readyConsumables = true,
