@@ -277,9 +277,7 @@ Schema.ACCOUNT_DEFAULTS = {
         -- aendert Spieleinstellungen.
         objectHighlight = false,
         objectHighlightRange = 20,
-        -- Hinweis zum markierten Objekt (Beruf, Quest) und ein Ton, wenn
-        -- man es brauchen kann.
-        highlightHints = true,
+        -- Ein Ton, wenn man das markierte Objekt brauchen kann.
         -- Eigenes Zeichen am Namensschild des Objekts (gemessen: das Spiel
         -- legt fuer markierte Objekte eines an).
         highlightMarker = true,

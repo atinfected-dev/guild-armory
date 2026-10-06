@@ -101,7 +101,7 @@ end
 -- UnitExists ist fuer Objekte false — das ist kein Fehler, Objekte sind
 -- keine Einheiten.
 --
--- Daraus wird ein kleiner Hinweis unter der Bildmitte:
+-- Daraus wird, was das Zeichen am Objekt zeigt (UI/HighlightFrame):
 --   * Kraut oder Erz: die noetige Berufsstufe, gefaerbt wie im Spiel
 --     (rot: noch nicht, orange/gelb/gruen: steigert, grau: nicht mehr),
 --     und ob dein Beruf reicht.
@@ -220,7 +220,6 @@ Highlight.LINGER = 5
 local SOUND_QUIET = 60
 
 function Highlight:OnSoftInteract(newGUID)
-    if GA.Core.Config:Get("highlightHints") == false then return end
     if not newGUID or not Compat.IsReadable(newGUID) then
         -- MARKIERUNG WEG — DER HINWEIS BLEIBT NOCH EIN WENIG. Gemessen: Sie
         -- flackert beim Laufen mehrmals je Sekunde ab und wieder an. Kommt

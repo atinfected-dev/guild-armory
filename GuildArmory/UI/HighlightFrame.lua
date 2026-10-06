@@ -1,10 +1,22 @@
 --[[----------------------------------------------------------------------------
-    UI/HighlightFrame — der Hinweis zum markierten Objekt (06.10.2026).
+    UI/HighlightFrame — das eigene Zeichen am markierten Objekt (06.10.2026).
     Die Logik steht in Quests/Highlight.
 
-    Unter der Bildmitte, ohne Hintergrund: oben der Name des Objekts, darunter
-    je eine Zeile fuer Beruf und Quest. Er steht, solange das Objekt markiert
-    ist, und geht, sobald es das nicht mehr ist. Er faengt keine Klicks.
+    Gemessen: Fuer das markierte Objekt legt das Spiel ein Namensschild an.
+    Daran haengt dieses Zeichen und wandert mit dem Objekt in der Welt mit —
+    ueber dem Symbol des Spiels: Berufssymbol mit einem Rahmen in der Farbe
+    der Stufe, darunter die Stufe, bei einem Questobjekt ein gelbes "!".
+    Dahinter ein pulsierender Schein in derselben Farbe.
+
+    EIN LEUCHTEN UM DAS OBJEKT SELBST GEHT NICHT: Die Umrandung, die das
+    Spiel um anvisierte Einheiten und Objekte zeichnet (graphicsOutlineMode),
+    loest nur das Spiel aus — fuer Ziel und Mauszeiger. Ein Addon kommt an
+    die 3D-Welt nicht heran. Der Schein liegt deshalb um das Zeichen, das
+    direkt ueber dem Objekt haengt.
+
+    Den Texthinweis unter der Bildmitte gab es kurz (06.10.2026); er stand
+    zu Fuessen der Figur und ist wieder weg ("der Text am Spieler muss weg").
+    Was er sagte, sagt jetzt das Zeichen.
 ------------------------------------------------------------------------------]]
 
 local _, GA = ...
@@ -12,10 +24,17 @@ local _, GA = ...
 local HighlightFrame = {}
 GA.UI.HighlightFrame = HighlightFrame
 
-local LINES = 3
+local Theme = GA.UI.Theme
+
 local COLORS = {
     red = { 1, 0.25, 0.2 }, orange = { 1, 0.5, 0.15 }, yellow = { 1, 0.85, 0.1 },
     green = { 0.3, 0.9, 0.3 }, gray = { 0.6, 0.6, 0.6 }, quest = { 1, 0.82, 0.1 },
+}
+
+local MARKER_ICON = {
+    [182] = [[Interface\Icons\Spell_Nature_NatureTouchGrow]],   -- Kraeuterkunde
+    [186] = [[Interface\Icons\Trade_Mining]],                   -- Bergbau
+    quest = [[Interface\GossipFrame\AvailableQuestIcon]],
 }
 
 local function font(name, size)
@@ -26,65 +45,6 @@ local function font(name, size)
     return object
 end
 
-function HighlightFrame:Create()
-    if self.frame then return self.frame end
-    local frame = CreateFrame("Frame", "GuildArmoryObjectHint", UIParent)
-    frame:SetSize(420, 20 + LINES * 18)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
-    frame:SetFrameStrata("MEDIUM")
-    frame:EnableMouse(false)
-    frame:Hide()
-    frame.name = frame:CreateFontString(nil, "OVERLAY")
-    frame.name:SetFontObject(font("GuildArmoryObjectHintName", 16))
-    frame.name:SetPoint("TOP", frame, "TOP", 0, 0)
-    frame.lines = {}
-    for i = 1, LINES do
-        local line = frame:CreateFontString(nil, "OVERLAY")
-        line:SetFontObject(font("GuildArmoryObjectHintLine" .. i, 13))
-        line:SetPoint("TOP", i == 1 and frame.name or frame.lines[i - 1], "BOTTOM", 0, -3)
-        line:SetWidth(420)
-        line:SetWordWrap(false)
-        frame.lines[i] = line
-    end
-    self.frame = frame
-    return frame
-end
-
-function HighlightFrame:Show(result)
-    if not result then
-        if self.frame then self.frame:Hide() end
-        return
-    end
-    local frame = self:Create()
-    frame.name:SetText(result.name or "")
-    frame.name:SetTextColor(1, 1, 1)
-    for i = 1, LINES do
-        local item = result.lines[i]
-        if item then
-            local c = COLORS[item.color] or COLORS.gray
-            frame.lines[i]:SetText(item.text)
-            frame.lines[i]:SetTextColor(c[1], c[2], c[3])
-            frame.lines[i]:Show()
-        else
-            frame.lines[i]:Hide()
-        end
-    end
-    frame:Show()
-end
-
--- ================================================================ Zeichen ---
---
--- Das eigene Zeichen am Namensschild des Objekts (Quests/Highlight). Ueber
--- dem Symbol des Spiels: Berufssymbol mit einem Rahmen in der Farbe der
--- Stufe, darunter die Stufe — bei einem Questobjekt ein gelbes Ausrufe-
--- zeichen. Die Bilder sind die des Spiels, ueber ihren Pfad.
-
-local MARKER_ICON = {
-    [182] = [[Interface\Icons\Spell_Nature_NatureTouchGrow]],   -- Kraeuterkunde
-    [186] = [[Interface\Icons\Trade_Mining]],                   -- Bergbau
-    quest = [[Interface\GossipFrame\AvailableQuestIcon]],
-}
-
 function HighlightFrame:CreateMarker()
     if self.marker then return self.marker end
     local marker = CreateFrame("Frame", "GuildArmoryObjectMarker", UIParent)
@@ -92,7 +52,36 @@ function HighlightFrame:CreateMarker()
     marker:SetFrameStrata("LOW")
     marker:EnableMouse(false)
     marker:Hide()
-    marker.border = marker:CreateTexture(nil, "BACKGROUND")
+
+    -- Der Schein: eigene weiche Textur (Media/Glow), additiv, hinter dem
+    -- Symbol. Ein eigener Rahmen, damit nur er pulsiert und das Symbol ruhig
+    -- bleibt.
+    local halo = CreateFrame("Frame", nil, marker)
+    halo:SetPoint("CENTER", marker, "CENTER", 0, 0)
+    halo:SetSize(110, 110)
+    halo:SetFrameLevel(math.max(0, marker:GetFrameLevel() - 1))
+    halo.tex = halo:CreateTexture(nil, "BACKGROUND")
+    halo.tex:SetAllPoints(halo)
+    local glow = Theme.Media("glow")
+    if glow and pcall(halo.tex.SetTexture, halo.tex, glow) then
+        pcall(halo.tex.SetBlendMode, halo.tex, "ADD")
+    else
+        halo.tex:Hide()
+    end
+    if halo.CreateAnimationGroup then
+        local group = halo:CreateAnimationGroup()
+        group:SetLooping("BOUNCE")
+        local fade = group:CreateAnimation("Alpha")
+        fade:SetFromAlpha(1) fade:SetToAlpha(0.45) fade:SetDuration(0.9)
+        local grow = group:CreateAnimation("Scale")
+        if grow.SetScaleFrom then grow:SetScaleFrom(0.85, 0.85) grow:SetScaleTo(1.1, 1.1)
+        elseif grow.SetFromScale then grow:SetFromScale(0.85, 0.85) grow:SetToScale(1.1, 1.1) end
+        grow:SetDuration(0.9)
+        halo.pulse = group
+    end
+    marker.halo = halo
+
+    marker.border = marker:CreateTexture(nil, "BORDER")
     marker.border:SetPoint("TOPLEFT", marker, "TOPLEFT", -2, 2)
     marker.border:SetPoint("BOTTOMRIGHT", marker, "BOTTOMRIGHT", 2, -2)
     marker.icon = marker:CreateTexture(nil, "ARTWORK")
@@ -100,14 +89,6 @@ function HighlightFrame:CreateMarker()
     marker.text = marker:CreateFontString(nil, "OVERLAY")
     marker.text:SetFontObject(font("GuildArmoryObjectMarkerText", 12))
     marker.text:SetPoint("TOP", marker, "BOTTOM", 0, -2)
-    -- Ein sanftes Pulsieren: Es soll ins Auge fallen, nicht blinken.
-    if marker.CreateAnimationGroup then
-        local group = marker:CreateAnimationGroup()
-        group:SetLooping("BOUNCE")
-        local fade = group:CreateAnimation("Alpha")
-        fade:SetFromAlpha(1) fade:SetToAlpha(0.55) fade:SetDuration(0.8)
-        marker.pulse = group
-    end
     self.marker = marker
     return marker
 end
@@ -134,23 +115,23 @@ function HighlightFrame:AttachMarker(unit, result)
         marker.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
     local c = COLORS[first.color] or COLORS.gray
-    marker.border:SetColorTexture(c[1], c[2], c[3], 0.95)
+    Theme.Paint(marker.border, { c[1], c[2], c[3], 0.95 })
+    marker.halo.tex:SetVertexColor(c[1], c[2], c[3], 0.9)
     marker.text:SetText(node and string.match(first.text or "", "%d+") or "")
     marker.text:SetTextColor(c[1], c[2], c[3])
     marker.unit = unit
     marker:Show()
-    if marker.pulse then marker.pulse:Play() end
+    if marker.halo.pulse then marker.halo.pulse:Play() end
 end
 
 function HighlightFrame:DetachMarker(unit)
     local marker = self.marker
     if not marker or (unit and marker.unit ~= unit) then return end
-    if marker.pulse then marker.pulse:Stop() end
+    if marker.halo.pulse then marker.halo.pulse:Stop() end
     marker:Hide()
     marker:ClearAllPoints()
     marker.unit = nil
 end
 
-GA.Core.Callbacks:On("HIGHLIGHT_HINT", function(result) HighlightFrame:Show(result) end, "HighlightFrame")
 GA.Core.Callbacks:On("HIGHLIGHT_PLATE", function(unit, result) HighlightFrame:AttachMarker(unit, result) end, "HighlightFrame")
 GA.Core.Callbacks:On("HIGHLIGHT_PLATE_GONE", function(unit) HighlightFrame:DetachMarker(unit) end, "HighlightFrame")
