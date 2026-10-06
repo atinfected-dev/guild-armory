@@ -423,6 +423,15 @@ function View:Refresh()
             end
             note = (note ~= "" and (note .. "\n") or "") .. "|cff8a8a8a" .. table.concat(ph, "  ·  ") .. "|r"
         end
+        -- Vor dem Pull: was beim Ready Check erscheint.
+        if #(boss.prepull or {}) > 0 then
+            local pre = {}
+            for _, item in ipairs(boss.prepull) do
+                local to = (#item.to == 1 and item.to[1] == "all") and "" or (" (" .. Plans.TargetText(item) .. ")")
+                pre[#pre + 1] = Plans.RenderText(item.text) .. to
+            end
+            note = (note ~= "" and (note .. "\n") or "") .. "|cffffd100" .. L.RP_PREPULL .. ":|r " .. table.concat(pre, "  ·  ")
+        end
         self.note:SetText(note)
         for _, r in ipairs(boss.reminders) do rows[#rows + 1] = { reminder = r, mine = Plans.Matches(r, me) } end
         if editing then rows[#rows + 1] = { add = true } end
@@ -707,6 +716,7 @@ local BOSS_FIELDS = {
     { key = "name",   label = L.RP_F_BOSS },
     { key = "id",     label = L.RP_F_ENCOUNTER, hint = L.RP_F_ENCOUNTER_HINT },
     { key = "phases", label = L.RP_F_PHASES, kind = "multiline", height = 50, hint = L.RP_F_PHASES_HINT },
+    { key = "prepull", label = L.RP_F_PREPULL, kind = "multiline", height = 50, hint = L.RP_F_PREPULL_HINT },
     { key = "note",   label = L.RP_F_NOTE, kind = "multiline", height = 80 },
 }
 
@@ -718,6 +728,7 @@ function View:EditBoss(src)
     Widgets.FormDialog("rpBoss", boss and (boss.name or L.RP_BOSSES) or L.RP_ADD_BOSS, BOSS_FIELDS, {
         name = boss and boss.name, id = boss and boss.encounterID,
         phases = boss and plans().PhasesToText(boss.phases), note = boss and boss.note,
+        prepull = boss and plans().PrepullToText(boss.prepull),
     }, function(v)
         local name = Util.Trim(v.name or "") or ""
         local idText = Util.Trim(tostring(v.id or "")) or ""
@@ -726,10 +737,13 @@ function View:EditBoss(src)
         if name == "" and not id then return false, L.RP_ERR_BOSS end
         local phases, badLine = plans().ParsePhases(v.phases)
         if not phases then return false, string.format(L.RP_ERR_PHASES, badLine) end
+        local prepull, badPrepull = plans().ParsePrepull(v.prepull)
+        if not prepull then return false, string.format(L.RP_ERR_PREPULL, tostring(badPrepull)) end
         local target = boss or { reminders = {} }
         target.name = name ~= "" and name or nil
         target.encounterID = id
         target.phases = phases
+        target.prepull = prepull
         target.note = Util.Trim(v.note or "") ~= "" and v.note or nil
         if not boss then
             raw.bosses[#raw.bosses + 1] = target

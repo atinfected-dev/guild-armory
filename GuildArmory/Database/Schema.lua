@@ -265,6 +265,12 @@ Schema.ACCOUNT_DEFAULTS = {
         raidReminders = true,
         raidReminderSound = true,
 
+        -- Ready Check fuer sich selbst (06.10.2026): Vor-dem-Pull-Hinweise
+        -- des Plans, Haltbarkeit, Verzauberungen, Flaeschchen/Elixier.
+        readyCheck = true,
+        readyEnchants = true,
+        readyConsumables = true,
+
         -- Look des Addons (05.10.2026): "forge" = eigene Schmiede-Texturen
         -- (Entwurf B), "blizzard" = Blizzards Fenstervorlagen wie bisher.
         uiLook = "forge",

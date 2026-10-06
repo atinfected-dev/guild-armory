@@ -273,7 +273,20 @@ local function normalizeBoss(raw, warnings)
     local name = clean(raw.name, 80)
     if not id and not name then warnings.noBoss = (warnings.noBoss or 0) + 1 return nil end
     local boss = { encounterID = id and math.floor(id) or nil, name = name, note = clean(raw.note, 2000, true),
-        phases = {}, reminders = {} }
+        phases = {}, reminders = {}, prepull = {} }
+    -- Vor dem Pull (06.10.2026): Hinweise, die beim Ready Check erscheinen —
+    -- "Frostresistenz anziehen", "Feuerschutztrank". Ein Text, eine Liste von
+    -- Texten oder { text, to } wie bei Erinnerungen.
+    local prepull = raw.prepull
+    if type(prepull) == "string" then prepull = { prepull } end
+    if type(prepull) == "table" then
+        for _, item in ipairs(prepull) do
+            if #boss.prepull >= 10 then break end
+            local text = clean(type(item) == "table" and item.text or item, 200)
+            local to = selectors(type(item) == "table" and item.to or "all")
+            if text and #to > 0 then boss.prepull[#boss.prepull + 1] = { text = text, to = to } end
+        end
+    end
     -- Phase 1 beginnt mit dem Pull; spaetere zur geschaetzten Zeit.
     local phaseStart = { [1] = 0 }
     if type(raw.phases) == "table" then
@@ -519,6 +532,18 @@ function RaidPlan.ToRaw(plan)
         for _, name in ipairs(plan.groups[g] or {}) do display[RaidPlan.NameKey(name)] = name end
     end
     for _, name in ipairs(plan.bench or {}) do display[RaidPlan.NameKey(name)] = display[RaidPlan.NameKey(name)] or name end
+    -- Ziele zurueck in die Schreibweise der Rohform.
+    local function displayTargets(list)
+        local to = {}
+        for _, sel in ipairs(list or {}) do
+            local kind, value = string.match(sel, "^(%a+):(.+)$")
+            if sel == "all" then to[#to + 1] = "all"
+            elseif kind == "name" then to[#to + 1] = display[value] or value
+            elseif kind == "class" then to[#to + 1] = "class:" .. string.upper(value)
+            else to[#to + 1] = sel end
+        end
+        return to
+    end
 
     local raw = {
         format = RaidPlan.FORMAT, version = RaidPlan.VERSION, id = plan.id, rev = plan.rev, updated = plan.updated,
@@ -533,7 +558,8 @@ function RaidPlan.ToRaw(plan)
     for key, role in pairs(plan.roles or {}) do raw.roles[display[key] or key] = role end
     for i, name in ipairs(plan.bench or {}) do raw.bench[i] = name end
     for _, boss in ipairs(plan.bosses or {}) do
-        local b = { encounterID = boss.encounterID, name = boss.name, note = boss.note, phases = {}, reminders = {} }
+        local b = { encounterID = boss.encounterID, name = boss.name, note = boss.note, phases = {}, reminders = {},
+            prepull = {} }
         for i, p in ipairs(boss.phases or {}) do b.phases[i] = { phase = p.phase, at = p.at, name = p.name } end
         -- In der Reihenfolge der Rohform, nicht nach Zeit sortiert: Der Editor
         -- haengt Neues hinten an, und src muss danach noch stimmen.
@@ -541,21 +567,49 @@ function RaidPlan.ToRaw(plan)
         for _, r in ipairs(boss.reminders or {}) do reminders[#reminders + 1] = r end
         table.sort(reminders, function(x, y) return (x.src or 0) < (y.src or 0) end)
         for _, r in ipairs(reminders) do
-            local to = {}
-            for _, sel in ipairs(r.to or {}) do
-                local kind, value = string.match(sel, "^(%a+):(.+)$")
-                if sel == "all" then to[#to + 1] = "all"
-                elseif kind == "name" then to[#to + 1] = display[value] or value
-                elseif kind == "class" then to[#to + 1] = "class:" .. string.upper(value)
-                else to[#to + 1] = sel end
-            end
+            local to = displayTargets(r.to)
             b.reminders[#b.reminders + 1] = { at = r.at, phase = r.phase, text = r.text, spell = r.spell, to = to,
                 marker = r.marker and RaidPlan.MARKER_NAMES[r.marker] or nil,
                 lead = r.lead, dur = r.dur, level = r.level, sound = r.sound }
         end
+        for _, item in ipairs(boss.prepull or {}) do
+            b.prepull[#b.prepull + 1] = { text = item.text, to = displayTargets(item.to) }
+        end
         raw.bosses[#raw.bosses + 1] = b
     end
     return raw
+end
+
+--- Vor-dem-Pull-Hinweise als Text: je Zeile ein Hinweis, Ziele in eckigen
+--- Klammern davor ("[role:tank] Frostresistenz-Set"). Ohne Klammern: alle.
+function RaidPlan.PrepullToText(list)
+    local lines = {}
+    for _, item in ipairs(list or {}) do
+        local to = item.to or { "all" }
+        local prefix = (#to == 1 and to[1] == "all") and "" or ("[" .. table.concat(to, ", ") .. "] ")
+        lines[#lines + 1] = prefix .. (item.text or "")
+    end
+    return table.concat(lines, "\n")
+end
+
+--- @return table|nil liste, string|nil fehlerhafte Zeile
+function RaidPlan.ParsePrepull(text)
+    local out = {}
+    for line in string.gmatch(tostring(text or "") .. "\n", "([^\n]*)\n") do
+        line = Util.Trim(line) or ""
+        if line ~= "" then
+            local targets, rest = string.match(line, "^%[(.-)%]%s*(.*)$")
+            local to = { "all" }
+            if targets then
+                to = RaidPlan.ParseTargets(targets)
+                if not to then return nil, line end
+                line = rest
+            end
+            if line == "" then return nil, targets end
+            out[#out + 1] = { text = line, to = to }
+        end
+    end
+    return out
 end
 
 --- Ein leerer Plan, gleich mit acht leeren Gruppen.

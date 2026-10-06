@@ -144,6 +144,17 @@ SlashCmdList["GUILDARMORY"] = function(input)
         else
             Debug:Info("%s", L.RP_REMINDER_HELP)
         end
+    elseif command == "ready" or command == "bereit" then
+        -- Der eigene Ready Check, jederzeit (06.10.2026). Mit Boss:
+        -- Listennummer, Kennung oder Name im aktiven Plan.
+        local boss
+        local entry = GA.Modules.RaidPlan:Active()
+        if rest ~= "" and entry then
+            local n = tonumber(rest)
+            boss = (n and entry.plan.bosses[n]) or GA.Modules.RaidPlan.FindBoss(entry.plan, n, rest)
+            if not boss then Debug:Warn(L.RP_REMINDER_NOBOSS, rest) end
+        end
+        GA.Modules.ReadyCheck:Run({ force = true, boss = boss })
     elseif command == "arrange" or command == "ordnen" then
         -- Raid nach dem aktiven Raidplan ordnen (06.10.2026) — als Makro
         -- fuer den Raidleiter, ohne das Fenster zu oeffnen.

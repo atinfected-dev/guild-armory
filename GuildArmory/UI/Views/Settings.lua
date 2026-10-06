@@ -437,6 +437,14 @@ function Settings:Create(parent)
         set = function(on) GA.Core.Config:Set("raidReminders", on) end })
     self.rowReminderSound = makeRow(onscreen, { label = L.SET_REMINDER_SOUND, hint = L.SET_REMINDER_SOUND_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("raidReminderSound", on) end })
+    -- Ready Check fuer sich selbst (06.10.2026).
+    self.rowReady = makeRow(onscreen, { label = L.SET_READY, hint = L.SET_READY_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyCheck", on) end })
+    self.rowReadyEnchants = makeRow(onscreen, { label = L.SET_READY_ENCHANTS, hint = L.SET_READY_ENCHANTS_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyEnchants", on) end })
+    self.rowReadyConsumables = makeRow(onscreen, { label = L.SET_READY_CONSUMABLES, hint = L.SET_READY_CONSUMABLES_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("readyConsumables", on) end })
+
     -- Verschieben und Testen ohne Boss (06.10.2026).
     makeRow(onscreen, { label = L.SET_REMINDER_PLACE, hint = L.SET_REMINDER_PLACE_HINT, build = function(row)
         local move = Widgets.Button(row, L.SET_REMINDER_MOVE_BTN, function() GA.UI.ReminderFrame:ToggleUnlocked() end)
@@ -645,6 +653,9 @@ function Settings:Refresh()
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
     self.rowReminders.switch:SetChecked(Config:Get("raidReminders") ~= false)
     self.rowReminderSound.switch:SetChecked(Config:Get("raidReminderSound") ~= false)
+    self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)
+    self.rowReadyEnchants.switch:SetChecked(Config:Get("readyEnchants") ~= false)
+    self.rowReadyConsumables.switch:SetChecked(Config:Get("readyConsumables") ~= false)
     self.rowDiscordBot.switch:SetChecked(Config:Get("discordBot") and true or false)
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end

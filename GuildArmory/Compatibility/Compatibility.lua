@@ -298,6 +298,16 @@ function Compat.IsArrangeBlocked()
     return false
 end
 
+--- Haltbarkeit eines eigenen Ausruestungsplatzes. nil, wenn der Platz keine
+--- hat (Ringe, Schmuck) oder leer ist.
+--- @return number|nil aktuell, number|nil hoechstens
+function Compat.GetDurability(slot)
+    if not isFunction(_G.GetInventoryItemDurability) then return nil end
+    local ok, cur, max = pcall(_G.GetInventoryItemDurability, slot)
+    if not ok or not Compat.IsReadableNumber(cur) or not Compat.IsReadableNumber(max) or max <= 0 then return nil end
+    return cur, max
+end
+
 --- Sekunden mit Bruchteil, fuer Countdowns (Uhr des Clients, nicht des Servers).
 function Compat.GetTime()
     if isFunction(_G.GetTime) then return GetTime() end
