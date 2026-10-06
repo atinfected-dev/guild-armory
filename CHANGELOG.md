@@ -2,7 +2,7 @@
 
 ## 0.1.38
 
-In progress.
+Guild Armory has a Discord: https://discord.gg/uVq98htFnA — for bug reports, suggestions and questions; we are happy about every idea. Settings › About now links there (bug reports & suggestions) and explains how to request the Dungeonhub bot for your own guild's Discord; the Discord bot option in the settings points there too.
 
 ## 0.1.37
 
