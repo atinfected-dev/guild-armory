@@ -206,7 +206,7 @@ function HighlightFrame:AttachMarker(unit, result)
     local questMark = not node and first.color == "quest" and Theme.Media("questmark")
     if questMark then
         -- Das "!" steht frei, ohne Rahmen: hoch statt quadratisch.
-        marker:SetSize(28, 56)
+        marker:SetSize(20, 40)   -- etwas kleiner (06.10.2026), vorher 28x56
         marker.icon:SetTexture(questMark)
         marker.icon:SetTexCoord(0, 1, 0, 1)
         marker.border:Hide()
