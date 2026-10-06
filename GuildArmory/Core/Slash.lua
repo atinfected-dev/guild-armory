@@ -38,6 +38,7 @@ local VIEWS = {
     overview = "dashboard", uebersicht = "dashboard",
     guild = "armory", gilde = "armory",
     equipment = "armory", ausruestung = "armory",
+    raidplan = "raidplan", plan = "raidplan",
 }
 
 local pendingReset
@@ -119,6 +120,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
         local value = tonumber(rest)
         if value then Debug:Info(L.SLASH_SCALE_SET, MainFrame:SetScale(value))
         else Debug:Info(L.SLASH_SCALE_CURRENT, GA.Core.Config:GetUI("main").scale or 1) end
+    elseif command == "arrange" or command == "ordnen" then
+        -- Raid nach dem aktiven Raidplan ordnen (06.10.2026) — als Makro
+        -- fuer den Raidleiter, ohne das Fenster zu oeffnen.
+        local ok, why = GA.Modules.RaidPlan:Arrange()
+        if not ok then Debug:Warn(L["RP_ARRANGE_" .. string.upper(tostring(why))] or tostring(why)) end
     elseif command == "resetwindow" or command == "fenster" then
         -- Fuer ein Fenster, das niemand mehr greifen kann (06.10.2026).
         MainFrame:ResetWindow()

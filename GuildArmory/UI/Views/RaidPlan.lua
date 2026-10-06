@@ -92,6 +92,8 @@ function View:Create(parent)
     self.deleteButton:SetPoint("RIGHT", self.importButton, "LEFT", -6, 0)
     self.shareButton = Widgets.Button(bar, L.RP_SHARE, function() View:ShareActive() end)
     self.shareButton:SetPoint("RIGHT", self.deleteButton, "LEFT", -6, 0)
+    self.arrangeButton = Widgets.Button(bar, L.RP_ARRANGE, function() View:Arrange() end, "primary")
+    self.arrangeButton:SetPoint("RIGHT", self.shareButton, "LEFT", -12, 0)
 
     self.status = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
     self.status:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 2, -6)
@@ -171,9 +173,11 @@ function View:Create(parent)
     self.empty:SetSpacing(3)
     self.empty:Hide()
 
-    GA.Core.Callbacks:On("RAIDPLAN_CHANGED", function()
-        if View.frame and View.frame:IsVisible() then View:Refresh() end
-    end, "RaidPlanView")
+    for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE" }) do
+        GA.Core.Callbacks:On(name, function()
+            if View.frame and View.frame:IsVisible() then View:Refresh() end
+        end, "RaidPlanView")
+    end
 
     self.frame = frame
     return frame
@@ -254,6 +258,8 @@ function View:Refresh()
     self.bossPanel:SetShown(has)
     self.deleteButton:SetEnabledState(has)
     self.shareButton:SetEnabledState(has and entry.wire ~= nil)
+    local problem = Plans.arranging and "running" or Plans:ArrangeProblem()
+    self.arrangeButton:SetEnabledState(problem == nil, problem and L["RP_ARRANGE_" .. string.upper(problem)] or nil)
     if not has then
         self.picker:SetDisplay(nil)
         self.status:SetText("")
@@ -274,6 +280,12 @@ function View:Refresh()
     parts[#parts + 1] = string.format(L.RP_COUNTS, sum.players, sum.bosses, sum.reminders)
     if me.group then parts[#parts + 1] = "|cffffd100" .. string.format(L.RP_YOU, me.group) .. "|r"
     else parts[#parts + 1] = L.RP_YOU_NOT end
+    -- Im Raid: Plan gegen Aufstellung.
+    local roster = GA.Core.Compat.GetRaidRoster()
+    local cmp = #roster > 0 and Plans.Compare(plan, roster) or nil
+    if cmp then
+        parts[#parts + 1] = string.format(L.RP_INRAID, cmp.placed, cmp.placed + cmp.wrong + #cmp.missing)
+    end
     self.status:SetText(table.concat(parts, "  ·  "))
 
     -- Gruppen
@@ -285,9 +297,14 @@ function View:Refresh()
             if name then
                 local role = plan.roles[Plans.NameKey(name)]
                 local roleText = role and (" |cff8a8a8a" .. (L["RP_ROLE_" .. string.upper(role)] or role) .. "|r") or ""
-                line:SetText((Plans.NameKey(name) == myKey and "> " or "") .. name .. roleText)
+                -- Im Raid: wer fehlt, wer woanders steht.
+                local where = ""
+                local member = cmp and cmp.byKey[Plans.NameKey(name)]
+                if cmp and not member then where = " |cffff5050" .. L.RP_MISSING_TAG .. "|r"
+                elseif member and member.group ~= g then where = " |cffffd100" .. string.format(L.RP_NOW_IN, member.group) .. "|r" end
+                line:SetText((Plans.NameKey(name) == myKey and "> " or "") .. name .. roleText .. where)
                 local class = classOf(name)
-                if class then line:SetTextColor(Theme.ClassColor(class))
+                if class and not (cmp and not member) then line:SetTextColor(Theme.ClassColor(class))
                 else line:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3]) end
             else
                 line:SetText("")
@@ -296,7 +313,12 @@ function View:Refresh()
         local title = string.format(L.RP_GROUP, g)
         box.title:SetText(g == me.group and ("|cffffd100" .. title .. "|r") or title)
     end
-    self.bench:SetText(#plan.bench > 0 and string.format(L.RP_BENCH, table.concat(plan.bench, ", ")) or "")
+    local benchLines = {}
+    if #plan.bench > 0 then benchLines[#benchLines + 1] = string.format(L.RP_BENCH, table.concat(plan.bench, ", ")) end
+    if cmp and #cmp.extras > 0 then
+        benchLines[#benchLines + 1] = "|cffffd100" .. string.format(L.RP_EXTRAS, table.concat(cmp.extras, ", ")) .. "|r"
+    end
+    self.bench:SetText(table.concat(benchLines, "\n"))
 
     -- Bosse
     local list = {}
@@ -342,6 +364,12 @@ function View:OpenImport()
         View:Refresh()
         return true
     end)
+end
+
+function View:Arrange()
+    local ok, why = plans():Arrange()
+    if not ok then GA.Core.Debug:Warn(L["RP_ARRANGE_" .. string.upper(tostring(why))] or tostring(why)) end
+    View:Refresh()
 end
 
 function View:ShareActive()

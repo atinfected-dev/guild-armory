@@ -599,6 +599,179 @@ function RaidPlan:Request()
     return GA.Core.Comm:Send("RPREQ", { self:Inventory() }, "GUILD", nil, true) and true or false
 end
 
+-- ================================================================ Ordnen ----
+--
+-- Schritt 3 (06.10.2026): den Schlachtzug nach den Gruppen des Plans ordnen.
+--
+-- EIN ZUG, DANN WARTEN: Das Spiel nimmt eine Umstellung an, meldet sie mit
+-- GROUP_ROSTER_UPDATE, und erst dann stimmt die Aufstellung, aus der der
+-- naechste Zug gerechnet wird. Mehrere Zuege auf einmal rechnen mit einer
+-- Aufstellung, die es nicht mehr gibt.
+--
+-- JEDER ZUG SETZT EINEN AN SEINEN PLATZ, UND WER RICHTIG STEHT, WIRD NIE
+-- MEHR BEWEGT. Damit endet es sicher: hoechstens ein Zug je Mitglied.
+--
+-- Wer nicht im Plan steht, bleibt, wo er ist — ausser er steht auf einem
+-- Platz, den der Plan braucht; dann wird er weggetauscht.
+
+local ARRANGE_WAIT = 1.5     -- so lange wird auf die Bestaetigung gewartet
+local ARRANGE_MAX = 60       -- Sicherheitsnetz gegen einen Kreisel
+local ARRANGE_REPEAT = 3     -- derselbe Zug so oft ohne Wirkung: aufgeben
+
+--- Plan gegen Schlachtzug: wer fehlt, wer zu viel ist, wer falsch steht.
+--- @param roster table aus Compat.GetRaidRoster
+function RaidPlan.Compare(plan, roster)
+    local target = {}
+    for g = 1, 8 do
+        for _, name in ipairs(plan.groups[g] or {}) do target[RaidPlan.NameKey(name)] = g end
+    end
+    local out = { members = {}, missing = {}, extras = {}, wrong = 0, placed = 0, byKey = {} }
+    local present = {}
+    for _, m in ipairs(roster or {}) do
+        local key = RaidPlan.NameKey(m.name)
+        if key then
+            present[key] = true
+            local entry = { index = m.index, name = Util.ShortName(m.name), key = key, group = m.group, target = target[key] }
+            out.members[#out.members + 1] = entry
+            out.byKey[key] = entry
+            if not entry.target then out.extras[#out.extras + 1] = entry.name
+            elseif entry.target == entry.group then out.placed = out.placed + 1
+            else out.wrong = out.wrong + 1 end
+        end
+    end
+    for g = 1, 8 do
+        for _, name in ipairs(plan.groups[g] or {}) do
+            if not present[RaidPlan.NameKey(name)] then out.missing[#out.missing + 1] = { name = name, group = g } end
+        end
+    end
+    return out
+end
+
+--- Der naechste Zug, oder nil, wenn alle, die da sind, richtig stehen.
+--- @return table|nil { kind = "set", index, group, name } | { kind = "swap", a, b, name, other }
+function RaidPlan.NextMove(plan, roster)
+    local cmp = RaidPlan.Compare(plan, roster)
+    local count, inGroup = {}, {}
+    for g = 1, 8 do count[g], inGroup[g] = 0, {} end
+    for _, m in ipairs(cmp.members) do
+        if count[m.group] then
+            count[m.group] = count[m.group] + 1
+            table.insert(inGroup[m.group], m)
+        end
+    end
+    for _, m in ipairs(cmp.members) do
+        local T = m.target
+        if T and T ~= m.group then
+            if count[T] < 5 then
+                return { kind = "set", index = m.index, group = T, name = m.name }, cmp
+            end
+            -- Tauschpartner in der Zielgruppe: wer dort nicht hingehoert —
+            -- am liebsten jemand, der genau in meine Gruppe soll, dann wer
+            -- gar nicht im Plan steht, dann jeder andere Falsche.
+            local best, bestScore
+            for _, y in ipairs(inGroup[T]) do
+                if y.target ~= T then
+                    local score = (y.target == m.group) and 3 or (y.target == nil and 2 or 1)
+                    if not best or score > bestScore then best, bestScore = y, score end
+                end
+            end
+            if best then
+                return { kind = "swap", a = m.index, b = best.index, name = m.name, other = best.name, group = T }, cmp
+            end
+        end
+    end
+    return nil, cmp
+end
+
+--- Warum gerade nicht geordnet werden kann — oder nil.
+function RaidPlan:ArrangeProblem()
+    if not self:Active() then return "noplan" end
+    if not Compat.IsInRaid() then return "noraid" end
+    if not Compat.CanArrangeRaid() then return "norights" end
+    if Compat.IsArrangeBlocked() then return "combat" end
+    return nil
+end
+
+--- Startet das Ordnen nach dem aktiven Plan.
+--- @return boolean gestartet, string|nil grund
+function RaidPlan:Arrange()
+    local problem = self:ArrangeProblem()
+    if problem then return false, problem end
+    self.arranging = { planId = self:Active().plan.id, moves = 0, steps = 0, token = 0 }
+    GA.Core.Callbacks:Fire("RAIDPLAN_ARRANGE", "start")
+    self:ArrangeStep()
+    return true
+end
+
+function RaidPlan:StopArrange(reason, cmp)
+    local job = self.arranging
+    if not job then return end
+    self.arranging = nil
+    self.lastArrange = { reason = reason, moves = job.moves, missing = cmp and cmp.missing or {}, at = Util.Now() }
+    local L = GA.L
+    if reason == "done" then
+        local missing = {}
+        for _, m in ipairs(cmp and cmp.missing or {}) do missing[#missing + 1] = m.name end
+        Debug:Info(L.RP_ARRANGED, job.moves)
+        if #missing > 0 then Debug:Info(L.RP_ARRANGE_MISSING, table.concat(missing, ", ")) end
+    else
+        Debug:Warn(L["RP_ARRANGE_" .. string.upper(reason)] or reason)
+    end
+    GA.Core.Callbacks:Fire("RAIDPLAN_ARRANGE", reason)
+end
+
+--- Ein Zug. Danach wird auf GROUP_ROSTER_UPDATE gewartet (oder ARRANGE_WAIT).
+function RaidPlan:ArrangeStep()
+    local job = self.arranging
+    if not job then return end
+    local entry = store()[job.planId]
+    if not entry then return self:StopArrange("noplan") end
+    if not Compat.IsInRaid() then return self:StopArrange("noraid") end
+    if not Compat.CanArrangeRaid() then return self:StopArrange("norights") end
+    if Compat.IsArrangeBlocked() then return self:StopArrange("combat") end
+
+    local move, cmp = RaidPlan.NextMove(entry.plan, Compat.GetRaidRoster())
+    if not move then return self:StopArrange("done", cmp) end
+
+    job.steps = job.steps + 1
+    if job.steps > ARRANGE_MAX then return self:StopArrange("stuck", cmp) end
+    local key = move.kind .. ":" .. tostring(move.index or move.a) .. ":" .. tostring(move.group or move.b)
+    if key == job.lastKey then
+        job.repeats = (job.repeats or 0) + 1
+        if job.repeats >= ARRANGE_REPEAT then return self:StopArrange("stuck", cmp) end
+    else
+        job.lastKey, job.repeats = key, 0
+        job.moves = job.moves + 1
+    end
+
+    local ok
+    if move.kind == "set" then ok = Compat.SetRaidSubgroup(move.index, move.group)
+    else ok = Compat.SwapRaidSubgroup(move.a, move.b) end
+    if not ok then return self:StopArrange("failed", cmp) end
+    Debug:Print("raidplan", "Zug %d: %s -> Gruppe %d%s", job.moves, tostring(move.name), move.group or 0,
+        move.other and (" (Tausch mit " .. move.other .. ")") or "")
+
+    job.token = job.token + 1
+    local token = job.token
+    job.waiting = token
+    Compat.After(ARRANGE_WAIT, function()
+        if RaidPlan.arranging == job and job.waiting == token then RaidPlan:ArrangeStep() end
+    end)
+end
+
+--- Die Aufstellung hat sich geaendert: Laeuft das Ordnen, kommt der naechste Zug.
+function RaidPlan:OnRosterUpdate()
+    local job = self.arranging
+    if job and job.waiting then
+        local token = job.waiting
+        job.waiting = nil
+        Compat.After(0.2, function()
+            if RaidPlan.arranging == job and job.token == token then RaidPlan:ArrangeStep() end
+        end)
+    end
+    GA.Core.Callbacks:Fire("RAIDPLAN_ROSTER")
+end
+
 -- ================================================================ Start ----
 
 function RaidPlan:OnEnable()
@@ -613,5 +786,10 @@ function RaidPlan:OnEnable()
     Events:Register("PLAYER_ENTERING_WORLD", flush, "RaidPlan")
     Events:Register("ZONE_CHANGED_NEW_AREA", flush, "RaidPlan")
     Events:Register("PLAYER_REGEN_ENABLED", flush, "RaidPlan")
+    Events:Register("GROUP_ROSTER_UPDATE", function() RaidPlan:OnRosterUpdate() end, "RaidPlan")
+    -- Kampf beginnt mitten im Ordnen: sofort aufhoeren, nicht erst beim naechsten Zug.
+    Events:Register("PLAYER_REGEN_DISABLED", function()
+        if RaidPlan.arranging then RaidPlan:StopArrange("combat") end
+    end, "RaidPlan")
     Compat.After(REQUEST_DELAY, function() RaidPlan:Request() end)
 end

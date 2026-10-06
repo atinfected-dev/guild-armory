@@ -255,6 +255,61 @@ function Compat.GetGroupUnit(index)
     return "party" .. (index - 1)
 end
 
+--- Der Schlachtzug, wie das Spiel ihn jetzt fuehrt: Index, Name, Gruppe,
+--- Rang (2 Leiter, 1 Assistent), Klasse. Fuer das Ordnen nach Raidplan
+--- (06.10.2026). Ein verschleierter Name oder eine verschleierte Gruppe
+--- faellt weg — damit laesst sich nichts ordnen.
+--- @return table { { index, name, group, rank, class, online } }
+function Compat.GetRaidRoster()
+    local out = {}
+    if not Compat.IsInRaid() or not isFunction(_G.GetRaidRosterInfo) then return out end
+    for index = 1, Compat.GetNumGroupMembers() do
+        local ok, name, rank, subgroup, _, _, classFile, _, online = pcall(_G.GetRaidRosterInfo, index)
+        if ok and type(name) == "string" and Compat.IsReadable(name) and Compat.IsReadableNumber(subgroup) then
+            out[#out + 1] = { index = index, name = name, group = subgroup,
+                rank = Compat.IsReadableNumber(rank) and rank or 0,
+                class = Compat.IsReadable(classFile) and classFile or nil, online = online and true or false }
+        end
+    end
+    return out
+end
+
+--- Darf ich die Gruppen umstellen? Nur Leiter oder Assistent.
+function Compat.CanArrangeRaid()
+    if not Compat.IsInRaid() then return false end
+    for _, name in ipairs({ "UnitIsGroupLeader", "UnitIsGroupAssistant", "IsRaidLeader", "IsRaidOfficer" }) do
+        if isFunction(_G[name]) then
+            local ok, value = pcall(function() return _G[name]("player") == true or _G[name]("player") == 1 end)
+            if ok and value then return true end
+        end
+    end
+    return false
+end
+
+--- Ist Umstellen gerade gesperrt? Im Kampf immer, und in Retail-Regeln auch
+--- in gesperrten Kaempfen.
+function Compat.IsArrangeBlocked()
+    if Compat.InCombat() then return true end
+    local api = _G.C_RestrictedActions
+    if type(api) == "table" and isFunction(api.IsInRestrictedCombat) then
+        local ok, value = pcall(function() return api.IsInRestrictedCombat() == true end)
+        if ok and value then return true end
+    end
+    return false
+end
+
+--- Setzt ein Mitglied in eine Gruppe mit freiem Platz.
+function Compat.SetRaidSubgroup(index, group)
+    if not isFunction(_G.SetRaidSubgroup) then return false end
+    return pcall(_G.SetRaidSubgroup, index, group) and true or false
+end
+
+--- Tauscht zwei Mitglieder aus verschiedenen Gruppen.
+function Compat.SwapRaidSubgroup(a, b)
+    if not isFunction(_G.SwapRaidSubgroup) then return false end
+    return pcall(_G.SwapRaidSubgroup, a, b) and true or false
+end
+
 -- ================================================================== Gilde -----
 
 --- Anzahl Gildenmitglieder (gesamt, online). Loest bei Bedarf eine
