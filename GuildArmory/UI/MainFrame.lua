@@ -82,7 +82,11 @@ local SECTIONS = {
         { key = "dungeonhub", label = "NAV_DUNGEONHUB" },
     } },
 
-    { key = "loot", label = "NAV_LOOT", views = {
+    -- Raid & Loot (06.10.2026): Der Raidplan kam dazu. Ein achter Bereich
+    -- waere einer zu viel (siehe navigation.test.js) — und Plan, Sitzung und
+    -- Vergabe gehoeren zum selben Abend.
+    { key = "loot", label = "NAV_RAIDLOOT", views = {
+        { key = "raidplan",    label = "NAV_RAIDPLAN" },
         { key = "lootcouncil", label = "NAV_SESSION" },
         { key = "loothistory", label = "NAV_LOOTHISTORY" },
         { key = "wishlist",    label = "NAV_WISHLIST" },

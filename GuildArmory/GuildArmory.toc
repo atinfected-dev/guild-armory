@@ -57,6 +57,7 @@ Data\RaidHistory.lua
 Raids\Attendance.lua
 Raids\History.lua
 Raids\CombatLog.lua
+Raids\RaidPlan.lua
 Armory\Tradables.lua
 Armory\Talents.lua
 Armory\GuildBank.lua
@@ -112,6 +113,7 @@ UI\Views\Wishlist.lua
 UI\Views\Crafting.lua
 UI\Views\Achievements.lua
 UI\Views\GuildBank.lua
+UI\Views\RaidPlan.lua
 UI\Views\Analytics.lua
 UI\DkpFrame.lua
 UI\Views\LootRules.lua

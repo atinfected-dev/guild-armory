@@ -2989,6 +2989,25 @@ function Compat.OpenWhisper(name)
     return false
 end
 
+-- ============================================================ Sperren ---------
+
+--- Sind Addon-Nachrichten gerade gesperrt? In Retail (12.0) gehen sie in
+--- gesperrten Instanzen nicht hinaus; WoW: Forever soll dieselben Regeln
+--- bekommen (06.10.2026). Fehlt die Abfrage, ist nichts gesperrt. Nur ein
+--- lesbares true zaehlt.
+function Compat.IsCommRestricted()
+    local api = _G.C_RestrictedActions
+    if type(api) ~= "table" then return false end
+    for _, name in ipairs({ "IsInRestrictedInstance", "IsInRestrictedCombat" }) do
+        if isFunction(api[name]) then
+            -- Der Vergleich im pcall: Auch ein Wahrheitswert kann verschleiert sein.
+            local ok, value = pcall(function() return api[name]() == true end)
+            if ok and value then return true end
+        end
+    end
+    return false
+end
+
 -- ============================================================ Spielzeit -------
 
 --- Fragt die Spielzeit an (wie /played). Die Antwort kommt als TIME_PLAYED_MSG.
