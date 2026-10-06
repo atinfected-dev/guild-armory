@@ -157,6 +157,10 @@ function Highlight.Assess(guid, name, professions, quests)
     local out = { name = name, lines = {}, wanted = false }
 
     local node = id and Highlight.NODES[id]
+    -- NUR WAS DU KANNST (06.10.2026): Ohne Bergbau keine Erzadern, ohne
+    -- Kraeuterkunde keine Kraeuter. Kann der Client die Berufe nicht nennen
+    -- (nil), wird gezeigt — lieber eine Erzader zu viel als gar nichts.
+    if node and professions and not professions[node[1]] then node = nil end
     if node then
         local line, required = node[1], node[2]
         local profName = line == Highlight.HERBALISM and L.HL_HERBALISM or L.HL_MINING
