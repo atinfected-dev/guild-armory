@@ -159,9 +159,14 @@ function Reminders:OnEncounterStart(encounterID, encounterName)
     -- Gesehene Bosse merken: Im Editor stehen sie zur Auswahl, damit niemand
     -- Kennungen nachschlagen muss.
     if encounterID and type(encounterName) == "string" and Compat.IsReadable(encounterName) then
-        local account = GA.Core.Database.account
-        account.seenEncounters = account.seenEncounters or {}
-        account.seenEncounters[encounterID] = encounterName
+        if RaidPlan and RaidPlan.ShareEncounter then
+            -- Merken UND der Gilde sagen (07.10.2026) — die Liste gehoert allen.
+            RaidPlan:ShareEncounter(encounterID, encounterName)
+        else
+            local account = GA.Core.Database.account
+            account.seenEncounters = account.seenEncounters or {}
+            account.seenEncounters[encounterID] = encounterName
+        end
     end
     local entry = RaidPlan and RaidPlan:Active()
     if not entry then return false end

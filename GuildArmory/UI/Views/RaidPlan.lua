@@ -242,7 +242,7 @@ function View:Create(parent)
     self.newButton:Hide()
 
     for _, name in ipairs({ "RAIDPLAN_CHANGED", "RAIDPLAN_ROSTER", "RAIDPLAN_ARRANGE", "REMINDERS_START", "REMINDERS_STOP",
-                            "RAIDPLAN_SIGNUPS" }) do
+                            "RAIDPLAN_SIGNUPS", "RAIDPLAN_ENCOUNTERS" }) do
         GA.Core.Callbacks:On(name, function()
             if View.frame and View.frame:IsVisible() then View:Refresh() end
         end, "RaidPlanView")
@@ -442,6 +442,14 @@ function View:Refresh()
     elseif editing then benchLines[#benchLines + 1] = L.RP_BENCH_EDIT end
     if cmp and #cmp.extras > 0 then
         benchLines[#benchLines + 1] = "|cffffd100" .. string.format(L.RP_EXTRAS, table.concat(cmp.extras, ", ")) .. "|r"
+    end
+    -- Zusagen gegen Anwesenheit (07.10.2026): sobald dieser Client im Raid
+    -- mitgeschrieben hat.
+    local report = not editing and Plans:AttendanceReport(plan.id)
+    if report then
+        benchLines[#benchLines + 1] = string.format(L.RP_ATT_CAME, report.came)
+            .. (#report.noShow > 0 and ("  |cffff5050" .. string.format(L.RP_ATT_NOSHOW, table.concat(report.noShow, ", ")) .. "|r") or "")
+            .. (#report.unannounced > 0 and ("  |cff8a8a8a" .. string.format(L.RP_ATT_UNANNOUNCED, table.concat(report.unannounced, ", ")) .. "|r") or "")
     end
     self.bench:SetText(table.concat(benchLines, "\n"))
 

@@ -966,6 +966,7 @@ function RaidPlan:OnRequest(sender, fields)
         RaidPlan:SendOwnSignups()
         RaidPlan:PublishSignupLists()
     end)
+    self:AnswerEncounters()
     local answered = 0
     for _, entry in ipairs(self:All()) do
         local plan = entry.plan
@@ -1145,6 +1146,137 @@ function RaidPlan:PublishSignupLists()
     end
 end
 
+-- ================================================================ Bosse -----
+--
+-- GESEHENE BOSSE GILDENWEIT (07.10.2026). Der Editor bietet Bosse an, die
+-- dieser Client schon gepullt hat (Raids/Reminders schreibt sie mit). Geteilt
+-- reicht es, wenn irgendjemand in der Gilde den Boss einmal gesehen hat.
+-- Ein neuer Boss geht sofort als kurze Nachricht hinaus; wer nach Plaenen
+-- fragt (Login), bekommt die ganze Liste von EINEM Client — wer zuerst
+-- antwortet, die anderen hoeren es und schweigen. Der zuerst gesehene Name
+-- bleibt stehen: Namen sind uebersetzt, Kennungen nicht.
+
+local function encounters()
+    local account = GA.Core.Database.account
+    account.seenEncounters = account.seenEncounters or {}
+    return account.seenEncounters
+end
+
+--- Einen Boss merken. @return boolean neu
+function RaidPlan:RememberEncounter(id, name)
+    id = tonumber(id)
+    name = clean(name, 80)
+    if not id or id < 1 or id > 100000000 or not name then return false end
+    local list = encounters()
+    if list[id] then return false end
+    list[id] = name
+    GA.Core.Callbacks:Fire("RAIDPLAN_ENCOUNTERS")
+    return true
+end
+
+--- Selbst gesehen: merken und der Gilde sagen.
+function RaidPlan:ShareEncounter(id, name)
+    if not self:RememberEncounter(id, name) then return false end
+    if not self:CanSend() then return false end
+    return GA.Core.Comm:Send("RPENC", { math.floor(tonumber(id)), clean(name, 80) }, "GUILD", nil, true) and true or false
+end
+
+function RaidPlan:OnEncounter(sender, fields)
+    local Comm = GA.Core.Comm
+    if Comm and Comm:IsSelf(sender) then return end
+    self:RememberEncounter(fields and fields[1], fields and fields[2])
+end
+
+--- "id~name;id~name"
+function RaidPlan.EncodeEncounters(list)
+    local parts = {}
+    for id, name in pairs(list or {}) do
+        parts[#parts + 1] = id .. "~" .. (string.gsub(tostring(name), "[~;]", ""))
+    end
+    table.sort(parts)
+    return table.concat(parts, ";")
+end
+
+function RaidPlan:OnEncounterList(sender, text)
+    local Comm = GA.Core.Comm
+    self.encountersHeard = Util.Now()
+    if Comm and Comm:IsSelf(sender) then return end
+    for rec in string.gmatch(tostring(text or ""), "[^;]+") do
+        local id, name = string.match(rec, "^(%d+)~(.+)$")
+        if id then self:RememberEncounter(id, name) end
+    end
+end
+
+--- Antwort auf eine Nachfrage: die Liste, gestreut, nur wenn noch keiner.
+function RaidPlan:AnswerEncounters()
+    if not next(encounters()) then return end
+    Compat.After(4 + math.random() * 10, function()
+        if (RaidPlan.encountersHeard or 0) > Util.Now() - 20 then return end
+        if not RaidPlan:CanSend() then return end
+        RaidPlan.encountersHeard = Util.Now()
+        GA.Core.Comm:SendBlob("RPENCS", RaidPlan.EncodeEncounters(encounters()), "GUILD", nil, true)
+    end)
+end
+
+-- ================================================================ Anwesenheit --
+--
+-- ZUSAGEN GEGEN ANWESENHEIT (07.10.2026). Waehrend ein Plan "laeuft" (sein
+-- Beginn liegt hoechstens sechs Stunden zurueck oder voraus) und man im
+-- Schlachtzug steht, schreibt das Addon bei jeder Aenderung der Aufstellung
+-- mit, wer da ist. Daraus beantwortet die Planseite spaeter die Frage, ueber
+-- die in Gilden gestritten wird: Wer hatte zugesagt und kam nicht, wer kam
+-- ohne Zusage. Gespeichert je Plan auf DIESEM Client; es reicht, dass der
+-- Leiter dabei war.
+
+local PRESENCE_WINDOW = 6 * 3600
+
+--- Der Plan, fuer den gerade Anwesenheit zaehlt — oder nil.
+function RaidPlan:PresencePlan()
+    local entry = self:Active()
+    if not entry then return nil end
+    local start = entry.plan.start
+    if start and math.abs(start - Util.Now()) > PRESENCE_WINDOW then return nil end
+    return entry
+end
+
+--- Schreibt die aktuelle Aufstellung mit.
+function RaidPlan:RecordPresence(roster)
+    local entry = self:PresencePlan()
+    if not entry or not Compat.IsInRaid() then return false end
+    roster = roster or Compat.GetRaidRoster()
+    if #roster == 0 then return false end
+    entry.present = entry.present or {}
+    local added = false
+    for _, m in ipairs(roster) do
+        local key = RaidPlan.NameKey(m.name)
+        if key and not entry.present[key] then
+            entry.present[key] = { name = Util.ShortName(m.name), ts = Util.Now() }
+            added = true
+        end
+    end
+    return added
+end
+
+--- Zusagen gegen Anwesenheit.
+--- @return table|nil { noShow = { namen }, unannounced = { namen }, came = n } — nil ohne Aufzeichnung
+function RaidPlan:AttendanceReport(planId)
+    local entry = self:Get(planId)
+    if not entry or not entry.present or not next(entry.present) then return nil end
+    local signups = self:Signups(planId)
+    local out = { noShow = {}, unannounced = {}, came = 0 }
+    for key, s in pairs(signups) do
+        if s.status == "yes" and not entry.present[key] then out.noShow[#out.noShow + 1] = s.name end
+    end
+    for key, p in pairs(entry.present) do
+        out.came = out.came + 1
+        local s = signups[key]
+        if not s or s.status ~= "yes" then out.unannounced[#out.unannounced + 1] = p.name end
+    end
+    table.sort(out.noShow)
+    table.sort(out.unannounced)
+    return out
+end
+
 -- ================================================================ Ordnen ----
 --
 -- Schritt 3 (06.10.2026): den Schlachtzug nach den Gruppen des Plans ordnen.
@@ -1307,6 +1439,7 @@ end
 
 --- Die Aufstellung hat sich geaendert: Laeuft das Ordnen, kommt der naechste Zug.
 function RaidPlan:OnRosterUpdate()
+    self:RecordPresence()
     local job = self.arranging
     if job and job.waiting then
         local token = job.waiting
@@ -1328,6 +1461,8 @@ function RaidPlan:OnEnable()
         Comm:On("RPREQ", function(sender, fields) RaidPlan:OnRequest(sender, fields) end, "RaidPlan")
         Comm:On("RPSIGN", function(sender, fields) RaidPlan:OnSignup(sender, fields) end, "RaidPlan")
         Comm:OnBlob("RPSIGNS", function(sender, text) RaidPlan:OnSignupList(sender, text) end, "RaidPlan")
+        Comm:On("RPENC", function(sender, fields) RaidPlan:OnEncounter(sender, fields) end, "RaidPlan")
+        Comm:OnBlob("RPENCS", function(sender, text) RaidPlan:OnEncounterList(sender, text) end, "RaidPlan")
     end
     local Events = GA.Core.Events
     local function flush() Compat.After(5, function() RaidPlan:Flush() end) end
@@ -1335,6 +1470,7 @@ function RaidPlan:OnEnable()
     Events:Register("ZONE_CHANGED_NEW_AREA", flush, "RaidPlan")
     Events:Register("PLAYER_REGEN_ENABLED", flush, "RaidPlan")
     Events:Register("GROUP_ROSTER_UPDATE", function() RaidPlan:OnRosterUpdate() end, "RaidPlan")
+    Events:Register("PLAYER_ENTERING_WORLD", function() Compat.After(8, function() RaidPlan:RecordPresence() end) end, "RaidPlan")
     -- Kampf beginnt mitten im Ordnen: sofort aufhoeren, nicht erst beim naechsten Zug.
     Events:Register("PLAYER_REGEN_DISABLED", function()
         if RaidPlan.arranging then RaidPlan:StopArrange("combat") end
