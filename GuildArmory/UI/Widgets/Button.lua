@@ -643,6 +643,37 @@ function Widgets.CheckBox(parent, text, onToggle)
     return chip
 end
 
+-- ----------------------------------------------------------- Schliessen-X ----
+
+--- Das X oben rechts an einem eigenen Fenster. Blizzards Vorlagen bringen
+--- eins mit; die eigenen Rahmen (alle Looks ausser "blizzard") hatten
+--- keins — und ein Fenster ohne X sucht man zu.
+--- @param onClick function|nil  Vorgabe: frame:Hide()
+function Widgets.CloseX(frame, onClick)
+    local fonts = Theme.Fonts()
+    local button = CreateFrame("Button", nil, frame)
+    button:SetWidth(20)
+    button:SetHeight(20)
+    button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
+    button:SetFrameLevel(frame:GetFrameLevel() + 5)
+
+    local label = Theme.Label(button, "X", fonts.rowBold, Theme.color.textDim)
+    label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    button.label = label
+
+    button:SetScript("OnEnter", function()
+        label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
+    end)
+    button:SetScript("OnLeave", function()
+        label:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+    end)
+    button:SetScript("OnClick", function()
+        if onClick then onClick() else frame:Hide() end
+    end)
+    frame.closeX = button
+    return button
+end
+
 -- ------------------------------------------------------ Kopierbares Textfeld -
 
 --- Fenster mit vorselektiertem Text. Der einzige Weg, etwas aus dem Spiel
@@ -673,7 +704,8 @@ function Widgets.CopyDialog(title, text)
         frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
 
         local hint = Theme.Label(frame, "STRG+A, DANN STRG+C", fonts.small, Theme.color.textFaint)
-        hint:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, -15)
+        hint:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -36, -15)
+        Widgets.CloseX(frame)
 
         local close = Widgets.Button(frame, GA.L.BTN_CLOSE, function() frame:Hide() end)
         close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 14)
@@ -752,6 +784,7 @@ function Widgets.InputDialog(title, hintText, onAccept, initialText)
         frame.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -34)
         frame.hint:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
         frame.hint:SetJustifyH("LEFT")
+        Widgets.CloseX(frame)
 
         local box = CreateFrame("Frame", nil, frame)
         box:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -54)

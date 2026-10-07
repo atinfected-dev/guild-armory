@@ -81,6 +81,9 @@ function DkpFrame:Create()
     if frame.SetTitle then pcall(frame.SetTitle, frame, L.DKP_TITLE) end
     if frame.CloseButton then
         frame.CloseButton:SetScript("OnClick", function() DkpFrame:Hide() end)
+    else
+        -- Eigener Rahmen (Looks ausser "blizzard"): Das X kommt von uns.
+        Widgets.CloseX(frame, function() DkpFrame:Hide() end)
     end
 
     local pad, gap = PAD, GAP

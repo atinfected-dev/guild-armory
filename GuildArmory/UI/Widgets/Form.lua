@@ -75,6 +75,7 @@ local function build(key, fields)
 
     frame.title = Theme.Label(frame, "", fonts.title, Theme.color.heading)
     frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -14)
+    Widgets.CloseX(frame)
 
     frame.controls, frame.values, frame.fields = {}, {}, {}
     local edits = {}

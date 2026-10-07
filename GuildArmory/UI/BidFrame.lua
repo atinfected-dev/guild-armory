@@ -106,6 +106,9 @@ function BidFrame:Create()
     if frame.SetTitle then pcall(frame.SetTitle, frame, L.BID_TITLE) end
     if frame.CloseButton then
         frame.CloseButton:SetScript("OnClick", function() BidFrame:Hide() end)
+    else
+        -- Eigener Rahmen (Looks ausser "blizzard"): Das X kommt von uns.
+        Widgets.CloseX(frame, function() BidFrame:Hide() end)
     end
 
     self.hint = Theme.Label(frame, L.BID_HINT, fonts.small, Theme.color.textDim)

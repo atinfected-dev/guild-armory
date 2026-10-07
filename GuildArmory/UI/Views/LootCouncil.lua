@@ -46,6 +46,13 @@ LootCouncil.titleKey = "NAV_LOOTCOUNCIL"
 
 local Status = GA.Data.Schema.LootStatus
 
+-- Vergeben, aber noch in der Sitzung: Hier geht "Neu vergeben".
+local function istVergeben(award)
+    if not award then return false end
+    return award.status == Status.AWARDED or award.status == Status.TRANSFER_PENDING
+        or award.status == Status.RECEIVED
+end
+
 --- Die Karten oben: so breit, wie der Platz es zulaesst, zwischen zwei
 --- Grenzen. Passen nicht alle, blaettern zwei Pfeile — eine Karte, die
 --- auf 60 Pixel gequetscht ist, sagt nichts mehr.
@@ -677,8 +684,31 @@ function LootCouncil:UpdateCandidateRow(row, entry)
     local identity = Compat.GetPlayerIdentity()
     row.vote:SetWidth(52)
     row.vote:SetEnabledState(GA.Modules.Session:CanVote(identity.guid), L.COUNCIL_NEED_COUNCIL)
-    row.award:SetWidth(66)
-    row.award:SetEnabledState(GA.Modules.Session:CanHost(identity.guid), L.COUNCIL_NEED_LOOTMASTER)
+
+    -- Schon vergeben? Dann heisst der Knopf "Neu vergeben", fragt erst
+    -- "Wirklich?" und bleibt bei dem aus, der es schon hat.
+    local canHost = GA.Modules.Session:CanHost(identity.guid)
+    if istVergeben(award) then
+        row.award.baseText = L.COUNCIL_REAWARD
+        row.award:Disarm()
+        row.award:SetConfirm(L.BTN_REALLY)
+        row.award:SetLabel(L.COUNCIL_REAWARD)
+        row.award:SetWidth(96)
+        row.award:SetAction(function() LootCouncil:Reaward(candidate.name) end)
+        local hatEs = Util.ShortName(award.recipientName or "") == Util.ShortName(candidate.name)
+        row.award:SetEnabledState(canHost and not hatEs,
+            (not canHost) and L.COUNCIL_NEED_LOOTMASTER or L.COUNCIL_HAS_IT)
+    else
+        row.award.baseText = L.COUNCIL_AWARD
+        row.award:Disarm()
+        row.award:SetConfirm(nil)
+        row.award:SetLabel(L.COUNCIL_AWARD)
+        row.award:SetWidth(66)
+        row.award:SetAction(function()
+            if row.item and not row.item.group then LootCouncil:Award(row.item.name) end
+        end)
+        row.award:SetEnabledState(canHost, L.COUNCIL_NEED_LOOTMASTER)
+    end
 end
 
 --- Ordnet die Bewerber in Gruppen nach Antwort und liefert die flache
@@ -916,8 +946,12 @@ function LootCouncil:RefreshDecision(candidates, session)
     local canHost = GA.Modules.Session:CanHost(identity.guid)
     self.awardButton:SetLabel(leader
         and string.format(L.COUNCIL_AWARD_TO, Util.ShortName(leader.name)) or L.COUNCIL_AWARD)
-    self.awardButton:SetEnabledState(canHost and leader ~= nil,
-        (not canHost) and L.COUNCIL_NEED_LOOTMASTER or grund)
+    local award = self.selectedAwardId and GA.Modules.Awards:Get(self.selectedAwardId)
+    local vergeben = istVergeben(award)
+    self.awardNote:SetText(vergeben and L.COUNCIL_REAWARD_NOTE or L.COUNCIL_AWARD_NOTE)
+    self.awardButton:SetEnabledState(canHost and leader ~= nil and not vergeben,
+        (not canHost) and L.COUNCIL_NEED_LOOTMASTER
+        or (vergeben and L.COUNCIL_ALREADY_AWARDED) or grund)
 end
 
 -- ================================================================== Fakten ----
@@ -1252,8 +1286,34 @@ function LootCouncil:Award(candidateName)
         return
     end
 
-    -- Schritt 2: Uebergabe. Nur wenn wirklich Pluendermeister und der
-    -- Gegenstand noch im offenen Lootfenster liegt.
+    self:HandOver(awardId, candidateName)
+    self.selectedAwardId = nil
+    self:Refresh()
+end
+
+--- Der Fehlgriff: schon vergeben, aber an den Falschen. Der alte Eintrag
+--- bleibt als korrigiert stehen, die DKP gehen zurueck, der neue zahlt —
+--- und die Karte zeigt danach den neuen Datensatz.
+function LootCouncil:Reaward(candidateName)
+    local session = GA.Modules.Session:Current()
+    if not session or not self.selectedAwardId then return end
+
+    local ok, result = GA.Modules.Session:Reaward(session.id, self.selectedAwardId, candidateName)
+    if not ok then
+        GA.Core.Debug:Warn(L["COUNCIL_ERR_" .. tostring(result)] or tostring(result))
+        self:Refresh()
+        return
+    end
+
+    self:HandOver(result.id, candidateName)
+    self.selectedAwardId = result.id
+    self:Refresh()
+end
+
+--- Schritt 2: Uebergabe. Nur wenn wirklich Pluendermeister und der
+--- Gegenstand noch im offenen Lootfenster liegt; sonst steht sie aus und
+--- wird spaeter per Handel bestaetigt.
+function LootCouncil:HandOver(awardId, candidateName)
     local award = GA.Modules.Awards:Get(awardId)
     local handed = false
 
@@ -1278,9 +1338,7 @@ function LootCouncil:Award(candidateName)
         GA.Modules.Awards:MarkTransferPending(awardId,
             { by = Compat.GetPlayerIdentity().guid, reason = "keine Master-Loot-Uebergabe" })
     end
-
-    self.selectedAwardId = nil
-    self:Refresh()
+    return handed
 end
 
 -- ================================================================== Refresh ---

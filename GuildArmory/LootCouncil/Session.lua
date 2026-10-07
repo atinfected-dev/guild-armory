@@ -998,6 +998,101 @@ function Session:AwardTo(sessionId, awardId, candidateName)
     return true
 end
 
+-- Aus diesen Staenden heraus darf neu vergeben werden. EQUIPPED nicht mehr:
+-- Wer das Teil schon traegt, hat es; das ist dann eine Korrektur in der
+-- Historie, keine Sitzungsfrage.
+local REAWARDABLE = {
+    [Schema.LootStatus.AWARDED] = true,
+    [Schema.LootStatus.TRANSFER_PENDING] = true,
+    [Schema.LootStatus.RECEIVED] = true,
+}
+
+--- Vergibt einen schon vergebenen Gegenstand an jemand anderen — der
+--- Fehlgriff waehrend der Verteilung, der sofort auffaellt.
+---
+--- KEINE ZWEITE VERGABE AUF DEMSELBEN DATENSATZ. Der alte bleibt als
+--- CORRECTED stehen und zeigt auf den neuen (Awards:Correct); der neue
+--- traegt correctionOf. Gebote und Stimmen wandern zum neuen Datensatz,
+--- damit die Sitzung mit demselben Bieterfeld weiterlaeuft — und ein
+--- zweiter Fehlgriff genauso korrigiert werden kann.
+---
+--- DKP: Der bisherige Gewinner bekommt seine Punkte als Rueckbuchung
+--- zurueck, der neue zahlt sein Gebot. Reicht sein Stand nicht, passiert
+--- gar nichts.
+--- @return boolean ok, table|string neueVergabeOderGrund
+function Session:Reaward(sessionId, awardId, candidateName)
+    local session = self:Get(sessionId)
+    if not session then return false, "unknownsession" end
+
+    local identity = Compat.GetPlayerIdentity()
+    if not self:CanHost(identity.guid) then return false, "notallowed" end
+
+    local Awards = GA.Modules.Awards
+    local award = Awards:Get(awardId)
+    if not award then return false, "unknown" end
+    if not REAWARDABLE[award.status] then return false, "badstate" end
+
+    local name = Util.ShortName(candidateName or "")
+    if Util.ShortName(award.recipientName or "") == name then return false, "samewinner" end
+
+    local bids = session.responses[awardId]
+    local bid = bids and bids[name]
+    if not bid then return false, "nobid" end
+
+    local Dkp = GA.Modules.Dkp
+    if bid.dkp and Dkp and bid.dkp > Dkp:Balance(bid.guid) then
+        return false, "insufficient"
+    end
+
+    -- Vor der Korrektur festhalten: Danach steht der alte auf CORRECTED.
+    local vorher = award.status
+    local grund = string.format("Neu vergeben: %s statt %s", name,
+        tostring(award.recipientName or "?"))
+    local replacement, failure = Awards:Correct(awardId,
+        { status = Schema.LootStatus.SESSION_OPEN }, grund, identity.guid)
+    if not replacement then return false, failure end
+
+    -- Was zur alten Uebergabe gehoerte, gilt fuer die neue nicht.
+    replacement.confirmation = nil
+    replacement.confirmedTs = nil
+    replacement.equippedTs = nil
+    replacement.recipientGuid = nil
+    replacement.recipientName = nil
+    replacement.response = nil
+    replacement.note = nil
+    replacement.awardedTs = nil
+    -- Lag das Teil schon beim Alten, ist der Lootfenster-Platz verbraucht:
+    -- Ein GiveMasterLoot auf diesen Platz traefe das naechste Teil darin.
+    if vorher == Schema.LootStatus.RECEIVED then replacement.slot = nil end
+
+    -- Der bisherige Gewinner bekommt sein Geld zurueck.
+    if Dkp then
+        local alt = Dkp:ChargeFor(awardId)
+        if alt then Dkp:Refund(alt.id, grund, identity.guid) end
+    end
+
+    -- Gebote und Stimmen wandern mit; der Platz in der Sitzung bleibt.
+    for index, id in ipairs(session.awardIds) do
+        if id == awardId then session.awardIds[index] = replacement.id end
+    end
+    session.responses[replacement.id] = bids
+    session.votes[replacement.id] = session.votes[awardId] or {}
+    session.responses[awardId] = nil
+    session.votes[awardId] = nil
+
+    -- Ab hier derselbe Weg wie beim ersten Mal: erst abbuchen, dann vergeben.
+    local ok, reason = self:AwardTo(sessionId, replacement.id, name)
+    if not ok then
+        -- Der Gegenstand steht jetzt wieder offen in der Sitzung — das ist
+        -- der ehrliche Stand: korrigiert, aber noch nicht neu vergeben.
+        GA.Core.Callbacks:Fire("SESSION_CHANGED", session.id)
+        return false, reason
+    end
+    Debug:Print("loot", "Neu vergeben: %s -> %s (%s statt %s)", awardId, replacement.id,
+        name, tostring(award.recipientName))
+    return true, replacement
+end
+
 --- Sind alle Gegenstaende der Session erledigt?
 function Session:IsSettled(sessionId)
     local session = self:Get(sessionId)

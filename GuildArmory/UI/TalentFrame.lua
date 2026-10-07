@@ -79,7 +79,8 @@ function TalentFrame:Create()
     frame.sub:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -3)
 
     frame.points = Theme.Label(frame, "", fonts.big, Theme.color.goldBright)
-    frame.points:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -14)
+    frame.points:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -40, -14)
+    Widgets.CloseX(frame)
     frame.pointsLabel = Theme.Label(frame, L.TALENTS_POINTS, fonts.small, Theme.color.textDim)
     frame.pointsLabel:SetPoint("RIGHT", frame.points, "LEFT", -8, 0)
 

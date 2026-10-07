@@ -80,6 +80,9 @@ function GrantDialog:Create()
     if frame.SetTitle then pcall(frame.SetTitle, frame, L.GRANT_TITLE) end
     if frame.CloseButton then
         frame.CloseButton:SetScript("OnClick", function() GrantDialog:Hide() end)
+    else
+        -- Eigener Rahmen (Looks ausser "blizzard"): Das X kommt von uns.
+        Widgets.CloseX(frame, function() GrantDialog:Hide() end)
     end
 
     -- Kein Charakterkreis: Hier geht es um einen Vorgang, nicht um eine

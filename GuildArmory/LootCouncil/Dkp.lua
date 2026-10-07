@@ -175,6 +175,19 @@ local function rechnen()
     return cache
 end
 
+--- Die offene Abbuchung zu einer Vergabe — die, die bei "Neu vergeben"
+--- zurueckgeht. Eine schon zurueckgebuchte zaehlt nicht mehr.
+function Dkp:ChargeFor(awardId)
+    if not awardId then return nil end
+    for _, eintrag in ipairs(buch().entries) do
+        if eintrag.awardId == awardId and eintrag.kind == self.KIND.SPEND
+            and not eintrag.refundedBy then
+            return eintrag
+        end
+    end
+    return nil
+end
+
 --- Der Stand eines Spielers.
 function Dkp:Balance(guid)
     if not guid then return 0 end

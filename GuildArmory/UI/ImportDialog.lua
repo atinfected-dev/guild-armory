@@ -54,6 +54,9 @@ function ImportDialog:Create()
     if frame.SetTitle then pcall(frame.SetTitle, frame, L.IMPORT_TITLE) end
     if frame.CloseButton then
         frame.CloseButton:SetScript("OnClick", function() ImportDialog:Hide() end)
+    else
+        -- Eigener Rahmen (Looks ausser "blizzard"): Das X kommt von uns.
+        Widgets.CloseX(frame, function() ImportDialog:Hide() end)
     end
 
     local hint = Theme.Label(frame, L.IMPORT_HINT, fonts.small, Theme.color.textDim)

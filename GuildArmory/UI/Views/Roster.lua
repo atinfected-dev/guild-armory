@@ -827,6 +827,7 @@ function View:ShowInvite(prefill)
 
         local title = Theme.Label(frame, string.upper(L.ROSTER_INVITE), fonts.title, Theme.color.heading)
         title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
+        Widgets.CloseX(frame)
 
         local hint = Theme.Label(frame, L.ROSTER_INVITE_HINT, fonts.small, Theme.color.textDim)
         hint:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -34)

@@ -2,6 +2,10 @@
 
 ## 0.1.43
 
+Re-award during loot distribution: an item that went to the wrong person can be given to another bidder while the session is still open. In the bidder's row the button reads "Re-award" and asks "Really?" first; the one who has it is greyed out. The old record stays in the history as corrected and points to the new one, the previous winner gets their DKP back as a refund entry, the new winner pays their bid, and the hand-over runs again through the master looter or stays open for a trade. Bids and votes carry over, so a second slip is corrected the same way. The correction reaches the other clients as well.
+
+Every window has an X: the addon's own frames (every look except Blizzard) had no close button in the corner — copy and paste dialogs, the plan forms, the bid window, DKP, achievements by hand, import, guild invite and the talent window now close with the X top right, Escape keeps working.
+
 Every button explains itself: hover any button for what it does — until now a hint appeared only on greyed-out buttons (the reason they were off). Only buttons whose label does not say everything got a text — what else happens, what is needed, where it goes (import, arrange groups, save a plan, open a profession, reserve, rotate, close a session and a few more); "Whisper", "Invite", "Remove" and the like stay as they are.
 
 One way to confirm anything irreversible: the first click turns the button red and says "Really?", the second click within five seconds does it, otherwise it falls back. Applied to removing a raid plan, dropping unsaved plan changes, deleting in the plan forms, removing a wish, unlinking a character from a player, taking back a hand-entered achievement, withdrawing a dungeon run and posting DKP to the whole raid — the dangerous actions that had no guard. Menu entries do the same: the entry turns red and the menu stays open for the second click.

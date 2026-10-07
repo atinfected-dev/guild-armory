@@ -227,6 +227,7 @@ function Sync:PublishAward(awardId, channel, target)
         conf = award.confirmation,
         src = award.encounterName or award.sourceName,
         ts = award.ts,
+        corr = award.correctionOf,
     })
     return comm():SendBlob("AWARDSYNC", payload, channel, target, true) and true or false
 end
@@ -380,6 +381,11 @@ function Sync:OnAward(sender, text)
         -- Ende haengt PublishAward, und damit wuerde jede eingehende Meldung
         -- eine ausgehende erzeugen.
         local before = { existing.status, existing.confirmation, existing.recipientName }
+        if data.corr and not existing.correctionOf then
+            existing.correctionOf = data.corr
+            local alt = Awards:Get(data.corr)
+            if alt and not alt.correctedBy then alt.correctedBy = data.id end
+        end
         existing.status = data.status or existing.status
         existing.confirmation = data.conf or existing.confirmation
         existing.recipientName = data.to or existing.recipientName
@@ -426,6 +432,15 @@ function Sync:OnAward(sender, text)
     if status == Schema.LootStatus.DETECTED then
         Debug:Print("comm", "Fremde Erfassung ohne Sitzung verworfen: %s",
             tostring(data.name))
+        return
+    end
+
+    -- EIN WIDERRUF OHNE ORIGINAL. Korrigiert oder abgebrochen heisst: Es
+    -- gab etwas, das nicht mehr gilt. Kennt dieser Client das nicht, gibt es
+    -- hier nichts zurueckzunehmen — und ein Eintrag "korrigiert" ohne das,
+    -- was korrigiert wurde, waere eine Luecke mit Beschriftung.
+    if status == Schema.LootStatus.CORRECTED or status == Schema.LootStatus.CANCELLED then
+        Debug:Print("comm", "Widerruf ohne bekanntes Original verworfen: %s", tostring(data.id))
         return
     end
 
@@ -490,12 +505,17 @@ function Sync:OnAward(sender, text)
         status = data.status or GA.Data.Schema.LootStatus.AWARDED,
         confirmation = data.conf,
         encounterName = data.src,
+        correctionOf = data.corr,
         source = "sync",
         statusHistory = { { status = data.status, ts = data.ts, by = data.by,
                             reason = "vom Lootmeister uebernommen" } },
         votes = {},
     }
     if data.item then GA.Modules.ItemIndex:Learn(data.item) end
+    if data.corr then
+        local alt = Awards:Get(data.corr)
+        if alt and not alt.correctedBy then alt.correctedBy = data.id end
+    end
 
     Debug:Print("comm", "Vergabe uebernommen: %s an %s", tostring(data.name), tostring(data.to))
     GA.Core.Callbacks:Fire("AWARD_CREATED", data.id)
@@ -700,8 +720,11 @@ function Sync:OnEnable()
 
     -- Eine bestaetigte Vergabe geht an die Gruppe: Ab da ist sie Historie,
     -- und die soll bei allen gleich aussehen.
+    -- Eine Korrektur ebenso: Wer die alte Vergabe schon hat, soll sehen,
+    -- dass sie nicht mehr gilt.
     GA.Core.Callbacks:On("AWARD_CHANGED", function(awardId, _, newStatus)
-        if newStatus ~= GA.Data.Schema.LootStatus.RECEIVED then return end
+        local Status = GA.Data.Schema.LootStatus
+        if newStatus ~= Status.RECEIVED and newStatus ~= Status.CORRECTED then return end
         Sync:PublishAward(awardId)
     end, "Sync")
 
