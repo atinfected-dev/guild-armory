@@ -266,7 +266,6 @@ function CraftingView:Create(parent)
         self.detail = nil
         self:Refresh()
     end)
-    self.backButton:SetTooltip(L.TT_BACK)
     self.backButton:SetPoint("RIGHT", self.openButton, "LEFT", -6, 0)
     self.backButton:SetPoint("TOP", self.search, "TOP", 0, 0)
     self.backButton:Hide()

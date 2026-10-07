@@ -214,7 +214,6 @@ function LootRules:Create(parent)
     -- oeffnet die Rangliste auch dann, wenn heute nicht mit DKP verteilt
     -- wird — etwa um einen Nachtrag zu buchen.
     self.dkpButton = Widgets.Button(rail, L.DKP_OPEN, function() GA.UI.DkpFrame:Toggle() end)
-    self.dkpButton:SetTooltip(L.TT_DKP_OPEN)
     self.dkpButton:SetHeight(22)
     self.dkpButton:SetPoint("BOTTOMLEFT", rail, "BOTTOMLEFT", 12, 12)
     self.dkpButton:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -12, 12)

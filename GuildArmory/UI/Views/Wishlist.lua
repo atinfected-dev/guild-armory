@@ -297,7 +297,6 @@ function WishlistView:BuildEntryRow(row)
             WishlistView:Refresh()
         end
     end)
-    row.remove:SetTooltip(L.TT_WISH_REMOVE)
     row.remove:SetHeight(18)
     row.remove:SetWidth(60)
     row.remove:SetPoint("RIGHT", row, "RIGHT", -6, 0)

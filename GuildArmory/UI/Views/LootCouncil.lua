@@ -163,7 +163,6 @@ function LootCouncil:Create(parent)
     self.removeButton = Widgets.Button(bar, L.COUNCIL_REMOVE, function()
         self:RemoveSelected()
     end)
-    self.removeButton:SetTooltip(L.TT_COUNCIL_REMOVE)
     self.removeButton:SetPoint("RIGHT", self.bidButton, "LEFT", -6, 0)
 
     -- ALLE AUF EINMAL.
@@ -180,7 +179,6 @@ function LootCouncil:Create(parent)
     self.removeAllButton = Widgets.Button(bar, L.COUNCIL_REMOVE_ALL, function()
         self:RemoveAll()
     end)
-    self.removeAllButton:SetTooltip(L.TT_COUNCIL_REMOVE_ALL)
     self.removeAllButton:SetPoint("RIGHT", self.removeButton, "LEFT", -6, 0)
 
     -- AUS DEM BEUTEL AUF DIE LISTE.
@@ -553,14 +551,12 @@ function LootCouncil:BuildCandidateRow(row)
     row.award = Widgets.Button(row, L.COUNCIL_AWARD, function()
         if row.item and not row.item.group then LootCouncil:Award(row.item.name) end
     end, "primary")
-    row.award:SetTooltip(L.TT_COUNCIL_AWARD)
     row.award:SetHeight(18)
     row.award:SetPoint("RIGHT", row, "RIGHT", -6, 0)
 
     row.vote = Widgets.Button(row, L.COUNCIL_VOTE, function()
         if row.item and not row.item.group then LootCouncil:Vote(row.item.name) end
     end)
-    row.vote:SetTooltip(L.TT_COUNCIL_VOTE)
     row.vote:SetHeight(18)
     row.vote:SetPoint("RIGHT", row.award, "LEFT", -4, 0)
 
@@ -817,7 +813,6 @@ function LootCouncil:BuildDecision(content, fonts)
     self.awardButton = Widgets.Button(content, L.COUNCIL_AWARD, function()
         if self.leader then LootCouncil:Award(self.leader.name) end
     end, "primary")
-    self.awardButton:SetTooltip(L.TT_COUNCIL_AWARD)
     self.awardButton:SetHeight(26)
     self.awardButton:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -108)
     self.awardButton:SetPoint("RIGHT", content, "RIGHT", 0, 0)

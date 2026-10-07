@@ -61,7 +61,6 @@ function AnalyticsView:Create(parent)
             self.grouping = grouping.key
             self:Refresh()
         end)
-        button:SetTooltip(L.TT_ANA_GROUP)
         button:SetHeight(20)
         button:SetWidth(86)
         if previous then
@@ -82,7 +81,6 @@ function AnalyticsView:Create(parent)
             self.range = range.key
             self:Refresh()
         end)
-        button:SetTooltip(L.TT_ANA_RANGE)
         button:SetHeight(20)
         button:SetWidth(58)
         if previousRange then

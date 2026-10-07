@@ -198,7 +198,6 @@ function View:Create(parent)
     y = y - 28
 
     self.postButton = Widgets.Button(form, L.DH_POST_BTN, function() View:Post() end, "primary")
-    self.postButton:SetTooltip(L.TT_DH_POST)
     self.postButton:SetHeight(24)
     self.postButton:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
     self.postButton:SetPoint("RIGHT", form, "RIGHT", -14, 0)
