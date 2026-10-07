@@ -80,6 +80,8 @@ local SECTIONS = {
 
     { key = "dungeonhub", label = "NAV_DUNGEONHUB", views = {
         { key = "dungeonhub", label = "NAV_DUNGEONHUB" },
+        -- Zusammen (07.10.2026): Gruppenvorschlaege aus den Online-Mitgliedern.
+        { key = "together",   label = "NAV_TOGETHER" },
     } },
 
     { key = "loot", label = "NAV_LOOT", views = {

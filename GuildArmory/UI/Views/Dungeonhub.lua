@@ -596,7 +596,16 @@ function View:RefreshForm()
     self.notifyState:SetText(string.format(L.DH_NOTIFY_STATE, on and L.SET_ON or L.SET_OFF))
 end
 
-function View:OnShow() self:Refresh() end
+--- Dungeon vorbelegen — aus den Gruppenvorschlaegen (UI/Views/Together).
+function View:Prefill(dungeon) self.pendingDungeon = dungeon end
+
+function View:OnShow()
+    if self.pendingDungeon and self.dungeonBox then
+        self.dungeonBox:SetText(self.pendingDungeon)
+        self.pendingDungeon = nil
+    end
+    self:Refresh()
+end
 
 function View:Refresh()
     if not self.frame then return end

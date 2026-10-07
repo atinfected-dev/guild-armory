@@ -658,6 +658,11 @@ function Settings:Create(parent)
     -- Gildenbank (06.10.2026): teilen, was man am Tresor liest.
     self.rowGbankShare = makeRow(data, { label = L.SET_GBANK_SHARE, hint = L.SET_GBANK_SHARE_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("guildBankShare", on) end })
+    self.rowGroupQuests = makeRow(data, { label = L.SET_GROUP_QUESTS, hint = L.SET_GROUP_QUESTS_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("shareGroupQuests", on)
+            if on and GA.Modules.Together then GA.Modules.Together:PublishQuests(true) end
+        end })
     makeHeading(data, L.SET_H_SYNC)
     self.rowSync = makeRow(data, { label = L.SET_SYNC_ROW, hint = "" })
     self.rowStats = makeRow(data, { label = L.SET_CLIENT, hint = "" })
@@ -851,6 +856,7 @@ function Settings:Refresh()
     self.rowStats.hint:SetTextColor(storageColor[1], storageColor[2], storageColor[3])
 
     self.rowGbankShare.switch:SetChecked(Config:Get("guildBankShare") ~= false)
+    self.rowGroupQuests.switch:SetChecked(Config:Get("shareGroupQuests") ~= false)
     self.rowCollector.switch:SetChecked(Config:Get("collectorMode") and true or false)
     self.rowCollector.hint:SetText(string.format(L.SET_COLLECTOR_HINT, tonumber(Config:Get("collectorMinutes")) or 60))
     self.rowDebug.switch:SetChecked(GA.Core.Database.char.debug and true or false)

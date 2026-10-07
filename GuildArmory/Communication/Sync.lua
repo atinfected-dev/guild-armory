@@ -129,6 +129,8 @@ function Sync:BuildCharacterPayload()
         pl = character.played and character.played.total or nil,
         pv = character.played and character.played.level or nil,
         pt = character.played and character.played.ts or nil,
+        -- Kampfrolle, selbst gesetzt (07.10.2026): Tank, Heiler, Schaden.
+        cr = character.combatRole,
     })
 end
 
@@ -275,6 +277,12 @@ function Sync:OnCharacter(sender, text)
     local pl, pt = tonumber(data.pl), tonumber(data.pt)
     if pl and pl >= 0 and pl < 3e8 and character.source ~= "self" and (not character.played or (character.played.ts or 0) < (pt or 0)) then
         character.played = { total = pl, level = tonumber(data.pv), ts = pt or Util.Now() }
+    end
+
+    -- Die Kampfrolle sagt nur der Besitzer; keine Angabe heisst keine.
+    if character.source ~= "self" then
+        local cr = data.cr
+        character.combatRole = (cr == "TANK" or cr == "HEAL" or cr == "DPS") and cr or nil
     end
 
     -- Eine eigene Messung wird NICHT von einer Fremdmeldung ueberschrieben.

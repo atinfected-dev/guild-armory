@@ -284,6 +284,11 @@ Schema.ACCOUNT_DEFAULTS = {
         -- Blizzards Soft-Interact-Symbol am Schild unsichtbar, solange unser
         -- Zeichen daran haengt.
         highlightHideGameIcon = true,
+
+        -- Gruppenquests teilen (07.10.2026): Dungeon-, Elite-, Gruppen- und
+        -- Schlachtzugsquests des eigenen Logs — Kennung, Art, Titel. Fuer
+        -- "Was koennen wir zusammen machen?".
+        shareGroupQuests = true,
         highlightSound = false,
         readyEnchants = true,
         readyConsumables = true,
@@ -413,6 +418,8 @@ Schema.ACCOUNT_DEFAULTS = {
     ---   playerId,                -- Verknuepfung zum Spielerprofil (Main/Twink)
     ---   ownAccount,              -- true: auf DIESEM Account eingeloggt (Beweis)
     ---   specID, loadout = { value, ts },
+    ---   combatRole,              -- "TANK" | "HEAL" | "DPS", selbst gesetzt (07.10.2026)
+    ---   groupQuests = { list = { { id, tag, title } }, ts },
     ---   itemLevel = { value, count, ts },
     ---   equipment = { [slotID] = { link, itemID, itemLevel, quality, enchantID,
     ---                              gems = {}, name, icon } },

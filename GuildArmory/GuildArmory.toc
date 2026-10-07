@@ -71,6 +71,7 @@ Map\Positions.lua
 Quests\Questhub.lua
 Quests\Dungeonhub.lua
 Quests\Highlight.lua
+Quests\Together.lua
 LootCouncil\Dkp.lua
 LootCouncil\Session.lua
 LootCouncil\Rotation.lua
@@ -111,6 +112,7 @@ UI\TalentFrame.lua
 UI\Views\Dashboard.lua
 UI\Views\Questhub.lua
 UI\Views\Dungeonhub.lua
+UI\Views\Together.lua
 UI\Views\Roster.lua
 UI\Views\Armory.lua
 UI\Views\Characters.lua
