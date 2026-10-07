@@ -665,7 +665,17 @@ function Widgets.ContextMenu(title, items, titleColor)
         local c = item.disabled and Theme.color.textFaint or Theme.color.text
         b.label:SetTextColor(c[1], c[2], c[3])
         if item.disabled then b:Disable() else b:Enable() end
-        b:SetScript("OnClick", function()
+        b.armed = nil
+        b:SetScript("OnClick", function(self)
+            -- Unwiderrufliches (item.confirm = "Wirklich?"): Der erste Klick
+            -- faerbt den Eintrag rot und laesst das Menue offen, der zweite
+            -- tut es. Dasselbe Muster wie bei den Knoepfen (07.10.2026).
+            if item.confirm and not self.armed then
+                self.armed = true
+                self.label:SetText(item.confirm)
+                self.label:SetTextColor(Theme.color.bad[1], Theme.color.bad[2], Theme.color.bad[3])
+                return
+            end
             menu.catcher:Hide()
             if item.func then item.func() end
         end)

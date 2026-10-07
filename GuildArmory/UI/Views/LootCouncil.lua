@@ -115,11 +115,13 @@ function LootCouncil:Create(parent)
         if session then GA.Modules.Session:Close(session.id, "vom Lootmeister beendet") end
         self:Refresh()
     end)
+    self.closeButton:SetTooltip(L.TT_COUNCIL_CLOSE)
     self.closeButton:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
 
     self.openButton = Widgets.Button(bar, L.COUNCIL_OPEN, function()
         self:OpenSession()
     end, "primary")
+    self.openButton:SetTooltip(L.TT_COUNCIL_OPEN)
     self.openButton:SetPoint("RIGHT", self.closeButton, "LEFT", -6, 0)
 
     -- Rotation: Sitze auf Zeit fuer Leute aus dem Schlachtzug.
@@ -131,6 +133,7 @@ function LootCouncil:Create(parent)
         end
         self:Refresh()
     end)
+    self.rotateButton:SetTooltip(L.TT_ROTATION_ROTATE)
     self.rotateButton:SetPoint("RIGHT", self.openButton, "LEFT", -6, 0)
 
     -- DAS GEBOTSFENSTER WIEDER AUFMACHEN.
@@ -142,6 +145,7 @@ function LootCouncil:Create(parent)
     self.bidButton = Widgets.Button(bar, L.COUNCIL_REOPEN_BID, function()
         self:ReopenBidFrame()
     end)
+    self.bidButton:SetTooltip(L.TT_COUNCIL_REOPEN_BID)
     self.bidButton:SetPoint("RIGHT", self.rotateButton, "LEFT", -6, 0)
 
     -- EINEN ERKANNTEN GEGENSTAND WIEDER HERAUSNEHMEN.
@@ -159,6 +163,7 @@ function LootCouncil:Create(parent)
     self.removeButton = Widgets.Button(bar, L.COUNCIL_REMOVE, function()
         self:RemoveSelected()
     end)
+    self.removeButton:SetTooltip(L.TT_COUNCIL_REMOVE)
     self.removeButton:SetPoint("RIGHT", self.bidButton, "LEFT", -6, 0)
 
     -- ALLE AUF EINMAL.
@@ -175,6 +180,7 @@ function LootCouncil:Create(parent)
     self.removeAllButton = Widgets.Button(bar, L.COUNCIL_REMOVE_ALL, function()
         self:RemoveAll()
     end)
+    self.removeAllButton:SetTooltip(L.TT_COUNCIL_REMOVE_ALL)
     self.removeAllButton:SetPoint("RIGHT", self.removeButton, "LEFT", -6, 0)
 
     -- AUS DEM BEUTEL AUF DIE LISTE.
@@ -185,6 +191,7 @@ function LootCouncil:Create(parent)
     self.addAllButton = Widgets.Button(bar, L.COUNCIL_ADD_ALL, function()
         self:AddAllFromBags()
     end)
+    self.addAllButton:SetTooltip(L.TT_COUNCIL_ADD_ALL)
     self.addAllButton:SetPoint("RIGHT", self.removeAllButton, "LEFT", -6, 0)
 
     -- Der Stand der Rotation gehoert neben den Knopf und nicht in ein
@@ -217,6 +224,7 @@ function LootCouncil:Create(parent)
         self.cardOffset = math.max(0, self.cardOffset - 1)
         self:Refresh()
     end)
+    self.prevButton:SetTooltip(L.TT_COUNCIL_PREV)
     self.prevButton:SetWidth(ARROW_W) self.prevButton:SetHeight(CARD_H)
     self.prevButton:SetPoint("LEFT", strip, "LEFT", 0, 0)
     self.prevButton:Hide()
@@ -225,6 +233,7 @@ function LootCouncil:Create(parent)
         self.cardOffset = self.cardOffset + 1
         self:Refresh()
     end)
+    self.nextButton:SetTooltip(L.TT_COUNCIL_NEXT)
     self.nextButton:SetWidth(ARROW_W) self.nextButton:SetHeight(CARD_H)
     self.nextButton:SetPoint("RIGHT", strip, "RIGHT", 0, 0)
     self.nextButton:Hide()
@@ -257,6 +266,7 @@ function LootCouncil:Create(parent)
     self.collapsed = { PASS = true }
 
     self.candidates = Widgets.ScrollList(bidPanel.content, {
+        emptyText = L.COUNCIL_BIDS_EMPTY,
         rowHeight = 26,
         columns = candidateColumns(),
         createRow = function(row) self:BuildCandidateRow(row) end,
@@ -543,12 +553,14 @@ function LootCouncil:BuildCandidateRow(row)
     row.award = Widgets.Button(row, L.COUNCIL_AWARD, function()
         if row.item and not row.item.group then LootCouncil:Award(row.item.name) end
     end, "primary")
+    row.award:SetTooltip(L.TT_COUNCIL_AWARD)
     row.award:SetHeight(18)
     row.award:SetPoint("RIGHT", row, "RIGHT", -6, 0)
 
     row.vote = Widgets.Button(row, L.COUNCIL_VOTE, function()
         if row.item and not row.item.group then LootCouncil:Vote(row.item.name) end
     end)
+    row.vote:SetTooltip(L.TT_COUNCIL_VOTE)
     row.vote:SetHeight(18)
     row.vote:SetPoint("RIGHT", row.award, "LEFT", -4, 0)
 
@@ -805,6 +817,7 @@ function LootCouncil:BuildDecision(content, fonts)
     self.awardButton = Widgets.Button(content, L.COUNCIL_AWARD, function()
         if self.leader then LootCouncil:Award(self.leader.name) end
     end, "primary")
+    self.awardButton:SetTooltip(L.TT_COUNCIL_AWARD)
     self.awardButton:SetHeight(26)
     self.awardButton:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -108)
     self.awardButton:SetPoint("RIGHT", content, "RIGHT", 0, 0)

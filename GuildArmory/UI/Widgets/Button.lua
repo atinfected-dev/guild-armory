@@ -21,10 +21,66 @@ local Theme = GA.UI.Theme
 --- @param text string
 --- @param onClick function|nil
 --- @param variant string|nil  "primary" fuer die hervorgehobene Aktion
-function Widgets.Button(parent, text, onClick, variant)
-    local native = Widgets.NativeButton(parent, text, onClick, variant)
-    if native then return native end
-    return Widgets.FlatButton(parent, text, onClick, variant)
+--- Was jeder Knopf kann, egal ob Blizzard-Vorlage oder flach (07.10.2026,
+--- Verfeinerungsplan 1 und 2):
+---
+---   button:SetTooltip(text)   Hilfetext, der IMMER gilt. Bis dahin erschien
+---                             ein Tooltip nur an ausgegrauten Knoepfen
+---                             (der Grund fuers Ausgrauen) — ein Knopf, der
+---                             geht, erklaerte sich nicht.
+---   button:SetConfirm(text)   Bestaetigung fuer Unwiderrufliches: Der erste
+---                             Klick faerbt den Knopf rot und schreibt
+---                             `text` darauf ("Wirklich?"), der zweite Klick
+---                             binnen fuenf Sekunden tut es; sonst faellt
+---                             der Knopf zurueck. Ein Muster fuer alle
+---                             Stellen statt drei verschiedener.
+---   button:SetAction(fn)      der Klick-Handler — statt SetScript, damit
+---                             die Bestaetigung davor bleibt.
+---   button:Disarm()           eine laufende Bestaetigung abbrechen, z. B.
+---                             wenn eine wiederverwendete Zeile einen
+---                             anderen Eintrag bekommt.
+local CONFIRM_SECONDS = 5
+
+local function decorate(button, text, onClick, paintDanger)
+    button.baseText = text
+    button.onConfirmed = onClick
+    button.paintDanger = paintDanger
+
+    function button:SetTooltip(tip) self.hint = tip end
+    function button:SetAction(fn) self.onConfirmed = fn end
+    function button:SetConfirm(tip) self.confirmText = tip if not tip then self:Disarm() end end
+
+    function button:Disarm()
+        if not self.armedAt then return end
+        self.armedAt = nil
+        self:SetLabel(self.baseText)
+        if self.paintDanger then self:paintDanger(false) end
+    end
+
+    button:SetScript("OnClick", function(self, ...)
+        if not self.confirmText then
+            if self.onConfirmed then self.onConfirmed(self, ...) end
+            return
+        end
+        local now = GA.Core.Compat.GetTime()
+        if self.armedAt and now - self.armedAt < CONFIRM_SECONDS then
+            self:Disarm()
+            if self.onConfirmed then self.onConfirmed(self, ...) end
+            return
+        end
+        self.armedAt = now
+        self:SetLabel(self.confirmText)
+        if self.paintDanger then self:paintDanger(true) end
+        GA.Core.Compat.After(CONFIRM_SECONDS, function()
+            if self.armedAt and GA.Core.Compat.GetTime() - self.armedAt >= CONFIRM_SECONDS then self:Disarm() end
+        end)
+    end)
+end
+
+function Widgets.Button(parent, text, onClick, variant, tooltip)
+    local button = Widgets.NativeButton(parent, text, onClick, variant) or Widgets.FlatButton(parent, text, onClick, variant)
+    if tooltip then button:SetTooltip(tooltip) end
+    return button
 end
 
 --- Blizzards Standardknopf (rot-braun, goldene Schrift). nil, wenn die Vorlage fehlt.
@@ -39,12 +95,18 @@ function Widgets.NativeButton(parent, text, onClick, variant)
     button:SetWidth(math.max(60, width + 26))
     button.label = label
 
-    if onClick then button:SetScript("OnClick", onClick) end
+    decorate(button, text, onClick, function(self, on)
+        local fs = Theme.NativeText(self)
+        if not fs then return end
+        if on then fs:SetTextColor(Theme.color.bad[1], Theme.color.bad[2], Theme.color.bad[3])
+        else fs:SetTextColor(1, 0.82, 0) end
+    end)
 
     button:HookScript("OnEnter", function(self)
-        if self.tooltip then
+        local tip = self.tooltip or self.hint
+        if tip then
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:SetText(self.tooltip, 1, 1, 1, 1, true)
+            GameTooltip:SetText(tip, 1, 1, 1, 1, true)
             GameTooltip:Show()
         end
     end)
@@ -56,6 +118,7 @@ function Widgets.NativeButton(parent, text, onClick, variant)
     end
 
     function button:SetLabel(newText)
+        if not self.armedAt then self.baseText = newText end
         self:SetText(newText or "")
         local fs = Theme.NativeText(self)
         local w = fs and fs.GetStringWidth and fs:GetStringWidth() or 60
@@ -101,9 +164,10 @@ function Widgets.FlatButton(parent, text, onClick, variant)
         label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
         if not forge then for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end end
 
-        if button.tooltip then
+        local tip = button.tooltip or button.hint
+        if tip then
             GameTooltip:SetOwner(button, "ANCHOR_TOP")
-            GameTooltip:SetText(button.tooltip, 1, 1, 1, 1, true)
+            GameTooltip:SetText(tip, 1, 1, 1, 1, true)
             GameTooltip:Show()
         end
     end)
@@ -112,18 +176,28 @@ function Widgets.FlatButton(parent, text, onClick, variant)
         if forge then Theme.Metal(background, TINT)
         else Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 }) end
         local color = isPrimary and Theme.color.goldBright or (forge and Theme.color.text or Theme.color.goldMid)
+        if button.armedAt then color = Theme.color.bad end
         label:SetTextColor(color[1], color[2], color[3])
         if not forge then
             for _, line in ipairs(lines) do
-                Theme.Paint(line, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+                Theme.Paint(line, button.armedAt and Theme.color.bad or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
             end
         end
         GameTooltip:Hide()
     end)
 
-    if onClick then
-        button:SetScript("OnClick", onClick)
-    end
+    decorate(button, text, onClick, function(self, on)
+        if on then
+            label:SetTextColor(Theme.color.bad[1], Theme.color.bad[2], Theme.color.bad[3])
+            for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.bad) end
+        else
+            local color = isPrimary and Theme.color.goldBright or (forge and Theme.color.text or Theme.color.goldMid)
+            label:SetTextColor(color[1], color[2], color[3])
+            for _, line in ipairs(lines) do
+                Theme.Paint(line, forge and look.btnLine or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
+            end
+        end
+    end)
 
     button.label = label
 
@@ -144,6 +218,7 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     end
 
     function button:SetLabel(newText)
+        if not self.armedAt then self.baseText = newText end
         label:SetText(string.upper(newText or ""))
         self:SetWidth(label:GetStringWidth() + 22)
     end

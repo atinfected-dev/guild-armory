@@ -61,6 +61,7 @@ function AnalyticsView:Create(parent)
             self.grouping = grouping.key
             self:Refresh()
         end)
+        button:SetTooltip(L.TT_ANA_GROUP)
         button:SetHeight(20)
         button:SetWidth(86)
         if previous then
@@ -81,6 +82,7 @@ function AnalyticsView:Create(parent)
             self.range = range.key
             self:Refresh()
         end)
+        button:SetTooltip(L.TT_ANA_RANGE)
         button:SetHeight(20)
         button:SetWidth(58)
         if previousRange then
@@ -121,6 +123,7 @@ function AnalyticsView:Create(parent)
     self.tablePanel = table_
 
     self.rows = Widgets.ScrollList(table_.content, {
+        emptyText = L.ANA_TABLE_EMPTY,
         rowHeight = 24,
         createRow = function(row) self:BuildRow(row) end,
         updateRow = function(row, entry) self:UpdateRow(row, entry) end,

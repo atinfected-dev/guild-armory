@@ -198,6 +198,7 @@ function View:Create(parent)
     y = y - 28
 
     self.postButton = Widgets.Button(form, L.DH_POST_BTN, function() View:Post() end, "primary")
+    self.postButton:SetTooltip(L.TT_DH_POST)
     self.postButton:SetHeight(24)
     self.postButton:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
     self.postButton:SetPoint("RIGHT", form, "RIGHT", -14, 0)
@@ -504,8 +505,10 @@ function View:FillCard(card, run)
     local leftmost
     local function place(index, text, onClick, anchorTo)
         local button = card.buttons[index]
+        -- Wiederverwendet: keine Bestaetigung vom vorigen Lauf uebernehmen.
+        button:SetConfirm(nil)
         button:SetLabel(text)
-        button:SetScript("OnClick", onClick)
+        button:SetAction(function() onClick() end)
         button:ClearAllPoints()
         if anchorTo then button:SetPoint("RIGHT", anchorTo, "LEFT", -4, 0)
         else button:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -12, 12) end
@@ -518,6 +521,7 @@ function View:FillCard(card, run)
     if run.own then
         card.action:SetText("")
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
+        b:SetConfirm(L.BTN_REALLY)
         place(2, L.DH_INVITE, function()
             local n, offline = Hub:InviteAll(run)
             if #offline > 0 then

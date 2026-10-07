@@ -58,6 +58,7 @@ function WishlistView:Create(parent)
         local button = Widgets.Button(bar, priority.label, function()
             self:AddCurrent(priority.key)
         end)
+        button:SetTooltip(L.TT_WISH_PRIORITY)
         button:SetHeight(20)
         button:SetWidth(72)
         if previous then
@@ -76,6 +77,7 @@ function WishlistView:Create(parent)
     self.reserveButton = Widgets.Button(bar, L.SOFTRES_CLAIM, function()
         self:ReserveCurrent()
     end)
+    self.reserveButton:SetTooltip(L.TT_SOFTRES_CLAIM)
     self.reserveButton:SetHeight(20)
     self.reserveButton:SetPoint("LEFT", previous or self.input, "RIGHT", 12, 0)
 
@@ -85,6 +87,7 @@ function WishlistView:Create(parent)
     self.atlasButton = Widgets.Button(bar, L.ATLAS_LOAD, function()
         self:LoadAtlas()
     end)
+    self.atlasButton:SetTooltip(L.TT_ATLAS_LOAD)
     self.atlasButton:SetHeight(20)
     self.atlasButton:SetPoint("LEFT", self.reserveButton, "RIGHT", 12, 0)
     self.atlasButton:Hide()
@@ -107,6 +110,7 @@ function WishlistView:Create(parent)
     self.minePanel = mine
 
     self.mine = Widgets.ScrollList(mine.content, {
+        emptyText = L.WISH_MINE_EMPTY,
         rowHeight = 26,
         createRow = function(row) self:BuildEntryRow(row) end,
         updateRow = function(row, entry) self:UpdateEntryRow(row, entry) end,
@@ -131,6 +135,7 @@ function WishlistView:Create(parent)
     -- steht, sonst die anderen Interessenten. Ein zweites Fenster dafuer waere
     -- ein Dialog mehr, den niemand bedienen will.
     self.others = Widgets.ScrollList(others.content, {
+        emptyText = L.WISH_OTHERS_EMPTY,
         rowHeight = 22,
         createRow = function(row)
             row.icon = row:CreateTexture(nil, "ARTWORK")
@@ -292,12 +297,17 @@ function WishlistView:BuildEntryRow(row)
             WishlistView:Refresh()
         end
     end)
+    row.remove:SetTooltip(L.TT_WISH_REMOVE)
     row.remove:SetHeight(18)
     row.remove:SetWidth(60)
     row.remove:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.remove:SetConfirm(L.BTN_REALLY)
 end
 
 function WishlistView:UpdateEntryRow(row, entry)
+    -- Die Zeile wird wiederverwendet: eine angefangene Bestaetigung gilt
+    -- nicht fuer den naechsten Eintrag.
+    if row.remove then row.remove:Disarm() end
     local info = Compat.GetItemInfo(entry.itemID)
     row.itemLink = info and info.link or nil
 

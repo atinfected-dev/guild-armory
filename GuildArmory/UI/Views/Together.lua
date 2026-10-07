@@ -60,6 +60,7 @@ function View:Create(parent)
     self.roleHint:SetPoint("LEFT", previous, "RIGHT", 10, 0)
 
     self.refreshButton = Widgets.Button(bar, L.TG_REFRESH, function() View:Refresh() end, "primary")
+    self.refreshButton:SetTooltip(L.TT_TG_REFRESH)
     self.refreshButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
 
     self.status = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
@@ -109,9 +110,11 @@ function View:Create(parent)
             card.lines[n] = line
         end
         card.post = Widgets.Button(card, L.TG_POST_RUN, function() View:PostRun(card.suggestion) end, "primary")
+        card.post:SetTooltip(L.TT_TG_POST)
         card.post:SetHeight(20)
         card.post:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 7)
         card.invite = Widgets.Button(card, L.TG_INVITE_ALL, function() View:InviteAll(card.suggestion) end)
+        card.invite:SetTooltip(L.TT_TG_INVITE)
         card.invite:SetHeight(20)
         card.invite:SetPoint("LEFT", card.post, "RIGHT", 6, 0)
         card:Hide()

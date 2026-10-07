@@ -46,6 +46,10 @@ function Widgets.ScrollList(parent, options)
     list.createRow = options.createRow
     list.updateRow = options.updateRow
     list.onClickRow = options.onClickRow
+    -- Leer-Text (07.10.2026, Verfeinerungsplan 3): Eine Liste ohne Eintraege
+    -- sagte bisher nichts — jede Ansicht baute sich ihr eigenes Label, fuenf
+    -- gar keins. Jetzt eine Option fuer alle.
+    list.emptyText = options.emptyText
     list.data = {}
     list.offset = 0
     list.rows = {}
@@ -187,8 +191,22 @@ function Widgets.ScrollList(parent, options)
         end
     end
 
+    function list:SetEmptyText(text)
+        self.emptyText = text
+        if self.empty then self.empty:SetText(text or "") end
+        self:Update()
+    end
+
     --- Weist den sichtbaren Zeilen ihre Datensaetze zu.
     function list:Update()
+        if self.emptyText and not self.empty then
+            self.empty = Theme.Label(body, self.emptyText, fonts.body, Theme.color.textDim)
+            self.empty:SetPoint("TOPLEFT", body, "TOPLEFT", 16, -28)
+            self.empty:SetPoint("RIGHT", body, "RIGHT", -16, 0)
+            self.empty:SetJustifyH("CENTER")
+            self.empty:SetSpacing(3)
+        end
+        if self.empty then self.empty:SetShown(#self.data == 0 and self.emptyText ~= nil) end
         local count = visibleCount()
         if count <= 0 then return end
 

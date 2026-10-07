@@ -504,6 +504,8 @@ function Characters:BuildCharacterRow(row, kind)
     end)
     row.secondary:SetHeight(18)
     row.secondary:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    -- Eine Zuordnung loesen ist unwiderruflich: erst "Wirklich?".
+    if kind == "member" then row.secondary:SetConfirm(L.BTN_REALLY) end
 
     row.primary = Widgets.Button(row, "", function()
         if row.item then self:OnPrimary(row.item, kind) end
@@ -535,6 +537,7 @@ local function setLabel(button, text)
 end
 
 function Characters:UpdateCharacterRow(row, character, kind)
+    if row.secondary then row.secondary:Disarm() end
     local Players = GA.Modules.Players
     local profile = Players:GetProfileFor(character.guid)
     local isMain = profile and profile.mainGuid == character.guid

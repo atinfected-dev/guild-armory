@@ -81,10 +81,13 @@ function View:Create(parent)
     })
     self.picker:SetPoint("LEFT", normal, "LEFT", 0, 0)
     self.importButton = Widgets.Button(normal, L.RP_IMPORT, function() View:OpenImport() end)
+    self.importButton:SetTooltip(L.TT_RP_IMPORT)
     self.importButton:SetPoint("RIGHT", normal, "RIGHT", 0, 0)
     self.menuButton = Widgets.Button(normal, L.RP_MENU, function() View:PlanMenu() end)
+    self.menuButton:SetTooltip(L.TT_RP_MENU)
     self.menuButton:SetPoint("RIGHT", self.importButton, "LEFT", -6, 0)
     self.arrangeButton = Widgets.Button(normal, L.RP_ARRANGE, function() View:Arrange() end, "primary")
+    self.arrangeButton:SetTooltip(L.TT_RP_ARRANGE)
     self.arrangeButton:SetPoint("RIGHT", self.menuButton, "LEFT", -12, 0)
 
     -- Leiste im Bearbeitungsmodus.
@@ -95,10 +98,13 @@ function View:Create(parent)
     self.editTitle = Theme.Label(edit, "", fonts.nav or fonts.row, Theme.color.heading)
     self.editTitle:SetPoint("LEFT", edit, "LEFT", 4, 0)
     self.saveButton = Widgets.Button(edit, L.RP_SAVE, function() View:SaveEdit() end, "primary")
+    self.saveButton:SetTooltip(L.TT_RP_SAVE)
     self.saveButton:SetPoint("RIGHT", edit, "RIGHT", 0, 0)
     self.discardButton = Widgets.Button(edit, L.RP_DISCARD, function() View:DiscardEdit() end)
+    self.discardButton:SetTooltip(L.TT_RP_DISCARD)
     self.discardButton:SetPoint("RIGHT", self.saveButton, "LEFT", -6, 0)
     self.propsButton = Widgets.Button(edit, L.RP_PROPS, function() View:EditProps() end)
+    self.propsButton:SetTooltip(L.TT_RP_PROPS)
     self.propsButton:SetPoint("RIGHT", self.discardButton, "LEFT", -12, 0)
 
     self.status = Theme.Label(frame, "", fonts.small, Theme.color.textDim)
@@ -141,6 +147,7 @@ function View:Create(parent)
     groups:SetWidth(GROUP_W * 2 + 30)
     self.groupsPanel = groups
     self.fromRaidButton = Widgets.Button(groups.header or groups, L.RP_FROM_RAID, function() View:TakeFromRaid() end)
+    self.fromRaidButton:SetTooltip(L.TT_RP_FROM_RAID)
     self.fromRaidButton:SetHeight(18)
     self.fromRaidButton:SetPoint("RIGHT", groups.header or groups, "RIGHT", -4, 0)
     self.groupBoxes = {}
@@ -194,9 +201,11 @@ function View:Create(parent)
     -- Probelauf (Schritt 4): die Erinnerungen des gewaehlten Bosses so, wie
     -- sie im Kampf erscheinen — alle, nicht nur die eigenen.
     self.previewButton = Widgets.Button(bosses.header or bosses, L.RP_PREVIEW, function() View:TogglePreview() end)
+    self.previewButton:SetTooltip(L.TT_RP_PREVIEW)
     self.previewButton:SetHeight(18)
     self.previewButton:SetPoint("RIGHT", bosses.header or bosses, "RIGHT", -4, 0)
     self.bossEditButton = Widgets.Button(bosses.header or bosses, L.RP_BOSS_EDIT, function() View:EditBoss(View.bossIndex) end)
+    self.bossEditButton:SetTooltip(L.TT_RP_BOSS_EDIT)
     self.bossEditButton:SetHeight(18)
     self.bossEditButton:SetPoint("RIGHT", self.previewButton, "LEFT", -6, 0)
     self.bossEditButton:Hide()
@@ -238,6 +247,7 @@ function View:Create(parent)
     self.empty:SetSpacing(3)
     self.empty:Hide()
     self.newButton = Widgets.Button(frame, L.RP_NEW, function() View:NewPlan() end, "primary")
+    self.newButton:SetTooltip(L.TT_RP_NEW)
     self.newButton:SetPoint("TOP", self.empty, "BOTTOM", 0, -14)
     self.newButton:Hide()
 
@@ -348,6 +358,7 @@ function View:Refresh()
 
     self.normalBar:SetShown(not editing)
     self.editBar:SetShown(editing)
+    self.discardButton:SetConfirm(editing and self.dirty and L.BTN_REALLY or nil)
     self.empty:SetShown(not has)
     self.newButton:SetShown(not has)
     self.groupsPanel:SetShown(has)
@@ -524,7 +535,7 @@ function View:PlanMenu()
         { text = L.RP_EDIT, disabled = not entry, func = function() View:EditPlan() end },
         { text = L.RP_COPY, disabled = not entry, func = function() View:CopyText() end },
         { text = L.RP_SHARE, disabled = not (entry and entry.wire), func = function() View:ShareActive() end },
-        { text = L.RP_DELETE, disabled = not entry, func = function() View:DeleteActive() end },
+        { text = L.RP_DELETE, disabled = not entry, confirm = L.BTN_REALLY, func = function() View:DeleteActive() end },
     })
 end
 
@@ -636,14 +647,9 @@ function View:SaveEdit()
 end
 
 --- Verwerfen. Mit ungespeicherten Aenderungen erst beim zweiten Klick.
+--- Verwerfen. Mit ungespeicherten Aenderungen bestaetigt der Knopf selbst
+--- (rot, "Wirklich?") — gesetzt in Refresh, je nachdem, ob etwas offen ist.
 function View:DiscardEdit()
-    local now = GA.Core.Compat.GetTime()
-    if self.dirty and not (self.discardArmed and now - self.discardArmed < 5) then
-        self.discardArmed = now
-        GA.Core.Debug:Info(L.RP_DISCARD_CONFIRM)
-        return
-    end
-    self.discardArmed = nil
     self.draft, self.dirty = nil, false
     self:Refresh()
 end

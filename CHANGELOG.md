@@ -2,7 +2,11 @@
 
 ## 0.1.43
 
-In progress.
+Every button explains itself: hover any button for what it does — until now a hint appeared only on greyed-out buttons (the reason they were off). Over fifty buttons across Questhub, Dungeonhub, Together, Raid Plan, Roster, Loot, Wishlist, Crafting, Achievements, Analytics and DKP got their text.
+
+One way to confirm anything irreversible: the first click turns the button red and says "Really?", the second click within five seconds does it, otherwise it falls back. Applied to removing a raid plan, dropping unsaved plan changes, deleting in the plan forms, removing a wish, unlinking a character from a player, taking back a hand-entered achievement, withdrawing a dungeon run and posting DKP to the whole raid — the dangerous actions that had no guard. Menu entries do the same: the entry turns red and the menu stays open for the second click.
+
+Lists say when they are empty: loot history, wishlist (yours and the guild's), DKP list and ledger, the bids of a loot session and the analytics table now show a short line instead of nothing.
 
 ## 0.1.42
 

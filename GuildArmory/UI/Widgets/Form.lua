@@ -148,10 +148,12 @@ local function build(key, fields)
         if ok then frame:Hide() else frame.status:SetText(message or "") end
     end, "primary")
     save:SetPoint("RIGHT", cancel, "LEFT", -6, 0)
-    frame.delete = Widgets.Button(frame, GA.L.RP_DELETE, function()
+    frame.delete = Widgets.Button(frame, GA.L.BTN_REMOVE, function()
         if frame.onDelete then frame.onDelete() end
         frame:Hide()
     end)
+    -- Loeschen ist unwiderruflich: erst rot "Wirklich?", dann weg.
+    frame.delete:SetConfirm(GA.L.BTN_REALLY)
     frame.delete:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", PAD, 14)
 
     frame:SetSize(PAD * 2 + LABEL_W + FIELD_W + 4, -y + 72)

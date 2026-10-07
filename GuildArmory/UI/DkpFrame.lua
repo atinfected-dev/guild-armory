@@ -91,6 +91,7 @@ function DkpFrame:Create()
     liste:SetWidth(260)
 
     self.players = Widgets.ScrollList(liste.content, {
+        emptyText = L.DKP_LIST_EMPTY,
         rowHeight = 20,
         createRow = function(row)
             row.nameText = Theme.Label(row, "", fonts.row, Theme.color.text)
@@ -127,6 +128,7 @@ function DkpFrame:Create()
     self.ledgerPanel = buch
 
     self.ledger = Widgets.ScrollList(buch.content, {
+        emptyText = L.DKP_LEDGER_EMPTY,
         rowHeight = 18,
         createRow = function(row)
             row.whenText = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
@@ -199,6 +201,7 @@ function DkpFrame:Create()
     self.postOne = Widgets.Button(buchen.content, L.DKP_POST_ONE, function()
         DkpFrame:Post(false)
     end, "primary")
+    self.postOne:SetTooltip(L.TT_DKP_POST_ONE)
     self.postOne:SetHeight(22)
     self.postOne:SetWidth(170)
     -- Gesetzt wird in RelayoutPost.
@@ -206,8 +209,10 @@ function DkpFrame:Create()
     self.postRaid = Widgets.Button(buchen.content, L.DKP_POST_RAID, function()
         DkpFrame:Post(true)
     end)
+    self.postRaid:SetTooltip(L.TT_DKP_POST_RAID)
     self.postRaid:SetHeight(22)
     self.postRaid:SetWidth(180)
+    self.postRaid:SetConfirm(L.BTN_REALLY)
     self.postRaid:SetPoint("LEFT", self.postOne, "RIGHT", 8, 0)
 
     -- Die Rueckmeldung auf EIGENER ZEILE. Neben den Knoepfen war kein

@@ -101,6 +101,7 @@ function LootHistory:Create(parent)
     end
 
     self.list = Widgets.ScrollList(listPanel.content, {
+        emptyText = L.LH_LIST_EMPTY,
         rowHeight = 22,
         columns = localizedColumns,
         createRow = function(row, columns)

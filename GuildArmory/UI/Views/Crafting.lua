@@ -255,6 +255,7 @@ function CraftingView:Create(parent)
             GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
         end
     end, "primary")
+    self.openButton:SetTooltip(L.TT_CRAFT_OPEN)
     self.openButton:SetPoint("RIGHT", result, "RIGHT", -16, 0)
     self.openButton:SetPoint("TOP", self.search, "TOP", 0, 0)
     self.openButton:Hide()
@@ -265,6 +266,7 @@ function CraftingView:Create(parent)
         self.detail = nil
         self:Refresh()
     end)
+    self.backButton:SetTooltip(L.TT_BACK)
     self.backButton:SetPoint("RIGHT", self.openButton, "LEFT", -6, 0)
     self.backButton:SetPoint("TOP", self.search, "TOP", 0, 0)
     self.backButton:Hide()
@@ -446,6 +448,7 @@ function CraftingView:BuildCrafterRow(row)
         end
         CraftingView:Refresh()
     end)
+    row.ask:SetTooltip(L.TT_CRAFT_ASK)
     row.ask:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.ask:Hide()
 end
