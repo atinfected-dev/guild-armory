@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.43
+
+In progress.
+
 ## 0.1.42
 
 Addon messages wait while they are blocked: under the addon rules from Retail 12.0, which WoW: Forever is to get, addon messages do not leave restricted instances — the call goes through and nothing arrives. Until now every exchange inside a raid (guild bank, played time, gear, sign-ups) would have been lost silently. The message queue now checks before every send and holds everything until the block ends — on leaving the instance, after combat, after loading. What waits too long expires: session messages such as bids after 10 minutes (a bid arriving two hours later would be wrong), bulk data after an hour (it is sent again on the next occasion anyway); the queue is capped at 300 waiting messages. /ga sync shows how many are waiting and how many expired.
