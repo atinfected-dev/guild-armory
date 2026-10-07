@@ -87,13 +87,25 @@ function View:Create(parent)
         card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -6)
         card.count = Theme.Label(card, "", fonts.small, Theme.color.textDim)
         card.count:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -7)
+        -- Je Platz: Rollenwappen, Klassenwappen, Text (07.10.2026: "kannst du
+        -- hier Rollenwappen einfuegen" — die Haken und Kreise davor hatte die
+        -- Schrift nicht, sie kamen als Kaestchen). Ein leerer Platz zeigt
+        -- sein Rollenwappen blass, ohne Klasse.
         card.lines = {}
         for n = 1, 5 do
+            local y = -26 - (n - 1) * 16
+            local roleIcon = card:CreateTexture(nil, "ARTWORK")
+            roleIcon:SetSize(14, 14)
+            roleIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, y)
+            local classIcon = card:CreateTexture(nil, "ARTWORK")
+            classIcon:SetSize(14, 14)
+            classIcon:SetPoint("LEFT", roleIcon, "RIGHT", 4, 0)
             local line = Theme.Label(card, "", fonts.row, Theme.color.text)
-            line:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -26 - (n - 1) * 16)
+            line:SetPoint("LEFT", classIcon, "RIGHT", 6, 0)
             line:SetPoint("RIGHT", card, "RIGHT", -8, 0)
             line:SetJustifyH("LEFT")
             line:SetWordWrap(false)
+            line.roleIcon, line.classIcon = roleIcon, classIcon
             card.lines[n] = line
         end
         card.post = Widgets.Button(card, L.TG_POST_RUN, function() View:PostRun(card.suggestion) end, "primary")
@@ -208,14 +220,25 @@ function View:Refresh()
                 { role = "DPS", entry = s.slots.DPS[3] },
             }
             for n, r in ipairs(rows) do
+                local line = card.lines[n]
                 local label = L["DH_ROLE_" .. r.role]
+                -- Fehlt das Wappen auf diesem Client, steht die Rolle als Wort.
+                local hasRole = Theme.SetRoleIcon(line.roleIcon, r.role)
+                line.roleIcon:SetShown(hasRole)
+                local prefix = hasRole and "" or (label .. "  ")
                 if r.entry then
+                    line.roleIcon:SetAlpha(1)
+                    pcall(line.roleIcon.SetDesaturated, line.roleIcon, false)
+                    line.classIcon:SetShown(Theme.SetClassIcon(line.classIcon, r.entry.class))
                     local who = colored(r.entry.name, r.entry.class) .. (r.entry.me and (" " .. L.TG_YOU) or "")
                     local level = r.entry.level and (" |cff8a8a8a" .. r.entry.level .. "|r") or ""
                     local guess = r.entry.guessed and (" |cff8a8a8a" .. L.TG_GUESSED .. "|r") or ""
-                    card.lines[n]:SetText("|cff40c040✓|r  " .. label .. "  " .. who .. level .. guess)
+                    line:SetText(prefix .. who .. level .. guess)
                 else
-                    card.lines[n]:SetText("|cff8a8a8a○  " .. label .. "  " .. L.TG_MISSING .. "|r")
+                    line.roleIcon:SetAlpha(0.35)
+                    pcall(line.roleIcon.SetDesaturated, line.roleIcon, true)
+                    line.classIcon:Hide()
+                    line:SetText("|cff8a8a8a" .. prefix .. L.TG_MISSING .. "|r")
                 end
             end
             local others = 0
