@@ -958,6 +958,7 @@ GA.Core.Locale:Register("deDE", {
     SLASH_SYNC         = "Abgleich: %d Clients bekannt, %d Widersprueche%s",
     SLASH_SYNC_NOTSENT = " — nichts gesendet (%s)",
     SLASH_SYNC_SHARING_OFF = "Freigabe aus",
+    SLASH_SYNC_HELD    = "Zurückgehalten (Addon-Nachrichten hier gesperrt): %d warten, %d beim Warten verfallen",
     SLASH_SYNC_REJECTED = "Verworfen: %d von ausserhalb der Gilde, %d bei unbekanntem Roster",
     SLASH_SYNC_PEER    = "  %s  Addon %s, Protokoll %s",
     SLASH_ROTATE_CLEARED = "%d Sitze beendet.",

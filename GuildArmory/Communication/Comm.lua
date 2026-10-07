@@ -76,6 +76,32 @@ local draining = false
 --- Eingehende Blobs: [absender.."/"..blobId] = { parts, total, kind, ts }
 local incoming = {}
 
+--- ZURUECKHALTEN IN GESPERRTEN INSTANZEN (07.10.2026). Mit den Regeln aus
+--- Retail 12.0, die Forever bekommen soll, gehen Addon-Nachrichten in
+--- gesperrten Instanzen nicht hinaus: Der Aufruf laeuft durch und nichts
+--- kommt an. Bis hierher haette jeder Abgleich im Raid — Gildenbank,
+--- Spielzeit, Ausruestung, Anmeldungen — stillschweigend gefehlt. Deshalb
+--- prueft die Warteschlange vor JEDEM Versand, ob gesperrt ist, und haelt
+--- die Nachrichten, bis es wieder geht: beim Verlassen der Instanz, nach
+--- dem Kampf, nach dem Laden.
+---
+--- WAS WARTET, VERFAELLT IRGENDWANN. Ein Gebot aus einer Lootsitzung, das
+--- zwei Stunden spaeter beim Verlassen des Raids ankommt, waere falsch —
+--- die Sitzung ist vorbei. Eilige Nachrichten verfallen nach HOLD_URGENT,
+--- Massendaten nach HOLD_BULK; die werden beim naechsten Anlass ohnehin neu
+--- geschickt. Verfallen zaehlt /ga sync mit.
+local HOLD_URGENT = 10 * 60
+local HOLD_BULK = 60 * 60
+--- Hoechstens so viele wartende Nachrichten — darueber faellt die aelteste
+--- Massendaten-Nachricht weg.
+local HOLD_LIMIT = 300
+
+Comm.held = { dropped = 0, holding = false }
+
+local function restricted()
+    return Compat.IsCommRestricted ~= nil and Compat.IsCommRestricted() or false
+end
+
 --- EIN FLUESTERZIEL IST NUR DER NAME — OHNE REALM.
 ---
 --- Gemessen 20.09.2026 mit einem zweiten Client. Erst schlug das hier fehl:
@@ -208,7 +234,15 @@ local function enqueue(payload, channel, target, bulk)
     end
 
     local list = bulk and queue.bulk or queue.urgent
-    list[#list + 1] = { payload = payload, channel = channel, target = target }
+    list[#list + 1] = { payload = payload, channel = channel, target = target, bulk = bulk and true or false }
+
+    -- Die Schlange waechst nur, solange zurueckgehalten wird. Darueber hinaus
+    -- faellt das Aelteste aus den Massendaten weg, zur Not aus den Eiligen.
+    while #queue.urgent + #queue.bulk > HOLD_LIMIT do
+        local victim = table.remove(queue.bulk, 1) or table.remove(queue.urgent, 1)
+        if not victim then break end
+        Comm.held.dropped = Comm.held.dropped + 1
+    end
     Comm:Drain()
 end
 
@@ -218,8 +252,37 @@ end
 function Comm:Drain()
     if draining then return end
 
-    local entry = table.remove(queue.urgent, 1) or table.remove(queue.bulk, 1)
-    if not entry then return end
+    if restricted() then
+        -- Gesperrt: nichts geht hinaus, alles bleibt stehen und bekommt den
+        -- Zeitstempel, ab dem es wartet. Weiter geht es, wenn ein Ereignis
+        -- das Ende der Sperre meldet (siehe OnEnable).
+        if not Comm.held.holding then
+            Comm.held.holding = true
+            Comm.held.since = Compat.Now()
+            Debug:Print("comm", "Addon-Nachrichten gesperrt — %d warten", #queue.urgent + #queue.bulk)
+        end
+        for _, list in ipairs({ queue.urgent, queue.bulk }) do
+            for _, e in ipairs(list) do e.heldSince = e.heldSince or Comm.held.since end
+        end
+        return
+    end
+    if Comm.held.holding then
+        Comm.held.holding = false
+        Debug:Print("comm", "Sperre vorbei — %d Nachrichten gehen hinaus", #queue.urgent + #queue.bulk)
+    end
+
+    -- Was zu lange gewartet hat, verfaellt — nur, was wirklich zurueckgehalten
+    -- wurde; der normale Takt dauert Sekundenbruchteile.
+    local entry
+    while true do
+        entry = table.remove(queue.urgent, 1) or table.remove(queue.bulk, 1)
+        if not entry then return end
+        if not entry.heldSince then break end
+        local age = Compat.Now() - entry.heldSince
+        if age <= (entry.bulk and HOLD_BULK or HOLD_URGENT) then break end
+        Comm.held.dropped = Comm.held.dropped + 1
+        Debug:Print("comm", "wartende Nachricht verfallen (%d s)", age)
+    end
 
     draining = true
     Compat.SendAddonMessage(GA.const.COMM_PREFIX, entry.payload, entry.channel, entry.target)
@@ -533,4 +596,13 @@ function Comm:OnEnable()
     GA.Core.Events:Register("CHAT_MSG_ADDON", function(_, prefix, payload, channel, sender)
         Comm:OnMessage(prefix, payload, channel, sender)
     end, "Comm")
+
+    -- Das Ende einer Sperre meldet kein eigenes Ereignis. Diese drei kommen
+    -- infrage: Instanz verlassen, Kampf vorbei, Welt geladen. Kurz warten,
+    -- bis der Client seinen Zustand nachgezogen hat, dann weiter.
+    for _, event in ipairs({ "ZONE_CHANGED_NEW_AREA", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD" }) do
+        GA.Core.Events:Register(event, function()
+            if Comm.held.holding then Compat.After(2, function() Comm:Drain() end) end
+        end, "Comm")
+    end
 end

@@ -969,6 +969,7 @@ GA.Core.Locale:Register("enUS", {
     SLASH_SYNC         = "Sync: %d clients known, %d conflicts%s",
     SLASH_SYNC_NOTSENT = " — nothing sent (%s)",
     SLASH_SYNC_SHARING_OFF = "sharing off",
+    SLASH_SYNC_HELD    = "Held back (addon messages blocked here): %d waiting, %d expired while waiting",
     SLASH_SYNC_REJECTED = "Rejected: %d from outside the guild, %d while the roster was unknown",
     SLASH_SYNC_PEER    = "  %s  addon %s, protocol %s",
     SLASH_ROTATE_CLEARED = "%d seats ended.",

@@ -454,6 +454,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
             Debug:Info(L.SLASH_SYNC_REJECTED,
                 rejected.stranger or 0, rejected.unknown or 0)
         end
+        -- Zurueckgehaltene Nachrichten (gesperrte Instanz) und was davon verfiel.
+        local held = GA.Core.Comm.held or {}
+        if held.holding or (held.dropped or 0) > 0 then
+            Debug:Info(L.SLASH_SYNC_HELD, GA.Core.Comm:QueueLength(), held.dropped or 0)
+        end
     elseif command == "export" then
         if rest == "show" then GA.Core.Export:ShowDialog()
         else GA.Core.Export:Refresh(true) end
