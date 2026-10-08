@@ -56,3 +56,6 @@ package.json
 
 # Fertig gepackter Stand fuer die Veroeffentlichung.
 build/
+
+# --- Eigenes Gildenlogo: Datei des Nutzers, nie im Repository ---------------
+GuildArmory/Media/GuildLogo.tga

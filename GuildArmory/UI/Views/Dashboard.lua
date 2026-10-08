@@ -46,7 +46,6 @@ local HUB_HEIGHT = 92          -- die zwei Live-Kacheln ueber dem Strom
 local SLOT_W, SLOT_GAP = 14, 2
 local FEED_ROW = 36
 
-local LOGO = [[Interface\AddOns\GuildArmory\Media\Logo.tga]]
 local WEEK = 7 * 86400
 local DAY = 86400
 
@@ -173,7 +172,8 @@ function Dashboard:Create(parent)
     Theme.Fill(emblemTile, Theme.color.windowBg)
     Theme.Outline(emblemTile, Theme.color.goldDim)
 
-    self.emblem = emblemTile:CreateTexture(nil, "ARTWORK")
+    -- Addon-Bild, Gildenwappen oder eigene Datei — Einstellungen › Fenster.
+    self.emblem = Theme.LogoFrame(emblemTile)
     self.emblem:SetPoint("TOPLEFT", emblemTile, "TOPLEFT", 4, -4)
     self.emblem:SetPoint("BOTTOMRIGHT", emblemTile, "BOTTOMRIGHT", -4, 4)
 
@@ -899,11 +899,7 @@ function Dashboard:RefreshGuildInfo()
 end
 
 function Dashboard:RefreshHero(identity, character)
-    if Theme.TextureExists(LOGO) and pcall(self.emblem.SetTexture, self.emblem, LOGO) then
-        self.emblem:Show()
-    else
-        self.emblem:Hide()
-    end
+    if self.emblem:Refresh() then self.emblem:Show() else self.emblem:Hide() end
 
     local guildName, rankName = Compat.GetOwnGuildInfo()
     local total, online = Compat.GetNumGuildMembers()

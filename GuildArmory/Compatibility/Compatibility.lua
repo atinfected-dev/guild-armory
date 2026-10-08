@@ -3956,6 +3956,21 @@ function Compat.CreateDressUpModel(parent)
     return model
 end
 
+--- Zeichnet das Gildenwappen des Spiels (den Wappenrock) in drei Texturen:
+--- Hintergrund, Emblem, Rand — so, wie Blizzards Gildenfenster es tut.
+--- UNGEMESSEN auf Forever (Sonde "guildTabard"); fehlt die Funktion oder
+--- wirft sie, bleibt false, und der Aufrufer zeigt das Addon-Bild.
+--- @return boolean gezeichnet
+function Compat.SetGuildTabard(emblem, background, border)
+    local fn = _G.SetLargeGuildTabardTextures
+    if not isFunction(fn) then return false end
+    local ok = pcall(fn, "player", emblem, background, border)
+    if not ok then return false end
+    -- Ohne Gilde liefert der Client leere Texturen: dann ist nichts gezeichnet.
+    local okTex, loaded = pcall(emblem.GetTexture, emblem)
+    return okTex and loaded ~= nil and loaded ~= 0 and loaded ~= ""
+end
+
 --- Rueckt die Kamera so, dass die ganze Figur mit Luft im Rahmen steht.
 --- Der Rahmen selbst bestimmt die Groesse nicht: Ein kleinerer Rahmen
 --- zeigte die Figur groesser und abgeschnitten (08.10.2026). Zwei Wege, je

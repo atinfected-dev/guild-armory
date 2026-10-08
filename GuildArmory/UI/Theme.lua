@@ -299,6 +299,10 @@ Theme.MEDIA = {
     -- Goldenes Ausrufezeichen fuer Questobjekte (06.10.2026), 128x256.
     questmark = M .. "QuestMark.tga",
     logo      = M .. "Logo.tga",
+    -- Das eigene Gildenlogo (08.10.2026): legt jeder selbst in den Ordner,
+    -- ein Addon kann keine Datei hochladen und keine mit der Gilde teilen.
+    -- Nicht im Paket, nicht im Repository (publish.mjs, .gitignore).
+    guildLogo = M .. "GuildLogo.tga",
     sky       = M .. "Sky.tga",
     jewel     = M .. "Jewel.tga",
     parchment = M .. "Parchment.tga",
@@ -576,6 +580,73 @@ function Theme.Media(key)
         mediaLoads[key] = (path and Theme.TextureExists(path)) and path or false
     end
     return mediaLoads[key] or nil
+end
+
+--- Woher das Logo kommt: "addon" (das mitgelieferte Bild), "tabard" (das
+--- Gildenwappen des Spiels, bei allen gleich, ohne Abgleich) oder "file"
+--- (Media/GuildLogo.tga, die jeder selbst hinlegt).
+function Theme.LogoSource()
+    local db = GA.Core.Database
+    local config = db and db.account and db.account.config
+    local source = config and config.logoSource
+    if source == "tabard" or source == "file" then return source end
+    return "addon"
+end
+
+--- Ein Logo-Rahmen: drei Texturen uebereinander (fuer das Wappen), eine
+--- davon reicht fuer ein Bild. :Refresh() zeichnet nach der Einstellung und
+--- sagt, was es gezeichnet hat — "addon" | "tabard" | "file" | nil.
+--- Faellt die gewaehlte Quelle aus (Datei fehlt, Wappen nicht lesbar),
+--- kommt das Addon-Bild; nil nur, wenn auch das fehlt.
+function Theme.LogoFrame(parent)
+    local frame = CreateFrame("Frame", nil, parent)
+    frame.background = frame:CreateTexture(nil, "BACKGROUND")
+    frame.background:SetAllPoints(frame)
+    frame.emblem = frame:CreateTexture(nil, "ARTWORK")
+    frame.emblem:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    frame.border = frame:CreateTexture(nil, "OVERLAY")
+    frame.border:SetAllPoints(frame)
+
+    local function clear()
+        for _, tex in ipairs({ frame.background, frame.emblem, frame.border }) do
+            pcall(tex.SetTexture, tex, nil)
+            tex:Hide()
+        end
+    end
+
+    local function picture(path)
+        clear()
+        if not path or not Theme.TextureExists(path) then return false end
+        frame.emblem:ClearAllPoints()
+        frame.emblem:SetAllPoints(frame)
+        if not pcall(frame.emblem.SetTexture, frame.emblem, path) then return false end
+        frame.emblem:Show()
+        return true
+    end
+
+    function frame:Refresh()
+        local source = Theme.LogoSource()
+        if source == "tabard" then
+            clear()
+            -- Das Emblem kleiner als der Rock, wie im Gildenfenster.
+            local w, h = self:GetWidth() or 64, self:GetHeight() or 64
+            self.emblem:ClearAllPoints()
+            self.emblem:SetPoint("CENTER", self, "CENTER", 0, 0)
+            self.emblem:SetWidth(w * 0.62) self.emblem:SetHeight(h * 0.62)
+            if GA.Core.Compat.SetGuildTabard(self.emblem, self.background, self.border) then
+                self.background:Show() self.emblem:Show() self.border:Show()
+                self.shown = "tabard"
+                return "tabard"
+            end
+        elseif source == "file" then
+            if picture(Theme.MEDIA.guildLogo) then self.shown = "file" return "file" end
+        end
+        if picture(Theme.MEDIA.logo) then self.shown = "addon" return "addon" end
+        self.shown = nil
+        return nil
+    end
+
+    return frame
 end
 
 --- Gebuersteter Stahl, eingefaerbt. Ohne Textur: die Farbe flach.

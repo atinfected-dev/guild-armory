@@ -2,7 +2,7 @@
 
 ## 0.1.44
 
-In progress.
+Your guild's logo on the overview: Settings › Window › Logo offers the addon picture, the guild tabard from the game (the same for everyone, nothing to sync) or an own file. An addon cannot upload images or send them to others, so the own file is Media\GuildLogo.tga in the addon folder, copied by every member who wants to see it; the settings say whether it was found. Whether the tabard can be drawn on Forever is measured by /ga probe (guildTabard).
 
 ## 0.1.43
 

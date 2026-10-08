@@ -418,6 +418,30 @@ function Settings:Create(parent)
         Settings.fontSize:SetWidth(180)
         return function() return 30 end
     end })
+    -- Logo (08.10.2026): Addon-Bild, Gildenwappen des Spiels oder eigene
+    -- Datei. Hochladen im Spiel gibt es nicht, und Bilddaten kann ein Addon
+    -- nicht teilen — das Wappen ist bei allen gleich, die Datei legt jeder
+    -- selbst hin. Der Hinweis sagt, ob sie gefunden wurde.
+    makeRow(window, { label = L.SET_LOGO, hint = "", build = function(row)
+        Settings.logoChips = {}
+        local previous
+        for _, source in ipairs({ "addon", "tabard", "file" }) do
+            local chip = Widgets.Chip(row, L["SET_LOGO_" .. string.upper(source)], function()
+                GA.Core.Config:Set("logoSource", source)
+                local dash = GA.UI.MainFrame.views and GA.UI.MainFrame.views.dashboard
+                if dash and dash.frame then dash:Refresh() end
+                Settings:Refresh()
+            end)
+            chip:SetHeight(20)
+            chip.source = source
+            if previous then chip:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else chip:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.logoChips[#Settings.logoChips + 1] = chip
+            previous = chip
+        end
+        return function() return 28 end
+    end })
+    self.rowLogo = self.pages.window.rows[#self.pages.window.rows]
     self.rowMinimap = makeRow(window, { label = L.SET_MINIMAP, hint = L.SET_MINIMAP_HINT, control = "switch",
         set = function(on) GA.UI.MinimapButton:SetShown(on) end })
     makeHeading(window, L.SET_H_CONTROLS)
@@ -852,6 +876,13 @@ function Settings:Refresh()
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
     self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)
     self.fontSize:SetQuiet(tonumber(Config:Get("fontScale")) or 100)
+    local logoSource = Theme.LogoSource()
+    for _, chip in ipairs(self.logoChips) do chip:SetPressed(chip.source == logoSource) end
+    local fileThere = Theme.TextureExists(Theme.MEDIA.guildLogo)
+    self.rowLogo.hint:SetText(L.SET_LOGO_HINT .. "\n"
+        .. string.format(fileThere and L.SET_LOGO_FILE_FOUND or L.SET_LOGO_FILE_MISSING, Theme.MEDIA.guildLogo))
+    local logoColor = (logoSource == "file" and not fileThere) and Theme.color.warn or Theme.color.textDim
+    self.rowLogo.hint:SetTextColor(logoColor[1], logoColor[2], logoColor[3])
     local notifyAll = Config:Get("notifyEnabled") ~= false
     self.rowNotifyAll.switch:SetChecked(notifyAll)
     for _, row in ipairs(self.notifyRows) do

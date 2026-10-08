@@ -215,6 +215,7 @@ Schema.ACCOUNT_DEFAULTS = {
         -- in Pixeln des Rahmens, 12 bis 40; 22 war bis dahin fest.
         mapPinStyle = "crest",
         fontScale = 100,              -- Schriftgroesse in Prozent (08.10.2026)
+        logoSource = "addon",         -- "addon" | "tabard" | "file" (08.10.2026)
         mapPinSize = 22,
 
         -- GLUECKWUNSCH IM GILDENCHAT BEI EINEM STUFENAUFSTIEG.

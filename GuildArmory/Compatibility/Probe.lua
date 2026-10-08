@@ -198,6 +198,20 @@ Probe.CHECKS = {
       end },
 
     -- --------------------------------------------------------- Raid, Tode ---
+    { key = "guildTabard", was = "Gildenwappen als Textur zeichenbar",
+      fuer = "das Logo auf der Uebersicht (Einstellungen > Fenster > Logo > Wappen)",
+      run = function()
+          if not isFunction(_G.SetLargeGuildTabardTextures) then return Probe.NO, "SetLargeGuildTabardTextures fehlt" end
+          local frame = CreateFrame("Frame", nil, UIParent)
+          frame:SetWidth(64) frame:SetHeight(64)
+          frame:Hide()
+          local a, b, c = frame:CreateTexture(), frame:CreateTexture(), frame:CreateTexture()
+          local ok = pcall(_G.SetLargeGuildTabardTextures, "player", a, b, c)
+          if not ok then return Probe.NO, "wirft" end
+          local tex = a:GetTexture()
+          if tex == nil or tex == 0 or tex == "" then return Probe.EMPTY, "Aufruf geht, Emblem leer (keine Gilde?)" end
+          return Probe.YES, "Emblem " .. tostring(tex)
+      end },
     { key = "playerDead", was = "Eigener Tod erkennbar",
       fuer = "GA-112..116 Raidtode, GA-102 Der Unsterbliche",
       run = function()
