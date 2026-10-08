@@ -1,12 +1,14 @@
 # Changelog
 
+## 0.1.44
+
+In progress.
+
 ## 0.1.43
 
 Re-award during loot distribution: an item that went to the wrong person can be given to another bidder while the session is still open. In the bidder's row the button reads "Re-award" and asks "Really?" first; the one who has it is greyed out. The old record stays in the history as corrected and points to the new one, the previous winner gets their DKP back as a refund entry, the new winner pays their bid, and the hand-over runs again through the master looter or stays open for a trade. Bids and votes carry over, so a second slip is corrected the same way. The correction reaches the other clients as well.
 
 One role, one colour, one invite: the combat role you set under "Together" is now the one the Dungeonhub proposes, and the first role you pick in the Dungeonhub becomes your set role if you had none (a run in your off-role does not change it). The raid plan editor fills in the plan role of everyone you place or take over from the raid from their set role — tank, healer, melee or ranged by class — and leaves what you set yourself alone. Role colours come from the look's palette in every view instead of three private tables. Inviting goes through one function everywhere (Dungeonhub, Together, Questhub, Roster): members the roster shows as offline are skipped instead of producing "Cannot find player", you are never invited yourself, and one line tells you who was invited and who was not online.
-
-Housekeeping: eighteen functions nobody called are gone (a sidebar item widget, a "not built yet" placeholder with its texts, a badge, a big-number widget, a table pool and the like), together with 81 texts no view used any more; /ga gear opens the Armory instead of a placeholder. Comments that still said raid hours were "not yet measurable" or counted achievements by a stale number were brought up to date, and the dungeonhub's clock parser is now called ParseTime so it is not confused with the raid plan's duration parser.
 
 Feedback stays in the window: what a view has to say after a click — awarded, saved, imported, sent, or why not — now appears as a line at the bottom of the window that holds for six seconds and fades (click to dismiss), instead of going to the chat. That covers around fifty messages across loot session, raid plan, roster, crafting, achievements, dungeonhub, dashboard and settings. When the window is closed the line still goes to the chat, and lists meant to be clicked later (items found for a session) stay there.
 
@@ -25,6 +27,8 @@ Every button explains itself: hover any button for what it does — until now a 
 One way to confirm anything irreversible: the first click turns the button red and says "Really?", the second click within five seconds does it, otherwise it falls back. Applied to removing a raid plan, dropping unsaved plan changes, deleting in the plan forms, removing a wish, unlinking a character from a player, taking back a hand-entered achievement, withdrawing a dungeon run and posting DKP to the whole raid — the dangerous actions that had no guard. Menu entries do the same: the entry turns red and the menu stays open for the second click.
 
 Lists say when they are empty: loot history, wishlist (yours and the guild's), DKP list and ledger, the bids of a loot session and the analytics table now show a short line instead of nothing.
+
+Housekeeping: eighteen functions nobody called are gone (a sidebar item widget, a "not built yet" placeholder with its texts, a badge, a big-number widget, a table pool and the like), together with 81 texts no view used any more; /ga gear opens the Armory instead of a placeholder. Comments that still said raid hours were "not yet measurable" or counted achievements by a stale number were brought up to date, and the dungeonhub's clock parser is now called ParseTime so it is not confused with the raid plan's duration parser.
 
 ## 0.1.42
 
