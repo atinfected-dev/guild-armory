@@ -324,7 +324,7 @@ function Positions:All()
     return out
 end
 
---- Nur die auf DIESER Karte. Fuer `/ga map` und die Tests.
+--- Nur die auf DIESER Karte — fuer die Tests (die Pins filtern selbst).
 --- @return table
 function Positions:OnMap(mapID)
     mapID = tonumber(mapID)

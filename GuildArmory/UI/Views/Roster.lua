@@ -501,7 +501,7 @@ function View:BuildDetail(parent, fonts)
     d.rankHead = Theme.Label(d, string.upper(L.ROSTER_COL_RANK), fonts.heading, Theme.color.goldDim)
     d.rankHead:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -70)
 
-    -- SICHERE KNOEPFE: Befoerdern, Degradieren, Entfernen laufen als Makro
+    -- SICHERE KNOEPFE: Befoerdern und Degradieren laufen als Makro
     -- des Spiels aus dem Klick des Spielers (Widgets.SecureMacroButton) —
     -- GuildPromote aus Addon-Code wird geblockt (gemessen 28.09.2026).
     -- Kennt der Client die Vorlage nicht, bleiben normale Knoepfe, die

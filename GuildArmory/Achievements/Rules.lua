@@ -10,9 +10,11 @@
 
     EIN ERFOLG OHNE DATENQUELLE IST "NOCH NICHT MESSBAR" — NICHT "0 VON 50".
 
-    Von 272 Erfolgen sind 52 direkt messbar, und selbst davon brauchen etliche
-    Zaehler, die es noch nicht gibt (Raidstunden, Teilnahmen, Berufe). Der
-    bequeme Weg waere, fuer alles einen Fortschritt von null anzuzeigen.
+    Nur ein Teil der Erfolge ist direkt messbar — wie viele, zaehlt
+    Rules:Coverage() aus den Regeln; eine Zahl hier im Kopf waere beim
+    naechsten Zaehler falsch (so stand hier lange "52 von 272", als
+    Raidstunden und Teilnahmen laengst gemessen wurden). Der bequeme Weg
+    waere, fuer alles einen Fortschritt von null anzuzeigen.
 
     Das waere gelogen. "0 von 50 Raidteilnahmen" behauptet, gezaehlt zu
     werden. Wer das liest, denkt, er habe nichts erreicht — dabei schaut das
@@ -592,9 +594,10 @@ Rules.RULES = {
     ["GA-165"] = { kind = "threshold", source = "professionsMaxed", value = 2 },
 
     -- ----------------------------------------------------------------------
-    -- Angemeldet, aber noch nicht messbar. Die Quellen fehlen; die Regeln
-    -- stehen hier, damit sichtbar ist, WAS gezaehlt werden muesste, und damit
-    -- sie anlaufen, sobald der Zaehler existiert.
+    -- Raidstunden und Teilnahmen — aus der eigenen Anwesenheitsmessung
+    -- (Raids/Attendance, Quellen raidHours und raidsAttended oben). Bis
+    -- die Messung da war, standen diese Regeln hier als "noch nicht
+    -- messbar"; die Oberflaeche sagte das, statt 0 von 50 zu behaupten.
     -- ----------------------------------------------------------------------
     ["GA-096"] = { kind = "threshold", source = "raidHours", value = 10 },
     ["GA-097"] = { kind = "threshold", source = "raidHours", value = 50 },

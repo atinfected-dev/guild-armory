@@ -113,27 +113,6 @@ function Widgets.KeyValue(parent, key, value)
     return row
 end
 
---- Grosse Zahl mit kleinem Zusatz, z.B. "38 / 40".
-function Widgets.BigNumber(parent)
-    local fonts = Theme.Fonts()
-
-    local frame = CreateFrame("Frame", nil, parent)
-    frame:SetHeight(26)
-
-    local main = Theme.Label(frame, "", fonts.number, Theme.color.goldBright)
-    main:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
-
-    local suffix = Theme.Label(frame, "", fonts.row, Theme.color.textDim)
-    suffix:SetPoint("BOTTOMLEFT", main, "BOTTOMRIGHT", 3, 2)
-
-    function frame:Set(value, extra)
-        main:SetText(tostring(value))
-        suffix:SetText(extra or "")
-    end
-
-    return frame
-end
-
 --- Waagerechter Balken mit Beschriftung und Zahl — Rollenverteilung.
 function Widgets.BarRow(parent, label, color)
     local fonts = Theme.Fonts()
@@ -178,61 +157,7 @@ end
 
 -- --------------------------------------------------------------- Abzeichen ---
 
---- Kleines Zustandsabzeichen: umrandeter Text in Zustandsfarbe.
---- @param state string "good" | "warn" | "bad" | "unknown"
-function Widgets.Badge(parent, text, state)
-    local fonts = Theme.Fonts()
-
-    local badge = CreateFrame("Frame", nil, parent)
-    badge:SetHeight(14)
-
-    local label = Theme.Label(badge, text or "", fonts.small, Theme.StateColor(state))
-    label:SetPoint("CENTER", badge, "CENTER", 0, 0)
-
-    badge.background = Theme.Fill(badge, Theme.color.rowAltBg)
-    badge.lines = Theme.Outline(badge, Theme.StateColor(state))
-    badge.label = label
-
-    function badge:Set(newText, newState)
-        label:SetText(newText or "")
-        local color = Theme.StateColor(newState)
-        label:SetTextColor(color[1], color[2], color[3])
-        for _, line in ipairs(self.lines) do
-            Theme.Paint(line, color)
-        end
-        self:SetWidth(label:GetStringWidth() + 12)
-    end
-
-    badge:Set(text, state)
-    return badge
-end
-
 -- ------------------------------------------------------------ Leerzustand ----
-
---- Mittig gesetzter Hinweis fuer Ansichten, die es noch nicht gibt oder die
---- gerade keine Daten haben. Bewusst ausformuliert statt "keine Daten".
-function Widgets.Placeholder(parent, phase, title, body)
-    local fonts = Theme.Fonts()
-
-    local frame = CreateFrame("Frame", nil, parent)
-    frame:SetAllPoints(parent)
-
-    local phaseLabel = Theme.Label(frame, string.upper(phase or ""), fonts.small, Theme.color.goldDim)
-    phaseLabel:SetPoint("CENTER", frame, "CENTER", 0, 46)
-
-    local titleLabel = Theme.Label(frame, string.upper(title or ""), fonts.title, Theme.color.goldBright)
-    titleLabel:SetPoint("CENTER", frame, "CENTER", 0, 22)
-
-    local bodyLabel = Theme.Label(frame, body or "", fonts.row, Theme.color.textDim)
-    bodyLabel:SetPoint("TOP", titleLabel, "BOTTOM", 0, -12)
-    bodyLabel:SetWidth(math.min(420, parent:GetWidth() > 0 and parent:GetWidth() - 60 or 420))
-    bodyLabel:SetJustifyH("CENTER")
-    bodyLabel:SetSpacing(3)
-
-    frame.title = titleLabel
-    frame.body = bodyLabel
-    return frame
-end
 
 -- --------------------------------------------------------- Itemlevel-Verlauf
 

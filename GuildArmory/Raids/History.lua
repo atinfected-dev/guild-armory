@@ -53,12 +53,6 @@ function History:Available()
     return #(store.nights or {}) > 0
 end
 
-function History:Stand()
-    local store = data()
-    return { generated = store.generated or 0, reports = store.reports or 0,
-             nights = #(store.nights or {}) }
-end
-
 --- Alle Charakternamen eines Spielers, kurz und kleingeschrieben.
 ---
 --- Kleingeschrieben, weil Warcraft Logs und der Client sich bei der

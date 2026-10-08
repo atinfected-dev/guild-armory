@@ -112,12 +112,6 @@ function VersionCheck:Start(scope)
     return true, channel
 end
 
---- Ist die Frist abgelaufen?
-function VersionCheck:Elapsed()
-    if not self.startedTs then return false end
-    return (Util.Now() - self.startedTs) >= WINDOW
-end
-
 -- ================================================================== Ergebnis --
 
 --- Zustaende. `silent` ist bewusst nicht `missing` — siehe Dateikopf.

@@ -557,7 +557,7 @@ function View:Post()
         self.formError:SetText(L.DH_ERR_nodungeon)
         return
     end
-    local hh, mm = Hub.ParseClock(self.timeBox:GetText())
+    local hh, mm = Hub.ParseTime(self.timeBox:GetText())
     if not hh then self.formError:SetText(L.DH_ERR_time) return end
     local at, grund = Hub.StartTime(self.dayOffset or 0, hh, mm)
     if not at then self.formError:SetText(L["DH_ERR_" .. tostring(grund)] or tostring(grund)) return end

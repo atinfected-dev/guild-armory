@@ -551,11 +551,6 @@ function Theme.LookKey()
     return Theme.DEFAULT_LOOK
 end
 
---- Gilt ein eigener Look (irgendeiner ausser Blizzard)?
-function Theme.IsForge()
-    return Theme.LookKey() ~= "blizzard"
-end
-
 --- Die Beschreibung des laufenden Looks, oder nil bei Blizzard.
 function Theme.Look()
     return Theme.look and Theme.LOOKS[Theme.look] or nil
@@ -855,17 +850,6 @@ function Theme.Label(parent, text, fontObject, color)
     local c = color or Theme.color.text
     label:SetTextColor(c[1], c[2], c[3])
     return label
-end
-
---- Panel-Ueberschrift: gold, Versalien, gesperrt. Die Gildenseite setzt
---- letter-spacing; im Spiel gibt es das nicht, deshalb wird gesperrt geschrieben.
-function Theme.SpacedCaps(text)
-    if not text or text == "" then return "" end
-    local out = {}
-    for index = 1, #text do
-        out[#out + 1] = string.sub(text, index, index)
-    end
-    return string.upper(table.concat(out, " "))
 end
 
 --- DIE EINE ROLLENFARBE. Drei Ansichten hatten je eine eigene Tabelle

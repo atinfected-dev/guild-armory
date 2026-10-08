@@ -230,27 +230,3 @@ function Widgets.Dropdown(parent, options)
     dropdown:SetDisplay(nil)
     return dropdown
 end
-
---- Baut die Optionsliste aus den bekannten Charakteren — fuer Lootmeister-
---- Auswahl, Main/Twink-Verknuepfung und Wunschlisten. Klassenfarbe, sortiert.
-function Widgets.CharacterOptions(includeEmpty)
-    local Util = GA.Core.Util
-    local entries = {}
-
-    if includeEmpty then
-        entries[#entries + 1] = { text = "— frei —", value = false,
-                                  color = Theme.color.textFaint }
-    end
-
-    for _, character in ipairs(GA.Core.Database:ListCharacters()) do
-        local r, g, b = Util.ClassColor(character.class)
-        entries[#entries + 1] = {
-            text = character.name,
-            value = character.guid,
-            color = { r, g, b },
-            name = character.name,
-        }
-    end
-
-    return entries
-end

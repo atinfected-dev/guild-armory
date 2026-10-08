@@ -111,10 +111,6 @@ function Events:Unregister(event, owner)
     end
 end
 
-function Events:IsSupported(event)
-    return not self.unsupported[event]
-end
-
 -- --------------------------------------------------------------- Startlauf ---
 
 --- Reihenfolge beim Laden:

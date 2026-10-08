@@ -1494,39 +1494,6 @@ end
 
 -- ================================================================== Tooltip ---
 
---- Haengt eine Funktion an Item-Tooltips. Modern ueber TooltipDataProcessor,
---- sonst ueber HookScript. `handler(tooltip, itemLink)` wird aufgerufen,
---- sobald ein Item angezeigt wird.
---- @return boolean eingehaengt
-function Compat.HookItemTooltip(handler)
-    if has.tooltipProcessor and has.tooltipEnum then
-        local ok = pcall(_G.TooltipDataProcessor.AddTooltipPostCall,
-            _G.Enum.TooltipDataType.Item,
-            function(tooltip, data)
-                if tooltip ~= _G.GameTooltip and tooltip ~= _G.ItemRefTooltip then return end
-                local link = data and data.hyperlink
-                if not link and tooltip.GetItem then
-                    local _, itemLink = tooltip:GetItem()
-                    link = itemLink
-                end
-                if link then handler(tooltip, link) end
-            end)
-        if ok then return true end
-    end
-
-    -- Aeltere Linie: direkt an den Frame haengen.
-    if isTable(_G.GameTooltip) and isFunction(_G.GameTooltip.HookScript) then
-        local ok = pcall(_G.GameTooltip.HookScript, _G.GameTooltip, "OnTooltipSetItem",
-            function(tooltip)
-                local _, link = tooltip:GetItem()
-                if link then handler(tooltip, link) end
-            end)
-        return ok and true or false
-    end
-
-    return false
-end
-
 -- ================================================================== Auren -----
 
 --- Einheitlicher Aurenzugriff. Gemessen: nur C_UnitAuras existiert.

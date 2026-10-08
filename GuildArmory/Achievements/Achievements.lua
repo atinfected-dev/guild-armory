@@ -27,7 +27,7 @@
 
     EIN FIRST IST "GEMELDET", BIS DIE GILDE ZUSTIMMT.
 
-    45 der 272 Erfolge sind einmalig fuer die ganze Gilde. Dabei ist die Frage
+    Ein Teil der Erfolge ist einmalig fuer die ganze Gilde. Dabei ist die Frage
     nicht "habe ich es geschafft", sondern "war jemand frueher". Diese Frage
     kann ein einzelner Client nicht beantworten — er kennt nur sich.
 

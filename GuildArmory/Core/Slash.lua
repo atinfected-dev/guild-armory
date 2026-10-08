@@ -27,7 +27,7 @@ local L = GA.L
 local VIEWS = {
     dashboard = "dashboard", armory = "armory", chars = "characters",
     characters = "characters", loot = "lootcouncil", council = "lootcouncil",
-    history = "loothistory", wishlist = "wishlist", gear = "gear",
+    history = "loothistory", wishlist = "wishlist", gear = "armory",
     session = "lootcouncil", sitzung = "lootcouncil",
     analytics = "analytics", settings = "settings",
     lootrules = "lootrules", rules = "lootrules", regeln = "lootrules",

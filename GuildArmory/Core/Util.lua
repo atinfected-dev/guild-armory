@@ -10,30 +10,6 @@ local _, GA = ...
 local Util = {}
 GA.Core.Util = Util
 
--- ------------------------------------------------------------ Tabellenpool ---
-
---- Wiederverwendete Tabellen. Verhindert, dass haeufige Operationen (Roster-Aufbau,
---- Ereignisverarbeitung) bei jedem Durchlauf den Garbage Collector beschaeftigen.
-local pool = {}
-
-function Util.NewTable()
-    local count = #pool
-    if count > 0 then
-        local t = pool[count]
-        pool[count] = nil
-        return t
-    end
-    return {}
-end
-
-function Util.ReleaseTable(t)
-    if type(t) ~= "table" then return end
-    for key in pairs(t) do
-        t[key] = nil
-    end
-    pool[#pool + 1] = t
-end
-
 --- Leert eine Tabelle, ohne sie neu anzulegen.
 function Util.Wipe(t)
     if type(t) ~= "table" then return t end
@@ -235,21 +211,6 @@ function Util.Colorize(text, r, g, b)
 end
 
 -- ------------------------------------------------------------------ Zeit -----
-
---- Sekunden als "4:37" bzw. "1:04:37".
-function Util.FormatDuration(seconds)
-    seconds = math.floor(tonumber(seconds) or 0)
-    if seconds < 0 then seconds = 0 end
-
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local rest = seconds % 60
-
-    if hours > 0 then
-        return string.format("%d:%02d:%02d", hours, minutes, rest)
-    end
-    return string.format("%d:%02d", minutes, rest)
-end
 
 --- Serverzeit als Zahl. Rueckfall auf time(), wenn GetServerTime fehlt.
 function Util.Now()

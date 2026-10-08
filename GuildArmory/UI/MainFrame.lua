@@ -116,10 +116,6 @@ for index, section in ipairs(SECTIONS) do
     end
 end
 
-local PLACEHOLDER = {
-    gear        = "TODO_GEAR",
-}
-
 MainFrame.views = {}
 MainFrame.tabs = {}
 MainFrame.subTabs = {}
@@ -740,17 +736,15 @@ function MainFrame:ShowView(key)
     if self.current and self.views[self.current] and self.views[self.current].frame then
         self.views[self.current].frame:Hide()
     end
-    if self.placeholder then self.placeholder:Hide() end
-
     self.current = key
     Config:GetUI("main").lastView = key
 
     if not view then
-        local label = L[LABEL_OF[key] or ("NAV_" .. string.upper(key))] or key
-        local phase = ""
-        self.placeholder = Widgets.Placeholder(self.body, phase, label, L[PLACEHOLDER[key] or "TODO_TITLE"])
-        self.placeholder:Show()
-        self:SetTitle(label, nil)
+        -- Eine Ansicht, die es nicht (mehr) gibt — etwa aus einer alten
+        -- gespeicherten Einstellung: die Uebersicht statt einer Luecke. Bis
+        -- 0.1.43 stand hier ein Platzhalter "Noch nicht gebaut" fuer
+        -- Ansichten, die laengst gebaut sind.
+        if key ~= "dashboard" and self.views.dashboard then return self:ShowView("dashboard") end
         return
     end
 

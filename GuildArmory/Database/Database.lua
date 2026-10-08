@@ -473,16 +473,6 @@ function DB:Reset(scope)
     return true
 end
 
---- Alle Charaktere, die je auf diesem Account erfasst wurden.
-function DB:OwnCharacters()
-    local list = {}
-    for _, character in pairs(self.account.characters) do
-        if character.ownAccount then list[#list + 1] = character end
-    end
-    Util.SortBy(list, { { field = "name" } })
-    return list
-end
-
 function DB:Stats()
     local function count(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
     return {

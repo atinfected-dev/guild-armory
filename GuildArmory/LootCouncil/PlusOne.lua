@@ -179,21 +179,6 @@ function PlusOne:Adjust(playerId, delta, reason, byGuid)
     return true, after
 end
 
---- Alle Ausgleiche zuruecksetzen. Die gerechnete Zahl bleibt, wie sie ist —
---- sie haengt an der Historie und nicht an dieser Tabelle.
-function PlusOne:ResetOffsets(byGuid)
-    local count = 0
-    for id in pairs(store()) do
-        store()[id] = nil
-        count = count + 1
-    end
-    if count > 0 then
-        GA.Core.Database:Journal("PLUSONE_RESET", nil, count, nil, byGuid)
-        GA.Core.Callbacks:Fire("PLUSONE_CHANGED")
-    end
-    return count
-end
-
 -- ================================================================== Start ------
 
 function PlusOne:OnEnable()

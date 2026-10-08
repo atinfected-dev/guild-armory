@@ -14,7 +14,8 @@
     einem. Abschaltbar (Einstellungen › Daten).
 
     DIE ROLLE IST GESETZT ODER GERATEN, UND DAS STEHT DRAN. Wer seine Rolle
-    im Charakterfenster waehlt, wird so gefuehrt. Wer nicht, wird nach
+    hier unter "Zusammen" setzt — oder zuerst im Dungeonhub eine waehlt —,
+    wird so gefuehrt. Wer nicht, wird nach
     Klasse eingeteilt: Krieger, Druide, Paladin koennen tanken; Priester,
     Druide, Schamane, Paladin koennen heilen; alle machen Schaden. Eine
     geratene Rolle traegt ein Fragezeichen — die Vorschlagsliste behauptet

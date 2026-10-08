@@ -232,7 +232,7 @@ function Dungeonhub.StartTime(dayOffset, hh, mm, now)
 end
 
 --- "HH:MM" -> Stunde, Minute
-function Dungeonhub.ParseClock(text)
+function Dungeonhub.ParseTime(text)
     local hh, mm = tostring(text or ""):match("^%s*(%d%d?)[:%.](%d%d)%s*$")
     if not hh then return nil end
     return tonumber(hh), tonumber(mm)

@@ -245,16 +245,6 @@ function Players:SetMain(playerId, guid, byUser)
     return true
 end
 
-function Players:SetDisplayName(playerId, name)
-    local profile = self:Get(playerId)
-    if not profile then return false end
-    local before = profile.displayName
-    profile.displayName = (name and name ~= "") and name or nil
-    GA.Core.Database:Journal("PLAYER_RENAME", playerId, before, profile.displayName)
-    GA.Core.Callbacks:Fire("PLAYERS_CHANGED")
-    return true
-end
-
 -- ================================================================== Eigene ----
 
 --- Alle Charaktere dieses WoW-Accounts in ein Profil. Das ist der einzige Ort,
@@ -306,12 +296,6 @@ function Players:RebuildOwnProfile()
         GA.Core.Callbacks:Fire("PLAYERS_CHANGED")
     end
     return target
-end
-
---- Herkunft einer Zuordnung als Schluessel fuer die Oberflaeche.
-function Players:OriginOf(guid)
-    local profile = self:GetProfileFor(guid)
-    return profile and profile.origin[guid] or nil
 end
 
 -- ================================================================== Start ------
