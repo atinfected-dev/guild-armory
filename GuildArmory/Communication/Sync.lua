@@ -75,6 +75,28 @@ local function journalConflict(kind, target, detail)
     GA.Core.Callbacks:Fire("SYNC_CONFLICT", kind, target, detail)
 end
 
+--- Die letzten Konflikte aus dem Journal, juengste zuerst — Abgleich und
+--- Import. Fuer die Seite Einstellungen › Abgleich (08.10.2026): Bis dahin
+--- stand die Zahl in den Einstellungen und der Grund nur im Journal, das
+--- keine Ansicht hat.
+--- @return table { { ts, kind, target, detail = { sender, owner, was, now, claimed } } }
+function Sync:Conflicts(limit)
+    local journal = GA.Core.Database.account.journal or {}
+    local out = {}
+    for index = #journal, 1, -1 do
+        local entry = journal[index]
+        if entry.action == "SYNC_CONFLICT" then
+            out[#out + 1] = { ts = entry.ts, kind = entry.before, target = entry.target,
+                              detail = type(entry.after) == "table" and entry.after or {} }
+        elseif entry.action == "IMPORT_CONFLICT" then
+            out[#out + 1] = { ts = entry.ts, kind = "IMPORT", target = entry.target,
+                              detail = { was = entry.before, now = entry.after } }
+        end
+        if limit and #out >= limit then break end
+    end
+    return out
+end
+
 -- ================================================================== Senden ---
 
 --- Meldet sich in der Gruppe/Gilde. Die Antworten fuellen Sync.peers.

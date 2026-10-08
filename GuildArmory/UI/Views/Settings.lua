@@ -24,6 +24,7 @@ local _, GA = ...
 local Settings = {}
 local Theme = GA.UI.Theme
 local Widgets = GA.UI.Widgets
+local Util = GA.Core.Util
 local L = GA.L
 
 Settings.titleKey = "NAV_SETTINGS"
@@ -48,6 +49,9 @@ local SECTIONS = {
     { key = "notify",   title = "SET_NOTIFY",   sub = "SET_SUB_NOTIFY" },
     { key = "loot",     title = "SET_LOOT",     sub = "SET_SUB_LOOT" },
     { key = "data",     title = "SET_DATA",     sub = "SET_SUB_DATA" },
+    -- Abgleich (08.10.2026): wer das Addon hat, was sich widersprach, was
+    -- wartet — vorher nur als Zahl unter "Daten" und per /ga version.
+    { key = "sync",     title = "SET_SYNC_PAGE", sub = "SET_SUB_SYNC" },
     { key = "about",    title = "SET_ABOUT",    sub = "SET_SUB_ABOUT" },
 }
 
@@ -678,6 +682,42 @@ function Settings:Create(parent)
     makeHeading(data, L.SET_H_SYNC)
     self.rowSync = makeRow(data, { label = L.SET_SYNC_ROW, hint = "" })
     self.rowStats = makeRow(data, { label = L.SET_CLIENT, hint = "" })
+    -- ---------------------------------------------------------- Abgleich ---
+    local sync = self.pages.sync
+    makeHeading(sync, L.SET_H_CLIENTS)
+    self.rowPeers = makeRow(sync, { label = L.SET_PEERS, hint = "", build = function(row)
+        local button = Widgets.Button(row, L.SET_PEERS_ASK, function()
+            local V = GA.Modules.VersionCheck
+            if V and V:Start() then
+                Settings:Refresh()
+                GA.Core.Compat.After(11, function() Settings:Refresh() end)
+            end
+        end)
+        button:SetTooltip(L.TT_PEERS_ASK)
+        button:SetHeight(20)
+        button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        return function() return 28 end
+    end })
+    makeHeading(sync, L.SET_H_CONFLICTS)
+    self.rowConflicts = makeRow(sync, { label = L.SET_CONFLICTS_ROW, hint = "" })
+    makeHeading(sync, L.SET_H_QUEUE)
+    self.rowQueue = makeRow(sync, { label = L.SET_QUEUE_ROW, hint = "", build = function(row)
+        local button = Widgets.Button(row, L.SET_QUEUE_SEND, function()
+            if GA.Core.Comm and GA.Core.Comm.Drain then GA.Core.Comm:Drain() end
+            Settings:Refresh()
+        end)
+        button:SetTooltip(L.TT_QUEUE_SEND)
+        button:SetHeight(20)
+        button:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8)
+        return function() return 28 end
+    end })
+    -- Antworten kommen asynchron: Die Seite zieht nach, solange sie offen ist.
+    for _, event in ipairs({ "SYNC_PEERS", "VERSION_CHECK_DONE", "SYNC_CONFLICT" }) do
+        GA.Core.Callbacks:On(event, function()
+            if Settings.frame and Settings.frame:IsShown() then Settings:Refresh() end
+        end, "Settings")
+    end
+
     -- ------------------------------------------------------------ Ueber ---
     -- Kontakt und Hilfe (06.10.2026: "baut eine Kontaktart ein" — ein Spieler
     -- wollte einen Fehler melden und fand keinen Weg).
@@ -860,6 +900,8 @@ function Settings:Refresh()
     local syncColor = conflicts > 0 and Theme.color.warn or Theme.color.textDim
     self.rowSync.hint:SetTextColor(syncColor[1], syncColor[2], syncColor[3])
 
+    self:RefreshSyncPage(Sync)
+
     local stats = GA.Core.Database:Stats()
     local storage = GA.Core.Database.storage or {}
     self.rowStats.hint:SetText(string.format(L.SET_STATS,
@@ -889,6 +931,87 @@ function Settings:Refresh()
     -- Aenderung (gesehen 01.10.2026).
     self.context = "v" .. GA.version
     GA.UI.MainFrame:SetContext(self.context)
+end
+
+--- Eine Konfliktzeile: wann, was, wer.
+local function conflictLine(entry)
+    local d = entry.detail or {}
+    local kind = L["CONFLICT_" .. tostring(entry.kind)] or tostring(entry.kind)
+    local parts = { Util.TimeAgo(entry.ts), kind, tostring(entry.target or "?") }
+    if d.sender then parts[#parts + 1] = string.format(L.SET_CONFLICT_FROM, tostring(d.sender)) end
+    if d.owner then parts[#parts + 1] = string.format(L.SET_CONFLICT_OWNER, tostring(d.owner)) end
+    if d.was or d.now then
+        parts[#parts + 1] = string.format(L.SET_CONFLICT_WAS_NOW, tostring(d.was or "?"), tostring(d.now or "?"))
+    end
+    return table.concat(parts, " · ")
+end
+
+--- Die Seite Abgleich: Clients, Konflikte, Warteschlange.
+function Settings:RefreshSyncPage(Sync)
+    local V = GA.Modules.VersionCheck
+    local lines = {}
+    if V and V.running then lines[#lines + 1] = L.SET_PEERS_RUNNING end
+    local list, counts = {}, nil
+    if V then list, counts = V:Result() end
+    local silent = {}
+    for _, entry in ipairs(list) do
+        if entry.status == "silent" then
+            silent[#silent + 1] = entry.name
+        elseif not entry.isSelf then
+            local peer = Sync.peers[Util.NormalizeName(entry.name or "")] or Sync.peers[entry.name or ""]
+            local status = L["VERSION_" .. string.upper(entry.status or "")] or tostring(entry.status)
+            lines[#lines + 1] = string.format(L.SET_PEER_LINE, tostring(entry.name), status,
+                tostring(entry.version or "?"), tostring(entry.protocol or "?"),
+                peer and Util.TimeAgo(peer.ts) or L.NEVER)
+        end
+    end
+    -- Wer ausserhalb des Rosters antwortete (Gruppe ohne Gilde), steht auch da.
+    for name, peer in pairs(Sync.peers) do
+        local known = false
+        for _, entry in ipairs(list) do
+            if Util.NormalizeName(entry.name or "") == Util.NormalizeName(name) then known = true break end
+        end
+        if not known then
+            lines[#lines + 1] = string.format(L.SET_PEER_LINE, tostring(name), L.VERSION_UNKNOWN,
+                tostring(peer.addon or "?"), tostring(peer.version or "?"), Util.TimeAgo(peer.ts))
+        end
+    end
+    if #lines == 0 then lines[#lines + 1] = L.SET_PEERS_NONE end
+    if #silent > 0 then
+        local shown = {}
+        for i = 1, math.min(#silent, 12) do shown[i] = silent[i] end
+        if #silent > 12 then shown[#shown + 1] = "…" end
+        lines[#lines + 1] = string.format(L.SET_PEERS_SILENT, #silent, table.concat(shown, ", "))
+    end
+    lines[#lines + 1] = L.SET_PEERS_HINT
+    self.rowPeers.hint:SetText(table.concat(lines, "\n"))
+    self.rowPeers.chip:SetText(counts and string.format(L.VERSION_SUMMARY, counts.current, counts.outdated, counts.silent) or "")
+    self.rowPeers.chip:SetShown(counts ~= nil)
+
+    local conflicts = Sync:Conflicts(10)
+    if #conflicts == 0 then
+        self.rowConflicts.hint:SetText(L.SET_CONFLICTS_NONE)
+        self.rowConflicts.hint:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+    else
+        local out = {}
+        for _, entry in ipairs(conflicts) do out[#out + 1] = conflictLine(entry) end
+        out[#out + 1] = L.SET_CONFLICTS_HINT
+        self.rowConflicts.hint:SetText(table.concat(out, "\n"))
+        self.rowConflicts.hint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+    end
+    self.rowConflicts.chip:SetText(tostring(Sync.conflicts or 0))
+    self.rowConflicts.chip:Show()
+
+    local Comm = GA.Core.Comm
+    local held = Comm and Comm.held or {}
+    local waiting = Comm and Comm.QueueLength and Comm:QueueLength() or 0
+    if held.holding then
+        self.rowQueue.hint:SetText(string.format(L.SET_QUEUE_HELD, Util.TimeAgo(held.since), waiting, held.dropped or 0))
+        self.rowQueue.hint:SetTextColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3])
+    else
+        self.rowQueue.hint:SetText(string.format(L.SET_QUEUE_FREE, waiting, held.dropped or 0))
+        self.rowQueue.hint:SetTextColor(Theme.color.textDim[1], Theme.color.textDim[2], Theme.color.textDim[3])
+    end
 end
 
 GA.UI.MainFrame:RegisterView("settings", Settings)
