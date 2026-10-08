@@ -255,7 +255,7 @@ end
 
 --- Sammeln-Taste: der naechste Tastendruck wird die Taste (ESC bricht ab).
 function Settings:CaptureGatherKey()
-    if GA.Core.Compat.InCombat() then GA.Core.Debug:Warn(L.SET_GATHER_KEY_COMBAT) return end
+    if GA.Core.Compat.InCombat() then GA.UI.MainFrame:Notice("warn", L.SET_GATHER_KEY_COMBAT) return end
     self.capturingKey = true
     self.gatherKeyButton:SetLabel(L.SET_GATHER_KEY_PRESS)
     if self.gatherKeyButton.EnableKeyboard then self.gatherKeyButton:EnableKeyboard(true) end
@@ -272,8 +272,8 @@ function Settings:OnGatherKey(key)
         local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
             .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
         local ok, why = GA.Modules.Highlight:SetInteractKey(full)
-        if ok then GA.Core.Debug:Info(L.SET_GATHER_KEY_SET, full)
-        else GA.Core.Debug:Warn(L["SET_GATHER_KEY_" .. string.upper(tostring(why))] or tostring(why)) end
+        if ok then GA.UI.MainFrame:Notice("info", L.SET_GATHER_KEY_SET, full)
+        else GA.UI.MainFrame:Notice("warn", L["SET_GATHER_KEY_" .. string.upper(tostring(why))] or tostring(why)) end
     end
     self:Refresh()
 end
@@ -410,7 +410,7 @@ function Settings:Create(parent)
     makeRow(window, { label = L.SET_FONT_SIZE, hint = L.SET_FONT_SIZE_HINT, build = function(row)
         Settings.fontSize = Widgets.Slider(row, 80, 140, 5, function(value)
             if not Theme.SetFontScale(value) then
-                GA.Core.Debug:Info("%s", L.SET_FONT_SIZE_RELOAD)
+                GA.UI.MainFrame:Notice("info", "%s", L.SET_FONT_SIZE_RELOAD)
             end
         end)
         Settings.fontSize.format = "%d %%"
@@ -515,7 +515,7 @@ function Settings:Create(parent)
         local function step(delta)
             local H = GA.Modules.Highlight
             local range, accepted, now = H:SetRange(H.Range() + delta)
-            if accepted == false then GA.Core.Debug:Warn(L.HL_RANGE_REFUSED, range, tostring(now)) end
+            if accepted == false then GA.UI.MainFrame:Notice("warn", L.HL_RANGE_REFUSED, range, tostring(now)) end
             Settings:Refresh()
         end
         Settings.rangeValue = Theme.Label(row, "", fonts.body, Theme.color.goldMid)

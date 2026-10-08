@@ -998,30 +998,30 @@ end
 
 function View:GrantSelected()
     if not self.selected then
-        GA.Core.Debug:Info("%s", L.GRANT_NEED_ROW)
+        GA.UI.MainFrame:Notice("info", "%s", L.GRANT_NEED_ROW)
         return
     end
     local ok, reason = GA.UI.GrantDialog:Open(self.selected)
     if not ok then
-        GA.Core.Debug:Info("%s",
+        GA.UI.MainFrame:Notice("info", "%s",
             L["GRANT_ERR_" .. string.upper(tostring(reason))] or tostring(reason))
     end
 end
 
 function View:RevokeSelected()
     if not self.selected then
-        GA.Core.Debug:Info("%s", L.GRANT_NEED_ROW)
+        GA.UI.MainFrame:Notice("info", "%s", L.GRANT_NEED_ROW)
         return
     end
 
     local Achievements = GA.Modules.Achievements
     local ok, reason = Achievements:Revoke(self.selected, self:PlayerId())
     if ok then
-        GA.Core.Debug:Info(L.GRANT_REVOKED,
+        GA.UI.MainFrame:Notice("info", L.GRANT_REVOKED,
             tostring((Achievements:Entry(self.selected) or {}).name))
         self:Refresh()
     else
-        GA.Core.Debug:Info("%s",
+        GA.UI.MainFrame:Notice("info", "%s",
             L["GRANT_ERR_" .. string.upper(tostring(reason))] or tostring(reason))
     end
 end

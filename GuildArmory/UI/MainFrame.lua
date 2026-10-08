@@ -773,6 +773,71 @@ function MainFrame:SetContext(text)
     if self.contextLabel then self.contextLabel:SetText(text or "") end
 end
 
+-- ============================================================ Rueckmeldung --
+--
+-- EINE STATUSZEILE STATT CHAT (08.10.2026, Verfeinerung 9). Erfolg und
+-- Fehler aus den Ansichten gingen bis dahin in den Chat — Lootcouncil
+-- vierzehnmal, Raidplan neunmal, Roster achtmal —, und wer nicht in den
+-- Chat schaut, verpasste Linkalter, Import-Ergebnis und "das ging nicht".
+-- Jetzt steht die Zeile unten im Fenster, haelt ein paar Sekunden und
+-- verblasst. Ist das Fenster zu, geht die Zeile weiter in den Chat: Eine
+-- Rueckmeldung, die niemand sieht, ist keine.
+
+local NOTICE_HOLD = 6       -- Sekunden voll sichtbar
+local NOTICE_FADE = 1.5     -- Sekunden Verblassen
+
+function MainFrame:BuildNotice()
+    if self.notice or not self.body then return end
+    local fonts = Theme.Fonts()
+    local notice = CreateFrame("Frame", nil, self.body)
+    notice:SetHeight(22)
+    notice:SetPoint("BOTTOMLEFT", self.body, "BOTTOMLEFT", 8, 4)
+    notice:SetPoint("BOTTOMRIGHT", self.body, "BOTTOMRIGHT", -8, 4)
+    notice:SetFrameLevel(self.body:GetFrameLevel() + 40)
+    Theme.Fill(notice, { 0, 0, 0, 0.82 })
+    notice.edge = Theme.Fill(notice, Theme.color.goldMid)
+    notice.edge:ClearAllPoints()
+    notice.edge:SetPoint("TOPLEFT", notice, "TOPLEFT", 0, 0)
+    notice.edge:SetPoint("BOTTOMLEFT", notice, "BOTTOMLEFT", 0, 0)
+    notice.edge:SetWidth(3)
+    notice.text = Theme.Label(notice, "", fonts.body, Theme.color.text)
+    notice.text:SetPoint("LEFT", notice, "LEFT", 12, 0)
+    notice.text:SetPoint("RIGHT", notice, "RIGHT", -8, 0)
+    notice.text:SetJustifyH("LEFT")
+    notice.text:SetWordWrap(false)
+    notice:EnableMouse(true)
+    notice:SetScript("OnMouseDown", function() notice:Hide() end)
+    notice:SetScript("OnUpdate", function(frame, elapsed)
+        frame.age = (frame.age or 0) + elapsed
+        if frame.age <= NOTICE_HOLD then return end
+        local rest = 1 - (frame.age - NOTICE_HOLD) / NOTICE_FADE
+        if rest <= 0 then frame:Hide() else frame:SetAlpha(rest) end
+    end)
+    notice:Hide()
+    self.notice = notice
+end
+
+--- Zeigt eine Rueckmeldung unten im Fenster — oder im Chat, wenn das
+--- Fenster zu ist.
+--- @param kind string "info" | "warn"
+function MainFrame:Notice(kind, format, ...)
+    local ok, message = pcall(string.format, tostring(format), ...)
+    if not ok then message = tostring(format) end
+    if not self:IsVisible() or not self.body then
+        if kind == "warn" then GA.Core.Debug:Warn("%s", message) else GA.Core.Debug:Info("%s", message) end
+        return
+    end
+    self:BuildNotice()
+    local notice = self.notice
+    local color = kind == "warn" and Theme.color.warn or Theme.color.text
+    notice.text:SetText(message)
+    notice.text:SetTextColor(color[1], color[2], color[3])
+    Theme.Paint(notice.edge, kind == "warn" and Theme.color.warn or Theme.color.goldMid)
+    notice.age = 0
+    notice:SetAlpha(1)
+    notice:Show()
+end
+
 -- ================================================================== Sichtbarkeit
 
 function MainFrame:IsVisible() return self.frame and self.frame:IsShown() end

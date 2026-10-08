@@ -135,7 +135,7 @@ function LootCouncil:Create(parent)
     self.rotateButton = Widgets.Button(bar, L.ROTATION_ROTATE, function()
         local ok, result = GA.Modules.Rotation:Rotate()
         if not ok then
-            GA.Core.Debug:Info("%s",
+            GA.UI.MainFrame:Notice("info", "%s",
                 L["ROTATION_ERR_" .. string.upper(tostring(result))] or tostring(result))
         end
         self:Refresh()
@@ -1045,7 +1045,7 @@ function LootCouncil:ReopenBidFrame()
 
     local session = Session:Current()
     if not session then
-        GA.Core.Debug:Info("%s", L.COUNCIL_REOPEN_NONE)
+        GA.UI.MainFrame:Notice("info", "%s", L.COUNCIL_REOPEN_NONE)
         return false
     end
 
@@ -1063,7 +1063,7 @@ function LootCouncil:ReopenBidFrame()
     end
 
     if #items == 0 then
-        GA.Core.Debug:Info("%s", L.COUNCIL_REOPEN_NONE)
+        GA.UI.MainFrame:Notice("info", "%s", L.COUNCIL_REOPEN_NONE)
         return false
     end
 
@@ -1084,7 +1084,7 @@ end
 function LootCouncil:RemoveSelected()
     local award = self.selectedAwardId and GA.Modules.Awards:Get(self.selectedAwardId)
     if not award then
-        GA.Core.Debug:Info("%s", L.COUNCIL_REMOVE_NONE)
+        GA.UI.MainFrame:Notice("info", "%s", L.COUNCIL_REMOVE_NONE)
         return
     end
 
@@ -1092,7 +1092,7 @@ function LootCouncil:RemoveSelected()
     local ok, grund = GA.Modules.Awards:Cancel(award.id,
         L.COUNCIL_REMOVE_REASON, identity.guid)
     if not ok then
-        GA.Core.Debug:Info("%s", L["COUNCIL_ERR_" .. tostring(grund)] or tostring(grund))
+        GA.UI.MainFrame:Notice("info", "%s", L["COUNCIL_ERR_" .. tostring(grund)] or tostring(grund))
         return
     end
 
@@ -1160,13 +1160,13 @@ function LootCouncil:AddAllFromBags()
     end
 
     if #kandidaten == 0 then
-        GA.Core.Debug:Info("%s", L.COUNCIL_ADD_NONE)
+        GA.UI.MainFrame:Notice("info", "%s", L.COUNCIL_ADD_NONE)
         return
     end
 
     if self.addAllPending ~= #kandidaten then
         self.addAllPending = #kandidaten
-        GA.Core.Debug:Info(L.COUNCIL_ADD_FOUND, #kandidaten)
+        GA.UI.MainFrame:Notice("info", L.COUNCIL_ADD_FOUND, #kandidaten)
         for _, eintrag in ipairs(kandidaten) do
             GA.Core.Debug:Info("  %s", tostring(eintrag.link or eintrag.name))
         end
@@ -1194,7 +1194,7 @@ function LootCouncil:AddAllFromBags()
         })
     end
 
-    GA.Core.Debug:Info(L.COUNCIL_ADD_DONE, #kandidaten)
+    GA.UI.MainFrame:Notice("info", L.COUNCIL_ADD_DONE, #kandidaten)
     self:Refresh()
 end
 
@@ -1217,7 +1217,7 @@ function LootCouncil:RemoveAll()
     end
 
     if #offen == 0 then
-        GA.Core.Debug:Info("%s", L.COUNCIL_REMOVE_NONE)
+        GA.UI.MainFrame:Notice("info", "%s", L.COUNCIL_REMOVE_NONE)
         return
     end
 
@@ -1246,7 +1246,7 @@ function LootCouncil:RemoveAll()
     end
 
     self.selectedAwardId = nil
-    GA.Core.Debug:Info(L.COUNCIL_REMOVE_ALL_DONE, weg)
+    GA.UI.MainFrame:Notice("info", L.COUNCIL_REMOVE_ALL_DONE, weg)
     self:Refresh()
 end
 
@@ -1257,7 +1257,7 @@ function LootCouncil:OpenSession()
 
     local session, reason = GA.Modules.Session:Open(ids)
     if not session then
-        GA.Core.Debug:Warn(L["COUNCIL_ERR_" .. tostring(reason)] or tostring(reason))
+        GA.UI.MainFrame:Notice("warn", L["COUNCIL_ERR_" .. tostring(reason)] or tostring(reason))
     end
     self:Refresh()
 end
@@ -1282,7 +1282,7 @@ function LootCouncil:Award(candidateName)
     local awardId = self.selectedAwardId
     local ok, reason = GA.Modules.Session:AwardTo(session.id, awardId, candidateName)
     if not ok then
-        GA.Core.Debug:Warn(L["COUNCIL_ERR_" .. tostring(reason)] or tostring(reason))
+        GA.UI.MainFrame:Notice("warn", L["COUNCIL_ERR_" .. tostring(reason)] or tostring(reason))
         return
     end
 
@@ -1300,7 +1300,7 @@ function LootCouncil:Reaward(candidateName)
 
     local ok, result = GA.Modules.Session:Reaward(session.id, self.selectedAwardId, candidateName)
     if not ok then
-        GA.Core.Debug:Warn(L["COUNCIL_ERR_" .. tostring(result)] or tostring(result))
+        GA.UI.MainFrame:Notice("warn", L["COUNCIL_ERR_" .. tostring(result)] or tostring(result))
         self:Refresh()
         return
     end
@@ -1328,7 +1328,7 @@ function LootCouncil:HandOver(awardId, candidateName)
         if index then
             handed = GA.Modules.LootTracker:GiveMasterLoot(awardId, index)
         else
-            GA.Core.Debug:Warn(L.COUNCIL_NO_CANDIDATE, tostring(candidateName))
+            GA.UI.MainFrame:Notice("warn", L.COUNCIL_NO_CANDIDATE, tostring(candidateName))
         end
     end
 

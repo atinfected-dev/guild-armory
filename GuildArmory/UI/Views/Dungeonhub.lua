@@ -523,7 +523,7 @@ function View:FillCard(card, run)
         card.action:SetText("")
         place(1, L.DH_LEAVE, function()
             local ok, grund = Hub:Leave(run.id)
-            if not ok then GA.Core.Debug:Info("%s", L["DH_ERR_" .. tostring(grund)] or tostring(grund)) end
+            if not ok then GA.UI.MainFrame:Notice("info", "%s", L["DH_ERR_" .. tostring(grund)] or tostring(grund)) end
         end)
     else
         card.action:SetText(Hub:IsFull(run) and L.DH_FULL or L.DH_JOIN_AS)
@@ -535,7 +535,7 @@ function View:FillCard(card, run)
                 if index <= 3 then
                     previous = place(index, roleName(role), function()
                         local ok, grund = Hub:Join(run.id, role)
-                        if not ok then GA.Core.Debug:Info("%s", L["DH_ERR_" .. tostring(grund)] or tostring(grund)) end
+                        if not ok then GA.UI.MainFrame:Notice("info", "%s", L["DH_ERR_" .. tostring(grund)] or tostring(grund)) end
                     end, previous)
                 end
             end
@@ -566,7 +566,7 @@ function View:Post()
         self.formError:SetText(L["DH_ERR_" .. tostring(reason)] or tostring(reason))
         return
     end
-    GA.Core.Debug:Info(L.DH_POSTED, run.dungeon, date("%H:%M", run.at))
+    GA.UI.MainFrame:Notice("info", L.DH_POSTED, run.dungeon, date("%H:%M", run.at))
     self.noteBox:SetText("")
     self:Refresh()
 end

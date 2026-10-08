@@ -515,8 +515,8 @@ function View:OpenImport()
         local plan, reason = plans():Import(text)
         if not plan then return false, L["RP_ERR_" .. tostring(reason)] or tostring(reason) end
         local sum = plans().Summary(plan)
-        GA.Core.Debug:Info(L.RP_IMPORTED, plan.title or plan.id, sum.players, sum.bosses, sum.reminders)
-        if sum.skipped > 0 then GA.Core.Debug:Warn(L.RP_SKIPPED, sum.skipped) end
+        GA.UI.MainFrame:Notice("info", L.RP_IMPORTED, plan.title or plan.id, sum.players, sum.bosses, sum.reminders)
+        if sum.skipped > 0 then GA.UI.MainFrame:Notice("warn", L.RP_SKIPPED, sum.skipped) end
         View:Refresh()
         return true
     end)
@@ -538,7 +538,7 @@ function View:SetSignup(status)
     local entry = plans():Active()
     if not entry then return end
     local ok, why = plans():SetSignup(entry.plan.id, status)
-    if why == "later" then GA.Core.Debug:Info(L.RP_SHARE_LATER) end
+    if why == "later" then GA.UI.MainFrame:Notice("info", L.RP_SHARE_LATER) end
     self:Refresh()
 end
 
@@ -578,7 +578,7 @@ end
 
 function View:Arrange()
     local ok, why = plans():Arrange()
-    if not ok then GA.Core.Debug:Warn(L["RP_ARRANGE_" .. string.upper(tostring(why))] or tostring(why)) end
+    if not ok then GA.UI.MainFrame:Notice("warn", L["RP_ARRANGE_" .. string.upper(tostring(why))] or tostring(why)) end
     View:Refresh()
 end
 
@@ -586,8 +586,8 @@ function View:ShareActive()
     local entry = plans():Active()
     if not entry then return end
     local ok, why = plans():Publish(entry.plan.id)
-    if ok then GA.Core.Debug:Info(L.RP_SHARED, entry.plan.title or entry.plan.id)
-    elseif why == "later" then GA.Core.Debug:Info(L.RP_SHARE_LATER)
+    if ok then GA.UI.MainFrame:Notice("info", L.RP_SHARED, entry.plan.title or entry.plan.id)
+    elseif why == "later" then GA.UI.MainFrame:Notice("info", L.RP_SHARE_LATER)
     end
 end
 
@@ -633,11 +633,11 @@ function View:SaveEdit()
     if not self.draft then return end
     local plan, why = plans():SaveDraft(self.draft)
     if not plan then
-        GA.Core.Debug:Warn(L["RP_ERR_" .. tostring(why)] or tostring(why))
+        GA.UI.MainFrame:Notice("warn", L["RP_ERR_" .. tostring(why)] or tostring(why))
         return
     end
     self.draft, self.dirty = nil, false
-    GA.Core.Debug:Info(L.RP_SAVED, plan.title or plan.id, plan.rev)
+    GA.UI.MainFrame:Notice("info", L.RP_SAVED, plan.title or plan.id, plan.rev)
     self:Refresh()
 end
 

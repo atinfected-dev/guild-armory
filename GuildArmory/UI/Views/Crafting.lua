@@ -219,9 +219,9 @@ function CraftingView:Create(parent)
             local okEigen, wegEigen =
                 Compat.OpenOwnProfession(detail.line, detail.lineName)
             if okEigen then
-                GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(wegEigen))
+                GA.UI.MainFrame:Notice("info", L.CRAFT_OPEN_SENT, tostring(wegEigen))
             else
-                GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(wegEigen))
+                GA.UI.MainFrame:Notice("info", "%s (%s)", L.CRAFT_OPEN_FAILED, tostring(wegEigen))
             end
             return
         end
@@ -248,11 +248,11 @@ function CraftingView:Create(parent)
             -- an der Anmeldung des anderen, und die kennt dieser Client
             -- nicht. Das Alter ist eine Messung, eine Stundenzahl waere
             -- eine Behauptung.
-            GA.Core.Debug:Info(L.CRAFT_OPEN_SENT, tostring(weg))
-            GA.Core.Debug:Info(L.CRAFT_OPEN_STALE, tostring(detail.name),
+            GA.UI.MainFrame:Notice("info", L.CRAFT_OPEN_SENT, tostring(weg))
+            GA.UI.MainFrame:Notice("info", L.CRAFT_OPEN_STALE, tostring(detail.name),
                 detail.ts and Util.TimeAgo(detail.ts) or L.UNKNOWN)
         else
-            GA.Core.Debug:Info("%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
+            GA.UI.MainFrame:Notice("info", "%s (%s)", L.CRAFT_OPEN_FAILED, tostring(weg))
         end
     end, "primary")
     self.openButton:SetTooltip(L.TT_CRAFT_OPEN)
@@ -443,7 +443,7 @@ function CraftingView:BuildCrafterRow(row)
         if not entry then return end
         local ok, grund = GA.Modules.Crafting:Ask(CraftingView.searchItemID, entry.name)
         if not ok then
-            GA.Core.Debug:Info("%s", L["CRAFT_ASK_ERR_" .. tostring(grund)])
+            GA.UI.MainFrame:Notice("info", "%s", L["CRAFT_ASK_ERR_" .. tostring(grund)])
         end
         CraftingView:Refresh()
     end)

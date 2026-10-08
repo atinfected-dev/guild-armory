@@ -143,7 +143,7 @@ function View:Create(parent)
         View.openingBlizzard = true
         Compat.After(1, function() View.openingBlizzard = nil end)
         local weg = Compat.OpenBlizzardGuildFrame()
-        if not weg then GA.Core.Debug:Info("%s", L.ROSTER_BLIZZARD_NONE) end
+        if not weg then GA.UI.MainFrame:Notice("info", "%s", L.ROSTER_BLIZZARD_NONE) end
     end)
     self.blizzardButton:SetPoint("RIGHT", head, "RIGHT", -12, 0)
 
@@ -519,7 +519,7 @@ function View:BuildDetail(parent, fonts)
             button.onAfter = function() Compat.After(0.5, function() Compat.RequestGuildRoster() end) end
             return button, true
         end
-        button = Widgets.Button(d, text, function() GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE) end)
+        button = Widgets.Button(d, text, function() GA.UI.MainFrame:Notice("info", "%s", L.ROSTER_SECURE_NONE) end)
         return button, false
     end
     -- Die Zeile: [Pfeil hoch] [aktueller Rang als breiter Chip] [Pfeil runter],
@@ -658,12 +658,12 @@ function View:BuildChat(panel, fonts)
 
     self.chatInput = editBox(content, 100, function(text)
         local ok, grund = GA.Modules.GuildChat:Send(text, self.chatChannel)
-        if ok then self.chatInput:Load("") else GA.Core.Debug:Info("%s", L["ROSTER_CHAT_ERR_" .. tostring(grund)] or tostring(grund)) end
+        if ok then self.chatInput:Load("") else GA.UI.MainFrame:Notice("info", "%s", L["ROSTER_CHAT_ERR_" .. tostring(grund)] or tostring(grund)) end
     end)
     self.chatInput:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 4, 0)
     self.chatSend = Widgets.Button(content, L.ROSTER_CHAT_SEND, function()
         local ok, grund = GA.Modules.GuildChat:Send(self.chatInput:GetText(), self.chatChannel)
-        if ok then self.chatInput:Load("") else GA.Core.Debug:Info("%s", L["ROSTER_CHAT_ERR_" .. tostring(grund)] or tostring(grund)) end
+        if ok then self.chatInput:Load("") else GA.UI.MainFrame:Notice("info", "%s", L["ROSTER_CHAT_ERR_" .. tostring(grund)] or tostring(grund)) end
     end, "primary")
     self.chatSend:SetHeight(20)
     self.chatSend:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0)
@@ -791,7 +791,7 @@ function View:SaveNote(text)
     if not member then return end
     local ok, grund = GA.Modules.GuildNotes:Set(member.guid, member.name, text)
     if not ok then
-        GA.Core.Debug:Info("%s", grund == "noright" and L.ROSTER_NOTE_NORIGHT or L.ROSTER_NOTE_NOKEY)
+        GA.UI.MainFrame:Notice("info", "%s", grund == "noright" and L.ROSTER_NOTE_NORIGHT or L.ROSTER_NOTE_NOKEY)
     end
     self:Refresh()
 end
@@ -859,7 +859,7 @@ function View:ShowInvite(prefill)
             frame.secure = true
         else
             send = Widgets.Button(frame, L.ROSTER_INVITE_SEND, function()
-                GA.Core.Debug:Info("%s", L.ROSTER_SECURE_NONE)
+                GA.UI.MainFrame:Notice("info", "%s", L.ROSTER_SECURE_NONE)
             end, "primary")
         end
         send:SetHeight(22)
@@ -899,7 +899,7 @@ end
 function View:EditMOTD()
     local GuildNotes = GA.Modules.GuildNotes
     if not GuildNotes:CanEditMOTD() then
-        GA.Core.Debug:Info("%s", L.ROSTER_MOTD_LOCKED)
+        GA.UI.MainFrame:Notice("info", "%s", L.ROSTER_MOTD_LOCKED)
         return
     end
     Widgets.InputDialog(L.ROSTER_MOTD, L.ROSTER_MOTD_HINT, function(text)

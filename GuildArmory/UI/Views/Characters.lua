@@ -626,7 +626,7 @@ function Characters:SetRole(role)
 
     local own = Compat.GetPlayerIdentity().guid
     if not GA.Core.Database:HasAtLeast(own, GA.const.ROLE_ADMIN) then
-        GA.Core.Debug:Warn(L.CHAR_NEED_ADMIN)
+        GA.UI.MainFrame:Notice("warn", L.CHAR_NEED_ADMIN)
         return
     end
 

@@ -720,7 +720,7 @@ function Dashboard:BuildTradables(content, fonts)
                 local ok, grund = GA.Modules.Tradables:Ask(
                     entry.itemID, entry.ownerFull or entry.owner, entry.link)
                 if not ok then
-                    GA.Core.Debug:Info("%s",
+                    GA.UI.MainFrame:Notice("info", "%s",
                         L["TRADE_ASK_ERR_" .. tostring(grund)] or tostring(grund))
                 end
             end)
@@ -1201,11 +1201,11 @@ function Dashboard:PostTradables()
 
     local ok, grund = Tradables:Announce()
     if ok then
-        GA.Core.Debug:Info("%s", L.TRADE_POSTED)
+        GA.UI.MainFrame:Notice("info", "%s", L.TRADE_POSTED)
     elseif grund == "leer" then
-        GA.Core.Debug:Info("%s", L.TRADE_NONE_OWN)
+        GA.UI.MainFrame:Notice("info", "%s", L.TRADE_NONE_OWN)
     else
-        GA.Core.Debug:Warn("%s", L.TRADE_POST_FAILED)
+        GA.UI.MainFrame:Notice("warn", "%s", L.TRADE_POST_FAILED)
     end
 
     self:RefreshTradables()
