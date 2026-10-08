@@ -214,6 +214,7 @@ Schema.ACCOUNT_DEFAULTS = {
         -- auf dunklem Rand, "dot" ein Punkt in Klassenfarbe. Die Groesse
         -- in Pixeln des Rahmens, 12 bis 40; 22 war bis dahin fest.
         mapPinStyle = "crest",
+        fontScale = 100,              -- Schriftgroesse in Prozent (08.10.2026)
         mapPinSize = 22,
 
         -- GLUECKWUNSCH IM GILDENCHAT BEI EINEM STUFENAUFSTIEG.

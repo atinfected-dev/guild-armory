@@ -1249,6 +1249,9 @@ GA.Core.Locale:Register("enUS", {
     SET_PIN_STYLE_DOT  = "Coloured dot",
     SET_PIN_SIZE       = "Pin size",
     SET_PIN_SIZE_HINT  = "12 to 40 pixels. Pins that overlap at this size are bundled.",
+    SET_FONT_SIZE      = "Font size",
+    SET_FONT_SIZE_HINT = "All text in the addon, 80 to 140 percent. Rows keep their height, so very large text may be clipped.",
+    SET_FONT_SIZE_RELOAD = "Font size saved. One font could not be changed live; /reload applies it.",
     SET_MAP_LABELS      = "Name and level beside the pin",
     SET_MAP_LABELS_HINT = "Shows who is standing there next to each dot, without hovering. Off leaves only the dots; the tooltip still says everything.",
 

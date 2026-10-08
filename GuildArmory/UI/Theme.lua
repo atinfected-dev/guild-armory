@@ -112,6 +112,41 @@ local FONT_SERIF = [[Fonts\FRIZQT__.TTF]]   -- Kapitalis, nah an Marcellus
 local FONT_NARROW = [[Fonts\ARIALN.TTF]]    -- schmal, fuer Datenzeilen
 
 local created = {}
+--- Je Schrift, was sie ausmacht — damit eine neue Schriftgroesse sie
+--- umsetzen kann, ohne das Fenster neu zu bauen.
+local recipes = {}
+
+--- Die eingestellte Schriftgroesse als Faktor (Einstellungen › Fenster,
+--- 08.10.2026): 100 heisst wie entworfen. Vor dem Laden der Datenbank 1.
+function Theme.FontScale()
+    local db = GA.Core.Database
+    local config = db and db.account and db.account.config
+    local percent = tonumber(config and config.fontScale) or 100
+    if percent < 50 or percent > 200 then percent = 100 end
+    return percent / 100
+end
+
+--- Setzt die Schriftgroesse und wendet sie auf alle schon erzeugten
+--- Schriften an. Zeilenhoehen bleiben, wie sie sind — ein sehr grosser
+--- Wert schneidet also Text an; dafuer wirkt die Aenderung sofort.
+--- @return boolean alleUmgesetzt  false: eine Schrift (Familie) kann ihre
+---   Groesse nicht aendern, dann hilft /reload
+function Theme.SetFontScale(percent)
+    GA.Core.Config:Set("fontScale", percent)
+    local scale = Theme.FontScale()
+    local alle = true
+    for key, recipe in pairs(recipes) do
+        local font = created[key]
+        local size = math.max(6, math.floor(recipe.size * scale + 0.5))
+        if font and font.SetFont then
+            local ok, result = pcall(font.SetFont, font, recipe.path, size, recipe.flags)
+            if not ok or result == false then alle = false end
+        else
+            alle = false
+        end
+    end
+    return alle
+end
 
 --- Spielschriften fuer Alphabete, die die mitgelieferten Schriften nicht
 --- haben. Die Schriften der Looks kennen Latein samt Umlauten, aber kein
@@ -148,19 +183,26 @@ end
 local function makeFont(key, path, size, flags, fallback, gamePath, names)
     if created[key] then return created[key] end
 
+    -- Die Groesse, wie entworfen, mal die eingestellte Schriftgroesse.
+    local base = size
+    size = math.max(6, math.floor(size * Theme.FontScale() + 0.5))
+
     local font
+    local used = path
     if gamePath and names then font = makeFamily(key, path, size, flags) end
     if not font then
         font = CreateFont("GuildArmoryFont" .. key)
         local ok, result = pcall(font.SetFont, font, path, size, flags)
         if (not ok or result == false) and gamePath then
             ok, result = pcall(font.SetFont, font, gamePath, size, flags)
+            used = gamePath
         end
         if not ok or result == false then
             created[key] = fallback
             return fallback
         end
     end
+    recipes[key] = { path = used, size = base, flags = flags }
 
     -- Grundfarbe aus dem Look: Wer die Schrift setzt und keine Farbe, soll
     -- auf dem hellen Codex nicht weiss auf Pergament schreiben.

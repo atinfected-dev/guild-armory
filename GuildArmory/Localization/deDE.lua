@@ -1237,6 +1237,9 @@ GA.Core.Locale:Register("deDE", {
     SET_PIN_STYLE_DOT  = "Farbpunkt",
     SET_PIN_SIZE       = "Nadelgroesse",
     SET_PIN_SIZE_HINT  = "12 bis 40 Pixel. Nadeln, die sich bei dieser Groesse ueberschneiden, werden gebuendelt.",
+    SET_FONT_SIZE      = "Schriftgröße",
+    SET_FONT_SIZE_HINT = "Alle Texte des Addons, 80 bis 140 Prozent. Zeilen behalten ihre Höhe, sehr großer Text kann also angeschnitten werden.",
+    SET_FONT_SIZE_RELOAD = "Schriftgröße gespeichert. Eine Schrift ließ sich nicht sofort ändern; /reload übernimmt sie.",
     SET_MAP_LABELS      = "Name und Stufe an der Nadel",
     SET_MAP_LABELS_HINT = "Zeigt neben jedem Punkt, wer dort steht — ohne den Mauszeiger darueber zu halten. Aus bleiben nur die Punkte; der Tooltip sagt weiterhin alles.",
 

@@ -402,6 +402,18 @@ function Settings:Create(parent)
         smaller:SetPoint("RIGHT", bigger, "LEFT", -4, 0)
         return function() return 0 end
     end })
+    -- Schriftgroesse (08.10.2026): wirkt sofort auf alle Schriften des Addons.
+    makeRow(window, { label = L.SET_FONT_SIZE, hint = L.SET_FONT_SIZE_HINT, build = function(row)
+        Settings.fontSize = Widgets.Slider(row, 80, 140, 5, function(value)
+            if not Theme.SetFontScale(value) then
+                GA.Core.Debug:Info("%s", L.SET_FONT_SIZE_RELOAD)
+            end
+        end)
+        Settings.fontSize.format = "%d %%"
+        Settings.fontSize:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 4, -10)
+        Settings.fontSize:SetWidth(180)
+        return function() return 30 end
+    end })
     self.rowMinimap = makeRow(window, { label = L.SET_MINIMAP, hint = L.SET_MINIMAP_HINT, control = "switch",
         set = function(on) GA.UI.MinimapButton:SetShown(on) end })
     makeHeading(window, L.SET_H_CONTROLS)
@@ -799,6 +811,7 @@ function Settings:Refresh()
     local style = Config:Get("mapPinStyle") == "dot" and "dot" or "crest"
     for _, chip in ipairs(self.pinStyleChips) do chip:SetPressed(chip.style == style) end
     self.pinSize:SetQuiet(tonumber(Config:Get("mapPinSize")) or 22)
+    self.fontSize:SetQuiet(tonumber(Config:Get("fontScale")) or 100)
     local notifyAll = Config:Get("notifyEnabled") ~= false
     self.rowNotifyAll.switch:SetChecked(notifyAll)
     for _, row in ipairs(self.notifyRows) do
