@@ -31,6 +31,12 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
+local BIS_PANEL_H = 300
+local MINI, MINI_GAP = 26, 3
+local BIS_LEFT   = { 1, 2, 3, 15, 5, 9 }
+local BIS_RIGHT  = { 10, 6, 7, 8, 11, 12, 13, 14 }
+local BIS_BOTTOM = { 16, 17, 18 }
+
 WishlistView.titleKey = "NAV_WISHLIST"
 
 -- ================================================================== Aufbau ----
@@ -102,10 +108,22 @@ function WishlistView:Create(parent)
     difference:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
     difference:SetJustifyH("LEFT")
 
+    -- ------------------------------------------------------ Best in Slot ----
+    --
+    -- Entwurf A (08.10.2026): eine kleine Puppe wie in der Armory, ein
+    -- Gegenstand je Platz. Gegenstand oben ins Feld, Platz anklicken.
+    -- Rechtsklick: entfernen oder das nehmen, was man traegt.
+    local bis = Widgets.Panel(frame, L.WISH_BIS)
+    bis:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
+    bis:SetWidth(420)
+    bis:SetHeight(BIS_PANEL_H)
+    self.bisPanel = bis
+    self:BuildBisDoll(bis)
+
     -- ------------------------------------------------------ Eigene Liste ----
     local mine = Widgets.Panel(frame, L.WISH_MINE)
     mine:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -20)
-    mine:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
+    mine:SetPoint("BOTTOMLEFT", bis, "TOPLEFT", 0, gap)
     mine:SetWidth(420)
     self.minePanel = mine
 
@@ -267,6 +285,145 @@ function WishlistView:BuildItemBox(parent)
 end
 
 -- ================================================================== Zeilen ----
+
+--- Die kleine Puppe im BiS-Feld.
+function WishlistView:BuildBisDoll(panel)
+    local fonts = Theme.Fonts()
+    local content = panel.content
+    self.bisSlots = {}
+
+    -- "Was ich trage" fuellt jeden leeren Platz mit dem Getragenen.
+    self.bisWearButton = Widgets.Button(panel.header or panel, L.WISH_BIS_WEAR_ALL, function()
+        self:BisTakeWorn(nil)
+    end)
+    self.bisWearButton:SetTooltip(L.TT_WISH_BIS_WEAR)
+    self.bisWearButton:SetHeight(18)
+    self.bisWearButton:SetPoint("RIGHT", panel.header or panel, "RIGHT", -4, 0)
+
+    local function miniSlot(slotID, point, x, y, side)
+        local slot = Theme.ItemSlot(content, slotID, MINI)
+        slot:SetPoint(point, content, point, x, y)
+        slot.level:Hide()
+        slot:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        slot:SetScript("OnClick", function(_, mouse) self:OnBisClick(slotID, mouse) end)
+        slot:SetScript("OnEnter", function(button) self:ShowBisTooltip(button, slotID) end)
+        slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        local label = Theme.Label(slot, Compat.SlotName(slotID), fonts.small, Theme.color.textDim)
+        if side == "RIGHT" then label:SetPoint("LEFT", slot, "RIGHT", 6, 0)
+        elseif side == "LEFT" then label:SetPoint("RIGHT", slot, "LEFT", -6, 0) label:SetJustifyH("RIGHT")
+        else label:SetPoint("TOP", slot, "BOTTOM", 0, -2) end
+        slot.label = label
+        self.bisSlots[slotID] = slot
+    end
+    for i, slotID in ipairs(BIS_LEFT) do
+        miniSlot(slotID, "TOPLEFT", 6, -4 - (i - 1) * (MINI + MINI_GAP), "RIGHT")
+    end
+    for i, slotID in ipairs(BIS_RIGHT) do
+        miniSlot(slotID, "TOPRIGHT", -6, -4 - (i - 1) * (MINI + MINI_GAP), "LEFT")
+    end
+    for i, slotID in ipairs(BIS_BOTTOM) do
+        miniSlot(slotID, "BOTTOM", (i - 2) * (MINI + 30), 16, "BOTTOM")
+    end
+
+    self.bisHint = Theme.Label(content, L.WISH_BIS_HINT, fonts.small, Theme.color.textFaint)
+    self.bisHint:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 6, 2)
+    self.bisHint:SetWidth(120)
+    self.bisHint:SetJustifyH("LEFT")
+    self.bisHint:SetSpacing(1)
+end
+
+--- Passt der Gegenstand auf den Platz? Nur, wenn der Client seine Art kennt;
+--- sonst wird nicht gemeckert.
+local function fitsSlot(itemID, slotID)
+    local info = Compat.GetItemInfo(itemID)
+    local slots = info and Compat.SlotsForEquipLoc(info.equipLoc)
+    if not slots then return true end
+    for _, id in ipairs(slots) do if id == slotID then return true end end
+    return false
+end
+
+function WishlistView:OnBisClick(slotID, mouse)
+    local guid = self:OwnGuid()
+    local Wishlist = GA.Modules.Wishlist
+    local current = Wishlist:Bis(guid)[slotID]
+    local itemID = self:CurrentItemID()
+
+    if mouse == "LeftButton" and itemID then
+        if not fitsSlot(itemID, slotID) then
+            self.status:SetText(string.format(L.WISH_BIS_NO_FIT, Compat.SlotName(slotID)))
+            return
+        end
+        if not Compat.IsItemDataCached(itemID) then Compat.RequestItemData(itemID) end
+        Wishlist:SetBis(guid, slotID, itemID)
+        self.input:Clear()
+        self.status:SetText(L.WISH_DROP_HINT)
+        self:Refresh()
+        return
+    end
+
+    local items = {}
+    local character = GA.Core.Database.account.characters[guid]
+    local worn = character and character.equipment and character.equipment[slotID]
+    if worn and worn.itemID then
+        local info = Compat.GetItemInfo(worn.itemID)
+        items[#items + 1] = { text = string.format(L.WISH_BIS_TAKE, info and info.name or ("#" .. tostring(worn.itemID))),
+            func = function() self:BisTakeWorn(slotID) end }
+    end
+    if current then
+        items[#items + 1] = { text = L.WISH_BIS_REMOVE,
+            func = function() Wishlist:SetBis(guid, slotID, nil) self:Refresh() end }
+    end
+    if #items == 0 then
+        self.status:SetText(L.WISH_BIS_NEED_ITEM)
+        return
+    end
+    Widgets.ContextMenu(Compat.SlotName(slotID), items)
+end
+
+--- Das Getragene als BiS: ein Platz, oder (nil) jeder leere Platz.
+function WishlistView:BisTakeWorn(onlySlot)
+    local guid = self:OwnGuid()
+    local Wishlist = GA.Modules.Wishlist
+    local character = GA.Core.Database.account.characters[guid]
+    local equipment = character and character.equipment or {}
+    local n = 0
+    for _, slotID in ipairs(Wishlist.BIS_SLOTS) do
+        if (not onlySlot or onlySlot == slotID) and (onlySlot or not Wishlist:Bis(guid)[slotID]) then
+            local worn = equipment[slotID]
+            if worn and worn.itemID and Wishlist:SetBis(guid, slotID, worn.itemID) then n = n + 1 end
+        end
+    end
+    self.status:SetText(string.format(L.WISH_BIS_TAKEN, n))
+    self:Refresh()
+end
+
+function WishlistView:ShowBisTooltip(button, slotID)
+    local item = button.item
+    if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
+        GameTooltip:AddLine(button.gold and button.gold:IsShown() and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
+            1, 0.84, 0.35)
+    else
+        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+        GameTooltip:SetText(Compat.SlotName(slotID))
+        GameTooltip:AddLine(L.WISH_BIS_HINT, 0.7, 0.7, 0.7, true)
+    end
+    GameTooltip:Show()
+end
+
+function WishlistView:RefreshBis()
+    local guid = self:OwnGuid()
+    local status, worn, set = GA.Modules.Wishlist:BisStatus(guid)
+    for slotID, slot in pairs(self.bisSlots) do
+        local st = status[slotID]
+        slot:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
+        slot:SetGold(st and st.worn)
+        if slot.label then
+            local farbe = (st and st.itemID) and Theme.color.textDim or Theme.color.textFaint
+            slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
+        end
+    end
+    self.bisPanel:SetTitle(string.format(L.WISH_BIS_COUNT, worn, set))
+end
 
 function WishlistView:BuildEntryRow(row)
     local fonts = Theme.Fonts()
@@ -499,6 +656,7 @@ function WishlistView:Refresh()
 
     local stats = Wishlist:Stats(guid)
     self.minePanel:SetTitle(string.format(L.WISH_MINE_COUNT, stats.open, stats.fulfilled))
+    self:RefreshBis()
 
     -- Die Knoepfe sind nur benutzbar, wenn im Feld etwas Brauchbares steht.
     local itemID = self:CurrentItemID()

@@ -1208,6 +1208,31 @@ function Theme.ItemSlot(parent, slotID, size)
     if level.SetShadowOffset then level:SetShadowOffset(1, -1) end
     button.level = level
 
+    --- Goldener Schein um einen Platz: das BiS-Teil wird getragen
+    --- (08.10.2026). Einmal angelegt, dann nur ein- und ausgeblendet.
+    function button:SetGold(on)
+        if not self.gold then
+            local glow = self:CreateTexture(nil, "BACKGROUND", nil, -1)
+            local extra = math.floor((self:GetWidth() or 40) * 0.5)
+            glow:SetPoint("CENTER", self, "CENTER", 0, 0)
+            glow:SetWidth((self:GetWidth() or 40) + extra)
+            glow:SetHeight((self:GetHeight() or 40) + extra)
+            local path = Theme.Media("glow")
+            if path then
+                glow:SetTexture(path)
+                pcall(glow.SetBlendMode, glow, "ADD")
+            else
+                Theme.Paint(glow, Theme.color.gold)
+            end
+            glow:SetVertexColor(1, 0.84, 0.35, 0.9)
+            self.gold = glow
+            self.goldLines = Theme.Outline(self, Theme.color.goldBright)
+        end
+        local shown = on and true or false
+        self.gold:SetShown(shown)
+        for _, line in ipairs(self.goldLines) do line:SetShown(shown) end
+    end
+
     --- Befuellt den Slot. `item` = Eintrag aus character.equipment oder nil.
     function button:SetItem(item)
         self.item = item

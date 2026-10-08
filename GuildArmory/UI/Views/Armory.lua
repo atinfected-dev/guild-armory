@@ -23,6 +23,8 @@ Armory.titleKey = "NAV_ARMORY_LONG"
 
 local SLOT_SIZE = 42
 local SLOT_GAP = 6
+local TWIN_SIZE = 26    -- die BiS-Kachel neben dem Platz, kleiner als das Getragene (08.10.2026)
+local TWIN_GAP = 4
 
 --- Anordnung wie im Charakterfenster.
 local LEFT_COLUMN  = { 1, 2, 3, 15, 5, 4, 19, 9 }     -- Kopf .. Handgelenke
@@ -153,6 +155,10 @@ function Armory:Create(parent)
         if character and GA.UI.TalentFrame then GA.UI.TalentFrame:Toggle(character) end
     end)
     self.talentButton:SetPoint("TOPRIGHT", self.ilvlLabel, "BOTTOMRIGHT", 2, -6)
+
+    -- "BiS 3 von 12": wie viele der gesetzten Teile getragen werden.
+    self.bisStand = Theme.Label(doll, "", fonts.small, Theme.color.goldBright)
+    self.bisStand:SetPoint("RIGHT", self.talentButton, "LEFT", -10, 0)
     self.talentButton:HookScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_LEFT")
         GameTooltip:AddLine(L.TALENTS_BUTTON, 1, 1, 1)
@@ -193,9 +199,10 @@ function Armory:Create(parent)
     -- welcher es ist — die Silhouette allein sagt es bei Ring und Schmuck
     -- nicht. Die Namen kommen vom Client in seiner Sprache
     -- (Compat.SlotName), nicht aus einer eigenen Liste.
-    local function beschriften(slot, slotID, anchorPoint, relativePoint, x, y)
+    --- @param relativeTo Frame|nil  woran der Name haengt — die BiS-Kachel, wo es eine gibt
+    local function beschriften(slot, slotID, anchorPoint, relativePoint, x, y, relativeTo)
         local label = Theme.Label(slot, Compat.SlotName(slotID), fonts.small, Theme.color.textDim)
-        label:SetPoint(anchorPoint, slot, relativePoint, x, y)
+        label:SetPoint(anchorPoint, relativeTo or slot, relativePoint, x, y)
         slot.label = label
     end
 
@@ -208,13 +215,35 @@ function Armory:Create(parent)
         return slot
     end
 
+    -- DIE BiS-KACHEL NEBEN DEM PLATZ (08.10.2026, Entwurf A): kleiner als
+    -- das Getragene, zwischen Platz und Namen. Leer und blass, wo nichts
+    -- gesetzt ist; gold mit dem Platz zusammen, wenn das Teil getragen wird.
+    -- Hemd und Wappenrock haben keine.
+    self.twins = {}
+    local BIS_OK = {}
+    for _, id in ipairs(GA.Modules.Wishlist.BIS_SLOTS) do BIS_OK[id] = true end
+    local function twin(slot, slotID, side)
+        if not BIS_OK[slotID] then return nil end
+        local t = Theme.ItemSlot(doll, slotID, TWIN_SIZE)
+        t.level:Hide()
+        if side == "RIGHT" then t:SetPoint("LEFT", slot, "RIGHT", TWIN_GAP, 0)
+        elseif side == "LEFT" then t:SetPoint("RIGHT", slot, "LEFT", -TWIN_GAP, 0)
+        else t:SetPoint("LEFT", slot, "RIGHT", TWIN_GAP, 0) end
+        t:SetScript("OnEnter", function(button) self:ShowTwinTooltip(button) end)
+        t:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        self.twins[slotID] = t
+        return t
+    end
+
     for index, slotID in ipairs(LEFT_COLUMN) do
         local slot = place(slotID, "TOPLEFT", 16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
-        beschriften(slot, slotID, "LEFT", "RIGHT", 6, 0)
+        local t = twin(slot, slotID, "RIGHT")
+        beschriften(slot, slotID, "LEFT", "RIGHT", 6, 0, t)
     end
     for index, slotID in ipairs(RIGHT_COLUMN) do
         local slot = place(slotID, "TOPRIGHT", -16, columnTop - (index - 1) * (SLOT_SIZE + SLOT_GAP))
-        beschriften(slot, slotID, "RIGHT", "LEFT", -6, 0)
+        local t = twin(slot, slotID, "LEFT")
+        beschriften(slot, slotID, "RIGHT", "LEFT", -6, 0, t)
         slot.label:SetJustifyH("RIGHT")
     end
 
@@ -223,7 +252,8 @@ function Armory:Create(parent)
     -- stehen DARUNTER, nicht daneben — und "Main Hand" ist breiter als ein
     -- Slot. Mit dem Spaltenabstand klebten die drei Namen zu "Main HandOff
     -- Hand Ranged" zusammen (gemeldet 27.09.2026 mit Bild).
-    local WEAPON_GAP = 24
+    -- Breiter als vorher: Rechts von jeder Waffe steht ihre BiS-Kachel.
+    local WEAPON_GAP = 24 + TWIN_SIZE + TWIN_GAP
     local weapons = CreateFrame("Frame", nil, doll)
     weapons:SetWidth(#BOTTOM_ROW * SLOT_SIZE + (#BOTTOM_ROW - 1) * WEAPON_GAP)
     weapons:SetHeight(SLOT_SIZE)
@@ -236,6 +266,8 @@ function Armory:Create(parent)
         slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
         beschriften(slot, slotID, "TOP", "BOTTOM", 0, -2)
         self.slots[slotID] = slot
+        local t = twin(slot, slotID, "RIGHT")
+        if t then t:SetParent(weapons) end
     end
 
     -- ---------------------------------------------------- Die Mitte ---------
@@ -401,6 +433,19 @@ end
 
 -- ================================================================== Tooltip ---
 
+--- Tooltip der BiS-Kachel: der Gegenstand, davor "Best in Slot".
+function Armory:ShowTwinTooltip(button)
+    local item = button.item
+    if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
+        GameTooltip:AddLine(button.gold and button.gold:IsShown() and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
+            1, 0.84, 0.35)
+    else
+        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L.ARMORY_BIS_NONE, 0.7, 0.7, 0.7)
+    end
+    GameTooltip:Show()
+end
+
 function Armory:ShowSlotTooltip(button)
     local item = button.item
 
@@ -497,7 +542,9 @@ function Armory:RefreshDoll()
         self.modelKey = nil
         self.centerTitle:Show()
         self.centerBody:Show()
-        for _, slot in pairs(self.slots) do slot:SetItem(nil) end
+        for _, slot in pairs(self.slots) do slot:SetItem(nil) slot:SetGold(false) end
+        for _, t in pairs(self.twins) do t:SetItem(nil) t:SetGold(false) t:SetAlpha(0.3) end
+        self.bisStand:SetText("")
         return
     end
 
@@ -569,6 +616,7 @@ function Armory:RefreshDoll()
     end
 
     -- Slots — und ihre Namen: gedaempft, wo etwas steckt, leise, wo nichts.
+    local bisStatus, bisWorn, bisSet = GA.Modules.Wishlist:BisStatus(character.guid)
     for slotID, slot in pairs(self.slots) do
         local item = character.equipment and character.equipment[slotID] or nil
         slot:SetItem(item)
@@ -576,7 +624,17 @@ function Armory:RefreshDoll()
             local farbe = item and Theme.color.textDim or Theme.color.textFaint
             slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
         end
+        -- Die BiS-Kachel daneben — und beide gold, wenn das Teil getragen wird.
+        local st = bisStatus[slotID]
+        local t = self.twins[slotID]
+        if t then
+            t:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
+            t:SetAlpha(st and st.itemID and 1 or 0.3)
+            t:SetGold(st and st.worn)
+        end
+        slot:SetGold(st and st.worn)
     end
+    self.bisStand:SetText(bisSet > 0 and string.format(L.ARMORY_BIS, bisWorn, bisSet) or "")
 
     -- DAS MODELL, WENN ES EINE EINHEIT GIBT — sonst der Text.
     --

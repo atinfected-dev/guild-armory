@@ -245,6 +245,12 @@ function Import:Apply(payload, options)
             end
         end
     end
+    -- BiS-Listen: nur wo noch keine steht.
+    for _, entry in ipairs(payload.bis or {}) do
+        if entry.guid and type(entry.b) == "table" and not next(GA.Modules.Wishlist:Bis(entry.guid)) then
+            GA.Modules.Wishlist:ReplaceBis(entry.guid, entry.b)
+        end
+    end
 
     -- Spielerprofile
     for _, profile in ipairs(payload.players or {}) do

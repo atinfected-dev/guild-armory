@@ -177,6 +177,101 @@ function Wishlist:Get(guid, includeFulfilled)
     return list
 end
 
+-- ================================================================== Best in Slot
+--
+-- EIN GEGENSTAND JE PLATZ, JE CHARAKTER (08.10.2026, Wunsch: "eine BiS-Liste,
+-- die das Puppenmodul spiegelt"). Die Liste liegt neben der Wunschliste,
+-- wandert mit ihr zur Gilde, in Export und Import — und zaehlt in der
+-- Lootsitzung als Wunsch mit Prioritaet "Best in Slot". Ob das Teil
+-- getragen wird, sagt BisStatus; Armory und Wunschliste leuchten dann gold.
+
+--- Die Plaetze der Liste: die Puppe ohne Hemd und Wappenrock.
+Wishlist.BIS_SLOTS = { 1, 2, 3, 15, 5, 9, 10, 6, 7, 8, 11, 12, 13, 14, 16, 17, 18 }
+local BIS_SLOT_OK = {}
+for _, id in ipairs(Wishlist.BIS_SLOTS) do BIS_SLOT_OK[id] = true end
+--- Zweiter Platz derselben Art: Ring, Schmuck, Einhandwaffe.
+local TWIN_SLOT = { [11] = 12, [12] = 11, [13] = 14, [14] = 13, [16] = 17, [17] = 16 }
+
+local function bisStore()
+    local account = GA.Core.Database.account
+    account.bis = account.bis or {}
+    return account.bis
+end
+
+--- @return table { [slotID] = { itemID, ts } }
+function Wishlist:Bis(guid)
+    return guid and bisStore()[guid] or {}
+end
+
+--- Setzt oder loescht (itemID nil) das BiS-Teil eines Platzes.
+--- @return boolean ok, string|nil grund
+function Wishlist:SetBis(guid, slotID, itemID, quiet)
+    if not guid then return false, "nocharacter" end
+    slotID = tonumber(slotID)
+    if not slotID or not BIS_SLOT_OK[slotID] then return false, "badslot" end
+    itemID = tonumber(itemID)
+    local list = bisStore()[guid]
+    if not list then list = {} bisStore()[guid] = list end
+    local before = list[slotID] and list[slotID].itemID or nil
+    if before == itemID then return true end
+    if itemID then list[slotID] = { itemID = itemID, ts = Util.Now() } else list[slotID] = nil end
+    if not quiet then
+        GA.Core.Database:Journal("WISH_BIS", guid, before, itemID)
+        GA.Core.Callbacks:Fire("WISHLIST_CHANGED", guid)
+    end
+    return true
+end
+
+--- Die ganze Liste ersetzen — fuer den Abgleich (der Absender ist massgeblich).
+function Wishlist:ReplaceBis(guid, slots)
+    if not guid then return false end
+    bisStore()[guid] = {}
+    for slotID, itemID in pairs(slots or {}) do
+        self:SetBis(guid, tonumber(slotID), tonumber(itemID), true)
+    end
+    GA.Core.Callbacks:Fire("WISHLIST_CHANGED", guid)
+    return true
+end
+
+--- Wird das BiS-Teil getragen? Je Platz; Ring, Schmuck und Einhandwaffe
+--- zaehlen auch auf dem Zwillingsplatz.
+--- @return table { [slotID] = { itemID, worn, equipped } }, number getragen, number gesetzt
+function Wishlist:BisStatus(guid)
+    local character = guid and GA.Core.Database.account.characters[guid]
+    local equipment = character and character.equipment or {}
+    local list = self:Bis(guid)
+    local out, worn, set = {}, 0, 0
+    local function wearing(slotID, itemID)
+        local here = equipment[slotID]
+        if here and here.itemID == itemID then return true end
+        local twin = TWIN_SLOT[slotID]
+        local there = twin and equipment[twin]
+        return there ~= nil and there.itemID == itemID
+    end
+    for _, slotID in ipairs(self.BIS_SLOTS) do
+        local entry = list[slotID]
+        local hit = entry ~= nil and wearing(slotID, entry.itemID)
+        out[slotID] = { itemID = entry and entry.itemID or nil, worn = hit,
+                        equipped = equipment[slotID] and equipment[slotID].itemID or nil }
+        if entry then
+            set = set + 1
+            if hit then worn = worn + 1 end
+        end
+    end
+    return out, worn, set
+end
+
+--- Wer hat diesen Gegenstand als BiS? Fuer ForItem.
+local function bisHolders(itemID)
+    local out = {}
+    for guid, slots in pairs(bisStore()) do
+        for _, entry in pairs(slots) do
+            if entry.itemID == itemID then out[guid] = true break end
+        end
+    end
+    return out
+end
+
 --- Wer haette diesen Gegenstand gern? Ueber alle bekannten Charaktere.
 --- @return table { { guid, name, class, priority, weight, note, fulfilled, playerId } }
 function Wishlist:ForItem(itemID)
@@ -201,6 +296,29 @@ function Wishlist:ForItem(itemID)
                     fulfilled = entry.fulfilledByAwardId ~= nil,
                 }
             end
+        end
+    end
+
+    -- Best in Slot zaehlt als Wunsch: Wer das Teil auf seiner Liste hat,
+    -- steht hier mit "BIS" — sofern er es nicht ohnehin als Wunsch fuehrt.
+    local seen = {}
+    for _, entry in ipairs(out) do seen[entry.guid] = true end
+    for guid in pairs(bisHolders(itemID)) do
+        if not seen[guid] then
+            local character = characters[guid]
+            local status = self:BisStatus(guid)
+            local worn = false
+            for _, st in pairs(status) do
+                if st.itemID == itemID and st.worn then worn = true end
+            end
+            out[#out + 1] = {
+                guid = guid,
+                name = character and Util.ShortName(character.name or "?") or "?",
+                class = character and character.class or nil,
+                playerId = character and character.playerId or nil,
+                priority = "BIS", weight = weightOf("BIS"), bis = true,
+                fulfilled = worn,
+            }
         end
     end
 

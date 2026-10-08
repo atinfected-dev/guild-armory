@@ -2,6 +2,8 @@
 
 ## 0.1.44
 
+Best in Slot list: under Wishlist a small paper doll with one item per slot — put an item into the field above and click the slot; right-click removes it or takes what you wear, "What I wear" fills every empty slot. In the Armory every slot now has a smaller BiS tile beside it, and when the worn item is the BiS item, both tiles glow gold; the header counts "BiS 3 of 12". The list goes to the guild with the wishlist, into export and import, and in a loot session a BiS entry counts as a wish with priority Best in Slot. Rings, trinkets and one-hand weapons count on either of their two slots.
+
 Your guild's logo on the overview: Settings › Window › Logo offers the addon picture, the guild tabard from the game (the same for everyone, nothing to sync) or an own file. An addon cannot upload images or send them to others, so the own file is Media\GuildLogo.tga in the addon folder, copied by every member who wants to see it; the settings say whether it was found. Whether the tabard can be drawn on Forever is measured by /ga probe (guildTabard).
 
 ## 0.1.43

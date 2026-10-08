@@ -165,6 +165,22 @@ local function exportWishlists(db, itemIDs)
     return out
 end
 
+--- Die BiS-Listen: je Charakter Platz -> Kennung.
+local function exportBis(db, itemIDs)
+    local out = {}
+    for guid, slots in pairs(db.bis or {}) do
+        local b = {}
+        for slotID, entry in pairs(slots) do
+            if entry.itemID then
+                b[tostring(slotID)] = entry.itemID
+                itemIDs[entry.itemID] = true
+            end
+        end
+        if next(b) then out[#out + 1] = { guid = guid, b = b } end
+    end
+    return out
+end
+
 --- Nur die Gegenstaende, die irgendwo vorkommen. Das ganze Verzeichnis
 --- mitzuschicken waere ein Vielfaches an Daten ohne Gegenwert.
 local function exportItems(db, itemIDs)
@@ -291,6 +307,7 @@ function Export:Build()
         players = exportPlayers(db),
         awards = exportAwards(db, itemIDs),
         wishlists = exportWishlists(db, itemIDs),
+        bis = exportBis(db, itemIDs),
     }
     -- Erfolge sind ADDITIV zum Vertrag: Eine aeltere Webapp liest sie nicht
     -- und stoert sich auch nicht daran. Deshalb bleibt version = 1 — eine

@@ -199,8 +199,15 @@ function Sync:PublishWishlist(channel)
         end
     end
 
+    -- Die BiS-Liste reist mit: Platz -> Kennung, Schluessel als Text (JSON).
+    local bis = {}
+    for slotID, entry in pairs(GA.Modules.Wishlist:Bis(identity.guid)) do
+        bis[tostring(slotID)] = entry.itemID
+    end
+
     local payload = Json.Encode({
         v = Sync.VERSION, guid = identity.guid, name = identity.name, w = entries,
+        b = next(bis) and bis or nil,
     })
     return comm():SendBlob("WISH", payload, channel) and true or false
 end
@@ -356,6 +363,12 @@ function Sync:OnWishlist(sender, text)
             GA.Modules.ItemIndex:Learn(entry.i)
         end
     end
+
+    -- Die BiS-Liste ebenso ganz: Was der Absender nicht mehr hat, hat er nicht.
+    if type(data.b) == "table" then
+        for _, itemID in pairs(data.b) do GA.Modules.ItemIndex:Learn(itemID) end
+    end
+    Wishlist:ReplaceBis(data.guid, type(data.b) == "table" and data.b or {})
 
     Debug:Print("comm", "Wunschliste uebernommen: %s (%d Eintraege)",
         tostring(data.name), #(data.w or {}))
