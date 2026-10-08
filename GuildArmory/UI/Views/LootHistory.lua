@@ -86,6 +86,19 @@ function LootHistory:Create(parent)
     end)
     self.openOnly:SetPoint("LEFT", self.search, "RIGHT", 12, 0)
 
+    -- Ein Filter aus Analytics (08.10.2026): steht hier benannt und laesst
+    -- sich mit einem Klick aufheben. Die Suche bleibt daneben benutzbar.
+    self.filterClear = Widgets.Button(bar, L.LOOT_FILTER_CLEAR, function() self:ClearFilter() end)
+    self.filterClear:SetHeight(20)
+    self.filterClear:SetPoint("LEFT", self.openOnly, "RIGHT", 16, 0)
+    self.filterClear:Hide()
+    self.filterLabel = Theme.Label(bar, "", fonts.small, Theme.color.goldMid)
+    self.filterLabel:SetPoint("LEFT", self.filterClear, "RIGHT", 8, 0)
+    self.filterLabel:SetWidth(260)
+    self.filterLabel:SetJustifyH("LEFT")
+    self.filterLabel:SetWordWrap(false)
+    self.filterLabel:Hide()
+
     self.summary = Theme.Label(bar, "", fonts.small, Theme.color.textFaint)
     self.summary:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
 
@@ -280,6 +293,28 @@ function LootHistory:RefreshDetail(award)
 end
 
 -- ================================================================== Refresh ---
+
+--- Setzt die Felder aus einer Analytics-Zeile. Was vorher aus so einer
+--- Zeile kam, wird ersetzt; Suche und "nur offene" bleiben.
+local ROW_FIELDS = { "since", "recipients", "encounterName", "sourceName", "sourceNpcID",
+                     "unknownSource", "instanceName", "unknownRaid", "response", "quality" }
+
+function LootHistory:ApplyFilter(fields, description)
+    self.filter = self.filter or {}
+    for _, key in ipairs(ROW_FIELDS) do self.filter[key] = fields and fields[key] or nil end
+    self.selectedId = nil
+    local active = fields ~= nil and next(fields) ~= nil
+    if self.filterLabel then
+        self.filterLabel:SetText(active and string.format(L.LOOT_FILTER_FROM, description or "") or "")
+        self.filterLabel:SetShown(active)
+        self.filterClear:SetShown(active)
+    end
+    if self.frame and self.frame:IsShown() then self:Refresh() end
+end
+
+function LootHistory:ClearFilter()
+    self:ApplyFilter(nil)
+end
 
 function LootHistory:OnShow()
     if self.layout then self.layout() end

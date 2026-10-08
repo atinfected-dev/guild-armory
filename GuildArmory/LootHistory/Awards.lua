@@ -374,7 +374,10 @@ end
 
 -- ================================================================== Abfragen --
 
---- @param filter table|nil { status, recipientGuid, itemID, open, since }
+--- @param filter table|nil { status, recipientGuid, itemID, open, since, search,
+---   recipients = { [kurzname klein] = true }, encounterName, sourceName, sourceNpcID,
+---   unknownSource, instanceName, unknownRaid, response, quality }
+---   — die hinteren kommen aus einer Analytics-Zeile (08.10.2026).
 function Awards:List(filter)
     filter = filter or {}
     local list = {}
@@ -386,6 +389,19 @@ function Awards:List(filter)
         if filter.recipientGuid and award.recipientGuid ~= filter.recipientGuid then keep = false end
         if filter.itemID and award.itemID ~= filter.itemID then keep = false end
         if filter.since and (award.ts or 0) < filter.since then keep = false end
+        if filter.recipients then
+            local name = string.lower(Util.ShortName(award.recipientName or ""))
+            if not filter.recipients[name] then keep = false end
+        end
+        if filter.encounterName and award.encounterName ~= filter.encounterName then keep = false end
+        if filter.sourceName and (award.encounterName or award.sourceName ~= filter.sourceName) then keep = false end
+        if filter.sourceNpcID and (award.encounterName or award.sourceName
+            or award.sourceNpcID ~= filter.sourceNpcID) then keep = false end
+        if filter.unknownSource and (award.encounterName or award.sourceName or award.sourceNpcID) then keep = false end
+        if filter.instanceName and award.instanceName ~= filter.instanceName then keep = false end
+        if filter.unknownRaid and award.instanceName then keep = false end
+        if filter.response and award.response ~= filter.response then keep = false end
+        if filter.quality and (award.quality or 0) ~= filter.quality then keep = false end
         if filter.search and filter.search ~= "" then
             local haystack = string.lower((award.itemName or "") .. " " .. (award.recipientName or ""))
             if not string.find(haystack, string.lower(filter.search), 1, true) then keep = false end

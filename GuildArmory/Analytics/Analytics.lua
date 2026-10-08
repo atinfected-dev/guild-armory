@@ -229,6 +229,96 @@ function Analytics:BySource(filter)
     end)
 end
 
+--- Je Schlachtzug (Instanzname beim Pluendern). Ohne: eine eigene Zeile.
+function Analytics:ByRaid(filter)
+    return group(self, filter, function(award)
+        if award.instanceName then
+            return "r:" .. award.instanceName, award.instanceName, { kind = "raid" }
+        end
+        return "unknown", nil, { kind = "unknown" }
+    end)
+end
+
+--- Je Boss (Encounter). Was ohne Encounter fiel — Trash, Truhen, Vergaben
+--- aus dem Abgleich ohne Angabe — steht in einer eigenen Zeile.
+function Analytics:ByBoss(filter)
+    return group(self, filter, function(award)
+        if award.encounterName then
+            return "e:" .. award.encounterName, award.encounterName, { kind = "encounter" }
+        end
+        return "unknown", nil, { kind = "unknown" }
+    end)
+end
+
+--- Anwesenheit je Mitglied aus den Raidplaenen (08.10.2026): an wie vielen
+--- Abenden mit Anwesenheitsliste jemand da war, daneben seine Zusagen.
+--- Gezaehlt werden nur Plaene, zu denen eine Liste existiert — ein Plan
+--- ohne Liste sagt nichts darueber, wer fehlte.
+--- @return table { { key, label, delivered = abende, signed, evenings, kind = "attendance", extra } }
+function Analytics:Attendance(filter)
+    local RaidPlan = GA.Modules.RaidPlan
+    if not RaidPlan or not RaidPlan.All then return {} end
+    local db = GA.Core.Database
+    local rows, order, evenings = {}, {}, 0
+
+    for _, entry in ipairs(RaidPlan:All()) do
+        local plan = entry.plan or {}
+        local start = plan.start or entry.at or 0
+        local counts = entry.present and next(entry.present) ~= nil
+        if counts and filter and filter.since and start < filter.since then counts = false end
+        if counts then
+            evenings = evenings + 1
+            local signups = RaidPlan.Signups and RaidPlan:Signups(plan.id) or {}
+            local function row(key, name)
+                local r = rows[key]
+                if not r then
+                    local character = db.FindCharacterByName and db:FindCharacterByName(name) or nil
+                    r = { key = key, label = name, delivered = 0, pending = 0, manual = 0,
+                          signed = 0, kind = "attendance",
+                          extra = { class = character and character.class or nil } }
+                    rows[key] = r
+                    order[#order + 1] = r
+                end
+                return r
+            end
+            for key, p in pairs(entry.present) do
+                local r = row(key, p.name or key)
+                r.delivered = r.delivered + 1
+            end
+            for key, s in pairs(signups) do
+                if s.status == "yes" then
+                    local r = row(key, s.name or key)
+                    r.signed = r.signed + 1
+                end
+            end
+        end
+    end
+
+    for _, r in ipairs(order) do r.evenings = evenings end
+    table.sort(order, function(a, b)
+        if a.delivered ~= b.delivered then return a.delivered > b.delivered end
+        return tostring(a.label) < tostring(b.label)
+    end)
+    return order
+end
+
+--- DKP-Staende als Tabelle: Stand, Zugang, Abgang je Spieler. Der Zeitraum
+--- gilt hier nicht — ein Stand ist eine Summe ueber alles.
+function Analytics:Dkp()
+    local Dkp = GA.Modules.Dkp
+    if not Dkp or not Dkp.List then return {} end
+    local characters = GA.Core.Database.account.characters or {}
+    local out = {}
+    for _, stand in ipairs(Dkp:List()) do
+        local character = stand.guid and characters[stand.guid]
+        out[#out + 1] = { key = stand.guid, label = stand.name or stand.guid,
+                          delivered = stand.total or 0, pending = 0, manual = 0,
+                          earned = stand.earned or 0, spent = stand.spent or 0, kind = "dkp",
+                          extra = { class = character and character.class or nil } }
+    end
+    return out
+end
+
 --- Je Antwort im Council (BiS, Main-Spec, …). Nur wo eine vorliegt.
 function Analytics:ByResponse(filter)
     return group(self, filter, function(award)
