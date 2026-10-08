@@ -708,6 +708,43 @@ function RaidPlan.SetRole(raw, name, role)
     if role and RaidPlan.ROLES[role] then raw.roles[name] = role end
 end
 
+--- Die Planrolle aus der gesetzten Kampfrolle: TANK -> tank, HEAL ->
+--- healer, DPS -> melee oder ranged nach Klasse, "dps", wo die Klasse
+--- beides kann. Die Planschluessel bleiben, wie das Austauschformat sie
+--- kennt (docs/RAIDPLAN-FORMAT.md); hier wird nur uebersetzt.
+local RANGED_CLASS = { HUNTER = true, MAGE = true, WARLOCK = true, PRIEST = true }
+local MELEE_CLASS = { WARRIOR = true, ROGUE = true }
+function RaidPlan.PlanRole(combatRole, class)
+    if combatRole == "TANK" then return "tank" end
+    if combatRole == "HEAL" then return "healer" end
+    if combatRole == "DPS" then
+        local c = class and string.upper(class) or ""
+        if RANGED_CLASS[c] then return "ranged" end
+        if MELEE_CLASS[c] then return "melee" end
+        return "dps"
+    end
+    return nil
+end
+
+--- Fuellt die Rollen der Namen ohne Rolle aus den gesetzten Kampfrollen
+--- der Gilde. Nur Luecken: Was der Planer gesetzt hat, bleibt.
+--- @return number gefuellt
+function RaidPlan.PrefillRoles(raw)
+    local db = GA.Core.Database
+    if not raw or not db or not db.FindCharacterByName then return 0 end
+    local n = 0
+    for g = 1, 8 do
+        for _, name in ipairs(raw.groups[g] or {}) do
+            if not RaidPlan.RoleOf(raw, name) then
+                local character = db:FindCharacterByName(name)
+                local role = character and RaidPlan.PlanRole(character.combatRole, character.class)
+                if role then raw.roles[name] = role n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
 function RaidPlan.RoleOf(raw, name)
     local key = RaidPlan.NameKey(name)
     for n, role in pairs(raw.roles or {}) do

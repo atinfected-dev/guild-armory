@@ -187,6 +187,31 @@ local function validRole(role)
     return role == "TANK" or role == "HEAL" or role == "DPS"
 end
 
+--- Der eigene Charakterdatensatz — dort steht die gesetzte Kampfrolle.
+local function myCharacter()
+    local identity = Compat.GetPlayerIdentity()
+    local account = GA.Core.Database and GA.Core.Database.account
+    local characters = account and account.characters
+    return identity.guid and characters and characters[identity.guid] or nil
+end
+
+--- EINE GESPEICHERTE ROLLE, NICHT ZWEI. Bis 0.1.42 merkte sich der
+--- Dungeonhub die zuletzt gewaehlte Rolle fuer sich (lastRole), und
+--- "Zusammen" fuehrte die gesetzte Kampfrolle daneben. Jetzt gilt die
+--- gesetzte: Wer noch keine hat, bekommt mit der ersten Wahl im Dungeonhub
+--- eine — mit allem, was daran haengt (Vorschlag in "Zusammen", Sync an
+--- die Gilde). Wer eine hat, behaelt sie: Ein Lauf als Zweitrolle macht
+--- nicht die Hauptrolle zur Zweitrolle.
+local function rememberRole(role)
+    local me = myCharacter()
+    if not me or me.combatRole then return end
+    if GA.Modules.Together and GA.Modules.Together.SetMyRole then
+        GA.Modules.Together:SetMyRole(role)
+    else
+        me.combatRole = role
+    end
+end
+
 -- ================================================================== Zeit -----
 
 --- Die Startzeit aus Tag (0 = heute, 1 = morgen) und Uhrzeit, als Stempel.
@@ -298,7 +323,7 @@ function Dungeonhub:Post(dungeon, at, note, role, discord)
     run.discord = discord and true or nil
     run.discordBot = discord and GA.Core.Config and GA.Core.Config:Get("discordBot") and true or nil
     db.own[run.id] = run
-    db.lastRole = role
+    rememberRole(role)
     self.runs[run.id] = run
     self:Send(run)
     self:SendMembers(run)
@@ -385,8 +410,7 @@ function Dungeonhub:Join(id, role)
     local me = ownName()
     local identity = Compat.GetPlayerIdentity()
     run.members[me] = { role = role, class = identity.class, ts = Util.Now() }
-    local db = store()
-    if db then db.lastRole = role end
+    rememberRole(role)
     if comm() then comm():Send("DJOIN", { id, role }, "GUILD", nil, true) end
     if run.own then run.mts = Util.Now() self:SendMembers(run) end
     self:AnnounceDiscord(run, "join", me, role)
@@ -407,10 +431,17 @@ function Dungeonhub:Leave(id)
     return true
 end
 
+--- Die Rolle, die das Formular vorschlaegt: die gesetzte Kampfrolle.
+--- Ein alter lastRole-Wert (bis 0.1.42) wird einmal uebernommen, dann
+--- vergessen.
 function Dungeonhub:LastRole()
+    local me = myCharacter()
+    if me and validRole(me.combatRole) then return me.combatRole end
     local db = store()
-    local role = db and db.lastRole
-    return validRole(role) and role or "DPS"
+    local alt = db and db.lastRole
+    if db then db.lastRole = nil end
+    if validRole(alt) then rememberRole(alt) return alt end
+    return "DPS"
 end
 
 -- ================================================================== Discord --
@@ -761,37 +792,16 @@ end
 
 function Dungeonhub:Get(id) return id and self.runs[id] or nil end
 
---- Einladungen des Spiels an alle Mitglieder ausser mir — aus dem Klick
---- des Leiters heraus.
---- Wer laut Roster OFFLINE ist, wird nicht eingeladen: Das Spiel sagt
---- sonst "Cannot find player" (gesehen 29.09.2026) — eine Fehlermeldung
---- fuer etwas, das das Roster vorher weiss. Der Name geht so hinaus, wie
---- das Roster ihn fuehrt, mit Leerzeichen; das ist auf diesem Realm der
---- Name. Unbekannt im Roster heisst nicht offline: dann wird eingeladen.
+--- Laedt alle Mitglieder eines Laufs ein — ueber Guild:Invite, die EINE
+--- Einladen-Funktion (Offline-Filter und Rueckmeldung dort).
 --- @return number eingeladen, table offline (Namen)
 function Dungeonhub:InviteAll(run)
     if not run then return 0, {} end
-    local me = ownName()
-    local online = {}
-    local Guild = GA.Modules.Guild
-    if Guild and Guild.List then
-        for _, member in ipairs(Guild:List()) do
-            if member.name then online[string.lower(Util.ShortName(member.name))] = member.online and true or false end
-        end
-    end
-    local n, offline = 0, {}
-    for name in pairs(run.members or {}) do
-        if name ~= me then
-            local known = online[string.lower(name)]
-            if known == false then
-                offline[#offline + 1] = name
-            elseif Compat.InviteUnit(name) then
-                n = n + 1
-            end
-        end
-    end
-    table.sort(offline)
-    return n, offline
+    local names = {}
+    for name in pairs(run.members or {}) do names[#names + 1] = name end
+    table.sort(names)
+    local result = GA.Modules.Guild:Invite(names)
+    return result.invited, result.offline
 end
 
 -- ================================================================== Start ----

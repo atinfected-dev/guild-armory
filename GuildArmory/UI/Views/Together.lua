@@ -269,21 +269,13 @@ function View:PostRun(s)
     GA.UI.MainFrame:ShowView("dungeonhub")
 end
 
-local function inviteNames(names)
-    local n = 0
-    for _, name in ipairs(names) do
-        if GA.Core.Compat.InviteUnit(name) then n = n + 1 end
-    end
-    GA.Core.Debug:Info(L.TG_INVITED, n)
-end
-
 function View:InviteAll(s)
     if not s then return end
     local names = {}
     local function add(e) if e and not e.me then names[#names + 1] = e.name end end
     add(s.slots.TANK) add(s.slots.HEAL)
     for _, e in ipairs(s.slots.DPS) do add(e) end
-    inviteNames(names)
+    GA.Modules.Guild:Invite(names)
 end
 
 function View:InviteHolders(entry)
@@ -294,7 +286,7 @@ function View:InviteHolders(entry)
     end
     if #names == 0 then return end
     Widgets.ContextMenu(entry.title or L.TG_QUESTS, {
-        { text = string.format(L.TG_INVITE_HOLDERS, #names), func = function() inviteNames(names) end },
+        { text = string.format(L.TG_INVITE_HOLDERS, #names), func = function() GA.Modules.Guild:Invite(names) end },
     })
 end
 

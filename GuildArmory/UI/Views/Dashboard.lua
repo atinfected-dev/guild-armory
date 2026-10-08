@@ -43,11 +43,6 @@ local MINE_WIDTH = 290
 local RIGHT_WIDTH = 240
 local MAX_CRESTS = 6           -- Wappen je Zonenzeile, danach +n (02.10.2026: sechs statt acht)
 local HUB_HEIGHT = 92          -- die zwei Live-Kacheln ueber dem Strom
-local ROLE_COLOR = {           -- wie im Dungeonhub: Tank blau, Heiler gruen, Schaden rot
-    TANK = { 0.36, 0.55, 0.84 },
-    HEAL = { 0.30, 0.69, 0.31 },
-    DPS  = { 0.78, 0.25, 0.18 },
-}
 local SLOT_W, SLOT_GAP = 14, 2
 local FEED_ROW = 36
 
@@ -683,7 +678,7 @@ function Dashboard:RefreshHubs()
             line.left:SetPoint("RIGHT", line.boxes[5], "LEFT", -8, 0)
             for slot, box in ipairs(line.boxes) do
                 local place = Hub:Slots(run)[slot]
-                local color = place and ROLE_COLOR[place.role] or Theme.color.border
+                local color = place and Theme.RoleColor(place.role) or Theme.color.border
                 -- Wie im Dungeonhub (02.10.2026): besetzt das Klassenwappen,
                 -- frei das Rollensymbol; ohne beides der Farbpunkt.
                 if place and place.name and Theme.SetClassPortrait(box, place.class) then

@@ -826,8 +826,18 @@ function Theme.SpacedCaps(text)
     return string.upper(table.concat(out, " "))
 end
 
+--- DIE EINE ROLLENFARBE. Drei Ansichten hatten je eine eigene Tabelle
+--- (Dungeonhub, Uebersicht, Zusammen) und zwei Schluesselsaetze gab es
+--- auch: TANK/HEAL/DPS in Dungeonhub und Zusammen, tank/healer/melee/
+--- ranged im Raidplan (so steht es im Austauschformat). Hier kommen beide
+--- an, und die Farbe kommt aus der Palette des Looks — auf Codex dunkler,
+--- weil hell auf Pergament unlesbar waere.
+local ROLE_KEY = {
+    TANK = "TANK", HEAL = "HEALER", HEALER = "HEALER", DPS = "DAMAGER", DAMAGER = "DAMAGER",
+    tank = "TANK", healer = "HEALER", melee = "DAMAGER", ranged = "DAMAGER", dps = "DAMAGER",
+}
 function Theme.RoleColor(role)
-    return Theme.color[role] or Theme.color.textDim
+    return Theme.color[ROLE_KEY[role or ""] or ""] or Theme.color.textDim
 end
 
 --- Farbe fuer einen Zustand: "good" | "warn" | "bad" | "unknown"

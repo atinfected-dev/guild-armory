@@ -417,9 +417,12 @@ function Questhub:MatchOwn(questID)
     return nil
 end
 
+--- Den Suchenden einladen — ueber Guild:Invite (Offline-Filter und
+--- Rueckmeldung dort).
 function Questhub:Invite(request)
     if not request or not request.seeker then return false, "noname" end
-    return Compat.InviteUnit(request.seeker)
+    local result = GA.Modules.Guild:Invite({ request.seeker })
+    return result.invited > 0, result
 end
 
 --- Schreibt das Gesuch in den Gildenchat — mit Questlink, wenn der Client

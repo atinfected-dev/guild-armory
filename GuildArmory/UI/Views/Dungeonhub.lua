@@ -37,13 +37,8 @@ local FORM_W = 290
 local CARD_H = 158
 local CARD_GAP = 10
 
---- Die Rollenfarben: Tank blau, Heiler gruen, Schaden rot — verschieden in
---- Helligkeit, nicht nur im Ton.
-local ROLE_COLOR = {
-    TANK = { 0.36, 0.55, 0.84 },
-    HEAL = { 0.30, 0.69, 0.31 },
-    DPS  = { 0.78, 0.25, 0.18 },
-}
+-- Die Rollenfarben kommen aus dem Theme (Theme.RoleColor) — eine Tabelle
+-- fuer alle Ansichten, im Ton des Looks.
 local ROLE_LETTER = { TANK = "T", HEAL = "H", DPS = "D" }
 
 local function editBox(parent, width, onEnter)
@@ -395,7 +390,7 @@ function View:FillCard(card, run)
         box:ClearAllPoints()
         box:SetWidth(slotW)
         box:SetPoint("TOPLEFT", card, "TOPLEFT", 12 + (i - 1) * (slotW + 4), -62)
-        local color = ROLE_COLOR[slot.role]
+        local color = Theme.RoleColor(slot.role)
         box.letter:SetText(ROLE_LETTER[slot.role])
         local hasIcon = Theme.SetRoleIcon(box.roleIcon, slot.role) and Theme.SetRoleIcon(box.badgeIcon, slot.role)
         box.roleIcon:Hide()
@@ -522,12 +517,7 @@ function View:FillCard(card, run)
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
         b:SetConfirm(L.BTN_REALLY)
         place(2, L.DH_INVITE, function()
-            local n, offline = Hub:InviteAll(run)
-            if #offline > 0 then
-                GA.Core.Debug:Info(L.DH_INVITED_OFFLINE, n, table.concat(offline, ", "))
-            else
-                GA.Core.Debug:Info(L.DH_INVITED, n)
-            end
+            Hub:InviteAll(run)
         end, b)
     elseif mine then
         card.action:SetText("")

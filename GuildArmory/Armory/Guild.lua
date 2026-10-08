@@ -242,6 +242,73 @@ function Guild:List(onlineOnly)
     return list
 end
 
+-- ================================================================ Einladen --
+
+--- Laedt Namen in die Gruppe ein — DIE EINE STELLE fuer Dungeonhub,
+--- Zusammen, Questhub und Roster. Vorher hatte jede Ansicht ihre eigene,
+--- und nur eine filterte Offline heraus.
+---
+--- Wer laut Roster OFFLINE ist, wird nicht eingeladen: Das Spiel sagt
+--- sonst "Cannot find player" (gesehen 29.09.2026) — eine Fehlermeldung
+--- fuer etwas, das das Roster vorher weiss. Der Name geht so hinaus, wie
+--- das Roster ihn fuehrt, mit Leerzeichen; das ist auf diesem Realm der
+--- Name. Unbekannt im Roster heisst nicht offline: dann wird eingeladen.
+--- Man selbst wird uebersprungen, Doppelte auch.
+---
+--- Die Rueckmeldung kommt von hier, eine Zeile: "3 eingeladen. Gerade
+--- nicht online: Ari." — ausser der Aufrufer will sie selbst geben (quiet).
+--- @param names table Namen
+--- @param quiet boolean|nil
+--- @return table { invited = n, offline = {}, failed = {}, names = {} }
+function Guild:Invite(names, quiet)
+    local identity = Compat.GetPlayerIdentity()
+    local me = identity and identity.name and string.lower(Util.ShortName(identity.name)) or nil
+    local online = {}
+    for _, member in ipairs(self:List()) do
+        -- true, false oder nil: Ein Eintrag ohne Online-Stand (Roster noch nicht
+        -- gelesen) ist unbekannt, nicht offline.
+        if member.name then online[string.lower(Util.ShortName(member.name))] = member.online end
+    end
+
+    local result = { invited = 0, offline = {}, failed = {}, names = {} }
+    local seen = {}
+    for _, name in ipairs(names or {}) do
+        local key = type(name) == "string" and string.lower(Util.ShortName(name)) or ""
+        if key ~= "" and key ~= me and not seen[key] then
+            seen[key] = true
+            if online[key] == false then
+                result.offline[#result.offline + 1] = name
+            elseif Compat.InviteUnit(name) then
+                result.invited = result.invited + 1
+                result.names[#result.names + 1] = name
+            else
+                result.failed[#result.failed + 1] = name
+            end
+        end
+    end
+    table.sort(result.offline)
+
+    if not quiet then
+        local L = GA.L
+        local text
+        if result.invited == 1 and #result.offline == 0 and #result.failed == 0 then
+            text = string.format(L.GUILD_INVITED_ONE, result.names[1])
+        elseif result.invited == 0 and #result.offline == 0 and #result.failed == 0 then
+            text = L.GUILD_INVITE_NOBODY
+        else
+            text = string.format(L.GUILD_INVITED, result.invited)
+            if #result.offline > 0 then
+                text = text .. " " .. string.format(L.GUILD_INVITE_OFFLINE, table.concat(result.offline, ", "))
+            end
+            if #result.failed > 0 then
+                text = text .. " " .. string.format(L.GUILD_INVITE_FAILED, table.concat(result.failed, ", "))
+            end
+        end
+        Debug:Info("%s", text)
+    end
+    return result
+end
+
 --- Ist dieser Name ein Mitglied MEINER Gilde?
 ---
 --- DREI ANTWORTEN, NICHT ZWEI.

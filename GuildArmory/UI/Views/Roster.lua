@@ -602,7 +602,7 @@ function View:BuildDetail(parent, fonts)
 
     d.invite = Widgets.Button(d, L.QH_INVITE, function()
         local member = self:Selected()
-        if member then Compat.InviteUnit(member.name) end
+        if member then GA.Modules.Guild:Invite({ member.name }) end
     end)
     d.invite:SetHeight(22)
     d.invite:SetPoint("LEFT", d.whisper, "RIGHT", 4, 0)
@@ -770,10 +770,7 @@ function View:ShowMemberMenu(member)
     local target = member.name
     Widgets.ContextMenu(member.name, {
         { text = L.QH_WHISPER, func = function() Compat.OpenWhisper(target) end },
-        { text = L.QH_INVITE, func = function()
-            local ok, how = Compat.InviteUnit(target)
-            GA.Core.Debug:Info(ok and L.QH_INVITED or L.QH_INVITE_FAILED, member.name, tostring(how))
-        end },
+        { text = L.QH_INVITE, func = function() GA.Modules.Guild:Invite({ target }) end },
     }, { Theme.ClassColor(member.class) })
 end
 

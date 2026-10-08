@@ -743,7 +743,7 @@ function View:SlotMenu(g, i)
         local tag = signed and signed.status == "yes" and (" |cff40c040" .. L.RP_SIGN_TAG_YES .. "|r")
             or (signed and signed.status == "maybe" and (" |cffffd100" .. L.RP_SIGN_TAG_MAYBE .. "|r")) or ""
         items[#items + 1] = { text = "+ " .. cand .. tag, func = function()
-            if Plans.PlaceName(raw, g, i, cand) then View:Changed() end
+            if Plans.PlaceName(raw, g, i, cand) then Plans.PrefillRoles(raw) View:Changed() end
         end }
     end
     Widgets.ContextMenu(name or string.format(L.RP_SLOT_TITLE, g), items)
@@ -757,6 +757,7 @@ function View:EnterName(g, i)
         local name = Util.Trim(v.name or "") or ""
         if name == "" then return false, L.RP_ERR_NAME end
         if not plans().PlaceName(raw, g, i, name) then return false, L.RP_ERR_FULL end
+        plans().PrefillRoles(raw)
         View:Changed()
         return true
     end)
@@ -784,6 +785,7 @@ function View:TakeFromRaid()
     local raw = self.draft
     if not raw then return end
     raw.groups = plans().GroupsFromRoster(GA.Core.Compat.GetRaidRoster())
+    plans().PrefillRoles(raw)
     View:Changed()
 end
 
