@@ -153,6 +153,13 @@ function Sync:BuildCharacterPayload()
         pt = character.played and character.played.ts or nil,
         -- Kampfrolle, selbst gesetzt (07.10.2026): Tank, Heiler, Schaden.
         cr = character.combatRole,
+        -- XP-Prozent (08.10.2026) fuer das Rennen zur Hoechststufe.
+        xp = (function()
+            if not Compat.GetXP then return nil end
+            local xp, xpMax = Compat.GetXP()
+            if xp and xpMax and xpMax > 0 then return math.floor(xp / xpMax * 1000) / 10 end
+            return nil
+        end)(),
     })
 end
 
@@ -308,6 +315,10 @@ function Sync:OnCharacter(sender, text)
     if pl and pl >= 0 and pl < 3e8 and character.source ~= "self" and (not character.played or (character.played.ts or 0) < (pt or 0)) then
         character.played = { total = pl, level = tonumber(data.pv), ts = pt or Util.Now() }
     end
+
+    -- XP-Prozent, nur vom Besitzer, nur plausibel.
+    local xpPct = tonumber(data.xp)
+    if character.source ~= "self" and xpPct and xpPct >= 0 and xpPct <= 100 then character.xpPct = xpPct end
 
     -- Die Kampfrolle sagt nur der Besitzer; keine Angabe heisst keine.
     if character.source ~= "self" then

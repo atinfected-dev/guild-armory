@@ -39,6 +39,7 @@ local VIEWS = {
     guild = "armory", gilde = "armory",
     equipment = "armory", ausruestung = "armory",
     raidplan = "raidplan", plan = "raidplan",
+    race = "race", rennen = "race",
 }
 
 local pendingReset
@@ -767,6 +768,11 @@ SlashCmdList["GUILDARMORY"] = function(input)
         else
             Debug:Info("/ga discord api | listen | send | show")
         end
+    elseif command == "ding" then
+        -- Vorschau des Level-Up-Banners; dabei laesst es sich ziehen.
+        if rest == "move" or rest == "verschieben" then GA.UI.DingFrame:ResetPlacement() end
+        GA.UI.DingFrame:Show(tonumber(rest), true)
+        Debug:Info("%s", L.DING_PREVIEW_HINT)
     elseif command == "levelbar" or command == "leiste" then
         -- Die Levelleiste: ein- und ausblenden, Sitzung neu, Lage zurueck.
         local Bar = GA.UI.LevelBar

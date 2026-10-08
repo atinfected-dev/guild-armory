@@ -243,6 +243,8 @@ Schema.ACCOUNT_DEFAULTS = {
         notifyDungeon = true,
         notifyCamp = true,
         notifyAchievements = false,
+        notifyDing = true,            -- Aufstiege der Gilde als Meldung (08.10.2026)
+        dingBanner = true,            -- das eigene Level-Up-Banner
 
         -- DIE J-TASTE FUEHRT ZUM VERZEICHNIS (28.09.2026). Aus, bis jemand
         -- es will: Es biegt eine Erwartung von zehn Jahren um.
@@ -413,6 +415,8 @@ Schema.ACCOUNT_DEFAULTS = {
         reminder = { point = "TOP", x = 0, y = -160 },
         -- Die Levelleiste (08.10.2026): oben mittig, bis jemand zieht.
         levelbar = { point = "TOP", x = 0, y = -100 },
+        -- Das Level-Up-Banner: mittig oben, bis jemand es in der Vorschau zieht.
+        ding = {},
     },
 
     --- [guid] = Charakterdatensatz

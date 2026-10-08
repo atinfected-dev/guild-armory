@@ -72,6 +72,8 @@ local SECTIONS = {
         { key = "characters",   label = "NAV_CHARACTERS" },
         { key = "achievements", label = "NAV_ACHIEVEMENTS" },
         { key = "guildbank",    label = "NAV_GUILDBANK" },
+        -- Rennen zur Hoechststufe (08.10.2026).
+        { key = "race",         label = "NAV_RACE" },
     } },
 
     { key = "questhub", label = "NAV_QUESTHUB", views = {

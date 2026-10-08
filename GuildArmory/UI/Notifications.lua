@@ -47,6 +47,7 @@ Notifications.KINDS = {
     DUNGEON = { color = "gold", setting = "notifyDungeon" },
     CAMP  = { color = "jade", setting = "notifyCamp" },
     ACH   = { color = "epic", setting = "notifyAchievements" },
+    DING  = { color = "goldBright", setting = "notifyDing" },
 }
 local EPIC = { 0.64, 0.21, 0.93 }
 

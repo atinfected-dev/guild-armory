@@ -638,6 +638,8 @@ function Settings:Create(parent)
     -- vorher wissen, dass die Gilde es liest.
     self.rowLevelUp = makeRow(onscreen, { label = L.SET_LEVELUP, hint = L.SET_LEVELUP_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("levelUpAnnounce", on) end })
+    self.rowDing = makeRow(onscreen, { label = L.SET_DING, hint = L.SET_DING_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("dingBanner", on) end })
 
     -- ---------------------------------------------------------------- Raid --
     -- Raidplan-Erinnerungen (06.10.2026).
@@ -680,7 +682,7 @@ function Settings:Create(parent)
     self.rowNotifyAll = makeRow(notify, { label = L.SET_NOTIFY_ALL, hint = L.SET_NOTIFY_ALL_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("notifyEnabled", on) end })
     self.notifyRows = {}
-    for _, key in ipairs({ "Tradables", "Questhub", "Dungeon", "Camp", "Achievements" }) do
+    for _, key in ipairs({ "Tradables", "Questhub", "Dungeon", "Camp", "Achievements", "Ding" }) do
         local row = makeRow(notify, { label = L["SET_NOTIFY_" .. string.upper(key)],
             hint = L["SET_NOTIFY_" .. string.upper(key) .. "_HINT"], control = "switch",
             set = function(on) GA.Core.Config:Set("notify" .. key, on) end })
@@ -922,6 +924,7 @@ function Settings:Refresh()
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)
+    self.rowDing.switch:SetChecked(Config:Get("dingBanner") ~= false)
     self.rowReminders.switch:SetChecked(Config:Get("raidReminders") ~= false)
     self.rowReminderSound.switch:SetChecked(Config:Get("raidReminderSound") ~= false)
     self.rowReady.switch:SetChecked(Config:Get("readyCheck") ~= false)

@@ -2,6 +2,10 @@
 
 ## 0.1.44
 
+Race to 60: a leaderboard under Guild — everyone by level and XP percent (sent with the character sync), played time, last level-up, and at the top who reached max level first and the first of each class. Only a level-up this addon watched counts as a first; members who were already at max when tracking began are listed as such, never guessed into an order. Filters: everyone, my class, online; your own place in the header. A guild member's round level or max level now appears as a notification, and the guild's first at max level gets the banner.
+
+Level-up banner: when you level, a banner in your theme's look — "Level 31!", your name, a line to smile at, XP per hour, how long the level took, and your place in the race. Click closes it, otherwise it fades after eight seconds. /ga ding shows a preview you can drag into place; Settings › On screen switches it off.
+
 Level bar: a small bar on screen in the look of your theme — level and XP with a bar, time in this level, played total, session time, XP per hour over the last 15 minutes, time to the next level, kills (from the XP chat line, no combat log needed), deaths, quests, gold gained and gold per minute. Every field has its own switch, the counters run per level (kept across /reload) or per session, the bar lies horizontal or vertical, scales from 60 to 160 percent, can be locked, and goes wherever you drag it; right-click opens the menu, /ga levelbar shows or hides it, /ga levelbar reset restarts the session. Settings › On screen › Level bar.
 
 Merchant helpers, off until you switch them on: auto repair (optionally from the guild bank first where your rank allows, the rest from your own pocket) and auto sell junk (grey items with a value, nothing else). Both say what happened in the window or, if it is closed, in the chat.
