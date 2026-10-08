@@ -476,6 +476,61 @@ function Settings:Create(parent)
             GA.Core.Config:Set("campEnabled", on)
             if on then GA.UI.CampFrame:Show() else GA.UI.CampFrame:Hide() end
         end })
+    -- Levelleiste (08.10.2026): an, Ausrichtung, Sperre, Groesse, Bereich,
+    -- und jedes Feld einzeln.
+    makeHeading(onscreen, L.SET_H_LEVELBAR)
+    self.rowLevelBar = makeRow(onscreen, { label = L.SET_LEVELBAR, hint = L.SET_LEVELBAR_HINT, control = "switch",
+        set = function(on) GA.UI.LevelBar:SetEnabled(on) end })
+    self.rowLevelBarVertical = makeRow(onscreen, { label = L.SET_LEVELBAR_VERTICAL, hint = L.SET_LEVELBAR_VERTICAL_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("levelBarVertical", on) GA.UI.LevelBar:Refresh() end })
+    self.rowLevelBarLocked = makeRow(onscreen, { label = L.SET_LEVELBAR_LOCKED, hint = L.SET_LEVELBAR_LOCKED_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("levelBarLocked", on) end })
+    makeRow(onscreen, { label = L.SET_LEVELBAR_SCALE, hint = "", build = function(row)
+        Settings.levelBarScale = Widgets.Slider(row, 60, 160, 10, function(value)
+            GA.Core.Config:Set("levelBarScale", value)
+            GA.UI.LevelBar:ApplyScale()
+        end)
+        Settings.levelBarScale.format = "%d %%"
+        Settings.levelBarScale:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 4, -10)
+        Settings.levelBarScale:SetWidth(180)
+        return function() return 30 end
+    end })
+    makeRow(onscreen, { label = L.SET_LEVELBAR_SCOPE, hint = L.SET_LEVELBAR_SCOPE_HINT, build = function(row)
+        Settings.levelBarScopeChips = {}
+        local previous
+        for _, scope in ipairs({ "level", "session" }) do
+            local chip = Widgets.Chip(row, L["SET_LEVELBAR_SCOPE_" .. string.upper(scope)], function()
+                GA.Core.Config:Set("levelBarScope", scope)
+                GA.UI.LevelBar:Refresh()
+                Settings:Refresh()
+            end)
+            chip:SetHeight(20)
+            chip.scope = scope
+            if previous then chip:SetPoint("LEFT", previous, "RIGHT", 4, 0)
+            else chip:SetPoint("TOPLEFT", row.hint, "BOTTOMLEFT", 0, -8) end
+            Settings.levelBarScopeChips[#Settings.levelBarScopeChips + 1] = chip
+            previous = chip
+        end
+        return function() return 28 end
+    end })
+    self.levelBarFieldRows = {}
+    for _, field in ipairs(GA.UI.LevelBar.FIELDS) do
+        local row = makeRow(onscreen, { label = L[field.label] or field.key,
+            hint = #self.levelBarFieldRows == 0 and L.SET_LEVELBAR_FIELDS_HINT or "", control = "switch",
+            set = function(on) GA.Core.Config:Set("levelBar_" .. field.key, on) GA.UI.LevelBar:Refresh() end })
+        row.field = field
+        self.levelBarFieldRows[#self.levelBarFieldRows + 1] = row
+    end
+
+    -- Haendler (08.10.2026): aus, bis jemand es will.
+    makeHeading(onscreen, L.SET_H_MERCHANT)
+    self.rowAutoRepair = makeRow(onscreen, { label = L.SET_AUTOREPAIR, hint = L.SET_AUTOREPAIR_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("autoRepair", on) end })
+    self.rowAutoRepairGuild = makeRow(onscreen, { label = L.SET_AUTOREPAIR_GUILD, hint = L.SET_AUTOREPAIR_GUILD_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("autoRepairGuild", on) end })
+    self.rowAutoSell = makeRow(onscreen, { label = L.SET_AUTOSELL, hint = L.SET_AUTOSELL_HINT, control = "switch",
+        set = function(on) GA.Core.Config:Set("autoSellJunk", on) end })
+
     makeHeading(onscreen, L.SET_H_MAP)
     self.rowMap = makeRow(onscreen, { label = L.SET_MAP, hint = L.SET_MAP_HINT, control = "switch",
         set = function(on)
@@ -854,6 +909,16 @@ function Settings:Refresh()
     -- noch nie gesetzter Wert ist nil. Wer hier auf Wahrheit prueft, zeigt
     -- beim ersten Oeffnen einen leeren Schalter fuer etwas, das laeuft.
     self.rowCamp.switch:SetChecked(Config:Get("campEnabled") ~= false)
+    self.rowLevelBar.switch:SetChecked(Config:Get("levelBarEnabled") ~= false)
+    self.rowLevelBarVertical.switch:SetChecked(Config:Get("levelBarVertical") and true or false)
+    self.rowLevelBarLocked.switch:SetChecked(Config:Get("levelBarLocked") and true or false)
+    self.levelBarScale:SetQuiet(tonumber(Config:Get("levelBarScale")) or 100)
+    local scope = GA.UI.LevelBar.Scope()
+    for _, chip in ipairs(self.levelBarScopeChips) do chip:SetPressed(chip.scope == scope) end
+    for _, row in ipairs(self.levelBarFieldRows) do row.switch:SetChecked(GA.UI.LevelBar.FieldOn(row.field)) end
+    self.rowAutoRepair.switch:SetChecked(Config:Get("autoRepair") and true or false)
+    self.rowAutoRepairGuild.switch:SetChecked(Config:Get("autoRepairGuild") and true or false)
+    self.rowAutoSell.switch:SetChecked(Config:Get("autoSellJunk") and true or false)
     self.rowMap.switch:SetChecked(Config:Get("mapShare") ~= false)
     self.rowMapLabels.switch:SetChecked(Config:Get("mapPinLabels") ~= false)
     self.rowLevelUp.switch:SetChecked(Config:Get("levelUpAnnounce") and true or false)

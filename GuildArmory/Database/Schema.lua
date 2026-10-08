@@ -411,6 +411,8 @@ Schema.ACCOUNT_DEFAULTS = {
                  hidden = false, collapsed = false },
         -- Erinnerungen des Raidplans: verschiebbar im Probelauf.
         reminder = { point = "TOP", x = 0, y = -160 },
+        -- Die Levelleiste (08.10.2026): oben mittig, bis jemand zieht.
+        levelbar = { point = "TOP", x = 0, y = -100 },
     },
 
     --- [guid] = Charakterdatensatz
@@ -600,6 +602,10 @@ Schema.CHARACTER_DEFAULTS = {
     --- PRO CHARAKTER, weil die Sperre am Charakter haengt und nicht am
     --- Konto. Ein Twink hat seine eigene.
     camp = { cdExpires = 0 },
+
+    --- Levelzaehler (Assist/Leveling): das laufende Level und das Archiv
+    --- der abgeschlossenen — pro Charakter, weil Level am Charakter haengen.
+    leveling = {},
 }
 
 Schema.JOURNAL_LIMIT = 500

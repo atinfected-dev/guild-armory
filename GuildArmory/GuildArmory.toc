@@ -64,6 +64,8 @@ Armory\Tradables.lua
 Armory\Talents.lua
 Armory\GuildBank.lua
 Armory\Treasury.lua
+Assist\Leveling.lua
+Assist\Merchant.lua
 # Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
 Camp\Catalog.lua
 Camp\Camp.lua
@@ -105,6 +107,7 @@ UI\ReadyCheckFrame.lua
 UI\HighlightFrame.lua
 UI\BidFrame.lua
 UI\CampFrame.lua
+UI\LevelBar.lua
 UI\Tooltips.lua
 UI\ImportDialog.lua
 UI\GrantDialog.lua

@@ -767,6 +767,19 @@ SlashCmdList["GUILDARMORY"] = function(input)
         else
             Debug:Info("/ga discord api | listen | send | show")
         end
+    elseif command == "levelbar" or command == "leiste" then
+        -- Die Levelleiste: ein- und ausblenden, Sitzung neu, Lage zurueck.
+        local Bar = GA.UI.LevelBar
+        if rest == "reset" then
+            GA.Modules.Leveling:ResetSession()
+            Debug:Info("%s", L.LB_SESSION_RESET)
+        elseif rest == "move" or rest == "verschieben" then
+            Bar:ResetPlacement()
+            Bar:Show()
+        else
+            Bar:Toggle()
+            Debug:Info(Bar:Enabled() and L.LB_SHOWN or L.LB_HIDDEN)
+        end
     elseif command == "camp" or command == "lager" then
         local Camp = GA.Modules.Camp
         local CampFrame = GA.UI.CampFrame

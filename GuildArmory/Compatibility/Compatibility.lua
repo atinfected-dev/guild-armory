@@ -2788,6 +2788,91 @@ end
 --- Zwei Wege, weil GetMaxPlayerLevel die neuere Auskunft ist und
 --- MAX_PLAYER_LEVEL die aeltere Konstante. Geprueft wird das Ergebnis.
 --- @return number|nil
+--- Erfahrung: Stand, Bedarf, Erholungsbonus. nil, wenn der Client sie
+--- nicht lesbar hergibt (Secret Values).
+--- @return number|nil xp, number|nil xpMax, number|nil rested
+function Compat.GetXP()
+    if not isFunction(_G.UnitXP) or not isFunction(_G.UnitXPMax) then return nil end
+    local ok, xp = pcall(UnitXP, "player")
+    local okMax, xpMax = pcall(UnitXPMax, "player")
+    if not ok or not okMax or not Compat.IsReadableNumber(xp) or not Compat.IsReadableNumber(xpMax) then return nil end
+    local rested
+    if isFunction(_G.GetXPExhaustion) then
+        local okR, r = pcall(GetXPExhaustion)
+        if okR and Compat.IsReadableNumber(r) then rested = r end
+    end
+    return xp, xpMax, rested
+end
+
+-- ============================================================ Taschen, Haendler
+--
+-- Fuer Assist/Merchant (08.10.2026). Beide Linien: C_Container (neu) und
+-- die alten Globalen, die dieselben Werte als Tupel liefern.
+
+--- Ruft fn(bag, slot, info) fuer jeden belegten Taschenplatz.
+--- info: { itemID, quality, stackCount, hasNoValue, isLocked }
+function Compat.ForEachBagItem(fn)
+    local container = _G.C_Container
+    local numSlots = (isTable(container) and container.GetContainerNumSlots) or _G.GetContainerNumSlots
+    local itemInfo = (isTable(container) and container.GetContainerItemInfo) or _G.GetContainerItemInfo
+    if not isFunction(numSlots) or not isFunction(itemInfo) then return 0 end
+    local bags = type(_G.NUM_BAG_SLOTS) == "number" and _G.NUM_BAG_SLOTS or 4
+    local seen = 0
+    for bag = 0, bags do
+        local okN, n = pcall(numSlots, bag)
+        for slot = 1, (okN and tonumber(n)) or 0 do
+            local ok, a, b, c, d, _, _, _, _, noValue, itemID = pcall(itemInfo, bag, slot)
+            local info
+            if ok and isTable(a) then
+                info = { itemID = a.itemID, quality = a.quality, stackCount = a.stackCount,
+                         hasNoValue = a.hasNoValue, isLocked = a.isLocked }
+            elseif ok and a then
+                info = { itemID = itemID, quality = d, stackCount = b, hasNoValue = noValue, isLocked = c }
+            end
+            if info and info.itemID then
+                seen = seen + 1
+                fn(bag, slot, info)
+            end
+        end
+    end
+    return seen
+end
+
+--- Verkauft einen Taschenplatz an den offenen Haendler. OHNE offenen
+--- Haendler legt dieselbe Funktion an oder verbraucht — der Aufrufer
+--- (Assist/Merchant) prueft den Zustand, nicht diese Zeile.
+function Compat.SellContainerItem(bag, slot)
+    local container = _G.C_Container
+    local fn = (isTable(container) and container.UseContainerItem) or _G.UseContainerItem
+    if not isFunction(fn) then return false end
+    return pcall(fn, bag, slot) and true or false
+end
+
+function Compat.CanMerchantRepair()
+    if not isFunction(_G.CanMerchantRepair) then return false end
+    local ok, can = pcall(CanMerchantRepair)
+    return ok and can and true or false
+end
+
+--- @return number|nil kosten, boolean kannReparieren
+function Compat.GetRepairAllCost()
+    if not isFunction(_G.GetRepairAllCost) then return nil, false end
+    local ok, cost, can = pcall(GetRepairAllCost)
+    if not ok then return nil, false end
+    return tonumber(cost) or 0, can and true or false
+end
+
+function Compat.RepairAllItems(useGuild)
+    if not isFunction(_G.RepairAllItems) then return false end
+    return pcall(RepairAllItems, useGuild and true or nil) and true or false
+end
+
+function Compat.CanGuildBankRepair()
+    if not isFunction(_G.CanGuildBankRepair) then return false end
+    local ok, can = pcall(CanGuildBankRepair)
+    return ok and can and true or false
+end
+
 function Compat.GetMaxPlayerLevel()
     if isFunction(_G.GetMaxPlayerLevel) then
         local ok, stufe = pcall(_G.GetMaxPlayerLevel)
