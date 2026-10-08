@@ -240,7 +240,7 @@ function Import:Apply(payload, options)
             db.wishlists[entry.guid] = {}
             for _, wish in ipairs(entry.w or {}) do
                 if wish.i and wish.p then
-                    GA.Modules.Wishlist:Add(entry.guid, wish.i, wish.p)
+                    GA.Modules.Wishlist:Add(entry.guid, wish.i, wish.p, type(wish.n) == "string" and wish.n or nil)
                 end
             end
         end

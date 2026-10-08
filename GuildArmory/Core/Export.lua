@@ -154,6 +154,7 @@ local function exportWishlists(db, itemIDs)
             entries[#entries + 1] = {
                 i = entry.itemID,
                 p = entry.priority,
+                n = entry.note,
                 done = entry.fulfilledByAwardId and true or nil,
             }
         end

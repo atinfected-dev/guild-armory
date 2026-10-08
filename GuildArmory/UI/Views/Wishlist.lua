@@ -288,8 +288,15 @@ function WishlistView:BuildEntryRow(row)
 
     row.state = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
     row.state:SetPoint("LEFT", row.priority, "RIGHT", 4, 0)
-    row.state:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+    row.state:SetPoint("RIGHT", row, "RIGHT", -120, 0)
     row.state:SetJustifyH("LEFT")
+
+    -- Aendern (08.10.2026): Prioritaet und Notiz nachtraeglich, im Formular.
+    row.edit = Widgets.Button(row, L.WISH_EDIT, function()
+        if row.item then WishlistView:EditEntry(row.item) end
+    end)
+    row.edit:SetHeight(18)
+    row.edit:SetWidth(48)
 
     row.remove = Widgets.Button(row, L.WISH_REMOVE, function()
         if row.item then
@@ -301,6 +308,32 @@ function WishlistView:BuildEntryRow(row)
     row.remove:SetWidth(60)
     row.remove:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.remove:SetConfirm(L.BTN_REALLY)
+    row.edit:SetPoint("RIGHT", row.remove, "LEFT", -4, 0)
+end
+
+local WISH_FIELDS = {
+    { key = "priority", label = L.WISH_F_PRIORITY, kind = "select", options = function()
+        local out = {}
+        for _, priority in ipairs(GA.Modules.Wishlist:Priorities()) do
+            out[#out + 1] = { value = priority.key, text = priority.label }
+        end
+        return out
+    end },
+    { key = "note", label = L.WISH_F_NOTE, hint = L.WISH_F_NOTE_HINT },
+}
+
+--- Das Formular zu einem Wunsch: Prioritaet und Notiz.
+function WishlistView:EditEntry(entry)
+    local info = Compat.GetItemInfo(entry.itemID)
+    local guid = self:OwnGuid()
+    Widgets.FormDialog("wishEdit", info and info.name or ("#" .. tostring(entry.itemID)), WISH_FIELDS,
+        { priority = entry.priority, note = entry.note }, function(v)
+            local ok, reason = GA.Modules.Wishlist:Update(guid, entry.itemID,
+                { priority = v.priority, note = v.note or "" })
+            if not ok then return false, L["WISH_ERR_" .. tostring(reason)] or tostring(reason) end
+            WishlistView:Refresh()
+            return true
+        end)
 end
 
 function WishlistView:UpdateEntryRow(row, entry)

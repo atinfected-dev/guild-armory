@@ -173,7 +173,7 @@ function Sync:PublishWishlist(channel)
     local entries = {}
     for _, entry in ipairs(GA.Modules.Wishlist:Get(identity.guid)) do
         if not entry.fulfilledByAwardId then
-            entries[#entries + 1] = { i = entry.itemID, p = entry.priority }
+            entries[#entries + 1] = { i = entry.itemID, p = entry.priority, n = entry.note }
         end
     end
 
@@ -330,7 +330,7 @@ function Sync:OnWishlist(sender, text)
     GA.Core.Database.account.wishlists[data.guid] = {}
     for _, entry in ipairs(data.w or {}) do
         if entry.i and entry.p then
-            Wishlist:Add(data.guid, entry.i, entry.p)
+            Wishlist:Add(data.guid, entry.i, entry.p, type(entry.n) == "string" and entry.n or nil)
             GA.Modules.ItemIndex:Learn(entry.i)
         end
     end

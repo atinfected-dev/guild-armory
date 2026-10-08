@@ -77,7 +77,9 @@ function Wishlist:Add(guid, itemID, priorityKey, note)
         if entry.itemID == itemID then
             local before = entry.priority
             entry.priority = priorityKey
-            entry.note = note
+            -- Ohne Notiz im Aufruf bleibt die alte: Wer die Prioritaet ueber
+            -- die Knoepfe neu setzt, hat seine Notiz nicht zurueckgenommen.
+            if note ~= nil then entry.note = note end
             entry.updatedTs = Util.Now()
             if before ~= priorityKey then
                 GA.Core.Database:Journal("WISH_PRIORITY", guid, before, priorityKey)
@@ -98,6 +100,31 @@ function Wishlist:Add(guid, itemID, priorityKey, note)
     GA.Core.Database:Journal("WISH_ADD", guid, nil, itemID)
     GA.Core.Callbacks:Fire("WISHLIST_CHANGED", guid)
     Debug:Print("loot", "Wunsch aufgenommen: %s fuer %s", tostring(itemID), tostring(guid))
+    return entry
+end
+
+--- Aendert Prioritaet und/oder Notiz eines Wunsches (08.10.2026 — bis
+--- dahin konnte die Oberflaeche beides nur beim Anlegen setzen).
+--- @param changes table { priority?, note? }  note "" loescht die Notiz
+--- @return table|nil eintrag, string|nil grund
+function Wishlist:Update(guid, itemID, changes)
+    local entry = self:Find(guid, tonumber(itemID))
+    if not entry then return nil, "unknown" end
+    changes = changes or {}
+
+    if changes.priority ~= nil then
+        if not self:PriorityByKey(changes.priority) then return nil, "unknownpriority" end
+        if entry.priority ~= changes.priority then
+            GA.Core.Database:Journal("WISH_PRIORITY", guid, entry.priority, changes.priority)
+            entry.priority = changes.priority
+        end
+    end
+    if changes.note ~= nil then
+        local note = Util.Trim(tostring(changes.note)) or ""
+        entry.note = note ~= "" and string.sub(note, 1, 80) or nil
+    end
+    entry.updatedTs = Util.Now()
+    GA.Core.Callbacks:Fire("WISHLIST_CHANGED", guid)
     return entry
 end
 
