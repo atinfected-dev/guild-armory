@@ -3132,6 +3132,16 @@ function Compat.ReadGuildBankTab(index)
 end
 
 --- Gold in der Gildenbank, in Kupfer.
+--- Gold in die Gildenbank legen — aus Addon-Code UNGEMESSEN auf Forever
+--- (Sonde "guildBankDeposit"). Nur, solange die Bank offen ist.
+--- @return boolean ok, string|nil grund ("noapi" | "blocked")
+function Compat.DepositGuildBankMoney(copper)
+    if not isFunction(_G.DepositGuildBankMoney) then return false, "noapi" end
+    local ok = pcall(DepositGuildBankMoney, math.floor(tonumber(copper) or 0))
+    if not ok then return false, "blocked" end
+    return true
+end
+
 function Compat.GetGuildBankMoney()
     if not isFunction(_G.GetGuildBankMoney) then return nil end
     local ok, money = pcall(GetGuildBankMoney)

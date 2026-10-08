@@ -64,8 +64,51 @@ function View:Create(parent)
     self.status:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
     self.status:SetJustifyH("LEFT")
 
+    -- Sparziel (08.10.2026): ein Streifen ueber dem Vorrat. Was, wie viel,
+    -- bis wann, der Balken dazu; rechts Setzen (wer darf) und Einzahlen
+    -- (wer an der Bank steht).
+    local goal = Widgets.Inset(frame)
+    goal:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -26)
+    goal:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -26)
+    goal:SetHeight(58)
+    self.goal = goal
+
+    self.goalTitle = Theme.Label(goal, "", fonts.heading, Theme.color.goldBright)
+    self.goalTitle:SetPoint("TOPLEFT", goal, "TOPLEFT", 12, -8)
+    self.goalTitle:SetWordWrap(false)
+    self.goalText = Theme.Label(goal, "", fonts.small, Theme.color.textDim)
+    self.goalText:SetPoint("LEFT", self.goalTitle, "RIGHT", 10, 0)
+    self.goalText:SetWordWrap(false)
+
+    local track = CreateFrame("Frame", nil, goal)
+    track:SetPoint("BOTTOMLEFT", goal, "BOTTOMLEFT", 12, 10)
+    track:SetPoint("RIGHT", goal, "RIGHT", -230, 0)
+    track:SetHeight(8)
+    Theme.Fill(track, Theme.color.rowAltBg)
+    Theme.Outline(track, Theme.color.border)
+    self.goalTrack = track
+    self.goalFill = track:CreateTexture(nil, "ARTWORK")
+    Theme.BarFill(self.goalFill, Theme.color.gold)
+    self.goalFill:SetPoint("TOPLEFT", track, "TOPLEFT", 1, -1)
+    self.goalFill:SetPoint("BOTTOMLEFT", track, "BOTTOMLEFT", 1, 1)
+    self.goalFill:SetWidth(1)
+    self.goalState = Theme.Label(goal, "", fonts.small, Theme.color.textFaint)
+    self.goalState:SetPoint("BOTTOMLEFT", track, "TOPLEFT", 0, 3)
+    self.goalState:SetPoint("RIGHT", track, "RIGHT", 0, 0)
+    self.goalState:SetJustifyH("LEFT")
+    self.goalState:SetWordWrap(false)
+
+    self.goalSet = Widgets.Button(goal, L.TR_SET, function() View:EditGoal() end)
+    self.goalSet:SetTooltip(L.TT_TR_SET)
+    self.goalSet:SetHeight(20)
+    self.goalSet:SetPoint("RIGHT", goal, "RIGHT", -10, 0)
+    self.goalDeposit = Widgets.Button(goal, L.TR_DEPOSIT, function() View:DepositMenu() end, "primary")
+    self.goalDeposit:SetTooltip(L.TT_TR_DEPOSIT)
+    self.goalDeposit:SetHeight(20)
+    self.goalDeposit:SetPoint("RIGHT", self.goalSet, "LEFT", -6, 0)
+
     local panel = Widgets.Panel(frame, L.NAV_GUILDBANK, "")
-    panel:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -26)
+    panel:SetPoint("TOPLEFT", goal, "BOTTOMLEFT", 0, -8)
     panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 4)
     self.panel = panel
 
@@ -89,6 +132,9 @@ function View:Create(parent)
 
     GA.Core.Callbacks:On("GUILD_BANK_CHANGED", function()
         if View.frame and View.frame:IsVisible() then View:Refresh() end
+    end, "GuildBankView")
+    GA.Core.Callbacks:On("TREASURY_CHANGED", function()
+        if View.frame and View.frame:IsVisible() then View:RefreshGoal() end
     end, "GuildBankView")
 
     self.frame = frame
@@ -218,8 +264,112 @@ function View:Refresh()
     self.status:SetText(table.concat(parts, "  ·  "))
     self.panel:SetTitle(L.NAV_GUILDBANK)
     GA.UI.MainFrame:SetContext(hasData and string.format(L.GB_CONTEXT, #list, #tabs) or "")
+    self:RefreshGoal()
 end
 
-function View:OnShow() self:Refresh() end
+-- ================================================================ Sparziel --
+
+local GOAL_FIELDS = {
+    { key = "title", label = L.TR_F_TITLE },
+    { key = "amount", label = L.TR_F_AMOUNT, hint = L.TR_F_AMOUNT_HINT },
+    { key = "deadline", label = L.TR_F_DEADLINE, hint = L.TR_F_DEADLINE_HINT },
+    { key = "note", label = L.TR_F_NOTE },
+}
+
+function View:EditGoal()
+    local T = GA.Modules.Treasury
+    local goal = T:Goal()
+    local values = goal and {
+        title = goal.title, amount = string.format("%d", math.floor(goal.amount / 10000)),
+        deadline = goal.deadline and date("%d.%m.%Y", goal.deadline) or "", note = goal.note,
+    } or { amount = "", deadline = "", note = "" }
+    Widgets.FormDialog("treasuryGoal", L.TR_TITLE, GOAL_FIELDS, values, function(v)
+        local amount = T.ParseGold(v.amount)
+        if not amount or amount <= 0 then return false, L.TR_ERR_amount end
+        local deadline, ok = GA.Modules.RaidPlan.ParseStart(v.deadline, "23:59")
+        if not ok then return false, L.TR_ERR_deadline end
+        -- Ein anderer Titel ist ein neues Ziel: Grundlinie neu ab jetzt.
+        local restart = goal ~= nil and (v.title or "") ~= (goal.title or "")
+        local saved, why = T:SetGoal({ title = v.title, amount = amount, deadline = deadline, note = v.note, restart = restart })
+        if not saved then return false, L["TR_ERR_" .. tostring(why)] or tostring(why) end
+        View:RefreshGoal()
+        return true
+    end, goal and function() T:RemoveGoal() View:RefreshGoal() end or nil)
+end
+
+function View:DepositMenu()
+    local T = GA.Modules.Treasury
+    local items = {}
+    local change = T:SmallChange()
+    if change then
+        items[#items + 1] = { text = string.format(L.TR_DEPOSIT_CHANGE, T.Money(change)),
+            func = function() View:Deposit(change) end }
+    end
+    items[#items + 1] = { text = L.TR_DEPOSIT_AMOUNT, func = function()
+        Widgets.InputDialog(L.TR_DEPOSIT, L.TR_DEPOSIT_PROMPT, function(text)
+            local copper = T.ParseGold(text)
+            if not copper or copper <= 0 then return false, L.TR_ERR_amount end
+            View:Deposit(copper)
+            return true
+        end)
+    end }
+    Widgets.ContextMenu(L.TR_DEPOSIT, items)
+end
+
+function View:Deposit(copper)
+    local T = GA.Modules.Treasury
+    local ok, why = T:Deposit(copper)
+    if ok then
+        GA.UI.MainFrame:Notice("info", L.TR_DEPOSIT_DONE, T.Money(copper))
+    else
+        GA.UI.MainFrame:Notice("warn", L["TR_DEPOSIT_ERR_" .. tostring(why)] or tostring(why), T.Money(copper))
+    end
+end
+
+--- Der Streifen: Ziel, Stand, Balken, Knoepfe.
+function View:RefreshGoal()
+    if not self.frame then return end
+    local T = GA.Modules.Treasury
+    local goal = T:Goal()
+    local canEdit = T:CanEdit()
+    self.goalSet:SetShown(canEdit)
+    self.goalSet:SetLabel(goal and L.TR_EDIT or L.TR_SET)
+    local bankOpen = GA.Modules.GuildBank and GA.Modules.GuildBank.open or false
+    self.goalDeposit:SetEnabledState(bankOpen, L.TR_DEPOSIT_CLOSED)
+
+    if not goal then
+        self.goalTitle:SetText(L.TR_TITLE)
+        self.goalText:SetText(canEdit and L.TR_NONE_EDIT or L.TR_NONE)
+        self.goalState:SetText("")
+        self.goalFill:SetWidth(1)
+        return
+    end
+    local p = T:Progress()
+    self.goalTitle:SetText(goal.title)
+    local parts = { string.format(L.TR_PROGRESS, T.Money(p.raised), T.Money(goal.amount)) }
+    if goal.deadline then parts[#parts + 1] = string.format(L.TR_DEADLINE, date("%d.%m.%Y", goal.deadline)) end
+    if goal.note and goal.note ~= "" then parts[#parts + 1] = goal.note end
+    self.goalText:SetText(table.concat(parts, "  ·  "))
+
+    local width = self.goalTrack:GetWidth() or 200
+    self.goalFill:SetWidth(math.max(1, (width - 2) * (p.ratio or 0)))
+    local state, color
+    if not p.known then
+        state, color = L.TR_STAND_UNKNOWN, Theme.color.warn
+    else
+        local stand = string.format(L.TR_STAND_FROM, Util.TimeAgo(p.ts), p.by or "?")
+        local word = L["TR_STATE_" .. string.upper(p.state)] or p.state
+        if p.daysLeft and p.state ~= "reached" and p.state ~= "overdue" then
+            word = word .. "  ·  " .. string.format(L.TR_DAYS_LEFT, p.daysLeft)
+        end
+        state = word .. "  ·  " .. stand
+        color = (p.state == "reached" and Theme.color.jade) or (p.state == "behind" and Theme.color.warn)
+            or (p.state == "overdue" and Theme.color.bad) or Theme.color.textDim
+    end
+    self.goalState:SetText(state)
+    self.goalState:SetTextColor(color[1], color[2], color[3])
+end
+
+function View:OnShow() self:Refresh() self:RefreshGoal() end
 
 GA.UI.MainFrame:RegisterView("guildbank", View)

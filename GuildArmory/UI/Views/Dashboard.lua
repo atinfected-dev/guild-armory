@@ -286,9 +286,40 @@ function Dashboard:Create(parent)
     self.dungeonTile:SetPoint("TOPRIGHT", hubs, "TOPRIGHT", 0, 0)
     self.dungeonTile:SetPoint("BOTTOMLEFT", hubs, "BOTTOM", gap / 2, 0)
 
+    -- ------------------------------------------------------ Sparziel --------
+    -- Ein schmaler Balken unter den Kacheln (08.10.2026): Titel, Stand, bis
+    -- wann; Klick fuehrt zur Gildenbank. Ohne Ziel bleibt er zu.
+    local goal = CreateFrame("Button", nil, frame)
+    goal:SetHeight(1)
+    goal:SetPoint("TOPLEFT", hubs, "BOTTOMLEFT", 0, -gap)
+    goal:SetPoint("TOPRIGHT", hubs, "BOTTOMRIGHT", 0, -gap)
+    goal.background = Theme.Fill(goal, Theme.color.rowBg)
+    goal.outline = Theme.Outline(goal, Theme.color.border)
+    goal:SetScript("OnClick", function() GA.UI.MainFrame:ShowView("guildbank") end)
+    goal.label = Theme.Label(goal, string.upper(L.DASH_TR), fonts.small, Theme.color.goldDim)
+    goal.label:SetPoint("LEFT", goal, "LEFT", 10, 0)
+    goal.text = Theme.Label(goal, "", fonts.small, Theme.color.text)
+    goal.text:SetPoint("LEFT", goal.label, "RIGHT", 8, 0)
+    goal.text:SetWordWrap(false)
+    goal.track = CreateFrame("Frame", nil, goal)
+    goal.track:SetHeight(6)
+    goal.track:SetPoint("RIGHT", goal, "RIGHT", -10, 0)
+    goal.track:SetWidth(150)
+    Theme.Fill(goal.track, Theme.color.rowAltBg)
+    goal.fill = goal.track:CreateTexture(nil, "ARTWORK")
+    Theme.BarFill(goal.fill, Theme.color.gold)
+    goal.fill:SetPoint("TOPLEFT", goal.track, "TOPLEFT", 0, 0)
+    goal.fill:SetPoint("BOTTOMLEFT", goal.track, "BOTTOMLEFT", 0, 0)
+    goal.fill:SetWidth(1)
+    goal.text:SetPoint("RIGHT", goal.track, "LEFT", -10, 0)
+    goal.text:SetJustifyH("LEFT")
+    goal:Hide()
+    self.goalBar = goal
+    self.goalGap = gap
+
     -- ------------------------------------------------------ Der Strom -------
     local feed = Widgets.Panel(frame, L.DASH_FEED, "")
-    feed:SetPoint("TOPLEFT", hubs, "BOTTOMLEFT", 0, -gap)
+    feed:SetPoint("TOPLEFT", goal, "BOTTOMLEFT", 0, -gap)
     feed:SetPoint("BOTTOMRIGHT", where, "BOTTOMLEFT", -gap, 0)
     feed:SetPoint("BOTTOM", frame, "BOTTOM", 0, pad)
     self.feedPanel = feed
@@ -637,7 +668,31 @@ local function fillLine(line, left, right)
     line:Show()
 end
 
+--- Der Sparziel-Balken: zu ohne Ziel, sonst Titel, Stand und Balken.
+function Dashboard:RefreshGoal()
+    local T = GA.Modules.Treasury
+    local goal = T and T:Goal()
+    local bar = self.goalBar
+    if not goal then
+        bar:Hide()
+        bar:SetHeight(1)
+        return
+    end
+    local p = T:Progress()
+    local text = goal.title .. "  ·  " .. string.format(L.TR_PROGRESS, T.Money(p.raised), T.Money(goal.amount))
+    if goal.deadline then text = text .. "  ·  " .. string.format(L.TR_DEADLINE, date("%d.%m.", goal.deadline)) end
+    if not p.known then text = text .. "  ·  " .. L.TR_STAND_UNKNOWN end
+    bar.text:SetText(text)
+    local color = (p.state == "reached" and Theme.color.jade) or (p.state == "behind" and Theme.color.warn)
+        or (p.state == "overdue" and Theme.color.bad) or Theme.color.text
+    bar.text:SetTextColor(color[1], color[2], color[3])
+    bar.fill:SetWidth(math.max(1, 150 * (p.ratio or 0)))
+    bar:SetHeight(26)
+    bar:Show()
+end
+
 function Dashboard:RefreshHubs()
+    self:RefreshGoal()
     -- Questhub: Gesuche, davon in der eigenen Zone; die ersten zwei.
     local Questhub = GA.Modules.Questhub
     local requests = Questhub and Questhub:List() or {}

@@ -63,6 +63,7 @@ Raids\ReadyCheck.lua
 Armory\Tradables.lua
 Armory\Talents.lua
 Armory\GuildBank.lua
+Armory\Treasury.lua
 # Camp: Katalog vor Modul — das Modul baut beim Laden seine Indizes daraus.
 Camp\Catalog.lua
 Camp\Camp.lua

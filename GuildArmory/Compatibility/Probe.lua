@@ -198,6 +198,16 @@ Probe.CHECKS = {
       end },
 
     -- --------------------------------------------------------- Raid, Tode ---
+    { key = "guildBankDeposit", was = "Gold aus dem Addon in die Gildenbank legen",
+      fuer = "den Einzahlen-Knopf beim Sparziel (Armory/Treasury)",
+      run = function()
+          if not isFunction(_G.DepositGuildBankMoney) then return Probe.NO, "DepositGuildBankMoney fehlt" end
+          if not isFunction(_G.GetGuildBankMoney) then return Probe.EMPTY, "Einzahlen da, GetGuildBankMoney fehlt" end
+          -- Nicht aufgerufen: Ohne offene Bank sagt der Aufruf nichts, mit
+          -- offener wuerde er Gold bewegen. Ob er geblockt ist, zeigt der
+          -- erste Klick auf den Knopf — die Rueckmeldung dort sagt es.
+          return Probe.YES, "beide Funktionen da; ob der Aufruf durchgeht, zeigt der Knopf"
+      end },
     { key = "guildTabard", was = "Gildenwappen als Textur zeichenbar",
       fuer = "das Logo auf der Uebersicht (Einstellungen > Fenster > Logo > Wappen)",
       run = function()
