@@ -3989,6 +3989,25 @@ function Compat.CreateDressUpModel(parent)
     return model
 end
 
+--- Rueckt die Kamera so, dass die ganze Figur mit Luft im Rahmen steht.
+--- Der Rahmen selbst bestimmt die Groesse nicht: Ein kleinerer Rahmen
+--- zeigte die Figur groesser und abgeschnitten (08.10.2026). Zwei Wege, je
+--- nachdem, was der Client kennt: SetCamDistanceScale (Retail-Linie, > 1
+--- heisst weiter weg) oder SetModelScale (aeltere Linie, < 1 heisst
+--- kleiner). Beide sind auf Forever ungemessen; was fehlt, bleibt aus.
+Compat.MODEL_CAM_DISTANCE = 1.7
+Compat.MODEL_SCALE = 0.75
+function Compat.FitModel(model)
+    if not isTable(model) then return false end
+    if isFunction(model.SetCamDistanceScale) then
+        if pcall(model.SetCamDistanceScale, model, Compat.MODEL_CAM_DISTANCE) then return true end
+    end
+    if isFunction(model.SetModelScale) then
+        return pcall(model.SetModelScale, model, Compat.MODEL_SCALE) and true or false
+    end
+    return false
+end
+
 --- Zeigt die Einheit im Modell. Wahr heisst: Der Aufruf lief durch — ob
 --- der Client wirklich etwas zeichnet, sieht nur, wer hinschaut.
 function Compat.ShowUnitInModel(model, unit)
@@ -3997,6 +4016,7 @@ function Compat.ShowUnitInModel(model, unit)
     if not ok then return false end
     -- Von vorn, leicht gedreht: so steht die Figur im Charakterfenster.
     if isFunction(model.SetFacing) then pcall(model.SetFacing, model, 0.35) end
+    Compat.FitModel(model)
     return true
 end
 
@@ -4031,6 +4051,7 @@ function Compat.DressModel(model, raceID, sex, itemIDs)
     end
     if isFunction(model.Undress) then pcall(model.Undress, model) end
     if isFunction(model.SetFacing) then pcall(model.SetFacing, model, 0.35) end
+    Compat.FitModel(model)
 
     if not isFunction(model.TryOn) then return true, 0 end
     local angezogen = 0

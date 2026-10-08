@@ -22,7 +22,6 @@ local L = GA.L
 Armory.titleKey = "NAV_ARMORY_LONG"
 
 local SLOT_SIZE = 42
-local MODEL_INSET_TOP, MODEL_INSET_BOTTOM = 40, 60   -- Luft um die Figur (08.10.2026)
 local SLOT_GAP = 6
 
 --- Anordnung wie im Charakterfenster.
@@ -261,15 +260,16 @@ function Armory:Create(parent)
     self.historyTitle = Theme.Label(doll, L.GEAR_HISTORY, fonts.heading, Theme.color.heading)
     self.historyTitle:SetPoint("BOTTOM", self.history, "TOP", 0, 4)
 
-    -- Das Modell steht zwischen den Slotspalten und dem Verlauf — mit Luft
-    -- oben und unten: Die Figur waechst mit der Hoehe des Rahmens, und bis
-    -- 0.1.42 fuellte sie ihn ganz ("der Charakter ist zu gross", Bild vom
-    -- 08.10.2026). Ein Fuenftel weniger Hoehe heisst ein Fuenftel kleinere Figur.
+    -- Das Modell fuellt den Raum zwischen den Slotspalten und dem Verlauf.
+    -- GROESSE DER FIGUR NICHT UEBER DEN RAHMEN: Ein kleinerer Rahmen zeigt
+    -- die Figur GROESSER und schneidet sie ab (gemessen 08.10.2026, Bild) —
+    -- der Rahmen ist ein Fenster auf die Figur, keine Leinwand. Kleiner
+    -- wird sie ueber die Kamera, siehe Compat.FitModel.
     -- Ob es den Rahmentyp gibt, sagt Compat — nicht diese Datei.
     local model = Compat.CreateDressUpModel(doll)
     if model then
-        model:SetPoint("TOPLEFT", doll, "TOPLEFT", 16 + SLOT_SIZE + 76, columnTop - MODEL_INSET_TOP)
-        model:SetPoint("BOTTOMRIGHT", self.historyTitle, "TOP", 0, 6 + MODEL_INSET_BOTTOM)
+        model:SetPoint("TOPLEFT", doll, "TOPLEFT", 16 + SLOT_SIZE + 76, columnTop)
+        model:SetPoint("BOTTOMRIGHT", self.historyTitle, "TOP", 0, 6)
         model:SetPoint("RIGHT", doll, "RIGHT", -(16 + SLOT_SIZE + 76), 0)
         model:Hide()
     end
