@@ -6,6 +6,8 @@ Race to 60: a leaderboard under Guild — everyone by level and XP percent (sent
 
 Level-up banner: when you level, a banner in your theme's look — "Level 31!", your name, a line to smile at, XP per hour, how long the level took, and your place in the race. Click closes it, otherwise it fades after eight seconds. /ga ding shows a preview you can drag into place; Settings › On screen switches it off.
 
+Import from Discord: the bot now writes a code block above every sign-up board with the run's current state. When a run is on Discord but not in your Dungeonhub — your client was not online when it was announced — paste the block into Dungeonhub › Import from Discord. Your own run becomes yours again; another leader's run is taken over and passed on to the guild.
+
 Level bar: a small bar on screen in the look of your theme — level and XP with a bar, time in this level, played total, session time, XP per hour over the last 15 minutes, time to the next level, kills (from the XP chat line, no combat log needed), deaths, quests, gold gained and gold per minute. Every field has its own switch, the counters run per level (kept across /reload) or per session, the bar lies horizontal or vertical, scales from 60 to 160 percent, can be locked, and goes wherever you drag it; right-click opens the menu, /ga levelbar shows or hides it, /ga levelbar reset restarts the session. Settings › On screen › Level bar.
 
 The game's own XP bar can be hidden (Settings › On screen › Level bar) once the level bar shows the same — kept hidden across the game's relayouts, never touched in combat.

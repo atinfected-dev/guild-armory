@@ -196,7 +196,23 @@ function View:Create(parent)
     self.postButton:SetHeight(24)
     self.postButton:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
     self.postButton:SetPoint("RIGHT", form, "RIGHT", -14, 0)
-    y = y - 32
+    y = y - 30
+
+    -- Aus Discord importieren (08.10.2026): die Marke aus dem Anmelder des Bots.
+    self.importButton = Widgets.Button(form, L.DH_IMPORT_BTN, function()
+        Widgets.InputDialog(L.DH_IMPORT_TITLE, L.DH_IMPORT_HINT, function(text)
+            local taken, skipped = GA.Modules.Dungeonhub:ImportTags(text)
+            if taken == 0 then return false, skipped > 0 and L.DH_IMPORT_SKIPPED or L.DH_IMPORT_NONE end
+            GA.UI.MainFrame:Notice("info", L.DH_IMPORTED, taken, skipped)
+            View:Refresh()
+            return true
+        end)
+    end)
+    self.importButton:SetTooltip(L.TT_DH_IMPORT)
+    self.importButton:SetHeight(20)
+    self.importButton:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)
+    self.importButton:SetPoint("RIGHT", form, "RIGHT", -14, 0)
+    y = y - 28
 
     self.formHint = Theme.Label(form, L.DH_POST_HINT, fonts.small, Theme.color.textDim)
     self.formHint:SetPoint("TOPLEFT", form, "TOPLEFT", 14, y)

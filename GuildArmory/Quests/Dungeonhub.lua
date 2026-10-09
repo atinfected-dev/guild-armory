@@ -552,6 +552,91 @@ function Dungeonhub:DiscordTag(run, kind, who, role)
     return tag .. "]"
 end
 
+-- ================================================================ Import ----
+--
+-- AUS DISCORD ZURUECK INS SPIEL (08.10.2026). Discord -> Spiel gibt es
+-- nicht, aber Discord -> Mensch -> Spiel: Der Bot schreibt ueber jeden
+-- Anmelder die Marke des aktuellen Stands, und wer den Lauf nicht sieht —
+-- weil sein Client nicht da war, als er angekuendigt wurde —, fuegt sie
+-- hier ein. Dasselbe Format 2, das AnnounceDiscord hinausschreibt.
+
+--- Alle Marken in einem Text.
+--- @return table { { id, at, leader, dungeon, note, members = { [name] = { role, class } } } }
+function Dungeonhub.ParseTags(text)
+    local out = {}
+    for kind, id, at, leader, members, rest in string.gmatch(tostring(text or ""),
+        "%[ga2 ([njlx]) (%S+) (%d+) (%S+) (TANK:[^;%s%]]*;HEAL:[^;%s%]]*;DPS:[^;%s%]]*) ([^%]]*)%]") do
+        local dungeon, note = string.match(rest, "^(%S+)%s*(.-)$")
+        local tag = { kind = kind, id = id, at = tonumber(at), leader = (string.gsub(leader, "_", " ")),
+                      dungeon = (string.gsub(dungeon or "?", "_", " ")), note = note or "", members = {} }
+        for teil in string.gmatch(members, "[^;]+") do
+            local role, namen = teil:match("^(%u+):(.*)$")
+            if validRole(role) then
+                for item in string.gmatch(namen, "[^,]+") do
+                    local raw, cls = item:match("^([^%.]+)%.?(%u*)$")
+                    local name = (string.gsub(raw or item, "_", " "))
+                    tag.members[name] = { role = role, class = cls ~= "" and cls or nil }
+                end
+            end
+        end
+        out[#out + 1] = tag
+    end
+    return out
+end
+
+--- Uebernimmt Laeufe aus eingefuegten Marken. Ein eigener Lauf (Leiter =
+--- ich) wird wieder meiner; ein fremder kommt als weitergegebener herein
+--- und geht als Weitergabe an die Gilde, damit auch die anderen ihn sehen.
+--- @return number uebernommen, number uebersprungen
+function Dungeonhub:ImportTags(text)
+    local tags = self.ParseTags(text)
+    local now = Util.Now()
+    local me = ownName()
+    local db = store()
+    local taken, skipped = 0, 0
+    for _, tag in ipairs(tags) do
+        local at = tag.at or 0
+        local alt = self.runs[tag.id]
+        if tag.kind == "x" or at < now - self.GRACE or at > now + self.HORIZON or not db then
+            skipped = skipped + 1
+        elseif alt and (alt.mts or alt.ts or 0) >= now - 60 then
+            skipped = skipped + 1          -- gerade erst gehoert, nichts zu tun
+        else
+            local members = {}
+            local order = 0
+            for name, m in pairs(tag.members) do
+                order = order + 1
+                members[name] = { role = m.role, class = m.class or klasseVon(name), ts = at - 1000 + order }
+            end
+            local leaderRole = members[tag.leader] and members[tag.leader].role or "DPS"
+            members[tag.leader] = members[tag.leader] or { role = leaderRole, class = klasseVon(tag.leader), ts = at - 1000 }
+            local run = {
+                id = tag.id, dungeon = kuerzen(tag.dungeon, self.DUNGEON_LEN), at = at,
+                note = kuerzen(tag.note, self.NOTE_LEN), ts = now, mts = now,
+                leader = tag.leader, class = members[tag.leader].class,
+                members = members, discord = true, discordBot = true,
+            }
+            if me and tag.leader == me then
+                run.own = true
+                db.own[run.id] = run
+                self.runs[run.id] = run
+                self:Send(run)
+                self:SendMembers(run)
+            else
+                run.own = false
+                self.runs[run.id] = run
+                markSeen(run.id)
+                remember(run)
+                self:Relay(run)
+            end
+            db.announced[run.id] = db.announced[run.id] or now
+            taken = taken + 1
+            GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", alt and "update" or "new", run)
+        end
+    end
+    return taken, skipped
+end
+
 --- Schreibt die eigene Zeile nach Discord, wenn der Lauf dort angekuendigt
 --- ist und die Gilde verbunden ist.
 --- @return boolean gesendet
