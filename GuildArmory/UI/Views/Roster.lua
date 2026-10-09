@@ -532,13 +532,17 @@ function View:BuildDetail(parent, fonts)
     -- Am Frame verankert, nicht an der Ueberschrift: ein geschuetzter
     -- Knopf darf nicht an einer Region haengen (gemessen 28.09.2026).
     d.promote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -86)
-    if d.promote.SetIcon then d.promote:SetIcon("Interface\\Buttons\\Arrow-Up-Up", 14, "+") end
+    if not (d.promote.SetArrow and d.promote:SetArrow("up", 14)) and d.promote.SetIcon then
+        d.promote:SetIcon("Interface\\Buttons\\Arrow-Up-Up", 14, "+")
+    end
 
     d.rankNow = CreateFrame("Frame", nil, d)
     d.rankNow:SetHeight(ARROW)
     d.rankNow:SetWidth(DETAIL_W - 24 - 2 * (ARROW + 4))
     -- An d, nicht am Pfeil: Nichts im Fenster haengt an einem geschuetzten Knopf.
     d.rankNow:SetPoint("TOPLEFT", d, "TOPLEFT", 12 + ARROW + 4, -86)
+    -- Eingelassen wie ein Feld in der Platte (Plakette, 09.10.2026).
+    d.rankInset = Theme.Look() and Theme.Inset(d.rankNow) or nil
     d.rankFill = Theme.Fill(d.rankNow, { 0, 0, 0, 0 })
     d.rankLines = Theme.Outline(d.rankNow, Theme.color.border)
     d.rankText = Theme.Label(d.rankNow, "", fonts.rowBold, Theme.color.text)
@@ -547,7 +551,9 @@ function View:BuildDetail(parent, fonts)
     d.demote = macroButton("")
     d.demote:SetSize(ARROW, ARROW)
     d.demote:SetPoint("LEFT", d.rankNow, "RIGHT", 4, 0)
-    if d.demote.SetIcon then d.demote:SetIcon("Interface\\Buttons\\Arrow-Down-Up", 14, "-") end
+    if not (d.demote.SetArrow and d.demote:SetArrow("down", 14)) and d.demote.SetIcon then
+        d.demote:SetIcon("Interface\\Buttons\\Arrow-Down-Up", 14, "-")
+    end
 
     d.rankHint = Theme.Label(d, "", fonts.small, Theme.color.textFaint)
     d.rankHint:SetPoint("TOPLEFT", d.promote, "BOTTOMLEFT", 0, -4)

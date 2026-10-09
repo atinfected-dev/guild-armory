@@ -313,6 +313,10 @@ Theme.MEDIA = {
     -- Platzrahmen "Glimmen" (09.10.2026, Entwurf B), erzeugt von
     -- tools/src/slotglow.py: Schein vom Rand nach innen, Funke fuer BiS.
     slotglow        = M .. "SlotGlow.tga",
+    -- Knoepfe und Leisten "Plakette" (09.10.2026, Entwurf A), erzeugt von
+    -- tools/src/plate.py: Platte in Graustufen, Pfeil fuer die Rangknoepfe.
+    plate           = M .. "Plate.tga",
+    arrow           = M .. "Arrow.tga",
     slotspark       = M .. "SlotSpark.tga",
     corner_star     = M .. "Corner_Star.tga",
     corner_bracket  = M .. "Corner_Bracket.tga",
@@ -667,6 +671,153 @@ function Theme.MetalFill(frame, tint, layer)
     local texture = frame:CreateTexture(nil, layer or "BACKGROUND")
     texture:SetAllPoints(frame)
     return Theme.Metal(texture, tint)
+end
+
+-- ------------------------------------------------------------ Plakette ----
+--
+-- KNOEPFE UND LEISTEN ALS GESCHMIEDETE PLATTEN (Entwurf A, gewaehlt
+-- 09.10.2026): eine Platte mit abgeschraegten Ecken, Glanzkante und zwei
+-- Nieten, in drei Stuecken (Kappe links, dehnbare Mitte, Kappe rechts),
+-- damit Ecken und Nieten bei jeder Breite gleich bleiben. Die Textur ist
+-- grau; die Farbe kommt aus dem Look (btnSecondary, btnPrimary und ihre
+-- Hover-Toene). Gewaehlt und Hauptknopf: das Metall glueht, mit Schein.
+-- Ohne Textur (neue Datei, Spiel nicht neu gestartet): flache Flaeche mit
+-- Kante in denselben Farben.
+
+local PLATE_CAP = 16 / 128     -- Breite einer Kappe in der Textur
+
+local function lighten(c, f)
+    return { math.min(1, c[1] * f), math.min(1, c[2] * f), math.min(1, c[3] * f), c[4] or 1 }
+end
+
+--- Die Farben einer Platte je Zustand, aus dem Look.
+--- @param state string "normal"|"hover"|"selected"|"selectedHover"|"disabled"|"danger"
+--- @param palette table|nil  { fill = {r,g,b} } ersetzt die Farbe im gewaehlten Zustand
+function Theme.PlateTint(state, palette)
+    local look = Theme.Look() or {}
+    local sec = look.btnSecondary or { 0.34, 0.32, 0.30, 1 }
+    local secH = look.btnSecondaryHover or lighten(sec, 1.3)
+    local pri = look.btnPrimary or { 0.86, 0.40, 0.13, 1 }
+    local priH = look.btnPrimaryHover or lighten(pri, 1.2)
+    if palette and palette.fill then pri = lighten(palette.fill, 1.6) priH = lighten(palette.fill, 2.0) end
+    if state == "hover" then return lighten(secH, 1.15) end
+    if state == "selected" then return lighten(pri, 1.12) end
+    if state == "selectedHover" then return lighten(priH, 1.08) end
+    if state == "disabled" then return { sec[1] * 0.7, sec[2] * 0.7, sec[3] * 0.7, 1 } end
+    if state == "danger" then return lighten(Theme.color.bad, 1.2) end
+    return lighten(sec, 1.15)
+end
+
+--- Schrift auf einer Platte: dunkel auf hellem Metall, sonst hell.
+function Theme.PlateText(state, tint)
+    if state == "disabled" then return Theme.color.textFaint end
+    local lum = (0.30 * tint[1] + 0.59 * tint[2] + 0.11 * tint[3]) * 0.72
+    if lum > 0.40 then return { 0.12, 0.06, 0.02 } end
+    if state == "normal" then return { 0.78, 0.74, 0.67 } end
+    -- Fest Creme, nicht goldBright: Im Codex-Look ist goldBright dunkles
+    -- Siegelwachs (Textfarbe auf Pergament) und waere auf der roten Platte
+    -- unlesbar.
+    return { 0.97, 0.91, 0.80 }
+end
+
+--- Legt die Platte hinter einen Knopf. :SetState(state[, palette]) faerbt
+--- sie und gibt die Schriftfarbe zurueck.
+function Theme.Plate(frame)
+    local plate = { frame = frame }
+
+    -- Schein hinter gewaehlten Platten.
+    local glow = frame:CreateTexture(nil, "BACKGROUND", nil, -2)
+    glow:SetPoint("TOPLEFT", frame, "TOPLEFT", -8, 7)
+    glow:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 8, -7)
+    local glowPath = Theme.Media("glow")
+    if glowPath then
+        glow:SetTexture(glowPath)
+        pcall(glow.SetBlendMode, glow, "ADD")
+    end
+    glow:Hide()
+    plate.glow = glowPath and glow or nil
+
+    local path = Theme.Media("plate")
+    if path then
+        local function piece(l, r)
+            local t = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+            t:SetTexture(path)
+            t:SetTexCoord(l, r, 0, 1)
+            return t
+        end
+        plate.left = piece(0, PLATE_CAP)
+        plate.mid = piece(PLATE_CAP, 1 - PLATE_CAP)
+        plate.right = piece(1 - PLATE_CAP, 1)
+        plate.left:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        plate.left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+        plate.right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        plate.right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+        plate.mid:SetPoint("TOPLEFT", plate.left, "TOPRIGHT", 0, 0)
+        plate.mid:SetPoint("BOTTOMRIGHT", plate.right, "BOTTOMLEFT", 0, 0)
+        plate.parts = { plate.left, plate.mid, plate.right }
+    else
+        plate.fill = Theme.Fill(frame, { 0, 0, 0, 0 })
+        plate.lines = Theme.Outline(frame, Theme.color.border)
+    end
+
+    function plate:SetState(state, palette)
+        self.state = state
+        self.palette = palette
+        local tint = Theme.PlateTint(state, palette)
+        if self.parts then
+            -- Die Kappen so breit wie die halbe Hoehe: Ecke und Niete bleiben rund.
+            local cap = math.max(6, math.floor((self.frame:GetHeight() or 20) / 2 + 0.5))
+            self.left:SetWidth(cap)
+            self.right:SetWidth(cap)
+            local a = state == "disabled" and 0.7 or 1
+            for _, t in ipairs(self.parts) do t:SetVertexColor(tint[1], tint[2], tint[3], a) end
+        else
+            Theme.Paint(self.fill, { tint[1] * 0.75, tint[2] * 0.75, tint[3] * 0.75, 1 })
+            local edge = (state == "selected" or state == "selectedHover") and lighten(tint, 1.3) or Theme.color.border
+            for _, line in ipairs(self.lines) do Theme.Paint(line, edge) end
+        end
+        if self.glow then
+            local hot = state == "selected" or state == "selectedHover"
+            self.glow:SetShown(hot)
+            if hot then self.glow:SetVertexColor(tint[1], tint[2], tint[3], state == "selectedHover" and 0.55 or 0.40) end
+        end
+        return Theme.PlateText(state, tint)
+    end
+
+    -- Die Hoehe kommt oft erst nach dem Erzeugen: dann die Kappen nachmessen.
+    if frame.HookScript then
+        frame:HookScript("OnSizeChanged", function()
+            if plate.state then plate:SetState(plate.state, plate.palette) end
+        end)
+    end
+
+    return plate
+end
+
+--- Der Pfeil der Rangknoepfe auf eine Textur; false ohne eigene Datei.
+--- @param dir string "up"|"down"
+function Theme.SetArrow(texture, dir)
+    local path = Theme.Media("arrow")
+    if not path then return false end
+    texture:SetTexture(path)
+    if dir == "down" then texture:SetTexCoord(0, 1, 1, 0) else texture:SetTexCoord(0, 1, 0, 1) end
+    local hot = (Theme.Look() or {}).btnPrimaryHover or { 1.00, 0.55, 0.22, 1 }
+    texture:SetVertexColor(math.min(1, hot[1] * 1.1), math.min(1, hot[2] * 1.2), math.min(1, hot[3] * 1.3), 1)
+    return true
+end
+
+--- Ein eingelassenes Feld (Rangfeld): dunkler Grund, Schatten oben innen.
+--- Gibt die Grundflaeche zurueck.
+function Theme.Inset(frame)
+    local fill = Theme.Fill(frame, { 0.035, 0.031, 0.028, 1 })
+    for i = 1, 3 do
+        local shade = frame:CreateTexture(nil, "BORDER")
+        Theme.Paint(shade, { 0, 0, 0, 0.45 - i * 0.12 })
+        shade:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -i)
+        shade:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -i)
+        shade:SetHeight(1)
+    end
+    return fill
 end
 
 --- Flaeche nach einer Beschreibung { tex, tile, tint } oder { fill }.

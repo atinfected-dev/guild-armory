@@ -136,16 +136,14 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     local button = CreateFrame("Button", nil, parent)
     button:SetHeight(20)
 
-    -- Eigener Look: Metall in den Farben des Looks (Schmiede: Kupfer und
+    -- Eigener Look: die Platte in den Farben des Looks (Schmiede: Kupfer und
     -- Stahl; Twilight: Juwel und Tiefsee; Codex: Wachs und Pergament).
     local look = Theme.Look()
     local forge = look ~= nil
-    local TINT = look and (isPrimary and look.btnPrimary or look.btnSecondary)
-    local TINT_HOVER = look and (isPrimary and look.btnPrimaryHover or look.btnSecondaryHover)
-    local background = Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
-    if forge then Theme.Metal(background, TINT) end
-    local lines = Theme.Outline(button, forge and look.btnLine
-        or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
+    -- PLAKETTE (09.10.2026, Entwurf A) in den eigenen Looks.
+    local plate = forge and Theme.Plate(button) or nil
+    local background = (not plate) and Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 }) or nil
+    local lines = plate and {} or Theme.Outline(button, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
 
     local label = Theme.Label(button, string.upper(text or ""), fonts.small,
         isPrimary and (look and look.btnPrimaryText or Theme.color.goldBright)
@@ -156,13 +154,34 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     end
     label:SetPoint("CENTER", button, "CENTER", 0, 0)
 
-    button:SetWidth(label:GetStringWidth() + 22)
+    local PAD = plate and 28 or 22
+    button:SetWidth(label:GetStringWidth() + PAD)
+
+    --- Platte und Schrift nach dem Zustand des Knopfs.
+    local function paint(hover)
+        if not plate then return false end
+        local state
+        if button.armedAt then state = "danger"
+        elseif button.disabledState then state = "disabled"
+        elseif isPrimary then state = hover and "selectedHover" or "selected"
+        else state = hover and "hover" or "normal" end
+        local c = plate:SetState(state)
+        label:SetTextColor(c[1], c[2], c[3])
+        if label.SetShadowOffset then
+            local dark = c[1] + c[2] + c[3] < 0.6
+            label:SetShadowOffset(dark and 0 or 1, dark and 0 or -1)
+        end
+        return true
+    end
+    button.paintPlate = paint
+    paint(false)
 
     button:SetScript("OnEnter", function()
-        if forge then Theme.Metal(background, TINT_HOVER)
-        else Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep) end
-        label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
-        if not forge then for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end end
+        if not paint(not button.disabledState) then
+            Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep)
+            label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
+            for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.goldDim) end
+        end
 
         local tip = button.tooltip or button.hint
         if tip then
@@ -173,12 +192,11 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     end)
 
     button:SetScript("OnLeave", function()
-        if forge then Theme.Metal(background, TINT)
-        else Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 }) end
-        local color = isPrimary and Theme.color.goldBright or (forge and Theme.color.text or Theme.color.goldMid)
-        if button.armedAt then color = Theme.color.bad end
-        label:SetTextColor(color[1], color[2], color[3])
-        if not forge then
+        if not paint(false) then
+            Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
+            local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+            if button.armedAt then color = Theme.color.bad end
+            label:SetTextColor(color[1], color[2], color[3])
             for _, line in ipairs(lines) do
                 Theme.Paint(line, button.armedAt and Theme.color.bad or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
             end
@@ -187,14 +205,15 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     end)
 
     decorate(button, text, onClick, function(self, on)
+        if paint(false) then return end
         if on then
             label:SetTextColor(Theme.color.bad[1], Theme.color.bad[2], Theme.color.bad[3])
             for _, line in ipairs(lines) do Theme.Paint(line, Theme.color.bad) end
         else
-            local color = isPrimary and Theme.color.goldBright or (forge and Theme.color.text or Theme.color.goldMid)
+            local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
             label:SetTextColor(color[1], color[2], color[3])
             for _, line in ipairs(lines) do
-                Theme.Paint(line, forge and look.btnLine or (isPrimary and Theme.color.goldDim or Theme.color.borderLit))
+                Theme.Paint(line, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
             end
         end
     end)
@@ -204,23 +223,28 @@ function Widgets.FlatButton(parent, text, onClick, variant)
     --- Deaktiviert den Knopf sichtbar. Wird z.B. fuer "Ready Check" gebraucht,
     --- wenn der Spieler nicht Raidleiter ist.
     function button:SetEnabledState(enabled, reason)
+        self.disabledState = not enabled
         if enabled then
             self:Enable()
-            local color = isPrimary and Theme.color.goldBright
-                or (Theme.Look() and Theme.color.text or Theme.color.goldMid)
-            label:SetTextColor(color[1], color[2], color[3])
             self.tooltip = nil
+            if not paint(false) then
+                local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
+                label:SetTextColor(color[1], color[2], color[3])
+            end
         else
             self:Disable()
-            label:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
             self.tooltip = reason
+            if not paint(false) then
+                label:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+            end
         end
     end
 
     function button:SetLabel(newText)
         if not self.armedAt then self.baseText = newText end
         label:SetText(string.upper(newText or ""))
-        self:SetWidth(label:GetStringWidth() + 22)
+        self:SetWidth(label:GetStringWidth() + PAD)
+        paint(false)
     end
 
     return button
@@ -237,12 +261,29 @@ function Widgets.Chip(parent, text, onToggle)
     local chip = CreateFrame("Button", nil, parent)
     chip:SetHeight(17)
 
-    local background = Theme.Fill(chip, { 0, 0, 0, 0 })
-    local lines = Theme.Outline(chip, Theme.color.border)
+    -- PLAKETTE (09.10.2026, Entwurf A) in den eigenen Looks; im
+    -- Blizzard-Look bleibt der flache Chip.
+    local plate = Theme.Look() and Theme.Plate(chip) or nil
+    local background = (not plate) and Theme.Fill(chip, { 0, 0, 0, 0 }) or nil
+    local lines = plate and {} or Theme.Outline(chip, Theme.color.border)
+    local PAD = plate and 24 or 18
 
     local label = Theme.Label(chip, string.upper(text), fonts.small, Theme.color.textDim)
     label:SetPoint("CENTER", chip, "CENTER", 0, 0)
-    chip:SetWidth(label:GetStringWidth() + 18)
+    chip:SetWidth(label:GetStringWidth() + PAD)
+
+    local function paint(hover)
+        if not plate then return false end
+        local state = chip.pressed and (hover and "selectedHover" or "selected") or (hover and "hover" or "normal")
+        local c = plate:SetState(state, chip.pressed and chip.palette or nil)
+        if chip.pressed and chip.palette and chip.palette.text and (c[1] + c[2] + c[3]) > 0.6 then c = chip.palette.text end
+        label:SetTextColor(c[1], c[2], c[3])
+        if label.SetShadowOffset then
+            local dark = c[1] + c[2] + c[3] < 0.6
+            label:SetShadowOffset(dark and 0 or 1, dark and 0 or -1)
+        end
+        return true
+    end
 
     chip.pressed = false
 
@@ -257,7 +298,8 @@ function Widgets.Chip(parent, text, onToggle)
         if tint then Theme.Tint(self.icon, tint) end
         label:ClearAllPoints()
         label:SetPoint("LEFT", self.icon, "RIGHT", 4, 0)
-        self:SetWidth(label:GetStringWidth() + 18 + 16)
+        self:SetWidth(label:GetStringWidth() + PAD + 16)
+        if plate then self.icon:SetPoint("LEFT", self, "LEFT", 10, 0) end
     end
 
     --- Eigene Farben fuer den gedrueckten Zustand (Standard: Gold).
@@ -269,6 +311,7 @@ function Widgets.Chip(parent, text, onToggle)
 
     function chip:SetPressed(pressed)
         self.pressed = pressed and true or false
+        if paint(false) then return end
         if self.pressed then
             local p = self.palette or {}
             local fill, text, edge = p.fill or Theme.color.goldDeep, p.text or Theme.color.goldBright, p.line or Theme.color.goldDim
@@ -288,12 +331,14 @@ function Widgets.Chip(parent, text, onToggle)
     end)
 
     chip:SetScript("OnEnter", function(self)
+        if paint(true) then return end
         if self.pressed then return end
         label:SetTextColor(Theme.color.text[1], Theme.color.text[2], Theme.color.text[3])
     end)
     chip:SetScript("OnLeave", function(self) self:SetPressed(self.pressed) end)
 
     chip.label = label
+    chip:SetPressed(false)
     return chip
 end
 
@@ -955,13 +1000,26 @@ function Widgets.SecureMacroButton(parent, text, variant)
     if not ok or type(button) ~= "table" or type(button.SetAttribute) ~= "function" then return nil end
 
     button:SetHeight(20)
-    local background = Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
-    local lines = Theme.Outline(button, isPrimary and Theme.color.goldDim or Theme.color.borderLit)
+    -- PLAKETTE (09.10.2026) in den eigenen Looks, wie jeder andere Knopf.
+    local plate = Theme.Look() and Theme.Plate(button) or nil
+    local background = (not plate) and Theme.Fill(button, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 }) or nil
+    if not plate then Theme.Outline(button, isPrimary and Theme.color.goldDim or Theme.color.borderLit) end
     local label = Theme.Label(button, string.upper(text or ""), fonts.small,
         isPrimary and Theme.color.goldBright or Theme.color.goldMid)
     label:SetPoint("CENTER", button, "CENTER", 0, 0)
-    button:SetWidth(label:GetStringWidth() + 22)
+    local PAD = plate and 28 or 22
+    button:SetWidth(label:GetStringWidth() + PAD)
     button.label = label
+
+    local function paint(hover)
+        if not plate then return false end
+        local state = button.enabled == false and "disabled"
+            or (isPrimary and (hover and "selectedHover" or "selected") or (hover and "hover" or "normal"))
+        local c = plate:SetState(state)
+        label:SetTextColor(c[1], c[2], c[3])
+        return true
+    end
+    paint(false)
 
     local clickMode = GA.Core.Compat.SecureClickMode()
     pcall(button.RegisterForClicks, button, clickMode)
@@ -974,7 +1032,7 @@ function Widgets.SecureMacroButton(parent, text, variant)
     end
 
     button:SetScript("OnEnter", function(self)
-        if self.enabled ~= false then
+        if self.enabled ~= false and not paint(true) then
             Theme.Paint(background, isPrimary and Theme.color.goldDim or Theme.color.goldDeep)
             label:SetTextColor(Theme.color.goldBright[1], Theme.color.goldBright[2], Theme.color.goldBright[3])
         end
@@ -985,6 +1043,7 @@ function Widgets.SecureMacroButton(parent, text, variant)
         end
     end)
     button:SetScript("OnLeave", function(self)
+        if paint(false) then GameTooltip:Hide() return end
         Theme.Paint(background, isPrimary and Theme.color.goldDeep or { 0, 0, 0, 0 })
         if self.enabled ~= false then
             local color = isPrimary and Theme.color.goldBright or Theme.color.goldMid
@@ -1019,11 +1078,27 @@ function Widgets.SecureMacroButton(parent, text, variant)
             if self.icon then self.icon:SetAlpha(0.3) end
             self.tooltip = reason
         end
+        paint(false)
     end
 
     function button:SetLabel(newText)
         label:SetText(string.upper(newText or ""))
-        self:SetWidth(label:GetStringWidth() + 22)
+        self:SetWidth(label:GetStringWidth() + PAD)
+    end
+
+    --- Der eigene Pfeil (Plakette, 09.10.2026) statt der Spieltextur; ohne
+    --- die Datei bleibt SetIcon mit dem Pfeil des Spiels.
+    --- @param dir string "up"|"down"
+    function button:SetArrow(dir, size)
+        if not self.icon then
+            self.icon = self:CreateTexture(nil, "ARTWORK")
+            self.icon:SetPoint("CENTER", self, "CENTER", 0, 0)
+        end
+        if not Theme.SetArrow(self.icon, dir) then return false end
+        self.icon:SetSize(size or 14, size or 14)
+        self.icon:SetAlpha(self.enabled == false and 0.3 or 1)
+        label:SetText("")
+        return true
     end
 
     --- Ein Bild statt Schrift — nur, wenn die Textur WIRKLICH laedt; sonst
