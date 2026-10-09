@@ -167,6 +167,23 @@ function Equipment:Snapshot(character, equipment, itemLevel)
         if #changes == 0 and previous.itemLevel == itemLevel then
             return nil  -- nichts Neues
         end
+        -- DIESELBEN TEILE, ANDERE ZAHL: kein neuer Punkt, sondern eine
+        -- Korrektur des letzten (09.10.2026, gemeldet: "wenn ich die BiS-
+        -- Items hinzufuege, geht meine Itemlevel-Historie hoch"). Das
+        -- Hinzufuegen laedt die Daten der BiS-Teile nach; jedes nachgeladene
+        -- Teil feuert GET_ITEM_INFO_RECEIVED, und stand die letzte Erfassung
+        -- auf "unvollstaendig", wurde neu erfasst. Hatte ein angelegtes Teil
+        -- vorher noch kein Itemlevel, kam ein anderer Durchschnitt heraus —
+        -- und die Kurve bekam einen Punkt, obwohl nichts gewechselt wurde.
+        -- Ein Punkt der Historie ist ein Wechsel der Ausruestung; eine
+        -- spaeter gelieferte Angabe zu denselben Teilen gehoert in den
+        -- Punkt, der schon da ist.
+        if #changes == 0 then
+            previous.itemLevel = itemLevel
+            Debug:Print("armory", "Snapshot #%d korrigiert: Itemlevel %s (nur nachgeladen)",
+                #list, tostring(itemLevel))
+            return previous
+        end
     end
 
     local snapshot = {

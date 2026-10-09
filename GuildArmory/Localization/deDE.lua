@@ -374,7 +374,7 @@ GA.Core.Locale:Register("deDE", {
     WISH_BIS_HINT             = "Gegenstand oben, dann Platz anklicken. Rechtsklick: entfernen oder nehmen, was du trägst.",
     WISH_BIS_WEAR_ALL         = "Was ich trage",
     WISH_BIS_FOJJI            = "FojjiCore",
-    TT_WISH_BIS_FOJJI         = "Eine BiS-Liste aus dem BiS-Manager von FojjiCore importieren (mit Erlaubnis von Fojji)",
+    TT_WISH_BIS_FOJJI         = "Eine BiS-Liste aus dem BiS-Manager von FojjiCore importieren",
     WISH_BIS_FOJJI_TITLE      = "Aus FojjiCore importieren",
     WISH_BIS_FOJJI_HINT       = "In FojjiCore: BiS-Manager › Export, den Text ab FCBIS1: kopieren und hier einfügen. Das erste Teil jedes Platzes wird dein BiS; Plätze, die im Export fehlen, bleiben, wie sie sind.",
     WISH_BIS_FOJJI_DONE       = "%d Plätze aus FojjiCore gesetzt%s; %d Alternativen nicht übernommen.",

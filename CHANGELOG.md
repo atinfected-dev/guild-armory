@@ -2,7 +2,9 @@
 
 ## 0.1.45
 
-Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. Paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:) and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken. With Fojji's written permission; only the export text is read, nothing from FojjiCore is included.
+Fixed: adding items to the Best in Slot list could add a point to your item level history although you changed nothing. Adding them makes the game load their item data, which triggered a fresh reading of your gear; when an equipped item had been missing its item level before, the new average landed as a new point. A history point is now a change of equipped items only — a level that arrives later for the same items corrects the last point instead.
+
+Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. Paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:) and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
 
 ## 0.1.44
 

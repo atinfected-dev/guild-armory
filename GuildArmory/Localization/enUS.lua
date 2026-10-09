@@ -386,7 +386,7 @@ GA.Core.Locale:Register("enUS", {
     WISH_BIS_HINT             = "Item above, then click a slot. Right-click: remove, or take what you wear.",
     WISH_BIS_WEAR_ALL         = "What I wear",
     WISH_BIS_FOJJI            = "FojjiCore",
-    TT_WISH_BIS_FOJJI         = "Import a BiS list exported from FojjiCore's BiS Manager (with Fojji's permission)",
+    TT_WISH_BIS_FOJJI         = "Import a BiS list exported from FojjiCore's BiS Manager",
     WISH_BIS_FOJJI_TITLE      = "Import from FojjiCore",
     WISH_BIS_FOJJI_HINT       = "In FojjiCore: BiS Manager › Export, copy the text starting with FCBIS1: and paste it here. The first item of each slot becomes your BiS; slots not in the export stay as they are.",
     WISH_BIS_FOJJI_DONE       = "%d slots set from FojjiCore%s; %d alternatives not taken.",
