@@ -310,6 +310,9 @@ Theme.MEDIA = {
     velvet    = M .. "Velvet.tga",
     gold      = M .. "Gold.tga",
     corner_filigree = M .. "Corner_Filigree.tga",
+    -- Der Lorbeerkranz um einen getragenen BiS-Platz (09.10.2026, Entwurf C),
+    -- erzeugt von tools/src/bisframe.py. Freie Mitte; siehe BIS_FRAME_OPENING.
+    bislaurel       = M .. "BisLaurel.tga",
     corner_star     = M .. "Corner_Star.tga",
     corner_bracket  = M .. "Corner_Bracket.tga",
     corner_illum    = M .. "Corner_Illum.tga",
@@ -1160,8 +1163,14 @@ local SLOT_BACKGROUNDS = {
 --- Wie weit der verschnoerkelte Goldrahmen (SetGold) ueber einen Platz der
 --- Kantenlaenge size hinausragt. Die Ansichten rechnen ihre Abstaende
 --- daraus, damit sich zwei goldene Nachbarn nicht ueberlagern (09.10.2026).
+--- Wie viel der Lorbeerkranz von seiner Textur einnimmt: die freie Mitte.
+--- Muss zu OPENING in tools/src/bisframe.py passen.
+Theme.BIS_FRAME_OPENING = 0.707
+
 function Theme.GoldOut(size)
-    return math.max(2, math.floor((size or 40) * 0.16 + 0.5))
+    -- Der Kranz ragt auf jeder Seite (1/OPENING - 1)/2 der Platzgroesse hinaus.
+    size = size or 40
+    return math.max(2, math.ceil(size * (1 / Theme.BIS_FRAME_OPENING - 1) / 2))
 end
 
 --- @param size number  Kantenlaenge, Standard 40
@@ -1246,6 +1255,26 @@ function Theme.ItemSlot(parent, slotID, size)
             frame:SetAllPoints(self)
             frame:SetFrameLevel((self:GetFrameLevel() or 1) + 4)
             self.goldFrame = frame
+
+            -- DER LORBEERKRANZ (09.10.2026, Entwurf C): eine Textur mit freier
+            -- Mitte, so gross, dass die Mitte genau den Platz einrahmt. Fehlt
+            -- sie (neue Datei, Spiel noch nicht neu gestartet), bleibt der
+            -- Filigranrahmen darunter.
+            local laurel = Theme.Media("bislaurel")
+            if laurel then
+                local wreath = frame:CreateTexture(nil, "OVERLAY")
+                wreath:SetTexture(laurel)
+                local full = math.floor(size / Theme.BIS_FRAME_OPENING + 0.5)
+                wreath:SetWidth(full) wreath:SetHeight(full)
+                wreath:SetPoint("CENTER", self, "CENTER", 0, 0)
+                self.goldWreath = wreath
+            end
+            if laurel then
+                -- Kranz da: kein Filigran, kein Juwel, keine Innenlinie.
+                self.gold:SetShown(on and true or false)
+                self.goldFrame:SetShown(on and true or false)
+                return
+            end
 
             -- Innenlinie, hell, direkt am Symbol.
             self.goldLines = Theme.Outline(frame, Theme.color.goldBright)

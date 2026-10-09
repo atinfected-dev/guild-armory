@@ -31,7 +31,7 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local BIS_PANEL_H = 330
+local BIS_PANEL_H = 350
 local MINI = 26
 local MINI_GAP = 2 * Theme.GoldOut(MINI)    -- Platz fuer den Goldrahmen zweier Nachbarn (09.10.2026)
 local BIS_LEFT   = { 1, 2, 3, 15, 5, 9 }
