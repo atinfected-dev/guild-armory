@@ -2,7 +2,7 @@
 
 ## 0.1.46
 
-The gold frame for a worn Best in Slot item is ornate now: filigree corners in the addon's own style around the slot, a bright inner line, a small jewel on top and a softer glow behind — on the big slot and, smaller, on the BiS tile beside it.
+The gold frame for a worn Best in Slot item is ornate now: filigree corners in the addon's own style around the slot, a bright inner line, a small jewel on top and a softer glow behind — on the big slot and, smaller, on the BiS tile beside it. The slots moved apart to make room, so two gold neighbours no longer overlap.
 
 ## 0.1.45
 

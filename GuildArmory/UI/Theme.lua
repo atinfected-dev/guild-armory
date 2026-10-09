@@ -1157,6 +1157,13 @@ local SLOT_BACKGROUNDS = {
 
 --- Ein Ausruestungsplatz wie im Charakterfenster: Icon, Qualitaetsrahmen,
 --- leerer Slot-Hintergrund, kleine Itemlevel-Zahl unten rechts.
+--- Wie weit der verschnoerkelte Goldrahmen (SetGold) ueber einen Platz der
+--- Kantenlaenge size hinausragt. Die Ansichten rechnen ihre Abstaende
+--- daraus, damit sich zwei goldene Nachbarn nicht ueberlagern (09.10.2026).
+function Theme.GoldOut(size)
+    return math.max(2, math.floor((size or 40) * 0.16 + 0.5))
+end
+
 --- @param size number  Kantenlaenge, Standard 40
 function Theme.ItemSlot(parent, slotID, size)
     size = size or 40
@@ -1247,7 +1254,7 @@ function Theme.ItemSlot(parent, slotID, size)
             -- Groesse nach Vorschau (09.10.2026): Die Rauten der Ecken sitzen auf
             -- den Ecken des Symbols, die Boegen laufen aussen herum, und das Ganze
             -- bleibt schmal genug fuer den Abstand zwischen zwei Plaetzen.
-            local out = math.max(2, math.floor(size * 0.16 + 0.5))   -- wie weit die Ecken hinausragen
+            local out = Theme.GoldOut(size)                          -- wie weit die Ecken hinausragen
             local arm = math.floor(size * 0.75 + 0.5)                -- Laenge eines Eckbogens
             if corner then
                 local FLIP = { TOPLEFT = { 0, 1, 0, 1 }, TOPRIGHT = { 1, 0, 0, 1 },

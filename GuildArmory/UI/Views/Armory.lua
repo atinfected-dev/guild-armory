@@ -22,9 +22,12 @@ local L = GA.L
 Armory.titleKey = "NAV_ARMORY_LONG"
 
 local SLOT_SIZE = 42
-local SLOT_GAP = 6
 local TWIN_SIZE = 26    -- die BiS-Kachel neben dem Platz, kleiner als das Getragene (08.10.2026)
-local TWIN_GAP = 4
+-- ABSTAENDE AUS DEM GOLDRAHMEN (09.10.2026, mit Bild: die Ecken zweier
+-- goldener Nachbarn lagen uebereinander). Untereinander zweimal der
+-- Ueberstand eines Platzes, zwischen Platz und BiS-Kachel beide Ueberstaende.
+local SLOT_GAP = 2 * Theme.GoldOut(SLOT_SIZE)
+local TWIN_GAP = Theme.GoldOut(SLOT_SIZE) + Theme.GoldOut(TWIN_SIZE)
 
 --- Anordnung wie im Charakterfenster.
 local LEFT_COLUMN  = { 1, 2, 3, 15, 5, 4, 19, 9 }     -- Kopf .. Handgelenke
