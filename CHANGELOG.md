@@ -4,7 +4,7 @@
 
 Fixed: the Discord sign-up board fell behind once a group got full. The game's Discord bridge passes on only about 246 characters and cuts the rest; with five names the bot's marker lost its end and the bot read nothing, so the board stayed at an older state while the game was right. The marker now comes first in the line and the whole line stays under the bridge's limit; the bot also reads a marker cut at the end as long as the group in it is complete, and on start it rereads the last lines of the bridge channel to catch what it missed.
 
-The gold frame for a worn Best in Slot item is ornate now: filigree corners in the addon's own style around the slot, a bright inner line, a small jewel on top and a softer glow behind — on the big slot and, smaller, on the BiS tile beside it. The slots moved apart to make room, so two gold neighbours no longer overlap.
+The gold frame for a worn Best in Slot item is ornate now: filigree corners in the addon's own style around the slot, a bright inner line, a small jewel on top and a softer glow behind — on the worn slot only; the BiS tile beside it stays plain and is now larger (32 instead of 26) and fully opaque, with a thin gold edge when a BiS item is set. The slots moved apart to make room, so two gold neighbours no longer overlap.
 
 ## 0.1.45
 

@@ -22,12 +22,16 @@ local L = GA.L
 Armory.titleKey = "NAV_ARMORY_LONG"
 
 local SLOT_SIZE = 42
-local TWIN_SIZE = 26    -- die BiS-Kachel neben dem Platz, kleiner als das Getragene (08.10.2026)
+-- Die BiS-Kachel neben dem Platz, kleiner als das Getragene (08.10.2026);
+-- 32 statt 26 und voll deckend (09.10.2026: "zu wenig und zu transparent").
+local TWIN_SIZE = 32
+local TWIN_EMPTY_ALPHA = 0.55   -- ein Platz ohne gesetztes BiS-Teil
 -- ABSTAENDE AUS DEM GOLDRAHMEN (09.10.2026, mit Bild: die Ecken zweier
 -- goldener Nachbarn lagen uebereinander). Untereinander zweimal der
 -- Ueberstand eines Platzes, zwischen Platz und BiS-Kachel beide Ueberstaende.
 local SLOT_GAP = 2 * Theme.GoldOut(SLOT_SIZE)
-local TWIN_GAP = Theme.GoldOut(SLOT_SIZE) + Theme.GoldOut(TWIN_SIZE)
+-- Nur der grosse Platz traegt den Goldrahmen (09.10.2026), die Kachel nicht.
+local TWIN_GAP = Theme.GoldOut(SLOT_SIZE) + 3
 
 --- Anordnung wie im Charakterfenster.
 local LEFT_COLUMN  = { 1, 2, 3, 15, 5, 4, 19, 9 }     -- Kopf .. Handgelenke
@@ -554,7 +558,7 @@ function Armory:RefreshDoll()
         self.centerTitle:Show()
         self.centerBody:Show()
         for _, slot in pairs(self.slots) do slot:SetItem(nil) slot:SetGold(false) end
-        for _, t in pairs(self.twins) do t:SetItem(nil) t:SetGold(false) t:SetAlpha(0.3) end
+        for _, t in pairs(self.twins) do t:SetItem(nil) t:SetAlpha(TWIN_EMPTY_ALPHA) end
         self.bisStand:SetText("")
         return
     end
@@ -640,8 +644,11 @@ function Armory:RefreshDoll()
         local t = self.twins[slotID]
         if t then
             t:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
-            t:SetAlpha(st and st.itemID and 1 or 0.3)
-            t:SetGold(st and st.worn)
+            t:SetAlpha(st and st.itemID and 1 or TWIN_EMPTY_ALPHA)
+            -- Kein Goldrahmen an der Kachel: Gold zeigt der grosse Platz.
+            -- Eine schmale Goldkante sagt nur, dass hier ein BiS-Teil steht.
+            if not t.bisEdge then t.bisEdge = Theme.Outline(t, Theme.color.goldDim) end
+            for _, line in ipairs(t.bisEdge) do line:SetShown(st and st.itemID and true or false) end
         end
         slot:SetGold(st and st.worn)
     end
