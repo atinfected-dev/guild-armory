@@ -1210,13 +1210,21 @@ function Theme.ItemSlot(parent, slotID, size)
 
     --- Goldener Schein um einen Platz: das BiS-Teil wird getragen
     --- (08.10.2026). Einmal angelegt, dann nur ein- und ausgeblendet.
+    --- VERSCHNOERKELT (09.10.2026, Wunsch: "der goldene Rahmen kann ruhig
+    --- schoener und verschnoerkelt sein"): vier Filigran-Ecken aus den
+    --- eigenen Medien des Addons, gespiegelt um den Platz, dazu eine helle
+    --- Innenlinie, ein Juwel oben mittig und der weiche Schein dahinter.
+    --- Alles auf einer eigenen Ebene UEBER dem Symbol; nimmt keine Maus an.
+    --- Ohne Filigran-Textur (neue Datei, Spiel nicht neu gestartet) bleibt
+    --- eine doppelte Goldlinie.
     function button:SetGold(on)
         if not self.gold then
+            local size = self:GetWidth() or 40
             local glow = self:CreateTexture(nil, "BACKGROUND", nil, -1)
-            local extra = math.floor((self:GetWidth() or 40) * 0.5)
+            local extra = math.floor(size * 0.6)
             glow:SetPoint("CENTER", self, "CENTER", 0, 0)
-            glow:SetWidth((self:GetWidth() or 40) + extra)
-            glow:SetHeight((self:GetHeight() or 40) + extra)
+            glow:SetWidth(size + extra)
+            glow:SetHeight(size + extra)
             local path = Theme.Media("glow")
             if path then
                 glow:SetTexture(path)
@@ -1224,13 +1232,58 @@ function Theme.ItemSlot(parent, slotID, size)
             else
                 Theme.Paint(glow, Theme.color.gold)
             end
-            glow:SetVertexColor(1, 0.84, 0.35, 0.9)
+            glow:SetVertexColor(1, 0.82, 0.38, 0.65)
             self.gold = glow
-            self.goldLines = Theme.Outline(self, Theme.color.goldBright)
+
+            local frame = CreateFrame("Frame", nil, self)
+            frame:SetAllPoints(self)
+            frame:SetFrameLevel((self:GetFrameLevel() or 1) + 4)
+            self.goldFrame = frame
+
+            -- Innenlinie, hell, direkt am Symbol.
+            self.goldLines = Theme.Outline(frame, Theme.color.goldBright)
+
+            local corner = Theme.Media("corner_filigree")
+            -- Groesse nach Vorschau (09.10.2026): Die Rauten der Ecken sitzen auf
+            -- den Ecken des Symbols, die Boegen laufen aussen herum, und das Ganze
+            -- bleibt schmal genug fuer den Abstand zwischen zwei Plaetzen.
+            local out = math.max(2, math.floor(size * 0.16 + 0.5))   -- wie weit die Ecken hinausragen
+            local arm = math.floor(size * 0.75 + 0.5)                -- Laenge eines Eckbogens
+            if corner then
+                local FLIP = { TOPLEFT = { 0, 1, 0, 1 }, TOPRIGHT = { 1, 0, 0, 1 },
+                               BOTTOMLEFT = { 0, 1, 1, 0 }, BOTTOMRIGHT = { 1, 0, 1, 0 } }
+                for point, tc in pairs(FLIP) do
+                    local orn = frame:CreateTexture(nil, "OVERLAY")
+                    orn:SetTexture(corner)
+                    orn:SetWidth(arm) orn:SetHeight(arm)
+                    orn:SetPoint(point, self, point, string.find(point, "LEFT") and -out or out,
+                        string.find(point, "TOP") and out or -out)
+                    orn:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+                    orn:SetVertexColor(1, 0.92, 0.70, 1)
+                end
+            else
+                -- Rueckfall: eine zweite, dunklere Linie aussen.
+                local ring = CreateFrame("Frame", nil, frame)
+                ring:SetPoint("TOPLEFT", self, "TOPLEFT", -out, out)
+                ring:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", out, -out)
+                Theme.Outline(ring, Theme.color.gold)
+            end
+
+            -- Das Juwel oben mittig — nur, wo Platz ist.
+            local diamond = Theme.Media("diamond")
+            if diamond and size >= 32 then
+                local jewel = frame:CreateTexture(nil, "OVERLAY", nil, 1)
+                jewel:SetTexture(diamond)
+                local j = math.floor(size * 0.26)
+                jewel:SetWidth(j) jewel:SetHeight(j)
+                jewel:SetPoint("CENTER", self, "TOP", 0, out - 1)
+                jewel:SetVertexColor(1, 0.80, 0.30, 1)
+                pcall(jewel.SetBlendMode, jewel, "ADD")
+            end
         end
         local shown = on and true or false
         self.gold:SetShown(shown)
-        for _, line in ipairs(self.goldLines) do line:SetShown(shown) end
+        self.goldFrame:SetShown(shown)
     end
 
     --- Befuellt den Slot. `item` = Eintrag aus character.equipment oder nil.
