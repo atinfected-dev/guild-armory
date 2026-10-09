@@ -431,6 +431,63 @@ function Dungeonhub:Leave(id)
     return true
 end
 
+-- ================================================================ Leiter ---
+--
+-- DER LEITER TRAEGT EIN (08.10.2026): Wer per Discord oder Stimme zugesagt
+-- hat, aber im Spiel nicht klickt, steht sonst nirgends. Nur im eigenen
+-- Lauf, nur in einen freien Platz; die Besetzung geht wie bei jedem
+-- Beitritt an die Gilde (DMEMB) und nach Discord.
+
+--- @return boolean ok, string|nil grund ("notleader" | "noname" | "role" | "full")
+function Dungeonhub:AddMember(id, name, role)
+    local run = self.runs[id]
+    if not run or not run.own then return false, "notleader" end
+    name = Util.ShortName(Util.Trim(name or "") or "")
+    if name == "" then return false, "noname" end
+    if not validRole(role) then return false, "role" end
+    local vorher = run.members[name]
+    if vorher and vorher.role == role then return true end
+    if self:Count(run, role) >= self.SLOTS[role] then return false, "full" end
+    run.members[name] = { role = role, class = klasseVon(name), ts = Util.Now(), byLeader = true }
+    run.mts = Util.Now()
+    self:SendMembers(run)
+    self:AnnounceDiscord(run, "join", name, role)
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "join", run)
+    return true
+end
+
+--- Der Leiter nimmt jemanden heraus — nicht sich selbst.
+--- @return boolean ok, string|nil grund ("notleader" | "leader" | "notin")
+function Dungeonhub:RemoveMember(id, name)
+    local run = self.runs[id]
+    if not run or not run.own then return false, "notleader" end
+    name = Util.ShortName(name or "")
+    if name == run.leader then return false, "leader" end
+    if not run.members[name] then return false, "notin" end
+    run.members[name] = nil
+    run.mts = Util.Now()
+    self:SendMembers(run)
+    self:AnnounceDiscord(run, "leave", name)
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "leave", run)
+    return true
+end
+
+--- Wer in Frage kommt: Gildenmitglieder, online zuerst, ohne die, die
+--- schon drin sind, und ohne mich.
+function Dungeonhub:Candidates(run, limit)
+    local Guild = GA.Modules.Guild
+    local out = {}
+    local me = ownName()
+    for _, m in ipairs(Guild and Guild.List and Guild:List() or {}) do
+        local name = m.name and Util.ShortName(m.name)
+        if name and name ~= me and not (run and run.members[name]) then
+            out[#out + 1] = { name = name, class = m.class, online = m.online and true or false, level = m.level }
+            if limit and #out >= limit then break end
+        end
+    end
+    return out
+end
+
 --- Die Rolle, die das Formular vorschlaegt: die gesetzte Kampfrolle.
 --- Ein alter lastRole-Wert (bis 0.1.42) wird einmal uebernommen, dann
 --- vergessen.

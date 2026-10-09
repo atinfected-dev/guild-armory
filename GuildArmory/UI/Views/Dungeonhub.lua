@@ -253,6 +253,42 @@ function View:Create(parent)
 end
 
 --- Eine Karte aus dem Vorrat.
+--- Klick auf einen Platz im eigenen Lauf: frei -> jemanden eintragen,
+--- belegt -> herausnehmen (nicht sich selbst).
+function View:SlotClick(card, box)
+    local run = card.run
+    local slot = box.slotInfo
+    if not run or not run.own or not slot then return end
+    local Hub = GA.Modules.Dungeonhub
+    local me = Util.ShortName(Compat.GetPlayerIdentity().name or "")
+    local function fail(ok, why)
+        if not ok then GA.UI.MainFrame:Notice("warn", L["DH_ERR_" .. tostring(why)] or tostring(why)) end
+    end
+    if slot.name then
+        if slot.name == me then return end
+        Widgets.ContextMenu(slot.name, {
+            { text = string.format(L.DH_REMOVE_MEMBER, slot.name), confirm = L.BTN_REALLY,
+              func = function() fail(Hub:RemoveMember(run.id, slot.name)) View:Refresh() end },
+        })
+        return
+    end
+    local items = {
+        { text = L.DH_ADD_TYPE, func = function()
+            Widgets.InputDialog(string.format(L.DH_ADD_TITLE, roleName(slot.role)), L.DH_ADD_HINT, function(text)
+                local ok, why = Hub:AddMember(run.id, text, slot.role)
+                if not ok then return false, L["DH_ERR_" .. tostring(why)] or tostring(why) end
+                View:Refresh()
+                return true
+            end)
+        end },
+    }
+    for _, c in ipairs(Hub:Candidates(run, 30)) do
+        items[#items + 1] = { text = Theme.ColorByClass(c.name, c.class) .. (c.online and "" or ("  |cff808080" .. L.ROSTER_OFFLINE .. "|r")),
+            func = function() fail(Hub:AddMember(run.id, c.name, slot.role)) View:Refresh() end }
+    end
+    Widgets.ContextMenu(string.format(L.DH_ADD_TITLE, roleName(slot.role)), items)
+end
+
 function View:Card(index)
     if self.cards[index] then return self.cards[index] end
     local fonts = Theme.Fonts()
@@ -344,6 +380,10 @@ function View:Card(index)
         slot.name:SetPoint("RIGHT", slot, "RIGHT", -2, 0)
         slot.name:SetJustifyH("CENTER")
         slot.name:SetWordWrap(false)
+        slot:EnableMouse(true)
+        slot:SetScript("OnMouseUp", function(box, button)
+            if button == "LeftButton" then View:SlotClick(card, box) end
+        end)
         card.slots[i] = slot
     end
 
@@ -403,6 +443,7 @@ function View:FillCard(card, run)
     local slotW = math.floor((width - 4 * 4) / 5)
     for i, slot in ipairs(Hub:Slots(run)) do
         local box = card.slots[i]
+        box.slotInfo = slot
         box:ClearAllPoints()
         box:SetWidth(slotW)
         box:SetPoint("TOPLEFT", card, "TOPLEFT", 12 + (i - 1) * (slotW + 4), -62)
