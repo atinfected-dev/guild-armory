@@ -143,13 +143,7 @@ function WishlistView:Create(parent)
 
     -- Aus Best in Slot laden (09.10.2026): die BiS-Liste als Wuensche.
     self.fromBisButton = Widgets.Button(mine.header or mine, L.WISH_FROM_BIS, function()
-        local added, worn, there = GA.Modules.Wishlist:LoadFromBis(self:OwnGuid())
-        if added == 0 and worn == 0 and there == 0 then
-            GA.UI.MainFrame:Notice("warn", L.WISH_FROM_BIS_EMPTY)
-        else
-            GA.UI.MainFrame:Notice("info", L.WISH_FROM_BIS_DONE, added, worn, there)
-        end
-        self:Refresh()
+        self:BisToWishlist()
     end)
     self.fromBisButton:SetTooltip(L.TT_WISH_FROM_BIS)
     self.fromBisButton:SetHeight(18)
@@ -263,6 +257,21 @@ function WishlistView:Create(parent)
     return frame
 end
 
+--- Die BiS-Liste in die Wunschliste (09.10.2026: "ich muss meine Best in
+--- Slot Liste in my Wishlist uebertragen koennen"): jedes Teil, das du
+--- noch nicht traegst und noch nicht auf der Liste hast, als Wunsch mit
+--- Prioritaet Best in Slot. Danach zeigt der Reiter die Wunschliste.
+function WishlistView:BisToWishlist()
+    local added, worn, there = GA.Modules.Wishlist:LoadFromBis(self:OwnGuid())
+    if added == 0 and worn == 0 and there == 0 then
+        GA.UI.MainFrame:Notice("warn", L.WISH_FROM_BIS_EMPTY)
+        return
+    end
+    GA.UI.MainFrame:Notice("info", L.WISH_FROM_BIS_DONE, added, worn, there)
+    self:ShowTab("mine")
+    self:Refresh()
+end
+
 --- Welcher Reiter links offen ist; gemerkt fuer das naechste Oeffnen.
 function WishlistView:ShowTab(key)
     self.tab = key
@@ -356,14 +365,21 @@ function WishlistView:BuildBisList(panel)
     local letter = Theme.Label(self.bisFojjiButton, "F", Theme.Fonts().pin or Theme.Fonts().small, { 0.05, 0.10, 0.20 })
     letter:SetPoint("CENTER", badge, "CENTER", 0, 0)
 
+    -- Unten: alles in die Wunschliste, daneben der Hinweis zur Bedienung.
+    self.bisToWishButton = Widgets.Button(content, L.WISH_BIS_TO_WISH, function() self:BisToWishlist() end, "primary")
+    self.bisToWishButton:SetTooltip(L.TT_WISH_FROM_BIS)
+    self.bisToWishButton:SetHeight(20)
+    self.bisToWishButton:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 6, 5)
+
     self.bisHint = Theme.Label(content, L.WISH_BIS_HINT, fonts.small, Theme.color.textFaint)
-    self.bisHint:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 6, 2)
-    self.bisHint:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -6, 2)
+    self.bisHint:SetPoint("LEFT", self.bisToWishButton, "RIGHT", 10, 0)
+    self.bisHint:SetPoint("RIGHT", content, "RIGHT", -6, 0)
     self.bisHint:SetJustifyH("LEFT")
+    self.bisHint:SetSpacing(1)
 
     local holder = CreateFrame("Frame", nil, content)
     holder:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-    holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 18)
+    holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 32)
 
     self.bisList = Widgets.ScrollList(holder, {
         rowHeight = BIS_ROW_H,
@@ -471,6 +487,23 @@ function WishlistView:OnBisClick(slotID, mouse)
     end
 
     local items = {}
+    -- Dieses eine Teil in die Wunschliste (09.10.2026).
+    if current and current.itemID then
+        local st = Wishlist:BisStatus(guid)[slotID]
+        if st and st.worn then
+            items[#items + 1] = { text = L.WISH_BIS_ADD_WORN, disabled = true }
+        elseif Wishlist:Find(guid, current.itemID) then
+            items[#items + 1] = { text = L.WISH_BIS_ADD_THERE, disabled = true }
+        else
+            items[#items + 1] = { text = L.WISH_BIS_ADD_ONE, func = function()
+                if Wishlist:Add(guid, current.itemID, "BIS") then
+                    local info = Compat.GetItemInfo(current.itemID)
+                    GA.UI.MainFrame:Notice("info", L.WISH_BIS_ADDED_ONE, info and info.name or ("#" .. tostring(current.itemID)))
+                end
+                self:Refresh()
+            end }
+        end
+    end
     local character = GA.Core.Database.account.characters[guid]
     local worn = character and character.equipment and character.equipment[slotID]
     if worn and worn.itemID then
