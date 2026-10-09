@@ -310,9 +310,6 @@ Theme.MEDIA = {
     velvet    = M .. "Velvet.tga",
     gold      = M .. "Gold.tga",
     corner_filigree = M .. "Corner_Filigree.tga",
-    -- Der Lorbeerkranz um einen getragenen BiS-Platz (09.10.2026, Entwurf C),
-    -- erzeugt von tools/src/bisframe.py. Freie Mitte; siehe BIS_FRAME_OPENING.
-    bislaurel       = M .. "BisLaurel.tga",
     corner_star     = M .. "Corner_Star.tga",
     corner_bracket  = M .. "Corner_Bracket.tga",
     corner_illum    = M .. "Corner_Illum.tga",
@@ -1158,21 +1155,37 @@ local SLOT_BACKGROUNDS = {
     [19] = "Tabard",
 }
 
---- Ein Ausruestungsplatz wie im Charakterfenster: Icon, Qualitaetsrahmen,
---- leerer Slot-Hintergrund, kleine Itemlevel-Zahl unten rechts.
---- Wie weit der verschnoerkelte Goldrahmen (SetGold) ueber einen Platz der
---- Kantenlaenge size hinausragt. Die Ansichten rechnen ihre Abstaende
---- daraus, damit sich zwei goldene Nachbarn nicht ueberlagern (09.10.2026).
---- Wie viel der Lorbeerkranz von seiner Textur einnimmt: die freie Mitte.
---- Muss zu OPENING in tools/src/bisframe.py passen.
-Theme.BIS_FRAME_OPENING = 0.707
+--- DER RAHMEN UM JEDEN PLATZ (09.10.2026, Wunsch: "um jeden Kasten grau,
+--- gruen, blau, lila und golden fuer BiS, orange fuer ein Legendary"):
+--- eine schlichte Farbkante IM Platz, nichts ragt hinaus. Darum stehen die
+--- Plaetze wieder eng; Kranz, Filigran und Schein sind weg.
+--- Feste Farben statt der Spielfarben: Grau und Weiss sind beide grau,
+--- und Gold ist allein dem getragenen BiS-Teil vorbehalten.
+Theme.SLOT_FRAME = {
+    empty = { 0.20, 0.20, 0.20 },   -- leerer Platz
+    [0]   = { 0.55, 0.55, 0.55 },   -- schlecht   grau
+    [1]   = { 0.55, 0.55, 0.55 },   -- gewoehnlich grau
+    [2]   = { 0.12, 0.85, 0.00 },   -- selten     gruen
+    [3]   = { 0.00, 0.44, 0.87 },   -- rar        blau
+    [4]   = { 0.64, 0.21, 0.93 },   -- episch     lila
+    [5]   = { 1.00, 0.50, 0.00 },   -- legendaer  orange
+    [6]   = { 1.00, 0.50, 0.00 },   -- Artefakt: wie legendaer
+    [7]   = { 0.55, 0.55, 0.55 },   -- Erbstueck: grau
+    bis   = { 1.00, 0.82, 0.00 },   -- getragenes BiS-Teil: gold
+}
+Theme.SLOT_FRAME_WIDTH = 2
 
-function Theme.GoldOut(size)
-    -- Der Kranz ragt auf jeder Seite (1/OPENING - 1)/2 der Platzgroesse hinaus.
-    size = size or 40
-    return math.max(2, math.ceil(size * (1 / Theme.BIS_FRAME_OPENING - 1) / 2))
+--- Die Farbe des Rahmens: Gold fuer getragenes BiS, sonst die Qualitaet.
+--- Ein Gegenstand ohne bekannte Qualitaet (noch nicht im Client) ist grau.
+function Theme.SlotFrameColor(hasItem, quality, bisWorn)
+    local c = Theme.SLOT_FRAME
+    if not hasItem then return c.empty end
+    if bisWorn then return c.bis end
+    return c[quality] or c[1]
 end
 
+--- Ein Ausruestungsplatz wie im Charakterfenster: Icon, Farbrahmen,
+--- leerer Slot-Hintergrund, kleine Itemlevel-Zahl unten rechts.
 --- @param size number  Kantenlaenge, Standard 40
 function Theme.ItemSlot(parent, slotID, size)
     size = size or 40
@@ -1203,12 +1216,32 @@ function Theme.ItemSlot(parent, slotID, size)
     icon:Hide()
     button.icon = icon
 
-    -- Qualitaetsrahmen: dieselbe Textur, die Blizzards ItemButton benutzt.
-    local border = button:CreateTexture(nil, "OVERLAY")
-    border:SetAllPoints(button)
-    pcall(border.SetTexture, border, [[Interface\Common\WhiteIconFrame]])
-    border:Hide()
-    button.border = border
+    -- Der Farbrahmen: vier Kanten im Rand des Platzes, ueber dem Symbol
+    -- (das Symbol ist ohnehin 2 Pixel eingerueckt). Eigene Ebene, damit
+    -- er ueber dem Symbol liegt; nimmt keine Maus an.
+    local rim = CreateFrame("Frame", nil, button)
+    rim:SetAllPoints(button)
+    rim:SetFrameLevel((button:GetFrameLevel() or 1) + 2)
+    local w = Theme.SLOT_FRAME_WIDTH
+    local edges = {}
+    for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT", "h" }, { "BOTTOMLEFT", "BOTTOMRIGHT", "h" },
+                         { "TOPLEFT", "BOTTOMLEFT", "v" }, { "TOPRIGHT", "BOTTOMRIGHT", "v" } }) do
+        local line = rim:CreateTexture(nil, "OVERLAY")
+        Theme.Paint(line, { 1, 1, 1, 1 })
+        line:SetPoint(e[1], rim, e[1], 0, 0)
+        line:SetPoint(e[2], rim, e[2], 0, 0)
+        if e[3] == "h" then line:SetHeight(w) else line:SetWidth(w) end
+        edges[#edges + 1] = line
+    end
+    button.rim = edges
+    button.quality = nil
+    button.bisWorn = false
+
+    --- Faerbt den Rahmen nach dem, was der Platz gerade zeigt.
+    function button:PaintRim()
+        local c = Theme.SlotFrameColor(self.icon:IsShown(), self.quality, self.bisWorn)
+        for _, line in ipairs(self.rim) do line:SetVertexColor(c[1], c[2], c[3], 1) end
+    end
 
     -- Hover-Glanz wie bei Aktionsknoepfen.
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
@@ -1224,102 +1257,11 @@ function Theme.ItemSlot(parent, slotID, size)
     if level.SetShadowOffset then level:SetShadowOffset(1, -1) end
     button.level = level
 
-    --- Goldener Schein um einen Platz: das BiS-Teil wird getragen
-    --- (08.10.2026). Einmal angelegt, dann nur ein- und ausgeblendet.
-    --- VERSCHNOERKELT (09.10.2026, Wunsch: "der goldene Rahmen kann ruhig
-    --- schoener und verschnoerkelt sein"): vier Filigran-Ecken aus den
-    --- eigenen Medien des Addons, gespiegelt um den Platz, dazu eine helle
-    --- Innenlinie, ein Juwel oben mittig und der weiche Schein dahinter.
-    --- Alles auf einer eigenen Ebene UEBER dem Symbol; nimmt keine Maus an.
-    --- Ohne Filigran-Textur (neue Datei, Spiel nicht neu gestartet) bleibt
-    --- eine doppelte Goldlinie.
+    --- Gold, wenn das BiS-Teil dieses Platzes getragen wird (08.10.2026).
+    --- Seit 09.10.2026 nur noch die Farbe des Rahmens.
     function button:SetGold(on)
-        if not self.gold then
-            local size = self:GetWidth() or 40
-            local glow = self:CreateTexture(nil, "BACKGROUND", nil, -1)
-            local extra = math.floor(size * 0.6)
-            glow:SetPoint("CENTER", self, "CENTER", 0, 0)
-            glow:SetWidth(size + extra)
-            glow:SetHeight(size + extra)
-            local path = Theme.Media("glow")
-            if path then
-                glow:SetTexture(path)
-                pcall(glow.SetBlendMode, glow, "ADD")
-            else
-                Theme.Paint(glow, Theme.color.gold)
-            end
-            glow:SetVertexColor(1, 0.82, 0.38, 0.65)
-            self.gold = glow
-
-            local frame = CreateFrame("Frame", nil, self)
-            frame:SetAllPoints(self)
-            frame:SetFrameLevel((self:GetFrameLevel() or 1) + 4)
-            self.goldFrame = frame
-
-            -- DER LORBEERKRANZ (09.10.2026, Entwurf C): eine Textur mit freier
-            -- Mitte, so gross, dass die Mitte genau den Platz einrahmt. Fehlt
-            -- sie (neue Datei, Spiel noch nicht neu gestartet), bleibt der
-            -- Filigranrahmen darunter.
-            local laurel = Theme.Media("bislaurel")
-            if laurel then
-                local wreath = frame:CreateTexture(nil, "OVERLAY")
-                wreath:SetTexture(laurel)
-                local full = math.floor(size / Theme.BIS_FRAME_OPENING + 0.5)
-                wreath:SetWidth(full) wreath:SetHeight(full)
-                wreath:SetPoint("CENTER", self, "CENTER", 0, 0)
-                self.goldWreath = wreath
-            end
-            if laurel then
-                -- Kranz da: kein Filigran, kein Juwel, keine Innenlinie.
-                self.gold:SetShown(on and true or false)
-                self.goldFrame:SetShown(on and true or false)
-                return
-            end
-
-            -- Innenlinie, hell, direkt am Symbol.
-            self.goldLines = Theme.Outline(frame, Theme.color.goldBright)
-
-            local corner = Theme.Media("corner_filigree")
-            -- Groesse nach Vorschau (09.10.2026): Die Rauten der Ecken sitzen auf
-            -- den Ecken des Symbols, die Boegen laufen aussen herum, und das Ganze
-            -- bleibt schmal genug fuer den Abstand zwischen zwei Plaetzen.
-            local out = Theme.GoldOut(size)                          -- wie weit die Ecken hinausragen
-            local arm = math.floor(size * 0.75 + 0.5)                -- Laenge eines Eckbogens
-            if corner then
-                local FLIP = { TOPLEFT = { 0, 1, 0, 1 }, TOPRIGHT = { 1, 0, 0, 1 },
-                               BOTTOMLEFT = { 0, 1, 1, 0 }, BOTTOMRIGHT = { 1, 0, 1, 0 } }
-                for point, tc in pairs(FLIP) do
-                    local orn = frame:CreateTexture(nil, "OVERLAY")
-                    orn:SetTexture(corner)
-                    orn:SetWidth(arm) orn:SetHeight(arm)
-                    orn:SetPoint(point, self, point, string.find(point, "LEFT") and -out or out,
-                        string.find(point, "TOP") and out or -out)
-                    orn:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
-                    orn:SetVertexColor(1, 0.92, 0.70, 1)
-                end
-            else
-                -- Rueckfall: eine zweite, dunklere Linie aussen.
-                local ring = CreateFrame("Frame", nil, frame)
-                ring:SetPoint("TOPLEFT", self, "TOPLEFT", -out, out)
-                ring:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", out, -out)
-                Theme.Outline(ring, Theme.color.gold)
-            end
-
-            -- Das Juwel oben mittig — nur, wo Platz ist.
-            local diamond = Theme.Media("diamond")
-            if diamond and size >= 32 then
-                local jewel = frame:CreateTexture(nil, "OVERLAY", nil, 1)
-                jewel:SetTexture(diamond)
-                local j = math.floor(size * 0.26)
-                jewel:SetWidth(j) jewel:SetHeight(j)
-                jewel:SetPoint("CENTER", self, "TOP", 0, out - 1)
-                jewel:SetVertexColor(1, 0.80, 0.30, 1)
-                pcall(jewel.SetBlendMode, jewel, "ADD")
-            end
-        end
-        local shown = on and true or false
-        self.gold:SetShown(shown)
-        self.goldFrame:SetShown(shown)
+        self.bisWorn = on and true or false
+        self:PaintRim()
     end
 
     --- Befuellt den Slot. `item` = Eintrag aus character.equipment oder nil.
@@ -1357,17 +1299,17 @@ function Theme.ItemSlot(parent, slotID, size)
         if item and icon then
             self.icon:SetTexture(icon)
             self.icon:Show()
-            local color = Theme.QualityColor(quality)
-            self.border:SetVertexColor(color[1], color[2], color[3])
-            -- Weiss und Grau bekommen keinen Rahmen — wie bei Blizzard.
-            if quality and quality >= 2 then self.border:Show() else self.border:Hide() end
+            self.quality = quality
             self.level:SetText(item.itemLevel and tostring(item.itemLevel) or "")
         else
             self.icon:Hide()
-            self.border:Hide()
+            self.quality = nil
             self.level:SetText("")
         end
+        self:PaintRim()
     end
+
+    button:PaintRim()
 
     return button
 end

@@ -26,12 +26,9 @@ local SLOT_SIZE = 42
 -- 32 statt 26 und voll deckend (09.10.2026: "zu wenig und zu transparent").
 local TWIN_SIZE = 32
 local TWIN_EMPTY_ALPHA = 0.55   -- ein Platz ohne gesetztes BiS-Teil
--- ABSTAENDE AUS DEM GOLDRAHMEN (09.10.2026, mit Bild: die Ecken zweier
--- goldener Nachbarn lagen uebereinander). Untereinander zweimal der
--- Ueberstand eines Platzes, zwischen Platz und BiS-Kachel beide Ueberstaende.
-local SLOT_GAP = 2 * Theme.GoldOut(SLOT_SIZE)
--- Nur der grosse Platz traegt den Goldrahmen (09.10.2026), die Kachel nicht.
-local TWIN_GAP = Theme.GoldOut(SLOT_SIZE) + 3
+-- Wieder eng (09.10.2026): Der Rahmen liegt im Platz, nichts ragt hinaus.
+local SLOT_GAP = 6
+local TWIN_GAP = 4
 
 --- Anordnung wie im Charakterfenster.
 local LEFT_COLUMN  = { 1, 2, 3, 15, 5, 4, 19, 9 }     -- Kopf .. Handgelenke
@@ -452,7 +449,8 @@ end
 function Armory:ShowTwinTooltip(button)
     local item = button.item
     if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
-        GameTooltip:AddLine(button.gold and button.gold:IsShown() and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
+        local worn = self.slots[button.slotID] and self.slots[button.slotID].bisWorn
+        GameTooltip:AddLine(worn and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
             1, 0.84, 0.35)
     else
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
@@ -645,10 +643,7 @@ function Armory:RefreshDoll()
         if t then
             t:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
             t:SetAlpha(st and st.itemID and 1 or TWIN_EMPTY_ALPHA)
-            -- Kein Goldrahmen an der Kachel: Gold zeigt der grosse Platz.
-            -- Eine schmale Goldkante sagt nur, dass hier ein BiS-Teil steht.
-            if not t.bisEdge then t.bisEdge = Theme.Outline(t, Theme.color.goldDim) end
-            for _, line in ipairs(t.bisEdge) do line:SetShown(st and st.itemID and true or false) end
+            -- Die Kachel traegt die Farbe ihres Gegenstands; Gold nur am grossen Platz.
         end
         slot:SetGold(st and st.worn)
     end

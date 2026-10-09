@@ -31,9 +31,8 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local BIS_PANEL_H = 350
-local MINI = 26
-local MINI_GAP = 2 * Theme.GoldOut(MINI)    -- Platz fuer den Goldrahmen zweier Nachbarn (09.10.2026)
+local BIS_PANEL_H = 300
+local MINI, MINI_GAP = 26, 3    -- wieder eng (09.10.2026): der Rahmen liegt im Platz
 local BIS_LEFT   = { 1, 2, 3, 15, 5, 9 }
 local BIS_RIGHT  = { 10, 6, 7, 8, 11, 12, 13, 14 }
 local BIS_BOTTOM = { 16, 17, 18 }
@@ -350,13 +349,13 @@ function WishlistView:BuildBisDoll(panel)
         self.bisSlots[slotID] = slot
     end
     for i, slotID in ipairs(BIS_LEFT) do
-        miniSlot(slotID, "TOPLEFT", 8, -8 - (i - 1) * (MINI + MINI_GAP), "RIGHT")
+        miniSlot(slotID, "TOPLEFT", 6, -4 - (i - 1) * (MINI + MINI_GAP), "RIGHT")
     end
     for i, slotID in ipairs(BIS_RIGHT) do
-        miniSlot(slotID, "TOPRIGHT", -8, -8 - (i - 1) * (MINI + MINI_GAP), "LEFT")
+        miniSlot(slotID, "TOPRIGHT", -6, -4 - (i - 1) * (MINI + MINI_GAP), "LEFT")
     end
     for i, slotID in ipairs(BIS_BOTTOM) do
-        miniSlot(slotID, "BOTTOM", (i - 2) * (MINI + 34), 18, "BOTTOM")
+        miniSlot(slotID, "BOTTOM", (i - 2) * (MINI + 30), 16, "BOTTOM")
     end
 
     self.bisHint = Theme.Label(content, L.WISH_BIS_HINT, fonts.small, Theme.color.textFaint)
@@ -434,7 +433,7 @@ end
 function WishlistView:ShowBisTooltip(button, slotID)
     local item = button.item
     if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
-        GameTooltip:AddLine(button.gold and button.gold:IsShown() and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
+        GameTooltip:AddLine(button.bisWorn and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
             1, 0.84, 0.35)
     else
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")

@@ -4,7 +4,7 @@
 
 Fixed: the Discord sign-up board fell behind once a group got full. The game's Discord bridge passes on only about 246 characters and cuts the rest; with five names the bot's marker lost its end and the bot read nothing, so the board stayed at an older state while the game was right. The marker now comes first in the line and the whole line stays under the bridge's limit; the bot also reads a marker cut at the end as long as the group in it is complete, and on start it rereads the last lines of the bridge channel to catch what it missed.
 
-A worn Best in Slot item now wears a golden laurel wreath: two branches around the slot, a star on top, a bow with a red gem below, and a soft glow behind — drawn for the addon, on the worn slot only (until the game has been restarted once and knows the new texture, a filigree frame stands in); the BiS tile beside it stays plain and is now larger (32 instead of 26) and fully opaque, with a thin gold edge when a BiS item is set. The slots moved apart to make room, so two gold neighbours no longer overlap.
+Every equipment slot now has a clear coloured frame: grey for poor and common items, green, blue and purple for uncommon, rare and epic, orange for a legendary, and gold when the slot holds your worn Best in Slot item. The frame sits inside the slot, so the slots stay close together. The BiS tile beside each Armory slot is larger (32 instead of 26) and fully opaque and shows the colour of its item; gold belongs to the worn slot only.
 
 ## 0.1.45
 
