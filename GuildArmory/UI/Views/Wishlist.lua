@@ -332,21 +332,40 @@ function WishlistView:BuildBisDoll(panel)
     end
     -- Ist FojjiCore geladen, liest der Knopf dessen aktive Liste direkt;
     -- Einfuegen bleibt als zweiter Weg (andere Liste, anderer Charakter).
+    -- Alle Listen aller Charaktere aus FojjiCore (09.10.2026), die eigenen
+    -- zuerst, die aktive markiert; Einfuegen als letzter Eintrag.
     self.bisFojjiButton = Widgets.Button(panel.header or panel, L.WISH_BIS_FOJJI, function()
         local W = GA.Modules.Wishlist
-        if not W.FojjiApi() then fojjiPaste() return end
-        local name = W.FojjiListName()
-        Widgets.ContextMenu(L.WISH_BIS_FOJJI_TITLE, {
-            { text = name and string.format(L.WISH_BIS_FOJJI_LIVE_NAMED, name) or L.WISH_BIS_FOJJI_LIVE, func = function()
+        local all = W.FojjiAllLists()
+        if #all == 0 and not W.FojjiApi() then fojjiPaste() return end
+        local items = {}
+        for _, e in ipairs(all) do
+            local label = Theme.ColorByClass(e.char, e.class) .. "  ·  " .. e.list
+                .. string.format("  |cff808080(%d)|r", e.count)
+                .. (e.active and ("  |cffffd100" .. L.WISH_BIS_FOJJI_ACTIVE .. "|r") or "")
+            items[#items + 1] = { text = label, func = function()
+                local result, why = W:ImportFojjiList(self:OwnGuid(), e)
+                if not result then
+                    GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
+                    return
+                end
+                fojjiDone(result)
+            end }
+            if #items >= 25 then break end
+        end
+        if #all == 0 then
+            -- FojjiCore geladen, aber keine Listen lesbar: der Weg ueber seinen Export.
+            items[#items + 1] = { text = L.WISH_BIS_FOJJI_LIVE, func = function()
                 local result, why = W:ImportFojjiLive(self:OwnGuid())
                 if not result then
                     GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
                     return
                 end
                 fojjiDone(result)
-            end },
-            { text = L.WISH_BIS_FOJJI_PASTE, func = fojjiPaste },
-        })
+            end }
+        end
+        items[#items + 1] = { text = L.WISH_BIS_FOJJI_PASTE, func = fojjiPaste }
+        Widgets.ContextMenu(L.WISH_BIS_FOJJI_TITLE, items)
     end)
     self.bisFojjiButton:SetTooltip(L.TT_WISH_BIS_FOJJI)
     self.bisFojjiButton:SetHeight(18)

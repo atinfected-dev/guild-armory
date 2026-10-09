@@ -334,6 +334,76 @@ function Wishlist.FojjiListName()
     return ok and type(name) == "string" and name or nil
 end
 
+--- Alle BiS-Listen aus FojjiCore — aller Charaktere, nicht nur der aktiven.
+---
+--- NUR LESEN. FojjiCores eigene Bis.Lists() legt beim Aufruf Listen an und
+--- stellt die aktive um; die wird hier nicht gerufen. Gelesen werden seine
+--- gespeicherten Charaktere (FDJ.db.chars) mit ihren bisLists — oder, bei
+--- aelteren Staenden, der einzelnen bis-Tabelle.
+--- @return table { { charKey, char, class, me, index, list, spec, active, picks, count } }
+function Wishlist.FojjiAllLists()
+    local ns = rawget(_G, "FojjiCoreNS")
+    local dj = type(ns) == "table" and ns.DJ or nil
+    local chars = type(dj) == "table" and type(dj.db) == "table" and dj.db.chars or nil
+    if type(chars) ~= "table" then return {} end
+    local out = {}
+    local function count(picks)
+        local n = 0
+        for key, ids in pairs(picks or {}) do
+            if Wishlist.FOJJI_GROUPS[key] and type(ids) == "table" then n = n + #ids end
+        end
+        return n
+    end
+    for key, data in pairs(chars) do
+        if type(key) == "string" and type(data) == "table" then
+            local name = data.name or string.match(key, "^([^%-]+)") or key
+            local me = key == dj.charKey
+            local lists = type(data.bisLists) == "table" and data.bisLists or nil
+            if not lists and type(data.bis) == "table" then lists = { { name = "BiS", picks = data.bis } } end
+            for index, l in ipairs(lists or {}) do
+                if type(l) == "table" and type(l.picks) == "table" then
+                    local n = count(l.picks)
+                    if n > 0 then
+                        out[#out + 1] = { charKey = key, char = name, class = data.class, me = me, index = index,
+                            list = tostring(l.name or "?"), spec = l.spec, picks = l.picks, count = n,
+                            active = me and tonumber(data.bisActive) == index or nil }
+                    end
+                end
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.me ~= b.me then return a.me end
+        if a.char ~= b.char then return a.char < b.char end
+        return a.index < b.index
+    end)
+    return out
+end
+
+--- Eine gelesene Liste als Exporttext, im Format seines Export-Knopfs.
+function Wishlist.FojjiText(picks, name)
+    local parts = {}
+    local keys = {}
+    for key in pairs(Wishlist.FOJJI_GROUPS) do keys[#keys + 1] = key end
+    table.sort(keys)
+    for _, key in ipairs(keys) do
+        local ids = picks and picks[key]
+        if type(ids) == "table" and #ids > 0 then
+            local list = {}
+            for i, id in ipairs(ids) do list[i] = tostring(tonumber(id) or "") end
+            parts[#parts + 1] = key .. "=" .. table.concat(list, ",")
+        end
+    end
+    if name and name ~= "" then parts[#parts + 1] = "name=" .. (string.gsub(name, "[%s;=]", "_")) end
+    return "FCBIS1:" .. table.concat(parts, ";")
+end
+
+--- Uebernimmt eine Liste aus FojjiAllLists.
+function Wishlist:ImportFojjiList(guid, entry)
+    if type(entry) ~= "table" then return nil, "empty" end
+    return self:ImportFojji(guid, self.FojjiText(entry.picks, entry.list))
+end
+
 --- Liest die aktive FojjiCore-Liste direkt und uebernimmt sie.
 --- @return table|nil ergebnis, string|nil grund ("nofojji" | "fojjierror" | ...)
 function Wishlist:ImportFojjiLive(guid)

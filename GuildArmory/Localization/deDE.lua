@@ -384,6 +384,7 @@ GA.Core.Locale:Register("deDE", {
     WISH_BIS_FOJJI_LIVE       = "Meine aktive FojjiCore-Liste übernehmen",
     WISH_BIS_FOJJI_LIVE_NAMED = "Meine FojjiCore-Liste „%s“ übernehmen",
     WISH_BIS_FOJJI_PASTE      = "Export-Text einfügen…",
+    WISH_BIS_FOJJI_ACTIVE     = "aktiv",
     WISH_BIS_FOJJI_ERR_nofojji = "Der BiS-Manager von FojjiCore ist nicht geladen — füg stattdessen seinen Export-Text ein.",
     WISH_BIS_FOJJI_ERR_fojjierror = "FojjiCore hat seine Liste nicht herausgegeben — füg stattdessen seinen Export-Text ein.",
     WISH_FROM_BIS             = "Aus Best in Slot laden",
