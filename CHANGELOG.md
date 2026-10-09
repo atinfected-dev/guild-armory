@@ -8,6 +8,8 @@ Every equipment slot has a new frame, drawn for the addon: a dark iron rim with 
 
 Buttons and the filter and view bars are forged plates now, drawn for the addon: chamfered corners, a bright bevel and two small rivets, in the colours of the chosen look. The selected chip and the main button of a dialog glow like hot metal; hovering lightens the plate, a disabled button turns dark and quiet. The rank arrows in the roster are the addon's own arrows, and the rank sits in a recessed field between them. The Blizzard look keeps the game's own buttons. The plate is a new texture and appears after the game has been restarted once.
 
+Together: click a shared group quest to post it in the Questhub, straight from the list; if it is already posted, the same click takes it out again. Posting needs the quest in your own quest log, because a Questhub entry carries your objectives; otherwise the menu says so. Posted quests carry a small Questhub mark in the list, and inviting the others who have the quest stays in the same menu.
+
 Best in Slot works differently now. In the Wishlist, the left side has two tabs, My wishlist and Best in Slot. Best in Slot is a list with one row per slot: the item, and whether you wear it (gold), still want it (blue) or have none set. Click a row to set the item from the field above; right-click to remove it or take what you wear. The Armory doll no longer puts a BiS tile beside every slot. Above the figure, a switch chooses what the doll shows: Worn (the default) marks every slot whose BiS item you do not wear yet with a small gold star, and its tooltip names the BiS item; BiS dresses the doll in your BiS items; Both shows the BiS tile beside every slot as before.
 
 ## 0.1.45

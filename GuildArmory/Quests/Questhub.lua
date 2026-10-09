@@ -399,6 +399,15 @@ end
 
 function Questhub:Get(id) return id and self.requests[id] or nil end
 
+--- Mein eigenes Gesuch fuer diese Quest, falls eines steht.
+function Questhub:OwnFor(questID)
+    if not questID then return nil end
+    for _, request in pairs(self.requests) do
+        if request.own and request.questID == questID then return request end
+    end
+    return nil
+end
+
 function Questhub:JoinerCount(request)
     local n = 0
     for _ in pairs(request.joiners or {}) do n = n + 1 end

@@ -138,7 +138,14 @@ function View:Create(parent)
         },
         createRow = function(row) View:BuildQuestRow(row) end,
         updateRow = function(row, entry) View:UpdateQuestRow(row, entry) end,
-        onClickRow = function(entry) View:InviteHolders(entry) end,
+        -- Klick: Menue mit "Im Questhub posten" und "Einladen" (09.10.2026).
+        onClickRow = function(entry) View:QuestMenu(entry) end,
+        onEnterRow = function(row)
+            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+            GameTooltip:SetText(L.TT_TG_QUEST_ROW, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end,
+        onLeaveRow = function() GameTooltip:Hide() end,
     })
     self.questList:SetAllPoints(quests.content)
     self.questsEmpty = Theme.Label(quests.content, L.TG_NO_QUESTS, fonts.body, Theme.color.textDim)
@@ -147,7 +154,7 @@ function View:Create(parent)
     self.questsEmpty:SetJustifyH("CENTER")
     self.questsEmpty:SetSpacing(3)
 
-    for _, name in ipairs({ "TOGETHER_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED" }) do
+    for _, name in ipairs({ "TOGETHER_CHANGED", "GUILD_UPDATED", "EQUIPMENT_UPDATED", "QUESTHUB_CHANGED" }) do
         GA.Core.Callbacks:On(name, function()
             if View.frame and View.frame:IsVisible() then View:Refresh() end
         end, "TogetherView")
@@ -177,7 +184,10 @@ end
 
 function View:UpdateQuestRow(row, entry)
     row.tag:SetText(L["TG_TAG_" .. entry.tag] or entry.tag)
-    row.title:SetText(entry.title or ("#" .. tostring(entry.id)))
+    -- Schon im Questhub? Dann steht es hinter dem Titel.
+    local posted = GA.Modules.Questhub and GA.Modules.Questhub:OwnFor(entry.id)
+    row.title:SetText((entry.title or ("#" .. tostring(entry.id)))
+        .. (posted and ("  |cffd9a441" .. L.TG_QH_MARK .. "|r") or ""))
     row.who:SetText(#entry.holders .. "  ·  " .. table.concat(entry.holders, ", "))
 end
 
@@ -278,16 +288,45 @@ function View:InviteAll(s)
     GA.Modules.Guild:Invite(names)
 end
 
-function View:InviteHolders(entry)
+--- Das Menue einer gemeinsamen Quest (09.10.2026): im Questhub posten
+--- (oder wieder herausnehmen) und die anderen einladen. Posten geht nur
+--- mit einer Quest aus dem EIGENEN Log — ein Gesuch sagt "ich habe sie
+--- und suche Leute", und Ziele und Stand kommen aus diesem Log.
+function View:QuestMenu(entry)
+    local Questhub = GA.Modules.Questhub
+    local items = {}
+
+    local posted = Questhub and Questhub:OwnFor(entry.id)
+    local mine = Questhub and Questhub:MatchOwn(entry.id)
+    if posted then
+        items[#items + 1] = { text = L.TG_QH_WITHDRAW, func = function()
+            Questhub:Withdraw(posted.id)
+            GA.UI.MainFrame:Notice("info", L.QH_WITHDRAWN, tostring(posted.title or entry.title))
+            View:Refresh()
+        end }
+    elseif mine then
+        items[#items + 1] = { text = L.TG_QH_POST, func = function()
+            local request, reason = Questhub:Post(mine.entry)
+            if request then
+                GA.UI.MainFrame:Notice("info", L.QH_POSTED, tostring(request.title))
+            else
+                GA.UI.MainFrame:Notice("warn", "%s", L["QH_ERR_" .. tostring(reason)] or tostring(reason))
+            end
+            View:Refresh()
+        end }
+    else
+        items[#items + 1] = { text = L.TG_QH_NOT_MINE, disabled = true }
+    end
+
     local me = GA.Core.Util.ShortName(GA.Core.Compat.GetPlayerIdentity().name or "")
     local names = {}
     for _, name in ipairs(entry.holders or {}) do
         if name ~= me then names[#names + 1] = name end
     end
-    if #names == 0 then return end
-    Widgets.ContextMenu(entry.title or L.TG_QUESTS, {
-        { text = string.format(L.TG_INVITE_HOLDERS, #names), func = function() GA.Modules.Guild:Invite(names) end },
-    })
+    if #names > 0 then
+        items[#items + 1] = { text = string.format(L.TG_INVITE_HOLDERS, #names), func = function() GA.Modules.Guild:Invite(names) end }
+    end
+    Widgets.ContextMenu(entry.title or L.TG_QUESTS, items)
 end
 
 function View:OnShow() self:Refresh() end
