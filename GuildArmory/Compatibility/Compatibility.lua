@@ -2788,6 +2788,51 @@ end
 --- Zwei Wege, weil GetMaxPlayerLevel die neuere Auskunft ist und
 --- MAX_PLAYER_LEVEL die aeltere Konstante. Geprueft wird das Ergebnis.
 --- @return number|nil
+--- Blizzards Erfahrungsleiste ausblenden (08.10.2026, fuer die eigene
+--- Levelleiste). Zwei Linien: StatusTrackingBarManager (Retail-Motor,
+--- also Forever) und MainMenuExpBar mit Ruf- und Hoechststufenleiste
+--- (aeltere Clients). Was es gibt, wird mit Deckkraft 0 versteckt und per
+--- hooksecurefunc so gehalten — Hide() auf diesen Rahmen stoesst das Spiel
+--- beim naechsten Layout wieder um. Nicht im Kampf: Da bleibt alles, wie
+--- es ist, und der naechste Aufruf holt es nach.
+--- @return boolean etwasGefunden
+local XP_BAR_FRAMES = { "StatusTrackingBarManager", "MainMenuExpBar", "ReputationWatchBar", "MainMenuBarMaxLevelBar", "ExhaustionTick" }
+local function keepBarHidden(frame)
+    if frame.gaHideHooked or not isFunction(_G.hooksecurefunc) then return end
+    frame.gaHideHooked = true
+    local function reapply(self)
+        if self.gaHidden and not self.gaHiding then
+            self.gaHiding = true
+            pcall(self.SetAlpha, self, 0)
+            self.gaHiding = nil
+        end
+    end
+    pcall(hooksecurefunc, frame, "SetAlpha", reapply)
+    pcall(hooksecurefunc, frame, "Show", reapply)
+    pcall(hooksecurefunc, frame, "SetShown", reapply)
+end
+function Compat.SetBlizzardXpBarHidden(hidden)
+    if Compat.InCombat() then return false end
+    local found = false
+    for _, name in ipairs(XP_BAR_FRAMES) do
+        local frame = _G[name]
+        if isTable(frame) and isFunction(frame.SetAlpha) and not (frame.IsForbidden and frame:IsForbidden()) then
+            found = true
+            if hidden then
+                keepBarHidden(frame)
+                frame.gaHidden = true
+                pcall(frame.SetAlpha, frame, 0)
+                if isFunction(frame.EnableMouse) then pcall(frame.EnableMouse, frame, false) end
+            else
+                frame.gaHidden = nil
+                pcall(frame.SetAlpha, frame, 1)
+                if isFunction(frame.EnableMouse) then pcall(frame.EnableMouse, frame, true) end
+            end
+        end
+    end
+    return found
+end
+
 --- Erfahrung: Stand, Bedarf, Erholungsbonus. nil, wenn der Client sie
 --- nicht lesbar hergibt (Secret Values).
 --- @return number|nil xp, number|nil xpMax, number|nil rested

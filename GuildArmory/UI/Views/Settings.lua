@@ -485,6 +485,13 @@ function Settings:Create(parent)
         set = function(on) GA.Core.Config:Set("levelBarVertical", on) GA.UI.LevelBar:Refresh() end })
     self.rowLevelBarLocked = makeRow(onscreen, { label = L.SET_LEVELBAR_LOCKED, hint = L.SET_LEVELBAR_LOCKED_HINT, control = "switch",
         set = function(on) GA.Core.Config:Set("levelBarLocked", on) end })
+    self.rowHideXpBar = makeRow(onscreen, { label = L.SET_HIDE_XPBAR, hint = L.SET_HIDE_XPBAR_HINT, control = "switch",
+        set = function(on)
+            GA.Core.Config:Set("hideBlizzardXpBar", on)
+            local found = GA.Core.Compat.SetBlizzardXpBarHidden(on)
+            if GA.Core.Compat.InCombat() then GA.UI.MainFrame:Notice("warn", L.SET_HIDE_XPBAR_COMBAT)
+            elseif not found then GA.UI.MainFrame:Notice("warn", L.SET_HIDE_XPBAR_NONE) end
+        end })
     makeRow(onscreen, { label = L.SET_LEVELBAR_SCALE, hint = "", build = function(row)
         Settings.levelBarScale = Widgets.Slider(row, 60, 160, 10, function(value)
             GA.Core.Config:Set("levelBarScale", value)
@@ -914,6 +921,7 @@ function Settings:Refresh()
     self.rowLevelBar.switch:SetChecked(Config:Get("levelBarEnabled") ~= false)
     self.rowLevelBarVertical.switch:SetChecked(Config:Get("levelBarVertical") and true or false)
     self.rowLevelBarLocked.switch:SetChecked(Config:Get("levelBarLocked") and true or false)
+    self.rowHideXpBar.switch:SetChecked(Config:Get("hideBlizzardXpBar") and true or false)
     self.levelBarScale:SetQuiet(tonumber(Config:Get("levelBarScale")) or 100)
     local scope = GA.UI.LevelBar.Scope()
     for _, chip in ipairs(self.levelBarScopeChips) do chip:SetPressed(chip.scope == scope) end

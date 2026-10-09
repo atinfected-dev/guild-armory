@@ -265,6 +265,15 @@ function Leveling:OnEnable()
         Leveling.lastXp = Compat.GetXP()
         Leveling.lastMoney = Compat.GetMoney()
         Leveling:Level()
+        -- Blizzards XP-Leiste: aus, wenn so eingestellt. Etwas spaeter, weil
+        -- das Spiel seine Leisten nach dem Betreten erst anordnet.
+        if GA.Core.Config:Get("hideBlizzardXpBar") then
+            Compat.After(1, function() Compat.SetBlizzardXpBarHidden(true) end)
+        end
+    end, "Leveling")
+    -- Nach dem Kampf nachholen, was im Kampf nicht ging.
+    Events:Register("PLAYER_REGEN_ENABLED", function()
+        if GA.Core.Config:Get("hideBlizzardXpBar") then Compat.SetBlizzardXpBarHidden(true) end
     end, "Leveling")
     if GA.UI.LevelBar then GA.UI.LevelBar:OnEnable() end
     Debug:Print("level", "Levelzaehler an")
