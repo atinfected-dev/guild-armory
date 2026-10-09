@@ -551,17 +551,25 @@ function Dungeonhub:DiscordLine(run, kind, who, role)
     end
     if run.discordBot then
         local tag = self:DiscordTag(run, kind, who, role)
-        -- Eine Chatzeile hat hoechstens 255 Bytes. Gekuerzt wird der
-        -- lesbare Teil, nie die Marke: Die liest der Bot.
-        local platz = self.CHAT_MAX - #tag - 1
+        -- DIE MARKE ZUERST, UND UNTER DER GRENZE DER BRUECKE (09.10.2026).
+        -- Gemessen mit einer vollen Gruppe: 254 Zeichen gingen hinaus, die
+        -- Discord-Bruecke des Spiels gab 246 weiter und haengte "..." an —
+        -- das "]" der Marke fehlte, der Bot las nichts, und der Anmelder
+        -- blieb beim Stand davor stehen. Jetzt steht die Marke vorn (wird
+        -- etwas abgeschnitten, dann der lesbare Teil, den der Bot ohnehin
+        -- loescht) und die ganze Zeile bleibt unter DISCORD_MAX.
+        local platz = self.DISCORD_MAX - #tag - 1
         if #text > platz then text = string.sub(text, 1, math.max(platz - 3, 0)) .. "..." end
-        text = text .. " " .. tag
+        text = tag .. " " .. text
     end
     -- Kein | im Text: Der Chat liest es als Steuerzeichen.
     return (string.gsub(text, "|", "/"))
 end
 
 Dungeonhub.CHAT_MAX = 255
+--- Was die Discord-Bruecke des Spiels unversehrt weitergibt: gemessen 246
+--- (09.10.2026), mit Luft darunter.
+Dungeonhub.DISCORD_MAX = 236
 local KIND_LETTER = { new = "n", join = "j", leave = "l", cancel = "x" }
 
 --- Das Feld 7 im DHUB: "0" nicht in Discord, "1" lesbar, "2" mit Marken.
