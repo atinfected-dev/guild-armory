@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.45
+
+In progress.
+
 ## 0.1.44
 
 Race to 60: a leaderboard under Guild — everyone by level and XP percent (sent with the character sync), played time, last level-up, and at the top who reached max level first and the first of each class. Only a level-up this addon watched counts as a first; members who were already at max when tracking began are listed as such, never guessed into an order. Filters: everyone, my class, online; your own place in the header. A guild member's round level or max level now appears as a notification, and the guild's first at max level gets the banner.
