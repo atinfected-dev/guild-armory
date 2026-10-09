@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.47
+
+In progress.
+
 ## 0.1.46
 
 Fixed: the Discord sign-up board fell behind once a group got full. The game's Discord bridge passes on only about 246 characters and cuts the rest; with five names the bot's marker lost its end and the bot read nothing, so the board stayed at an older state while the game was right. The marker now comes first in the line and the whole line stays under the bridge's limit; the bot also reads a marker cut at the end as long as the group in it is complete, and on start it rereads the last lines of the bridge channel to catch what it missed.
