@@ -1,14 +1,18 @@
 # Changelog
 
+## 0.1.46
+
+In progress.
+
 ## 0.1.45
 
-Fixed: adding items to the Best in Slot list could add a point to your item level history although you changed nothing. Adding them makes the game load their item data, which triggered a fresh reading of your gear; when an equipped item had been missing its item level before, the new average landed as a new point. A history point is now a change of equipped items only — a level that arrives later for the same items corrects the last point instead.
+Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. With FojjiCore loaded it lists every BiS list of every character FojjiCore knows — yours first, the active one marked — and takes the one you click, no copying; otherwise, or for another list, paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:), and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
 
 In the Armory your own character has a "BiS from FojjiCore" button beside Talents: the same list of FojjiCore sets, loaded straight into your Best in Slot list, and the doll shows the gold right away.
 
 "Load from Best in Slot" in My wishlist adds every item of your Best in Slot list as a wish with priority Best in Slot — leaving out what you already wear and what is already on the list, which keeps its own priority and note.
 
-Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. With FojjiCore loaded it lists every BiS list of every character FojjiCore knows — yours first, the active one marked — and takes the one you click, no copying; otherwise, or for another list, paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:), and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
+Fixed: adding items to the Best in Slot list could add a point to your item level history although you changed nothing. Adding them makes the game load their item data, which triggered a fresh reading of your gear; when an equipped item had been missing its item level before, the new average landed as a new point. A history point is now a change of equipped items only — a level that arrives later for the same items corrects the last point instead.
 
 ## 0.1.44
 
