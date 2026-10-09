@@ -401,6 +401,8 @@ GA.Core.Locale:Register("deDE", {
     ARMORY_BIS_WORN           = "Best in Slot — getragen",
     ARMORY_BIS_WANTED         = "Best in Slot — noch nicht",
     ARMORY_BIS_NONE           = "Kein Best in Slot für diesen Platz gesetzt (Wunschliste).",
+    ARMORY_BIS_FOJJI          = "BiS aus FojjiCore",
+    TT_ARMORY_BIS_FOJJI       = "Ein BiS-Set aus FojjiCore in deine Best-in-Slot-Liste laden — jede Liste jedes Charakters, den FojjiCore kennt",
     WISH_OTHERS_FOR           = "Wer will noch: %s",
     WISH_INPUT                = "Wowhead-Link, Itemlink, ID oder Name",
     WISH_DROP_HINT            = "Wowhead-Link einfuegen, Itemlink, Item-ID oder Namen tippen.",

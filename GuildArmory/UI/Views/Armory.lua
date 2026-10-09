@@ -156,6 +156,14 @@ function Armory:Create(parent)
     end)
     self.talentButton:SetPoint("TOPRIGHT", self.ilvlLabel, "BOTTOMRIGHT", 2, -6)
 
+    -- BiS-Set aus FojjiCore laden (09.10.2026): nur beim eigenen Charakter.
+    self.fojjiButton = Widgets.Button(doll, L.ARMORY_BIS_FOJJI, function()
+        GA.UI.FojjiBisMenu(Compat.GetPlayerIdentity().guid, function() Armory:RefreshDoll() end)
+    end)
+    self.fojjiButton:SetTooltip(L.TT_ARMORY_BIS_FOJJI)
+    self.fojjiButton:SetPoint("RIGHT", self.talentButton, "LEFT", -6, 0)
+    self.fojjiButton:Hide()
+
     -- "BiS 3 von 12": wie viele der gesetzten Teile getragen werden.
     self.bisStand = Theme.Label(doll, "", fonts.small, Theme.color.goldBright)
     self.bisStand:SetPoint("RIGHT", self.talentButton, "LEFT", -10, 0)
@@ -635,6 +643,10 @@ function Armory:RefreshDoll()
         slot:SetGold(st and st.worn)
     end
     self.bisStand:SetText(bisSet > 0 and string.format(L.ARMORY_BIS, bisWorn, bisSet) or "")
+    -- Der FojjiCore-Knopf nur beim eigenen Charakter; der BiS-Stand rueckt davor.
+    self.fojjiButton:SetShown(own and true or false)
+    self.bisStand:ClearAllPoints()
+    self.bisStand:SetPoint("RIGHT", own and self.fojjiButton or self.talentButton, "LEFT", -10, 0)
 
     -- DAS MODELL, WENN ES EINE EINHEIT GIBT — sonst der Text.
     --

@@ -413,6 +413,8 @@ GA.Core.Locale:Register("enUS", {
     ARMORY_BIS_WORN           = "Best in Slot — worn",
     ARMORY_BIS_WANTED         = "Best in Slot — not yet",
     ARMORY_BIS_NONE           = "No Best in Slot set for this slot (Wishlist).",
+    ARMORY_BIS_FOJJI          = "BiS from FojjiCore",
+    TT_ARMORY_BIS_FOJJI       = "Load a BiS set from FojjiCore into your Best in Slot list — every list of every character FojjiCore knows",
     WISH_OTHERS_FOR           = "Who else wants: %s",
     WISH_INPUT                = "Wowhead link, item link, ID or name",
     WISH_DROP_HINT            = "Paste a Wowhead link or item link, or type an item ID or name.",

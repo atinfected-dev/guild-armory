@@ -317,55 +317,10 @@ function WishlistView:BuildBisDoll(panel)
     -- Import aus FojjiCore (09.10.2026, mit Erlaubnis von Fojji): der
     -- Exporttext seines BiS-Managers. Das Abzeichen ist ein eigenes — ein
     -- kleiner Kreis mit "F" —, keine Grafik aus FojjiCore.
-    local function fojjiDone(result)
-        GA.UI.MainFrame:Notice("info", L.WISH_BIS_FOJJI_DONE, result.set,
-            result.name and (" (" .. result.name .. ")") or "", result.alternatives)
-        self:Refresh()
-    end
-    local function fojjiPaste()
-        Widgets.InputDialog(L.WISH_BIS_FOJJI_TITLE, L.WISH_BIS_FOJJI_HINT, function(text)
-            local result, why = GA.Modules.Wishlist:ImportFojji(self:OwnGuid(), text)
-            if not result then return false, L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why) end
-            fojjiDone(result)
-            return true
-        end)
-    end
-    -- Ist FojjiCore geladen, liest der Knopf dessen aktive Liste direkt;
-    -- Einfuegen bleibt als zweiter Weg (andere Liste, anderer Charakter).
-    -- Alle Listen aller Charaktere aus FojjiCore (09.10.2026), die eigenen
-    -- zuerst, die aktive markiert; Einfuegen als letzter Eintrag.
+    -- Alle Listen aller Charaktere aus FojjiCore; dieselbe Funktion nutzt die
+    -- Armory beim eigenen Charakter (GA.UI.FojjiBisMenu).
     self.bisFojjiButton = Widgets.Button(panel.header or panel, L.WISH_BIS_FOJJI, function()
-        local W = GA.Modules.Wishlist
-        local all = W.FojjiAllLists()
-        if #all == 0 and not W.FojjiApi() then fojjiPaste() return end
-        local items = {}
-        for _, e in ipairs(all) do
-            local label = Theme.ColorByClass(e.char, e.class) .. "  ·  " .. e.list
-                .. string.format("  |cff808080(%d)|r", e.count)
-                .. (e.active and ("  |cffffd100" .. L.WISH_BIS_FOJJI_ACTIVE .. "|r") or "")
-            items[#items + 1] = { text = label, func = function()
-                local result, why = W:ImportFojjiList(self:OwnGuid(), e)
-                if not result then
-                    GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
-                    return
-                end
-                fojjiDone(result)
-            end }
-            if #items >= 25 then break end
-        end
-        if #all == 0 then
-            -- FojjiCore geladen, aber keine Listen lesbar: der Weg ueber seinen Export.
-            items[#items + 1] = { text = L.WISH_BIS_FOJJI_LIVE, func = function()
-                local result, why = W:ImportFojjiLive(self:OwnGuid())
-                if not result then
-                    GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
-                    return
-                end
-                fojjiDone(result)
-            end }
-        end
-        items[#items + 1] = { text = L.WISH_BIS_FOJJI_PASTE, func = fojjiPaste }
-        Widgets.ContextMenu(L.WISH_BIS_FOJJI_TITLE, items)
+        GA.UI.FojjiBisMenu(self:OwnGuid(), function() self:Refresh() end)
     end)
     self.bisFojjiButton:SetTooltip(L.TT_WISH_BIS_FOJJI)
     self.bisFojjiButton:SetHeight(18)
@@ -501,6 +456,52 @@ function WishlistView:RefreshBis()
         end
     end
     self.bisPanel:SetTitle(string.format(L.WISH_BIS_COUNT, worn, set))
+end
+
+--- Das Menue der FojjiCore-Listen: jede Liste jedes Charakters, eigene
+--- zuerst, die aktive markiert; ein Klick uebernimmt sie in die BiS-Liste
+--- von guid. Einfuegen als letzter Eintrag; ohne FojjiCore nur Einfuegen.
+--- @param onDone function|nil  nach einer Uebernahme
+function GA.UI.FojjiBisMenu(guid, onDone)
+    local W = GA.Modules.Wishlist
+    local function done(result)
+        GA.UI.MainFrame:Notice("info", L.WISH_BIS_FOJJI_DONE, result.set,
+            result.name and (" (" .. result.name .. ")") or "", result.alternatives)
+        if onDone then onDone(result) end
+    end
+    local function fail(why)
+        GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
+    end
+    local function paste()
+        Widgets.InputDialog(L.WISH_BIS_FOJJI_TITLE, L.WISH_BIS_FOJJI_HINT, function(text)
+            local result, why = W:ImportFojji(guid, text)
+            if not result then return false, L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why) end
+            done(result)
+            return true
+        end)
+    end
+    local all = W.FojjiAllLists()
+    if #all == 0 and not W.FojjiApi() then paste() return end
+    local items = {}
+    for _, e in ipairs(all) do
+        local label = Theme.ColorByClass(e.char, e.class) .. "  ·  " .. e.list
+            .. string.format("  |cff808080(%d)|r", e.count)
+            .. (e.active and ("  |cffffd100" .. L.WISH_BIS_FOJJI_ACTIVE .. "|r") or "")
+        items[#items + 1] = { text = label, func = function()
+            local result, why = W:ImportFojjiList(guid, e)
+            if result then done(result) else fail(why) end
+        end }
+        if #items >= 25 then break end
+    end
+    if #all == 0 then
+        -- FojjiCore geladen, aber keine Listen lesbar: der Weg ueber seinen Export.
+        items[#items + 1] = { text = L.WISH_BIS_FOJJI_LIVE, func = function()
+            local result, why = W:ImportFojjiLive(guid)
+            if result then done(result) else fail(why) end
+        end }
+    end
+    items[#items + 1] = { text = L.WISH_BIS_FOJJI_PASTE, func = paste }
+    Widgets.ContextMenu(L.WISH_BIS_FOJJI_TITLE, items)
 end
 
 function WishlistView:BuildEntryRow(row)
