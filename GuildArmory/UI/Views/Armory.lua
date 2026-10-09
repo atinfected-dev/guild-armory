@@ -216,6 +216,8 @@ function Armory:Create(parent)
         local label = Theme.Label(slot, Compat.SlotName(slotID), fonts.small, Theme.color.textDim)
         label:SetPoint(anchorPoint, relativeTo or slot, relativePoint, x, y)
         slot.label = label
+        -- Der Umschalter haengt den Namen um: an die Kachel nur bei "Beides".
+        slot.labelSpec = { anchorPoint, relativePoint, x, y, relativeTo }
     end
 
     local function place(slotID, anchorPoint, x, y)
@@ -229,8 +231,8 @@ function Armory:Create(parent)
 
     -- DIE BiS-KACHEL NEBEN DEM PLATZ (08.10.2026, Entwurf A): kleiner als
     -- das Getragene, zwischen Platz und Namen. Leer und blass, wo nichts
-    -- gesetzt ist; gold mit dem Platz zusammen, wenn das Teil getragen wird.
-    -- Hemd und Wappenrock haben keine.
+    -- gesetzt ist. Hemd und Wappenrock haben keine.
+    -- Seit Entwurf B (09.10.2026) nur im Modus "Beides" zu sehen.
     self.twins = {}
     local BIS_OK = {}
     for _, id in ipairs(GA.Modules.Wishlist.BIS_SLOTS) do BIS_OK[id] = true end
@@ -282,6 +284,33 @@ function Armory:Create(parent)
         if t then t:SetParent(weapons) end
     end
 
+    -- DER UMSCHALTER (Entwurf B der BiS-Liste, 09.10.2026): Getragen, BiS
+    -- oder Beides, oben ueber der Figur. "Getragen" zeigt einen Stern, wo ein
+    -- BiS-Teil gesetzt, aber noch nicht getragen ist; "BiS" zeigt die Puppe
+    -- mit den BiS-Teilen; "Beides" stellt die BiS-Kachel neben jeden Platz.
+    -- Gold (das Glimmen) heisst in allen dreien: das BiS-Teil wird getragen.
+    local modes = CreateFrame("Frame", nil, doll)
+    modes:SetHeight(18)
+    modes:SetPoint("TOP", doll, "TOP", 0, columnTop)
+    modes:SetFrameLevel((doll:GetFrameLevel() or 1) + 20)
+    self.modeChips = {}
+    local vorher, breite = nil, 0
+    for _, m in ipairs({ { "worn", L.ARMORY_MODE_WORN }, { "bis", L.ARMORY_MODE_BIS }, { "both", L.ARMORY_MODE_BOTH } }) do
+        local chip = Widgets.Chip(modes, m[2], function()
+            GA.Core.Config:Set("armoryBisMode", m[1])
+            self:RefreshDoll()
+        end)
+        chip:SetHeight(18)
+        if vorher then chip:SetPoint("LEFT", vorher, "RIGHT", 4, 0)
+        else chip:SetPoint("LEFT", modes, "LEFT", 0, 0) end
+        breite = breite + chip:GetWidth() + (vorher and 4 or 0)
+        chip.mode = m[1]
+        self.modeChips[#self.modeChips + 1] = chip
+        vorher = chip
+    end
+    modes:SetWidth(breite)
+    self.modeBar = modes
+
     -- ---------------------------------------------------- Die Mitte ---------
     --
     -- Entwurf A (27.09.2026): Der Charakter steht als MODELL in der Mitte,
@@ -312,7 +341,7 @@ function Armory:Create(parent)
     -- Ob es den Rahmentyp gibt, sagt Compat — nicht diese Datei.
     local model = Compat.CreateDressUpModel(doll)
     if model then
-        model:SetPoint("TOPLEFT", doll, "TOPLEFT", 16 + SLOT_SIZE + 76, columnTop)
+        model:SetPoint("TOPLEFT", doll, "TOPLEFT", 16 + SLOT_SIZE + 76, columnTop - 22)   -- unter dem Umschalter
         model:SetPoint("BOTTOMRIGHT", self.historyTitle, "TOP", 0, 6)
         model:SetPoint("RIGHT", doll, "RIGHT", -(16 + SLOT_SIZE + 76), 0)
         model:Hide()
@@ -445,6 +474,22 @@ end
 
 -- ================================================================== Tooltip ---
 
+--- Welcher Modus der Puppe gilt: "worn" (Standard), "bis" oder "both".
+function Armory.BisMode()
+    local mode = GA.Core.Config:Get("armoryBisMode")
+    if mode == "bis" or mode == "both" then return mode end
+    return "worn"
+end
+
+--- Unter den Tooltip eines Platzes: welches BiS-Teil hier noch fehlt.
+local function bisZeile(button)
+    if not (button.bisMark and button.bisMark:IsShown() and button.bisItemID) then return end
+    local info = Compat.GetItemInfo(button.bisItemID)
+    GameTooltip:AddLine(string.format(L.ARMORY_BIS_SET_LINE, info and info.name or ("#" .. tostring(button.bisItemID))),
+        1, 0.84, 0.35)
+    GameTooltip:Show()
+end
+
 --- Tooltip der BiS-Kachel: der Gegenstand, davor "Best in Slot".
 function Armory:ShowTwinTooltip(button)
     local item = button.item
@@ -461,6 +506,15 @@ end
 
 function Armory:ShowSlotTooltip(button)
     local item = button.item
+
+    -- Im Modus "BiS" zeigt der Platz das BiS-Teil, nicht das Getragene.
+    if button.showsBis then
+        if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
+            GameTooltip:AddLine(button.bisWorn and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED, 1, 0.84, 0.35)
+            GameTooltip:Show()
+        end
+        return
+    end
 
     -- DIE KENNUNG GENUEGT, DER LINK IST DIE KUER.
     --
@@ -483,12 +537,14 @@ function Armory:ShowSlotTooltip(button)
     end
     if ok then
         GameTooltip:Show()
+        bisZeile(button)
         return
     end
 
     -- Sonst der gemeinsame Weg: Er kommt auch ohne Link aus, und bei
     -- fremden Charakteren aus dem Abgleich ist oft nur die ID da.
     GA.UI.Widgets.ShowItemTooltip(button, item.itemID, item.link)
+    bisZeile(button)
 end
 
 -- ================================================================== Refresh ---
@@ -555,7 +611,7 @@ function Armory:RefreshDoll()
         self.modelKey = nil
         self.centerTitle:Show()
         self.centerBody:Show()
-        for _, slot in pairs(self.slots) do slot:SetItem(nil) slot:SetGold(false) end
+        for _, slot in pairs(self.slots) do slot:SetItem(nil) slot:SetGold(false) slot:SetBisMark(false) end
         for _, t in pairs(self.twins) do t:SetItem(nil) t:SetAlpha(TWIN_EMPTY_ALPHA) end
         self.bisStand:SetText("")
         return
@@ -629,23 +685,38 @@ function Armory:RefreshDoll()
     end
 
     -- Slots — und ihre Namen: gedaempft, wo etwas steckt, leise, wo nichts.
+    -- Was ein Platz zeigt, sagt der Umschalter (Entwurf B, 09.10.2026).
+    local mode = Armory.BisMode()
+    for _, chip in ipairs(self.modeChips) do chip:SetPressed(chip.mode == mode) end
     local bisStatus, bisWorn, bisSet = GA.Modules.Wishlist:BisStatus(character.guid)
     for slotID, slot in pairs(self.slots) do
         local item = character.equipment and character.equipment[slotID] or nil
-        slot:SetItem(item)
-        if slot.label then
-            local farbe = item and Theme.color.textDim or Theme.color.textFaint
-            slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
-        end
-        -- Die BiS-Kachel daneben — und beide gold, wenn das Teil getragen wird.
         local st = bisStatus[slotID]
+        local bisItem = st and st.itemID and { itemID = st.itemID } or nil
+        local shown = item
+        if mode == "bis" then shown = bisItem end
+        slot.showsBis = (mode == "bis")
+        slot.bisItemID = st and st.itemID or nil
+        slot:SetItem(shown)
+        if slot.label then
+            local farbe = shown and Theme.color.textDim or Theme.color.textFaint
+            slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
+            local spec = slot.labelSpec
+            if spec then
+                slot.label:ClearAllPoints()
+                slot.label:SetPoint(spec[1], (mode == "both" and spec[5]) or slot, spec[2], spec[3], spec[4])
+            end
+        end
+        -- Die BiS-Kachel daneben, nur bei "Beides".
         local t = self.twins[slotID]
         if t then
-            t:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
-            t:SetAlpha(st and st.itemID and 1 or TWIN_EMPTY_ALPHA)
-            -- Die Kachel traegt die Farbe ihres Gegenstands; Gold nur am grossen Platz.
+            t:SetShown(mode == "both")
+            t:SetItem(bisItem)
+            t:SetAlpha(bisItem and 1 or TWIN_EMPTY_ALPHA)
         end
         slot:SetGold(st and st.worn)
+        -- Der Stern: BiS gesetzt, noch nicht getragen — nur bei "Getragen".
+        slot:SetBisMark(mode == "worn" and st ~= nil and st.itemID ~= nil and not st.worn)
     end
     self.bisStand:SetText(bisSet > 0 and string.format(L.ARMORY_BIS, bisWorn, bisSet) or "")
     -- Der FojjiCore-Knopf nur beim eigenen Charakter; der BiS-Stand rueckt davor.

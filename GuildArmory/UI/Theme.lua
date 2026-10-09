@@ -310,6 +310,10 @@ Theme.MEDIA = {
     velvet    = M .. "Velvet.tga",
     gold      = M .. "Gold.tga",
     corner_filigree = M .. "Corner_Filigree.tga",
+    -- Platzrahmen "Glimmen" (09.10.2026, Entwurf B), erzeugt von
+    -- tools/src/slotglow.py: Schein vom Rand nach innen, Funke fuer BiS.
+    slotglow        = M .. "SlotGlow.tga",
+    slotspark       = M .. "SlotSpark.tga",
     corner_star     = M .. "Corner_Star.tga",
     corner_bracket  = M .. "Corner_Bracket.tga",
     corner_illum    = M .. "Corner_Illum.tga",
@@ -1156,9 +1160,11 @@ local SLOT_BACKGROUNDS = {
 }
 
 --- DER RAHMEN UM JEDEN PLATZ (09.10.2026, Wunsch: "um jeden Kasten grau,
---- gruen, blau, lila und golden fuer BiS, orange fuer ein Legendary"):
---- eine schlichte Farbkante IM Platz, nichts ragt hinaus. Darum stehen die
---- Plaetze wieder eng; Kranz, Filigran und Schein sind weg.
+--- gruen, blau, lila und golden fuer BiS, orange fuer ein Legendary").
+--- Gestaltet als "Glimmen" (Entwurf B, gewaehlt 09.10.2026): ein dunkler
+--- Eisenrahmen fuer alle, darin eine Linie in der Farbe und ein weicher
+--- Schein, der vom Rand ins Symbol glimmt. Getragenes BiS glimmt staerker in
+--- Gold, mit vier Funken. Alles liegt IM Platz, nichts ragt hinaus.
 --- Feste Farben statt der Spielfarben: Grau und Weiss sind beide grau,
 --- und Gold ist allein dem getragenen BiS-Teil vorbehalten.
 Theme.SLOT_FRAME = {
@@ -1173,7 +1179,11 @@ Theme.SLOT_FRAME = {
     [7]   = { 0.55, 0.55, 0.55 },   -- Erbstueck: grau
     bis   = { 1.00, 0.82, 0.00 },   -- getragenes BiS-Teil: gold
 }
-Theme.SLOT_FRAME_WIDTH = 2
+Theme.SLOT_FRAME_WIDTH = 2          -- der Eisenrahmen; die Farblinie liegt innen daran
+Theme.SLOT_IRON      = { 0.16, 0.145, 0.125 }
+Theme.SLOT_IRON_EDGE = { 0.02, 0.016, 0.012 }
+--- Wie stark der Schein ist: grau leise, BiS am staerksten.
+Theme.SLOT_GLOW_ALPHA = { gray = 0.30, color = 0.60, bis = 0.85 }
 
 --- Die Farbe des Rahmens: Gold fuer getragenes BiS, sonst die Qualitaet.
 --- Ein Gegenstand ohne bekannte Qualitaet (noch nicht im Client) ist grau.
@@ -1216,31 +1226,109 @@ function Theme.ItemSlot(parent, slotID, size)
     icon:Hide()
     button.icon = icon
 
-    -- Der Farbrahmen: vier Kanten im Rand des Platzes, ueber dem Symbol
-    -- (das Symbol ist ohnehin 2 Pixel eingerueckt). Eigene Ebene, damit
-    -- er ueber dem Symbol liegt; nimmt keine Maus an.
+    -- DER RAHMEN "GLIMMEN" auf eigener Ebene ueber dem Symbol; nimmt keine
+    -- Maus an. Von aussen nach innen: Eisen (2 px, aussen eine dunkle Kante),
+    -- die Farblinie (1 px), der Schein ins Symbol hinein.
     local rim = CreateFrame("Frame", nil, button)
     rim:SetAllPoints(button)
     rim:SetFrameLevel((button:GetFrameLevel() or 1) + 2)
-    local w = Theme.SLOT_FRAME_WIDTH
-    local edges = {}
-    for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT", "h" }, { "BOTTOMLEFT", "BOTTOMRIGHT", "h" },
-                         { "TOPLEFT", "BOTTOMLEFT", "v" }, { "TOPRIGHT", "BOTTOMRIGHT", "v" } }) do
-        local line = rim:CreateTexture(nil, "OVERLAY")
-        Theme.Paint(line, { 1, 1, 1, 1 })
-        line:SetPoint(e[1], rim, e[1], 0, 0)
-        line:SetPoint(e[2], rim, e[2], 0, 0)
-        if e[3] == "h" then line:SetHeight(w) else line:SetWidth(w) end
-        edges[#edges + 1] = line
+    button.rimFrame = rim
+
+    local function kanten(layer, sub, inset, width, color)
+        local out = {}
+        for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT", "h" }, { "BOTTOMLEFT", "BOTTOMRIGHT", "h" },
+                             { "TOPLEFT", "BOTTOMLEFT", "v" }, { "TOPRIGHT", "BOTTOMRIGHT", "v" } }) do
+            local line = rim:CreateTexture(nil, layer, nil, sub)
+            Theme.Paint(line, color)
+            local x = string.find(e[1], "LEFT") and inset or -inset
+            local y = string.find(e[1], "TOP") and -inset or inset
+            local x2 = string.find(e[2], "LEFT") and inset or -inset
+            local y2 = string.find(e[2], "TOP") and -inset or inset
+            line:SetPoint(e[1], rim, e[1], x, y)
+            line:SetPoint(e[2], rim, e[2], x2, y2)
+            if e[3] == "h" then line:SetHeight(width) else line:SetWidth(width) end
+            out[#out + 1] = line
+        end
+        return out
     end
-    button.rim = edges
+
+    local iron = Theme.SLOT_FRAME_WIDTH
+    kanten("BORDER", 0, 0, iron, Theme.SLOT_IRON)
+    kanten("BORDER", 1, 0, 1, Theme.SLOT_IRON_EDGE)
+    button.rim = kanten("BORDER", 2, iron, 1, { 1, 1, 1, 1 })
+
+    local glowPath = Theme.Media("slotglow")
+    if glowPath then
+        local glow = rim:CreateTexture(nil, "ARTWORK")
+        glow:SetTexture(glowPath)
+        glow:SetPoint("TOPLEFT", rim, "TOPLEFT", iron + 1, -(iron + 1))
+        glow:SetPoint("BOTTOMRIGHT", rim, "BOTTOMRIGHT", -(iron + 1), iron + 1)
+        button.glow = glow
+    end
+
+    -- Vier Funken fuer getragenes BiS, in den Ecken innen. Erst bei Bedarf.
+    function button:Sparks()
+        if self.sparks ~= nil then return self.sparks end
+        local path = Theme.Media("slotspark")
+        if not path or (self:GetWidth() or 0) < 24 then self.sparks = false return false end
+        local n = math.max(8, math.floor((self:GetWidth() or 40) * 0.24 + 0.5))
+        local inset = iron + 3
+        self.sparks = {}
+        for _, p in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
+            local t = rim:CreateTexture(nil, "OVERLAY", nil, 1)
+            t:SetTexture(path)
+            t:SetWidth(n) t:SetHeight(n)
+            t:SetPoint("CENTER", rim, p, string.find(p, "LEFT") and inset or -inset,
+                string.find(p, "TOP") and -inset or inset)
+            t:SetVertexColor(1, 0.94, 0.70, 1)
+            pcall(t.SetBlendMode, t, "ADD")
+            self.sparks[#self.sparks + 1] = t
+        end
+        return self.sparks
+    end
+
     button.quality = nil
     button.bisWorn = false
 
-    --- Faerbt den Rahmen nach dem, was der Platz gerade zeigt.
+    --- Faerbt Linie und Schein nach dem, was der Platz gerade zeigt.
+    --- Leer: nur das Eisen.
     function button:PaintRim()
-        local c = Theme.SlotFrameColor(self.icon:IsShown(), self.quality, self.bisWorn)
-        for _, line in ipairs(self.rim) do line:SetVertexColor(c[1], c[2], c[3], 1) end
+        local has = self.icon:IsShown()
+        local c = Theme.SlotFrameColor(has, self.quality, self.bisWorn)
+        for _, line in ipairs(self.rim) do
+            line:SetVertexColor(c[1], c[2], c[3], 1)
+            line:SetShown(has and true or false)
+        end
+        if self.glow then
+            local a = Theme.SLOT_GLOW_ALPHA
+            local alpha = self.bisWorn and a.bis or ((self.quality or 1) <= 1 and a.gray or a.color)
+            self.glow:SetVertexColor(c[1], c[2], c[3], alpha)
+            self.glow:SetShown(has and true or false)
+        end
+        local sparks = (has and self.bisWorn) and self:Sparks() or self.sparks
+        if sparks then
+            for _, t in ipairs(sparks) do t:SetShown(has and self.bisWorn and true or false) end
+        end
+    end
+
+    --- Der Stern: BiS fuer diesen Platz gesetzt, aber noch nicht getragen
+    --- (Entwurf B der BiS-Liste, 09.10.2026). Oben links, halb ueber der Ecke.
+    function button:SetBisMark(on)
+        if on and not self.bisMark then
+            local mark = rim:CreateTexture(nil, "OVERLAY", nil, 2)
+            local path = Theme.Media("slotspark")
+            local n = math.max(10, math.floor((self:GetWidth() or 40) * 0.36 + 0.5))
+            mark:SetWidth(path and n or 5) mark:SetHeight(path and n or 5)
+            mark:SetPoint("CENTER", rim, "TOPLEFT", 3, -3)
+            if path then
+                mark:SetTexture(path)
+                mark:SetVertexColor(1, 0.82, 0.25, 1)
+            else
+                Theme.Paint(mark, { 1, 0.82, 0.25, 1 })
+            end
+            self.bisMark = mark
+        end
+        if self.bisMark then self.bisMark:SetShown(on and true or false) end
     end
 
     -- Hover-Glanz wie bei Aktionsknoepfen.
@@ -1250,7 +1338,11 @@ function Theme.ItemSlot(parent, slotID, size)
     pcall(highlight.SetBlendMode, highlight, "ADD")
 
     -- Itemlevel unten rechts, klein, mit Schatten fuer Lesbarkeit auf dem Icon.
-    local level = button:CreateFontString(nil, "OVERLAY")
+    -- Eine Ebene UEBER dem Rahmen, damit Schein und Funken die Zahl nicht zudecken.
+    local top = CreateFrame("Frame", nil, button)
+    top:SetAllPoints(button)
+    top:SetFrameLevel((button:GetFrameLevel() or 1) + 3)
+    local level = top:CreateFontString(nil, "OVERLAY")
     level:SetFontObject(fonts.small)
     level:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -3, 3)
     level:SetTextColor(1, 1, 1)
@@ -1258,7 +1350,7 @@ function Theme.ItemSlot(parent, slotID, size)
     button.level = level
 
     --- Gold, wenn das BiS-Teil dieses Platzes getragen wird (08.10.2026).
-    --- Seit 09.10.2026 nur noch die Farbe des Rahmens.
+    --- Seit 09.10.2026: goldene Linie, staerkerer Schein, vier Funken.
     function button:SetGold(on)
         self.bisWorn = on and true or false
         self:PaintRim()

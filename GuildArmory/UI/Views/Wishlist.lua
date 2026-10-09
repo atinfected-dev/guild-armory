@@ -31,11 +31,8 @@ local Util = GA.Core.Util
 local Compat = GA.Core.Compat
 local L = GA.L
 
-local BIS_PANEL_H = 300
-local MINI, MINI_GAP = 26, 3    -- wieder eng (09.10.2026): der Rahmen liegt im Platz
-local BIS_LEFT   = { 1, 2, 3, 15, 5, 9 }
-local BIS_RIGHT  = { 10, 6, 7, 8, 11, 12, 13, 14 }
-local BIS_BOTTOM = { 16, 17, 18 }
+local BIS_ROW_H = 24
+local LEFT_W = 420
 
 WishlistView.titleKey = "NAV_WISHLIST"
 
@@ -108,26 +105,43 @@ function WishlistView:Create(parent)
     difference:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
     difference:SetJustifyH("LEFT")
 
-    -- ------------------------------------------------------ Best in Slot ----
+    -- ------------------------------------------------------ Reiter ----------
     --
-    -- Entwurf A (08.10.2026): eine kleine Puppe wie in der Armory, ein
-    -- Gegenstand je Platz. Gegenstand oben ins Feld, Platz anklicken.
-    -- Rechtsklick: entfernen oder das nehmen, was man traegt.
+    -- ENTWURF B DER BiS-LISTE (gewaehlt 09.10.2026): Die linke Spalte hat
+    -- zwei Reiter, "Meine Wunschliste" und "Best in Slot". Best in Slot ist
+    -- eine Liste je Platz mit Stand (getragen, Wunsch, frei) statt der
+    -- kleinen Puppe — und hat damit die ganze Hoehe.
+    local tabs = CreateFrame("Frame", nil, frame)
+    tabs:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -20)
+    tabs:SetWidth(LEFT_W)
+    tabs:SetHeight(18)
+    self.tabChips = {}
+    local vorher
+    for _, t in ipairs({ { "mine", L.WISH_MINE }, { "bis", L.WISH_BIS } }) do
+        local chip = Widgets.Chip(tabs, t[2], function() self:ShowTab(t[1]) end)
+        chip:SetHeight(18)
+        if vorher then chip:SetPoint("LEFT", vorher, "RIGHT", 4, 0)
+        else chip:SetPoint("LEFT", tabs, "LEFT", 0, 0) end
+        chip.tab = t[1]
+        self.tabChips[#self.tabChips + 1] = chip
+        vorher = chip
+    end
+
     local bis = Widgets.Panel(frame, L.WISH_BIS)
+    bis:SetPoint("TOPLEFT", tabs, "BOTTOMLEFT", 0, -4)
     bis:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
-    bis:SetWidth(420)
-    bis:SetHeight(BIS_PANEL_H)
+    bis:SetWidth(LEFT_W)
     self.bisPanel = bis
-    self:BuildBisDoll(bis)
+    self:BuildBisList(bis)
 
     -- ------------------------------------------------------ Eigene Liste ----
     local mine = Widgets.Panel(frame, L.WISH_MINE)
-    mine:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -20)
-    mine:SetPoint("BOTTOMLEFT", bis, "TOPLEFT", 0, gap)
-    mine:SetWidth(420)
+    mine:SetPoint("TOPLEFT", tabs, "BOTTOMLEFT", 0, -4)
+    mine:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
+    mine:SetWidth(LEFT_W)
     self.minePanel = mine
 
-    -- Aus Best in Slot laden (09.10.2026): die BiS-Liste unten als Wuensche.
+    -- Aus Best in Slot laden (09.10.2026): die BiS-Liste als Wuensche.
     self.fromBisButton = Widgets.Button(mine.header or mine, L.WISH_FROM_BIS, function()
         local added, worn, there = GA.Modules.Wishlist:LoadFromBis(self:OwnGuid())
         if added == 0 and worn == 0 and there == 0 then
@@ -159,7 +173,7 @@ function WishlistView:Create(parent)
 
     -- ------------------------------------------------------ Gildenblick -----
     local others = Widgets.Panel(frame, L.WISH_OTHERS)
-    others:SetPoint("TOPLEFT", mine, "TOPRIGHT", gap, 0)
+    others:SetPoint("TOPLEFT", tabs, "TOPRIGHT", gap, 0)
     others:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
     self.othersPanel = others
 
@@ -245,7 +259,17 @@ function WishlistView:Create(parent)
     self.others:SetAllPoints(others.content)
 
     self.frame = frame
+    self:ShowTab(GA.Core.Config:Get("wishlistTab") == "bis" and "bis" or "mine")
     return frame
+end
+
+--- Welcher Reiter links offen ist; gemerkt fuer das naechste Oeffnen.
+function WishlistView:ShowTab(key)
+    self.tab = key
+    GA.Core.Config:Set("wishlistTab", key)
+    self.minePanel:SetShown(key == "mine")
+    self.bisPanel:SetShown(key == "bis")
+    for _, chip in ipairs(self.tabChips) do chip:SetPressed(chip.tab == key) end
 end
 
 --- Eingabefeld, das Item-Links aus allen drei Wegen annimmt.
@@ -300,11 +324,10 @@ end
 
 -- ================================================================== Zeilen ----
 
---- Die kleine Puppe im BiS-Feld.
-function WishlistView:BuildBisDoll(panel)
+--- Die BiS-Liste: eine Zeile je Platz mit Symbol, Platz, Gegenstand, Stand.
+function WishlistView:BuildBisList(panel)
     local fonts = Theme.Fonts()
     local content = panel.content
-    self.bisSlots = {}
 
     -- "Was ich trage" fuellt jeden leeren Platz mit dem Getragenen.
     self.bisWearButton = Widgets.Button(panel.header or panel, L.WISH_BIS_WEAR_ALL, function()
@@ -333,36 +356,89 @@ function WishlistView:BuildBisDoll(panel)
     local letter = Theme.Label(self.bisFojjiButton, "F", Theme.Fonts().pin or Theme.Fonts().small, { 0.05, 0.10, 0.20 })
     letter:SetPoint("CENTER", badge, "CENTER", 0, 0)
 
-    local function miniSlot(slotID, point, x, y, side)
-        local slot = Theme.ItemSlot(content, slotID, MINI)
-        slot:SetPoint(point, content, point, x, y)
-        slot.level:Hide()
-        slot:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        slot:SetScript("OnClick", function(_, mouse) self:OnBisClick(slotID, mouse) end)
-        slot:SetScript("OnEnter", function(button) self:ShowBisTooltip(button, slotID) end)
-        slot:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        local label = Theme.Label(slot, Compat.SlotName(slotID), fonts.small, Theme.color.textDim)
-        if side == "RIGHT" then label:SetPoint("LEFT", slot, "RIGHT", 6, 0)
-        elseif side == "LEFT" then label:SetPoint("RIGHT", slot, "LEFT", -6, 0) label:SetJustifyH("RIGHT")
-        else label:SetPoint("TOP", slot, "BOTTOM", 0, -2) end
-        slot.label = label
-        self.bisSlots[slotID] = slot
-    end
-    for i, slotID in ipairs(BIS_LEFT) do
-        miniSlot(slotID, "TOPLEFT", 6, -4 - (i - 1) * (MINI + MINI_GAP), "RIGHT")
-    end
-    for i, slotID in ipairs(BIS_RIGHT) do
-        miniSlot(slotID, "TOPRIGHT", -6, -4 - (i - 1) * (MINI + MINI_GAP), "LEFT")
-    end
-    for i, slotID in ipairs(BIS_BOTTOM) do
-        miniSlot(slotID, "BOTTOM", (i - 2) * (MINI + 30), 16, "BOTTOM")
-    end
-
     self.bisHint = Theme.Label(content, L.WISH_BIS_HINT, fonts.small, Theme.color.textFaint)
     self.bisHint:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 6, 2)
-    self.bisHint:SetWidth(120)
+    self.bisHint:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -6, 2)
     self.bisHint:SetJustifyH("LEFT")
-    self.bisHint:SetSpacing(1)
+
+    local holder = CreateFrame("Frame", nil, content)
+    holder:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+    holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 18)
+
+    self.bisList = Widgets.ScrollList(holder, {
+        rowHeight = BIS_ROW_H,
+        createRow = function(row)
+            -- Getragen: goldener Grund und ein Goldstreifen links.
+            row.okBg = row:CreateTexture(nil, "BACKGROUND")
+            row.okBg:SetAllPoints(row)
+            Theme.Paint(row.okBg, { 1, 0.82, 0.25, 0.10 })
+            row.okBar = row:CreateTexture(nil, "BORDER")
+            row.okBar:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+            row.okBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+            row.okBar:SetWidth(3)
+            Theme.Paint(row.okBar, { 1, 0.82, 0.25, 1 })
+
+            row.slot = Theme.ItemSlot(row, nil, BIS_ROW_H - 4)
+            row.slot:SetPoint("LEFT", row, "LEFT", 8, 0)
+            row.slot:EnableMouse(false)
+            row.slot.level:Hide()
+
+            row.place = Theme.Label(row, "", fonts.small, Theme.color.textDim)
+            row.place:SetPoint("LEFT", row.slot, "RIGHT", 8, 0)
+            row.place:SetWidth(84)
+            row.place:SetJustifyH("LEFT")
+
+            row.state = Theme.Label(row, "", fonts.small, Theme.color.textFaint)
+            row.state:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+            row.state:SetJustifyH("RIGHT")
+
+            row.name = Theme.Label(row, "", fonts.body, Theme.color.text)
+            row.name:SetPoint("LEFT", row.place, "RIGHT", 6, 0)
+            row.name:SetPoint("RIGHT", row.state, "LEFT", -8, 0)
+            row.name:SetJustifyH("LEFT")
+            row.name:SetWordWrap(false)
+        end,
+        updateRow = function(row, entry) self:UpdateBisRow(row, entry) end,
+        onClickRow = function(entry, _, mouse) self:OnBisClick(entry.slotID, mouse) end,
+        onEnterRow = function(row, entry) self:ShowBisTooltip(row, entry) end,
+        onLeaveRow = function() GameTooltip:Hide() end,
+    })
+    self.bisList:SetAllPoints(holder)
+end
+
+--- Eine Zeile der BiS-Liste.
+function WishlistView:UpdateBisRow(row, entry)
+    local fonts = Theme.Fonts()
+    row.place:SetText(Compat.SlotName(entry.slotID))
+    row.slot:SetItem(entry.itemID and { itemID = entry.itemID } or nil)
+    row.slot:SetGold(entry.worn)
+    row.okBg:SetShown(entry.worn and true or false)
+    row.okBar:SetShown(entry.worn and true or false)
+
+    local color
+    if entry.itemID then
+        local info = Compat.GetItemInfo(entry.itemID)
+        if not info then Compat.RequestItemData(entry.itemID) end
+        row.name:SetFontObject(fonts.body)
+        row.name:SetText(info and info.name or ("#" .. tostring(entry.itemID)))
+        color = entry.worn and Theme.SLOT_FRAME.bis or Theme.SlotFrameColor(true, info and info.quality, false)
+        row.name:SetTextColor(color[1], color[2], color[3])
+    else
+        row.name:SetText("—")
+        row.name:SetTextColor(Theme.color.textFaint[1], Theme.color.textFaint[2], Theme.color.textFaint[3])
+    end
+
+    if entry.worn then
+        row.state:SetText(L.WISH_BIS_STATE_WORN)
+        color = Theme.SLOT_FRAME.bis
+    elseif entry.itemID then
+        row.state:SetText(L.WISH_BIS_STATE_WANTED)
+        color = Theme.color.info
+    else
+        row.state:SetText(L.WISH_BIS_STATE_FREE)
+        color = Theme.color.textFaint
+    end
+    row.state:SetTextColor(color[1], color[2], color[3])
 end
 
 --- Passt der Gegenstand auf den Platz? Nur, wenn der Client seine Art kennt;
@@ -430,31 +506,26 @@ function WishlistView:BisTakeWorn(onlySlot)
     self:Refresh()
 end
 
-function WishlistView:ShowBisTooltip(button, slotID)
-    local item = button.item
-    if item and item.itemID and Widgets.ShowItemTooltip(button, item.itemID) then
-        GameTooltip:AddLine(button.bisWorn and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED,
-            1, 0.84, 0.35)
+function WishlistView:ShowBisTooltip(row, entry)
+    if entry.itemID and Widgets.ShowItemTooltip(row, entry.itemID) then
+        GameTooltip:AddLine(entry.worn and L.ARMORY_BIS_WORN or L.ARMORY_BIS_WANTED, 1, 0.84, 0.35)
     else
-        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText(Compat.SlotName(slotID))
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+        GameTooltip:SetText(Compat.SlotName(entry.slotID))
         GameTooltip:AddLine(L.WISH_BIS_HINT, 0.7, 0.7, 0.7, true)
     end
     GameTooltip:Show()
 end
 
 function WishlistView:RefreshBis()
-    local guid = self:OwnGuid()
-    local status, worn, set = GA.Modules.Wishlist:BisStatus(guid)
-    for slotID, slot in pairs(self.bisSlots) do
-        local st = status[slotID]
-        slot:SetItem(st and st.itemID and { itemID = st.itemID } or nil)
-        slot:SetGold(st and st.worn)
-        if slot.label then
-            local farbe = (st and st.itemID) and Theme.color.textDim or Theme.color.textFaint
-            slot.label:SetTextColor(farbe[1], farbe[2], farbe[3])
-        end
+    local Wishlist = GA.Modules.Wishlist
+    local status, worn, set = Wishlist:BisStatus(self:OwnGuid())
+    local data = {}
+    for _, slotID in ipairs(Wishlist.BIS_SLOTS) do
+        local st = status[slotID] or {}
+        data[#data + 1] = { slotID = slotID, itemID = st.itemID, worn = st.worn and true or false }
     end
+    self.bisList:SetData(data)
     self.bisPanel:SetTitle(string.format(L.WISH_BIS_COUNT, worn, set))
 end
 
