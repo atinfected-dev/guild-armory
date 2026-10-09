@@ -152,6 +152,30 @@ function Wishlist:Find(guid, itemID)
     return nil
 end
 
+--- Uebernimmt die BiS-Liste als Wuensche mit Prioritaet "Best in Slot"
+--- (09.10.2026). Was schon getragen wird oder schon auf der Liste steht,
+--- bleibt aussen vor — ein Wunsch, der schon da ist, behaelt seine
+--- Prioritaet und seine Notiz.
+--- @return number aufgenommen, number getragen, number schonDa
+function Wishlist:LoadFromBis(guid)
+    if not guid then return 0, 0, 0 end
+    local added, worn, there = 0, 0, 0
+    local status = self:BisStatus(guid)
+    for _, slotID in ipairs(self.BIS_SLOTS) do
+        local st = status[slotID]
+        if st and st.itemID then
+            if st.worn then
+                worn = worn + 1
+            elseif self:Find(guid, st.itemID) then
+                there = there + 1
+            elseif self:Add(guid, st.itemID, "BIS") then
+                added = added + 1
+            end
+        end
+    end
+    return added, worn, there
+end
+
 -- ================================================================== Abfragen --
 
 --- Wunschliste eines Charakters, nach Gewicht und Alter sortiert.

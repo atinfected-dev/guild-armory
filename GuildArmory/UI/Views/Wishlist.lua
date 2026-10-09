@@ -127,6 +127,20 @@ function WishlistView:Create(parent)
     mine:SetWidth(420)
     self.minePanel = mine
 
+    -- Aus Best in Slot laden (09.10.2026): die BiS-Liste unten als Wuensche.
+    self.fromBisButton = Widgets.Button(mine.header or mine, L.WISH_FROM_BIS, function()
+        local added, worn, there = GA.Modules.Wishlist:LoadFromBis(self:OwnGuid())
+        if added == 0 and worn == 0 and there == 0 then
+            GA.UI.MainFrame:Notice("warn", L.WISH_FROM_BIS_EMPTY)
+        else
+            GA.UI.MainFrame:Notice("info", L.WISH_FROM_BIS_DONE, added, worn, there)
+        end
+        self:Refresh()
+    end)
+    self.fromBisButton:SetTooltip(L.TT_WISH_FROM_BIS)
+    self.fromBisButton:SetHeight(18)
+    self.fromBisButton:SetPoint("RIGHT", mine.header or mine, "RIGHT", -4, 0)
+
     self.mine = Widgets.ScrollList(mine.content, {
         emptyText = L.WISH_MINE_EMPTY,
         rowHeight = 26,
