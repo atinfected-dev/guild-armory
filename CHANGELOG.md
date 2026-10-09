@@ -6,7 +6,7 @@ In progress.
 
 ## 0.1.45
 
-Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. With FojjiCore loaded it lists every BiS list of every character FojjiCore knows — yours first, the active one marked — and takes the one you click, no copying; otherwise, or for another list, paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:), and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
+Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. With FojjiCore loaded it lists every BiS list of every character FojjiCore knows — yours first, the active one marked — and takes the one you click, no copying; otherwise, or for another list, paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:), and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken. Permission from Fojji, given in writing on Discord on 2026-10-09 at 15:36.
 
 In the Armory your own character has a "BiS from FojjiCore" button beside Talents: the same list of FojjiCore sets, loaded straight into your Best in Slot list, and the doll shows the gold right away.
 
