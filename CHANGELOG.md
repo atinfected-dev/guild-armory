@@ -2,7 +2,7 @@
 
 ## 0.1.45
 
-In progress.
+Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. Paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:) and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken. With Fojji's written permission; only the export text is read, nothing from FojjiCore is included.
 
 ## 0.1.44
 

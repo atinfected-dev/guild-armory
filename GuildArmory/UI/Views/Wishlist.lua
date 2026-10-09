@@ -300,6 +300,30 @@ function WishlistView:BuildBisDoll(panel)
     self.bisWearButton:SetHeight(18)
     self.bisWearButton:SetPoint("RIGHT", panel.header or panel, "RIGHT", -4, 0)
 
+    -- Import aus FojjiCore (09.10.2026, mit Erlaubnis von Fojji): der
+    -- Exporttext seines BiS-Managers. Das Abzeichen ist ein eigenes — ein
+    -- kleiner Kreis mit "F" —, keine Grafik aus FojjiCore.
+    self.bisFojjiButton = Widgets.Button(panel.header or panel, L.WISH_BIS_FOJJI, function()
+        Widgets.InputDialog(L.WISH_BIS_FOJJI_TITLE, L.WISH_BIS_FOJJI_HINT, function(text)
+            local result, why = GA.Modules.Wishlist:ImportFojji(self:OwnGuid(), text)
+            if not result then return false, L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why) end
+            GA.UI.MainFrame:Notice("info", L.WISH_BIS_FOJJI_DONE, result.set,
+                result.name and (" (" .. result.name .. ")") or "", result.alternatives)
+            self:Refresh()
+            return true
+        end)
+    end)
+    self.bisFojjiButton:SetTooltip(L.TT_WISH_BIS_FOJJI)
+    self.bisFojjiButton:SetHeight(18)
+    self.bisFojjiButton:SetPoint("RIGHT", self.bisWearButton, "LEFT", -6, 0)
+    local badge = self.bisFojjiButton:CreateTexture(nil, "OVERLAY")
+    badge:SetSize(14, 14)
+    badge:SetPoint("RIGHT", self.bisFojjiButton, "LEFT", -3, 0)
+    if Theme.RoundTexture() then badge:SetTexture(Theme.RoundTexture()) end
+    badge:SetVertexColor(0.40, 0.70, 1.00)
+    local letter = Theme.Label(self.bisFojjiButton, "F", Theme.Fonts().pin or Theme.Fonts().small, { 0.05, 0.10, 0.20 })
+    letter:SetPoint("CENTER", badge, "CENTER", 0, 0)
+
     local function miniSlot(slotID, point, x, y, side)
         local slot = Theme.ItemSlot(content, slotID, MINI)
         slot:SetPoint(point, content, point, x, y)

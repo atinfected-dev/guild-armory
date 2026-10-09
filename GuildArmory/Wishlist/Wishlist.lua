@@ -223,6 +223,70 @@ function Wishlist:SetBis(guid, slotID, itemID, quiet)
 end
 
 --- Die ganze Liste ersetzen — fuer den Abgleich (der Absender ist massgeblich).
+-- ============================================================ FojjiCore ----
+--
+-- IMPORT AUS FOJJICORE (09.10.2026). Fojji hat schriftlich erlaubt, den
+-- Export seines BiS-Managers bei uns als Import anzubieten (Discord, 09.10.).
+-- Gelesen wird NUR das Textformat, das sein Addon jedem Spieler zum Kopieren
+-- gibt; kein Code und keine Grafik von FojjiCore sind hier enthalten —
+-- seine Lizenz ("All rights reserved") erlaubt das nicht, und die Erlaubnis
+-- gilt dem Import.
+--
+--   FCBIS1:head=ID,ID;neck=ID;…;rings=ID,ID,ID;trinkets=ID,ID;name=Liste_Name
+--
+-- Je Gruppe eine Rangliste: die erste ID ist das BiS-Teil, die weiteren
+-- sind Alternativen. Ringe, Schmuck: die ersten zwei verschiedenen IDs
+-- fuellen beide Plaetze. Der Wappenrock zaehlt bei uns nicht.
+Wishlist.FOJJI_GROUPS = {
+    head = { 1 }, neck = { 2 }, shoulder = { 3 }, back = { 15 }, chest = { 5 },
+    wrist = { 9 }, hands = { 10 }, waist = { 6 }, legs = { 7 }, feet = { 8 },
+    rings = { 11, 12 }, trinkets = { 13, 14 },
+    mainhand = { 16 }, offhand = { 17 }, ranged = { 18 },
+}
+
+--- Liest einen FojjiCore-Export.
+--- @return table|nil { slots = { [slotID] = itemID }, alternatives = n, name = text|nil }, string|nil grund
+function Wishlist.ParseFojji(text)
+    text = string.gsub(tostring(text or ""), "%s", "")
+    local body = string.match(text, "FCBIS1:([^%s]*)")
+    if not body then return nil, "format" end
+    local out = { slots = {}, alternatives = 0 }
+    local name = string.match(body, "name=([^;]+)")
+    if name then out.name = (string.gsub(name, "_", " ")) end
+    for key, ids in string.gmatch(body, "(%a+)=([%d,]+)") do
+        local slots = Wishlist.FOJJI_GROUPS[key]
+        if slots then
+            local list, seen = {}, {}
+            for id in string.gmatch(ids, "%d+") do
+                id = tonumber(id)
+                if id and id > 0 and not seen[id] then seen[id] = true list[#list + 1] = id end
+            end
+            for index, slotID in ipairs(slots) do
+                if list[index] then out.slots[slotID] = list[index] end
+            end
+            out.alternatives = out.alternatives + math.max(0, #list - #slots)
+        end
+    end
+    if not next(out.slots) then return nil, "empty" end
+    return out
+end
+
+--- Uebernimmt einen FojjiCore-Export in die eigene BiS-Liste: Die Plaetze
+--- aus dem Export werden gesetzt, die anderen bleiben, wie sie sind.
+--- @return table|nil ergebnis { set, alternatives, name }, string|nil grund
+function Wishlist:ImportFojji(guid, text)
+    if not guid then return nil, "nocharacter" end
+    local parsed, why = self.ParseFojji(text)
+    if not parsed then return nil, why end
+    local set = 0
+    for slotID, itemID in pairs(parsed.slots) do
+        if self:SetBis(guid, slotID, itemID, true) then set = set + 1 end
+    end
+    GA.Core.Database:Journal("WISH_BIS_IMPORT", guid, "fojji", set)
+    GA.Core.Callbacks:Fire("WISHLIST_CHANGED", guid)
+    return { set = set, alternatives = parsed.alternatives, name = parsed.name }
+end
+
 function Wishlist:ReplaceBis(guid, slots)
     if not guid then return false end
     bisStore()[guid] = {}
