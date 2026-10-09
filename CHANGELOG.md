@@ -6,7 +6,7 @@ Fixed: adding items to the Best in Slot list could add a point to your item leve
 
 "Load from Best in Slot" in My wishlist adds every item of your Best in Slot list as a wish with priority Best in Slot — leaving out what you already wear and what is already on the list, which keeps its own priority and note.
 
-Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. Paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:) and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
+Import from FojjiCore: the Best in Slot doll in the Wishlist has a "FojjiCore" button. With FojjiCore loaded it takes your active FojjiCore list directly, no copying; otherwise, or for another list, paste the text that FojjiCore's BiS Manager exports (it starts with FCBIS1:), and the first item of each slot becomes your BiS — rings and trinkets fill both slots, slots missing from the export stay as they were, alternatives are counted but not taken.
 
 ## 0.1.44
 

@@ -311,6 +311,39 @@ function Wishlist:ImportFojji(guid, text)
     return { set = set, alternatives = parsed.alternatives, name = parsed.name }
 end
 
+--- DIREKT AUS FOJJICORE (09.10.2026): Ist FojjiCore mit seinem BiS-Manager
+--- geladen, fragt dieses Addon ihn zur Laufzeit nach dem Export der aktiven
+--- Liste des eingeloggten Charakters — ueber seine eigene Funktion
+--- Bis.Export(), dieselbe, die sein Export-Knopf benutzt. Nichts wird
+--- kopiert; ohne FojjiCore gibt es diesen Weg nicht, dann bleibt das
+--- Einfuegen des Textes.
+--- @return table|nil fojjiBis
+function Wishlist.FojjiApi()
+    local ns = rawget(_G, "FojjiCoreNS")
+    local dj = type(ns) == "table" and ns.DJ or nil
+    local bis = type(dj) == "table" and dj.Bis or nil
+    if type(bis) == "table" and type(bis.Export) == "function" then return bis end
+    return nil
+end
+
+--- Der Name der aktiven FojjiCore-Liste, fuer die Anzeige; nil ohne FojjiCore.
+function Wishlist.FojjiListName()
+    local bis = Wishlist.FojjiApi()
+    if not bis or type(bis.ActiveName) ~= "function" then return nil end
+    local ok, name = pcall(bis.ActiveName)
+    return ok and type(name) == "string" and name or nil
+end
+
+--- Liest die aktive FojjiCore-Liste direkt und uebernimmt sie.
+--- @return table|nil ergebnis, string|nil grund ("nofojji" | "fojjierror" | ...)
+function Wishlist:ImportFojjiLive(guid)
+    local bis = self.FojjiApi()
+    if not bis then return nil, "nofojji" end
+    local ok, text = pcall(bis.Export)
+    if not ok or type(text) ~= "string" then return nil, "fojjierror" end
+    return self:ImportFojji(guid, text)
+end
+
 function Wishlist:ReplaceBis(guid, slots)
     if not guid then return false end
     bisStore()[guid] = {}

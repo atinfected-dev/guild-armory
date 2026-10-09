@@ -317,15 +317,36 @@ function WishlistView:BuildBisDoll(panel)
     -- Import aus FojjiCore (09.10.2026, mit Erlaubnis von Fojji): der
     -- Exporttext seines BiS-Managers. Das Abzeichen ist ein eigenes — ein
     -- kleiner Kreis mit "F" —, keine Grafik aus FojjiCore.
-    self.bisFojjiButton = Widgets.Button(panel.header or panel, L.WISH_BIS_FOJJI, function()
+    local function fojjiDone(result)
+        GA.UI.MainFrame:Notice("info", L.WISH_BIS_FOJJI_DONE, result.set,
+            result.name and (" (" .. result.name .. ")") or "", result.alternatives)
+        self:Refresh()
+    end
+    local function fojjiPaste()
         Widgets.InputDialog(L.WISH_BIS_FOJJI_TITLE, L.WISH_BIS_FOJJI_HINT, function(text)
             local result, why = GA.Modules.Wishlist:ImportFojji(self:OwnGuid(), text)
             if not result then return false, L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why) end
-            GA.UI.MainFrame:Notice("info", L.WISH_BIS_FOJJI_DONE, result.set,
-                result.name and (" (" .. result.name .. ")") or "", result.alternatives)
-            self:Refresh()
+            fojjiDone(result)
             return true
         end)
+    end
+    -- Ist FojjiCore geladen, liest der Knopf dessen aktive Liste direkt;
+    -- Einfuegen bleibt als zweiter Weg (andere Liste, anderer Charakter).
+    self.bisFojjiButton = Widgets.Button(panel.header or panel, L.WISH_BIS_FOJJI, function()
+        local W = GA.Modules.Wishlist
+        if not W.FojjiApi() then fojjiPaste() return end
+        local name = W.FojjiListName()
+        Widgets.ContextMenu(L.WISH_BIS_FOJJI_TITLE, {
+            { text = name and string.format(L.WISH_BIS_FOJJI_LIVE_NAMED, name) or L.WISH_BIS_FOJJI_LIVE, func = function()
+                local result, why = W:ImportFojjiLive(self:OwnGuid())
+                if not result then
+                    GA.UI.MainFrame:Notice("warn", L["WISH_BIS_FOJJI_ERR_" .. tostring(why)] or tostring(why))
+                    return
+                end
+                fojjiDone(result)
+            end },
+            { text = L.WISH_BIS_FOJJI_PASTE, func = fojjiPaste },
+        })
     end)
     self.bisFojjiButton:SetTooltip(L.TT_WISH_BIS_FOJJI)
     self.bisFojjiButton:SetHeight(18)
