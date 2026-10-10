@@ -391,7 +391,7 @@ Schema.ACCOUNT_DEFAULTS = {
     language = "enUS",
 
     ui = {
-        main = { point = "CENTER", x = 0, y = 0, width = 1000, height = 640,
+        main = { point = "CENTER", x = 0, y = 0, width = 1000, height = 700,
                  scale = 1.0, lastView = "dashboard" },
         -- Minimap-Knopf: Position als WINKEL, nicht als x/y — sonst wandert er,
         -- sobald jemand die Minimapgroesse aendert.

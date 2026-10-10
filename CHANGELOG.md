@@ -6,6 +6,8 @@ Fixed: with the guild chat open and the window short, the roster's member list l
 
 Fixed: resizing the window was slow and choppy, because every pixel of the drag rebuilt the whole page. Lists still adjust their rows while you drag; the page itself is rebuilt once, when the window stops changing size.
 
+The window can no longer be dragged smaller than 900 × 690. Below that, the Armory's equipment columns ran past the bottom of the window and the figure, the Worn/BiS/Both switch and the item level history lay on top of each other. A window saved at a smaller size opens at the minimum, new windows start at 1000 × 700, and on a screen too small for the minimum the window still fits the screen.
+
 The achievements speak English now. All 272 names and descriptions were German only, whatever language the addon was set to; they now follow the language setting like the rest of the addon, in English and in German, and switch along when you change it. Needs one restart of the game, as the translations come in a new file.
 
 ## 0.1.46

@@ -185,8 +185,9 @@ function MainFrame:Create()
 
     frame:SetResizable(true)
     local maxW, maxH = self:MaxSize(saved.scale or 1)
-    if not pcall(frame.SetResizeBounds, frame, math.min(860, maxW), math.min(540, maxH), maxW, maxH) then
-        pcall(frame.SetMinResize, frame, math.min(860, maxW), math.min(540, maxH))
+    local minW, minH = math.min(MainFrame.MIN_W, maxW), math.min(MainFrame.MIN_H, maxH)
+    if not pcall(frame.SetResizeBounds, frame, minW, minH, maxW, maxH) then
+        pcall(frame.SetMinResize, frame, minW, minH)
         pcall(frame.SetMaxResize, frame, maxW, maxH)
     end
 
@@ -873,6 +874,20 @@ function MainFrame:Toggle()
     if self:IsVisible() then self:Hide() else self:Show() end
 end
 
+--- KLEINSTE FENSTERGROESSE (10.10.2026, mit zwei Bildern: "nicht kleiner
+--- ziehen als so, damit nichts overlapped"). Gemessen an der Armory, der
+--- engsten Ansicht: Hoehe = 162 Kopf bis Puppe + 92 bis zu den Plaetzen +
+--- 8 Plaetze zu 42 mit 6 Abstand (378) + 13 Rand + 42 bis zum Fensterboden
+--- = 687; Breite = Charakterliste 300 + Puppe (zwei Spalten mit Namen je
+--- 130, Verlauf 300 in der Mitte) + Raender = 900. Vorher 860 x 540: Da
+--- lagen Figur, Umschalter und Verlauf uebereinander, und die Spalten
+--- liefen ueber den Fensterrand.
+MainFrame.MIN_W = 900
+MainFrame.MIN_H = 690
+--- Grundgroesse fuer neue Fenster und /ga resetwindow — ueber dem Minimum.
+MainFrame.DEFAULT_W = 1000
+MainFrame.DEFAULT_H = 700
+
 function MainFrame:SavePosition()
     if not self.frame then return end
     local saved = Config:GetUI("main")
@@ -901,9 +916,13 @@ function MainFrame:FitToScreen(saved)
     local scale = math.max(0.6, math.min(1.4, tonumber(saved.scale) or 1))
     if scale ~= saved.scale then saved.scale = scale changed = true end
     local maxW, maxH = self:MaxSize(scale)
-    local w, h = tonumber(saved.width) or 1000, tonumber(saved.height) or 640
-    if w > maxW or w < 200 then saved.width = math.min(1000, maxW) changed = true end
-    if h > maxH or h < 200 then saved.height = math.min(640, maxH) changed = true end
+    local w, h = tonumber(saved.width) or self.DEFAULT_W, tonumber(saved.height) or self.DEFAULT_H
+    if w > maxW or w < 200 then saved.width = math.min(self.DEFAULT_W, maxW) changed = true end
+    if h > maxH or h < 200 then saved.height = math.min(self.DEFAULT_H, maxH) changed = true end
+    -- Kleiner als das Minimum (gespeichert, als es noch 860 x 540 war):
+    -- auf das Minimum heben, ohne das Fenster zu verschieben.
+    if (tonumber(saved.width) or 0) < math.min(self.MIN_W, maxW) then saved.width = math.min(self.MIN_W, maxW) end
+    if (tonumber(saved.height) or 0) < math.min(self.MIN_H, maxH) then saved.height = math.min(self.MIN_H, maxH) end
     if changed then saved.point, saved.x, saved.y = "CENTER", 0, 0 end
     return changed
 end
@@ -911,7 +930,7 @@ end
 --- Groesse, Position und Skalierung auf die Grundwerte.
 function MainFrame:ResetWindow()
     local saved = Config:GetUI("main")
-    saved.width, saved.height, saved.scale = 1000, 640, 1.0
+    saved.width, saved.height, saved.scale = self.DEFAULT_W, self.DEFAULT_H, 1.0
     saved.point, saved.x, saved.y = "CENTER", 0, 0
     self:FitToScreen(saved)
     if self.frame then
