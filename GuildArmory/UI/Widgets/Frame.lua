@@ -566,6 +566,8 @@ function Widgets.ContextMenu(title, items, titleColor)
         menu = m
     end
 
+    -- Jedes Oeffnen zaehlt: Oeffnet eine Aktion ein neues Menue, bleibt es offen.
+    menu.seq = (menu.seq or 0) + 1
     menu.title:SetText(title or "")
     local tc = titleColor or Theme.color.heading
     menu.title:SetTextColor(tc[1], tc[2], tc[3])
@@ -601,8 +603,14 @@ function Widgets.ContextMenu(title, items, titleColor)
                 self.label:SetTextColor(Theme.color.bad[1], Theme.color.bad[2], Theme.color.bad[3])
                 return
             end
-            menu.catcher:Hide()
+            -- ERST DIE AKTION, DANN ZU (11.10.2026, Fehlerbericht): Wurde das
+            -- Menue vorher versteckt, liess das Spiel die Discord-Zeile des
+            -- Dungeonhubs nicht hinaus (ADDON_ACTION_BLOCKED) — dieselbe Zeile
+            -- aus einem Knopf ging. Die Aktion laeuft so noch im Klick auf
+            -- einen sichtbaren Knopf.
+            local seq = menu.seq
             if item.func then item.func() end
+            if menu.seq == seq then menu.catcher:Hide() end
         end)
         Theme.Paint(b.hl, { 0, 0, 0, 0 })
         b:Show()

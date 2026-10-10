@@ -749,7 +749,7 @@ function Dungeonhub:AnnounceDiscord(run, kind, who, role)
         -- GESPERRT (11.10.2026): Bosskampf oder gesperrte Instanz. Die Zeile
         -- wartet und geht hinaus, sobald die Sperre endet. Je Lauf nur die
         -- juengste: Jede Zeile traegt den ganzen Stand der Besetzung.
-        if why == "locked" or why == "blocked" then self:HoldDiscord(run, line) end
+        if why == "locked" or why == "blocked" then self:HoldDiscord(run, line, why) end
         return false
     end
     self.pendingDiscord[run.id] = nil
@@ -762,13 +762,41 @@ Dungeonhub.pendingDiscord = {}
 --- So lange wird es weiter versucht; danach ist die Zeile ueberholt.
 Dungeonhub.DISCORD_HOLD_SECONDS = 30 * 60
 
-function Dungeonhub:HoldDiscord(run, line)
+--- @param why string "locked" (Bosskampf/Instanz: geht nach dem Ende von
+--- selbst) | "blocked" (das Spiel hat die Zeile blockiert: geht nur mit
+--- einem Klick auf "An Discord senden" — ein Versuch ohne Spielereingabe
+--- wuerde wieder blockiert und zeigte wieder einen Fehler)
+function Dungeonhub:HoldDiscord(run, line, why)
     local erste = next(self.pendingDiscord) == nil
-    self.pendingDiscord[run.id] = { line = line, ts = Util.Now() }
-    if erste and GA.UI and GA.UI.MainFrame and GA.UI.MainFrame.Notice then
-        GA.UI.MainFrame:Notice("info", "%s", L.DH_DISCORD_HELD)
+    self.pendingDiscord[run.id] = { line = line, ts = Util.Now(), why = why or "locked" }
+    if GA.UI and GA.UI.MainFrame and GA.UI.MainFrame.Notice and (erste or why == "blocked") then
+        GA.UI.MainFrame:Notice("info", "%s", why == "blocked" and L.DH_DISCORD_CLICK or L.DH_DISCORD_HELD)
     end
-    self:ScheduleDiscordFlush()
+    if why ~= "blocked" then self:ScheduleDiscordFlush() end
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "held", run)
+end
+
+--- Wartet fuer diesen Lauf eine Zeile auf den Knopf?
+function Dungeonhub:DiscordWaiting(id)
+    return self.pendingDiscord[id] ~= nil
+end
+
+--- Der Knopf "An Discord senden": die wartende Zeile, jetzt, im Klick.
+--- @return boolean gesendet
+function Dungeonhub:SendHeldDiscord(id)
+    local held = self.pendingDiscord[id]
+    local run = self.runs[id]
+    if not held or not run then return false end
+    if Compat.ClearChatBlock then Compat.ClearChatBlock() end
+    local ok, why = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
+    if ok then
+        self.pendingDiscord[id] = nil
+        run.discordSent = Util.Now()
+    else
+        held.why = why or held.why
+    end
+    GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "held", run)
+    return ok and true or false, why
 end
 
 function Dungeonhub:ScheduleDiscordFlush(seconds)
@@ -791,15 +819,24 @@ function Dungeonhub:FlushDiscord()
             self.pendingDiscord[id] = nil
         end
     end
-    local id, held = next(self.pendingDiscord)
+    local id, held
+    for kid, k in pairs(self.pendingDiscord) do
+        if k.why ~= "blocked" then id, held = kid, k break end
+    end
     if not id then return 0 end
     if Compat.IsChatLocked and Compat.IsChatLocked() then self:ScheduleDiscordFlush(10) return 0 end
-    local ok = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
+    local ok, why = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
     if ok then
         self.pendingDiscord[id] = nil
         self.runs[id].discordSent = now
+    elseif why == "blocked" then
+        -- Auch nach der Sperre blockiert: ab jetzt nur noch mit Klick.
+        held.why = "blocked"
+        GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "held", self.runs[id])
     end
-    if next(self.pendingDiscord) then self:ScheduleDiscordFlush(ok and 3 or 10) end
+    for _, k in pairs(self.pendingDiscord) do
+        if k.why ~= "blocked" then self:ScheduleDiscordFlush(ok and 3 or 10) break end
+    end
     return ok and 1 or 0
 end
 

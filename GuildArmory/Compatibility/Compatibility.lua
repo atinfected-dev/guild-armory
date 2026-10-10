@@ -1557,6 +1557,11 @@ function Compat.IsChatLocked()
     return false
 end
 
+--- Ein Klick des Spielers: Die Ruhe nach einer Blockade gilt fuer ihn nicht.
+function Compat.ClearChatBlock()
+    chatBlockedUntil = 0
+end
+
 --- Aus ADDON_ACTION_BLOCKED: Kam die Blockade waehrend eines eigenen
 --- SendChatMessage, ist der Chat fuer eine Weile tabu.
 function Compat.NoteActionBlocked(addon)
@@ -1594,7 +1599,10 @@ function Compat.SendChatMessage(text, channel, target)
     if #text > 250 then text = string.sub(text, 1, 247) .. "..." end
 
     -- Gesperrt: gar nicht erst versuchen (siehe Chat-Sperre oben).
-    if Compat.IsChatLocked() then return false, "locked" end
+    -- "blocked" = das Spiel hat eben eine Zeile blockiert (Grund unbekannt,
+    -- vermutlich fehlende Spielereingabe); "locked" = Bosskampf/Instanz.
+    local locked, grund = Compat.IsChatLocked()
+    if locked then return false, grund == "blocked" and "blocked" or "locked" end
 
     chatAttempt = true
     local ok = pcall(_G.SendChatMessage, text, channel or "GUILD", nil, target)

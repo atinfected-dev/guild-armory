@@ -582,9 +582,18 @@ function View:FillCard(card, run)
         card.action:SetText("")
         local b = place(1, L.DH_WITHDRAW, function() Hub:Withdraw(run.id) end)
         b:SetConfirm(L.BTN_REALLY)
-        place(2, L.DH_INVITE, function()
+        local b2 = place(2, L.DH_INVITE, function()
             Hub:InviteAll(run)
         end, b)
+        -- Eine Discord-Zeile, die das Spiel aufgehalten hat (11.10.2026):
+        -- Ein Klick hier schickt sie — der Klick ist die Spielereingabe.
+        if Hub.DiscordWaiting and Hub:DiscordWaiting(run.id) then
+            place(3, L.DH_DISCORD_SEND, function()
+                local ok = Hub:SendHeldDiscord(run.id)
+                GA.UI.MainFrame:Notice(ok and "info" or "warn", "%s", ok and L.DH_DISCORD_SENT or L.DH_DISCORD_STILL)
+                View:Refresh()
+            end, b2)
+        end
     elseif mine then
         card.action:SetText("")
         place(1, L.DH_LEAVE, function()
