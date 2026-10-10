@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.48
+
+In progress.
+
 ## 0.1.47
 
 Fixed: with the guild chat open and the window short, the roster's member list lay on top of the chat. A list too short for a single row kept its old rows on screen; it now hides them. The chat also takes only the height the window can spare, so the member list keeps room for at least a few rows.
