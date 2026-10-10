@@ -2,7 +2,9 @@
 
 ## 0.1.47
 
-In progress.
+Fixed: with the guild chat open and the window short, the roster's member list lay on top of the chat. A list too short for a single row kept its old rows on screen; it now hides them. The chat also takes only the height the window can spare, so the member list keeps room for at least a few rows.
+
+Fixed: resizing the window was slow and choppy, because every pixel of the drag rebuilt the whole page. Lists still adjust their rows while you drag; the page itself is rebuilt once, when the window stops changing size.
 
 ## 0.1.46
 

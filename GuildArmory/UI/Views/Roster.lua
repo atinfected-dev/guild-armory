@@ -36,6 +36,10 @@ local DETAIL_W = 250
 local CHAT_H = 260
 --- Zugeklappt bleibt nur die Kopfzeile des Chats.
 local CHAT_FOLDED_H = 24
+--- Aufgeklappt mindestens so hoch — darunter waere er nicht mehr lesbar.
+local CHAT_MIN_H = 120
+--- So viel behaelt die Mitgliederliste mindestens: Kopf, vier Zeilen, Fuss.
+local LIST_MIN_H = 40 + 4 * 32 + 16
 local FILTERS = { "ALL", "ONLINE", "OFFICERS", "NONOTE" }
 
 --- Farbe je Rangstufe: die ersten drei tragen Farbe, der Rest ist grau.
@@ -207,7 +211,11 @@ function View:Create(parent)
     chat:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
     chat:SetPoint("RIGHT", detail, "LEFT", -gap, 0)
     self.chatPanel = chat
+    self.filterBar = bar
     self:BuildChat(chat, fonts)
+    -- Die Hoehe des Chats folgt dem Fenster (10.10.2026). Nur die Hoehe:
+    -- billig genug fuer jedes Pixel beim Ziehen.
+    frame:HookScript("OnSizeChanged", function() self:LayoutChat() end)
 
     -- ------------------------------------------------------ Tabelle ---------
     local list = Widgets.Panel(frame, L.ROSTER_TITLE, "")
@@ -707,13 +715,35 @@ function View:BuildChat(panel, fonts)
     self.chatLines:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 26)
 end
 
+--- Die Hoehe des Chats (10.10.2026, Fehlerbericht: der Chat lag bei
+--- niedrigem Fenster ueber der Mitgliederliste). Aufgeklappt bekommt er
+--- CHAT_H, aber nie so viel, dass der Liste weniger als LIST_MIN_H
+--- bleibt — und nie weniger als CHAT_MIN_H. Ist das Fenster selbst dafuer
+--- zu niedrig, teilen sich beide den Platz, ohne sich zu ueberlagern.
+function View:ChatHeight()
+    if not self.chatOpen then return CHAT_FOLDED_H end
+    local bar, frame = self.filterBar, self.frame or (self.chatPanel and self.chatPanel:GetParent())
+    local top = bar and bar.GetBottom and bar:GetBottom()
+    local bottom = frame and frame.GetBottom and frame:GetBottom()
+    if not top or not bottom then return CHAT_H end
+    -- Zwischen Filterleiste und Fensterboden: Abstaende 6 + 8 + 4.
+    local available = top - bottom - 18
+    return math.max(math.min(CHAT_MIN_H, available / 2),
+        math.min(CHAT_H, available - LIST_MIN_H))
+end
+
+function View:LayoutChat()
+    if not self.chatPanel then return end
+    self.chatPanel:SetHeight(math.floor(self:ChatHeight()))
+end
+
 --- Klappt den Chat auf oder zu. Die Liste haengt mit ihrer Unterkante am
 --- Chat und waechst darum von selbst mit.
 function View:SetChatOpen(open)
     self.chatOpen = open and true or false
     GA.Core.Config:Set("rosterChatOpen", self.chatOpen)
     if not self.chatPanel then return end
-    self.chatPanel:SetHeight(self.chatOpen and CHAT_H or CHAT_FOLDED_H)
+    self:LayoutChat()
     if self.chatPanel.inset then self.chatPanel.inset:SetShown(self.chatOpen) end
     self.chatToggle:SetLabel(self.chatOpen and L.ROSTER_CHAT_CLOSE or L.ROSTER_CHAT_OPEN)
     self:RefreshChat()
@@ -724,7 +754,7 @@ function View:RefreshChat()
     if not GuildChat then return end
     if self.chatOpen == nil then
         self.chatOpen = GA.Core.Config:Get("rosterChatOpen") == true
-        self.chatPanel:SetHeight(self.chatOpen and CHAT_H or CHAT_FOLDED_H)
+        self:LayoutChat()
         if self.chatPanel.inset then self.chatPanel.inset:SetShown(self.chatOpen) end
         self.chatToggle:SetLabel(self.chatOpen and L.ROSTER_CHAT_CLOSE or L.ROSTER_CHAT_OPEN)
     end

@@ -243,9 +243,20 @@ function MainFrame:Create()
         table.insert(UISpecialFrames, FRAME_NAME)
     end
 
+    -- ENTPRELLT (10.10.2026, Fehlerbericht: "UI gets really laggy when
+    -- resizing"): Beim Ziehen am Rand kommt OnSizeChanged mit jedem Pixel,
+    -- und jedes Mal baute die ganze Ansicht neu auf — beim Roster Sortieren,
+    -- Chatverlauf, Detailspalte. Die Listen passen ihre Zeilen selbst an
+    -- (ScrollList hoert auf ihre eigene Groesse); der volle Neuaufbau kommt
+    -- einmal, wenn das Fenster eine Fuenftelsekunde stillsteht.
     frame:SetScript("OnSizeChanged", function()
-        local view = MainFrame.current and MainFrame.views[MainFrame.current]
-        if view and view.Refresh and MainFrame:IsVisible() then view:Refresh() end
+        MainFrame.resizeSeq = (MainFrame.resizeSeq or 0) + 1
+        local seq = MainFrame.resizeSeq
+        GA.Core.Compat.After(0.2, function()
+            if seq ~= MainFrame.resizeSeq then return end
+            local view = MainFrame.current and MainFrame.views[MainFrame.current]
+            if view and view.Refresh and MainFrame:IsVisible() then view:Refresh() end
+        end)
     end)
     frame:SetScript("OnShow", function() MainFrame:UpdatePortrait() end)
 

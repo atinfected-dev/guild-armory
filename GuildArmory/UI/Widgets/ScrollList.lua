@@ -208,7 +208,15 @@ function Widgets.ScrollList(parent, options)
         end
         if self.empty then self.empty:SetShown(#self.data == 0 and self.emptyText ~= nil) end
         local count = visibleCount()
-        if count <= 0 then return end
+        -- ZU NIEDRIG FUER EINE ZEILE: alle Zeilen verstecken. Hier stand nur
+        -- "return" — die Zeilen vom letzten Mal blieben stehen und lagen
+        -- ueber dem, was darunter kommt (Fehlerbericht 10.10.2026: die
+        -- Mitgliederliste ueber dem Gildenchat bei niedrigem Fenster).
+        if count <= 0 then
+            for _, row in ipairs(self.rows) do row:Hide() end
+            if self.thumb then self.thumb:Hide() end
+            return
+        end
 
         ensureRows(count)
 
