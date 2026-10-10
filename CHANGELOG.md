@@ -8,6 +8,8 @@ Fixed: an "action blocked" error when the Dungeonhub wrote its line to Discord w
 
 Fixed: putting someone into a run by hand still raised "action blocked" for the Discord line, outside any boss fight. The menu used to close before it ran the action, and the game then refused the line; now the action runs while the menu is still open. Should the game hold a line back anyway, nothing retries in the background (that would only raise the error again): your run shows a "Send to Discord" button, and one click sends it.
 
+Withdrawing a run in the game now removes its sign-up card in Discord right away (bot side); before, the card stayed for half an hour marked as cancelled. If the game holds the cancel line back during a boss fight, it still goes out once that ends, even though the run itself is already gone.
+
 ## 0.1.47
 
 Fixed: with the guild chat open and the window short, the roster's member list lay on top of the chat. A list too short for a single row kept its old rows on screen; it now hides them. The chat also takes only the height the window can spare, so the member list keeps room for at least a few rows.

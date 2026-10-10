@@ -768,7 +768,9 @@ Dungeonhub.DISCORD_HOLD_SECONDS = 30 * 60
 --- wuerde wieder blockiert und zeigte wieder einen Fehler)
 function Dungeonhub:HoldDiscord(run, line, why)
     local erste = next(self.pendingDiscord) == nil
-    self.pendingDiscord[run.id] = { line = line, ts = Util.Now(), why = why or "locked" }
+    -- Der Lauf reist mit: Eine aufgehaltene ABSAGE gehoert zu einem Lauf, den
+    -- Withdraw schon aus self.runs genommen hat — sie muss trotzdem hinaus.
+    self.pendingDiscord[run.id] = { line = line, ts = Util.Now(), why = why or "locked", run = run }
     if GA.UI and GA.UI.MainFrame and GA.UI.MainFrame.Notice and (erste or why == "blocked") then
         GA.UI.MainFrame:Notice("info", "%s", why == "blocked" and L.DH_DISCORD_CLICK or L.DH_DISCORD_HELD)
     end
@@ -785,7 +787,7 @@ end
 --- @return boolean gesendet
 function Dungeonhub:SendHeldDiscord(id)
     local held = self.pendingDiscord[id]
-    local run = self.runs[id]
+    local run = held and (held.run or self.runs[id])
     if not held or not run then return false end
     if Compat.ClearChatBlock then Compat.ClearChatBlock() end
     local ok, why = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
@@ -814,7 +816,7 @@ end
 function Dungeonhub:FlushDiscord()
     local now = Util.Now()
     for id, held in pairs(self.pendingDiscord) do
-        local run = self.runs[id]
+        local run = held.run or self.runs[id]
         if not run or not run.discord or now - held.ts > self.DISCORD_HOLD_SECONDS then
             self.pendingDiscord[id] = nil
         end
@@ -828,11 +830,12 @@ function Dungeonhub:FlushDiscord()
     local ok, why = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
     if ok then
         self.pendingDiscord[id] = nil
-        self.runs[id].discordSent = now
+        local run = held.run or self.runs[id]
+        if run then run.discordSent = now end
     elseif why == "blocked" then
         -- Auch nach der Sperre blockiert: ab jetzt nur noch mit Klick.
         held.why = "blocked"
-        GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "held", self.runs[id])
+        GA.Core.Callbacks:Fire("DUNGEONHUB_CHANGED", "held", held.run or self.runs[id])
     end
     for _, k in pairs(self.pendingDiscord) do
         if k.why ~= "blocked" then self:ScheduleDiscordFlush(ok and 3 or 10) break end
