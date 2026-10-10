@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.49
+
+In progress.
+
 ## 0.1.48
 
 The Guild Armory Discord has a new invite link: https://discord.gg/9br6y98VRv — Settings › About points there now, for bug reports, suggestions and to request the Dungeonhub bot.
@@ -8,7 +12,7 @@ Dungeonhub: when the leader puts someone into a run by hand, the list only offer
 
 Fixed: an "action blocked" error when the Dungeonhub wrote its line to Discord while the game blocks chat from addons — during a boss fight or in a restricted instance, which the game does since 12.0. The addon now asks first and does not try while chat is blocked; if the game blocks a line anyway, it waits half a minute before the next try instead of piling up errors. The Discord line is not lost: it waits, one per run with the latest line-up, and goes out once the block ends. Typing into the roster's guild chat during a block says why the message did not go out.
 
-Fixed: putting someone into a run by hand still raised "action blocked" for the Discord line, outside any boss fight. The menu used to close before it ran the action, and the game then refused the line; now the action runs while the menu is still open. Should the game hold a line back anyway, nothing retries in the background (that would only raise the error again): your run shows a "Send to Discord" button, and one click sends it.
+Fixed: putting someone into a run by hand still raised "action blocked" for the Discord line, outside any boss fight. The menu now runs the action before it closes, so the line goes out while your click is still being handled. Should the game hold a line back anyway, nothing retries in the background (that would only raise the error again): your run shows a "Send to Discord" button, and one click sends it.
 
 Withdrawing a run in the game now removes its sign-up card in Discord right away (bot side); before, the card stayed for half an hour marked as cancelled. If the game holds the cancel line back during a boss fight, it still goes out once that ends, even though the run itself is already gone.
 
