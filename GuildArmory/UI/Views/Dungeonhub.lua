@@ -282,9 +282,18 @@ function View:SlotClick(card, box)
             end)
         end },
     }
-    for _, c in ipairs(Hub:Candidates(run, 30)) do
-        items[#items + 1] = { text = Theme.ColorByClass(c.name, c.class) .. (c.online and "" or ("  |cff808080" .. L.ROSTER_OFFLINE .. "|r")),
+    -- Nur, wer die Rolle spielen kann (11.10.2026): Tanks fuer den Tankplatz,
+    -- Heiler fuer den Heilerplatz; wer sie als Kampfrolle gesetzt hat, oben.
+    local candidates = Hub:Candidates(run, 30, slot.role)
+    for _, c in ipairs(candidates) do
+        local marke = c.combatRole == slot.role and ("  |cffd9a441" .. roleName(slot.role) .. "|r") or ""
+        local stufe = c.level and ("  |cff8a8a8a" .. tostring(c.level) .. "|r") or ""
+        items[#items + 1] = { text = Theme.ColorByClass(c.name, c.class) .. stufe .. marke
+                .. (c.online and "" or ("  |cff808080" .. L.ROSTER_OFFLINE .. "|r")),
             func = function() fail(Hub:AddMember(run.id, c.name, slot.role)) View:Refresh() end }
+    end
+    if #candidates == 0 then
+        items[#items + 1] = { text = string.format(L.DH_ADD_NONE, roleName(slot.role)), disabled = true }
     end
     Widgets.ContextMenu(string.format(L.DH_ADD_TITLE, roleName(slot.role)), items)
 end

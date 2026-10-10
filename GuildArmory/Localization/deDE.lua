@@ -1295,6 +1295,8 @@ GA.Core.Locale:Register("deDE", {
     DH_IMPORT_BTN               = "Aus Discord importieren",
     DH_ADD_TITLE                = "Eintragen als %s",
     DH_ADD_TYPE                 = "Name eingeben…",
+    DH_ADD_NONE                 = "Sonst kann niemand in der Gilde %s spielen",
+    DH_ERR_cantrole             = "Diese Klasse kann die Rolle nicht spielen.",
     DH_ADD_HINT                 = "Jemand, der in Discord oder per Stimme zugesagt hat, aber im Spiel nicht klickt. Er sieht es in seinem Dungeonhub, die Gilde bekommt die Zeile.",
     DH_REMOVE_MEMBER            = "%s herausnehmen",
     DH_ERR_notleader            = "Das kann nur der Leiter dieses Laufs.",

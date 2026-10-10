@@ -448,7 +448,12 @@ function Dungeonhub:AddMember(id, name, role)
     local vorher = run.members[name]
     if vorher and vorher.role == role then return true end
     if self:Count(run, role) >= self.SLOTS[role] then return false, "full" end
-    run.members[name] = { role = role, class = klasseVon(name), ts = Util.Now(), byLeader = true }
+    -- Von Hand getippt: Eine bekannte Klasse, die die Rolle nicht spielen
+    -- kann, kommt nicht hinein (11.10.2026). Unbekannte Namen schon — der
+    -- Leiter weiss, wen er meint.
+    local klasse = klasseVon(name)
+    if klasse and not Dungeonhub.CanPlay(klasse, role) then return false, "cantrole" end
+    run.members[name] = { role = role, class = klasse, ts = Util.Now(), byLeader = true }
     run.mts = Util.Now()
     self:SendMembers(run)
     self:AnnounceDiscord(run, "join", name, role)
@@ -474,17 +479,46 @@ end
 
 --- Wer in Frage kommt: Gildenmitglieder, online zuerst, ohne die, die
 --- schon drin sind, und ohne mich.
-function Dungeonhub:Candidates(run, limit)
+--- Kann diese Klasse die Rolle spielen? (11.10.2026: "wenn ich einen Tank
+--- per Hand eintragen will, sollen nur Tanks angezeigt werden, bei Heal nur
+--- Klassen, die heilen koennen".) Dieselben Tabellen wie im Reiter
+--- Together; Schaden kann jeder. Ohne bekannte Klasse: nein fuer Tank und
+--- Heiler — raten hiesse hier, einen Magier als Tank vorzuschlagen.
+local CAN = {
+    TANK = { WARRIOR = true, DRUID = true, PALADIN = true },
+    HEAL = { PRIEST = true, DRUID = true, SHAMAN = true, PALADIN = true },
+}
+function Dungeonhub.CanPlay(class, role)
+    if role ~= "TANK" and role ~= "HEAL" then return true end
+    local T = GA.Modules.Together
+    local tabelle = (T and (role == "TANK" and T.CAN_TANK or T.CAN_HEAL)) or CAN[role]
+    return class ~= nil and tabelle[string.upper(class)] == true
+end
+
+--- Wer sich eintragen laesst. Mit role (TANK/HEAL) nur, wer die Rolle
+--- spielen kann; wer sie als Kampfrolle gesetzt hat, steht oben, dann wer
+--- online ist, dann nach Name.
+--- @param role string|nil
+function Dungeonhub:Candidates(run, limit, role)
     local Guild = GA.Modules.Guild
+    local characters = GA.Core.Database.account.characters or {}
     local out = {}
     local me = ownName()
     for _, m in ipairs(Guild and Guild.List and Guild:List() or {}) do
         local name = m.name and Util.ShortName(m.name)
-        if name and name ~= me and not (run and run.members[name]) then
-            out[#out + 1] = { name = name, class = m.class, online = m.online and true or false, level = m.level }
-            if limit and #out >= limit then break end
+        if name and name ~= me and not (run and run.members[name]) and Dungeonhub.CanPlay(m.class, role) then
+            local character = m.guid and characters[m.guid]
+            out[#out + 1] = { name = name, class = m.class, online = m.online and true or false, level = m.level,
+                combatRole = character and character.combatRole or nil }
         end
     end
+    table.sort(out, function(a, b)
+        local am, bm = role ~= nil and a.combatRole == role, role ~= nil and b.combatRole == role
+        if am ~= bm then return am end
+        if a.online ~= b.online then return a.online end
+        return a.name < b.name
+    end)
+    if limit then for i = #out, limit + 1, -1 do out[i] = nil end end
     return out
 end
 

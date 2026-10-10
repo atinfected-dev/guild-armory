@@ -1307,6 +1307,8 @@ GA.Core.Locale:Register("enUS", {
     DH_IMPORT_BTN               = "Import from Discord",
     DH_ADD_TITLE                = "Add as %s",
     DH_ADD_TYPE                 = "Type a name…",
+    DH_ADD_NONE                 = "Nobody else in the guild can play %s",
+    DH_ERR_cantrole             = "That class cannot play this role.",
     DH_ADD_HINT                 = "Someone who said yes on Discord or in voice but has not clicked in game. They see it in their Dungeonhub, and the guild gets the line.",
     DH_REMOVE_MEMBER            = "Remove %s",
     DH_ERR_notleader            = "Only the leader of this run can do that.",

@@ -2,7 +2,7 @@
 
 ## 0.1.48
 
-In progress.
+Dungeonhub: when the leader puts someone into a run by hand, the list only offers who can play that slot — warriors, druids and paladins for the tank, priests, druids, shamans and paladins for the healer, everyone for damage. Members who set that role as their own come first and carry a small role mark, then those online; each shows their level. A name typed by hand whose class cannot play the role is refused with a clear message; a name the guild list does not know still goes in.
 
 ## 0.1.47
 
