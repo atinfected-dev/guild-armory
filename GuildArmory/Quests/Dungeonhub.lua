@@ -744,9 +744,63 @@ function Dungeonhub:AnnounceDiscord(run, kind, who, role)
     if Compat.IsDiscordBridgeEnabled and Compat.IsDiscordBridgeEnabled() == false then return false end
     if type(Compat.SendChatMessage) ~= "function" then return false end
     local line = self:DiscordLine(run, kind, who, role)
-    if not Compat.SendChatMessage(line, "GUILD_DISCORD") then return false end
+    local ok, why = Compat.SendChatMessage(line, "GUILD_DISCORD")
+    if not ok then
+        -- GESPERRT (11.10.2026): Bosskampf oder gesperrte Instanz. Die Zeile
+        -- wartet und geht hinaus, sobald die Sperre endet. Je Lauf nur die
+        -- juengste: Jede Zeile traegt den ganzen Stand der Besetzung.
+        if why == "locked" or why == "blocked" then self:HoldDiscord(run, line) end
+        return false
+    end
+    self.pendingDiscord[run.id] = nil
     run.discordSent = Util.Now()
     return true
+end
+
+--- Zeilen, die eine Chat-Sperre aufgehalten hat: [lauf] = { line, ts }.
+Dungeonhub.pendingDiscord = {}
+--- So lange wird es weiter versucht; danach ist die Zeile ueberholt.
+Dungeonhub.DISCORD_HOLD_SECONDS = 30 * 60
+
+function Dungeonhub:HoldDiscord(run, line)
+    local erste = next(self.pendingDiscord) == nil
+    self.pendingDiscord[run.id] = { line = line, ts = Util.Now() }
+    if erste and GA.UI and GA.UI.MainFrame and GA.UI.MainFrame.Notice then
+        GA.UI.MainFrame:Notice("info", "%s", L.DH_DISCORD_HELD)
+    end
+    self:ScheduleDiscordFlush()
+end
+
+function Dungeonhub:ScheduleDiscordFlush(seconds)
+    if self.flushScheduled or type(Compat.After) ~= "function" then return end
+    self.flushScheduled = true
+    Compat.After(seconds or 10, function()
+        Dungeonhub.flushScheduled = false
+        Dungeonhub:FlushDiscord()
+    end)
+end
+
+--- Eine aufgehaltene Zeile hinaus, wenn der Chat wieder frei ist; die
+--- naechste ein paar Sekunden spaeter (nicht alle auf einmal).
+--- @return number gesendet
+function Dungeonhub:FlushDiscord()
+    local now = Util.Now()
+    for id, held in pairs(self.pendingDiscord) do
+        local run = self.runs[id]
+        if not run or not run.discord or now - held.ts > self.DISCORD_HOLD_SECONDS then
+            self.pendingDiscord[id] = nil
+        end
+    end
+    local id, held = next(self.pendingDiscord)
+    if not id then return 0 end
+    if Compat.IsChatLocked and Compat.IsChatLocked() then self:ScheduleDiscordFlush(10) return 0 end
+    local ok = Compat.SendChatMessage(held.line, "GUILD_DISCORD")
+    if ok then
+        self.pendingDiscord[id] = nil
+        self.runs[id].discordSent = now
+    end
+    if next(self.pendingDiscord) then self:ScheduleDiscordFlush(ok and 3 or 10) end
+    return ok and 1 or 0
 end
 
 --- Die letzte Wahl im Formular, und ob es Discord hier ueberhaupt gibt.

@@ -62,7 +62,7 @@
     Flag — das UI bietet die Funktion dann gar nicht erst an.
 ------------------------------------------------------------------------------]]
 
-local _, GA = ...
+local ADDON_NAME, GA = ...
 
 local Compat = {}
 GA.Core.Compat = Compat
@@ -1528,6 +1528,44 @@ function Compat.IsDiscordBridgeEnabled()
     return on and true or false
 end
 
+-- ---------------------------------------------------------- Chat-Sperre --
+--
+-- DAS SPIEL SPERRT CHATNACHRICHTEN AUS ADDONS ZEITWEISE (Fehlerbericht
+-- 11.10.2026: ADDON_ACTION_BLOCKED aus SendChatMessage, als der Leiter im
+-- Dungeonhub jemanden eintrug und die Zeile nach Discord ging). Seit 12.0
+-- gilt: waehrend eines Bosskampfs (C_ChatInfo.InChatMessagingLockdown) und
+-- in gesperrten Instanzen geht SendChatMessage aus einem Addon nicht hinaus.
+-- pcall hilft nicht — das Spiel meldet die Blockade trotzdem als Fehler.
+-- Darum wird VORHER gefragt, und wenn das Spiel trotzdem blockiert,
+-- merkt sich das Addon das fuer CHAT_BLOCK_SECONDS und versucht es in der
+-- Zeit nicht wieder (keine Fehlerflut).
+local CHAT_BLOCK_SECONDS = 30
+local chatBlockedUntil = 0
+local chatAttempt = false
+
+--- Darf das Addon gerade in einen Chat schreiben?
+--- @return boolean gesperrt, string|nil grund ("blocked" | "lockdown" | "restricted")
+function Compat.IsChatLocked()
+    if chatBlockedUntil > Compat.GetTime() then return true, "blocked" end
+    local info = _G.C_ChatInfo
+    if isTable(info) and isFunction(info.InChatMessagingLockdown) then
+        -- Der Vergleich im pcall: auch ein Wahrheitswert kann verschleiert sein.
+        local ok, value = pcall(function() return info.InChatMessagingLockdown() == true end)
+        if ok and value then return true, "lockdown" end
+    end
+    if Compat.IsCommRestricted and Compat.IsCommRestricted() then return true, "restricted" end
+    return false
+end
+
+--- Aus ADDON_ACTION_BLOCKED: Kam die Blockade waehrend eines eigenen
+--- SendChatMessage, ist der Chat fuer eine Weile tabu.
+function Compat.NoteActionBlocked(addon)
+    if addon ~= ADDON_NAME or not chatAttempt then return false end
+    chatAttempt = "hit"
+    chatBlockedUntil = Compat.GetTime() + CHAT_BLOCK_SECONDS
+    return true
+end
+
 --- Schreibt in einen Chatkanal. Anders als Addon-Nachrichten ist das fuer
 --- Menschen sichtbar — und in Forever moeglicherweise auch nach Discord, wenn
 --- die Gilde eine Bruecke eingerichtet hat. Das ist der einzige Weg, auf dem
@@ -1555,7 +1593,15 @@ function Compat.SendChatMessage(text, channel, target)
     -- Client ab. Lieber selbst kuerzen und es kenntlich machen.
     if #text > 250 then text = string.sub(text, 1, 247) .. "..." end
 
+    -- Gesperrt: gar nicht erst versuchen (siehe Chat-Sperre oben).
+    if Compat.IsChatLocked() then return false, "locked" end
+
+    chatAttempt = true
     local ok = pcall(_G.SendChatMessage, text, channel or "GUILD", nil, target)
+    -- ADDON_ACTION_BLOCKED kommt waehrend des Aufrufs (NoteActionBlocked).
+    local blocked = chatAttempt == "hit"
+    chatAttempt = false
+    if blocked then return false, "blocked" end
     return ok and true or false
 end
 

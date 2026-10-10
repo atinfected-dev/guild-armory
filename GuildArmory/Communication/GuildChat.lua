@@ -381,7 +381,8 @@ function GuildChat:Send(text, channel)
     text = string.gsub(text, "%s+$", "")
     if text == "" then return false, "empty" end
     if not Compat.IsInGuild() then return false, "noguild" end
-    local ok = Compat.SendChatMessage(text, self.SEND_TYPE[channel or "GUILD"] or "GUILD")
+    local ok, why = Compat.SendChatMessage(text, self.SEND_TYPE[channel or "GUILD"] or "GUILD")
+    if not ok and (why == "locked" or why == "blocked") then return false, "locked" end
     return ok and true or false, ok and nil or "send"
 end
 
@@ -421,6 +422,8 @@ function GuildChat:OnEnable()
     -- es dem Addon — dann wird es nie wieder versucht (keine Fensterflut).
     Events:Register("ADDON_ACTION_BLOCKED", function(_, addon, fn)
         if type(fn) == "string" and fn:find("AdvanceStreamViewMarker") then GuildChat.readBlocked = true end
+        -- Blockierte Chatzeilen (11.10.2026): Compat merkt sich die Sperre.
+        if Compat.NoteActionBlocked then Compat.NoteActionBlocked(addon) end
     end, "GuildChat")
     -- Mehr Namen als noetig: Was der Client nicht kennt, weist Register
     -- still ab, und welcher Name die Lieferung meldet, ist nicht gemessen.
