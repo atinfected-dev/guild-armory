@@ -2,6 +2,8 @@
 
 ## 0.1.48
 
+The Guild Armory Discord has a new invite link: https://discord.gg/9br6y98VRv — Settings › About points there now, for bug reports, suggestions and to request the Dungeonhub bot.
+
 Dungeonhub: when the leader puts someone into a run by hand, the list only offers who can play that slot — warriors, druids and paladins for the tank, priests, druids, shamans and paladins for the healer, everyone for damage. Members who set that role as their own come first and carry a small role mark, then those online; each shows their level. A name typed by hand whose class cannot play the role is refused with a clear message; a name the guild list does not know still goes in.
 
 Fixed: an "action blocked" error when the Dungeonhub wrote its line to Discord while the game blocks chat from addons — during a boss fight or in a restricted instance, which the game does since 12.0. The addon now asks first and does not try while chat is blocked; if the game blocks a line anyway, it waits half a minute before the next try instead of piling up errors. The Discord line is not lost: it waits, one per run with the latest line-up, and goes out once the block ends. Typing into the roster's guild chat during a block says why the message did not go out.
@@ -139,7 +141,7 @@ Licence: from this version on, Guild Armory is All Rights Reserved instead of MI
 
 ## 0.1.38
 
-Guild Armory has a Discord: https://discord.gg/uVq98htFnA — for bug reports, suggestions and questions; we are happy about every idea. Settings › About now links there (bug reports & suggestions) and explains how to request the Dungeonhub bot for your own guild's Discord; the Discord bot option in the settings points there too.
+Guild Armory has a Discord: https://discord.gg/9br6y98VRv — for bug reports, suggestions and questions; we are happy about every idea. Settings › About now links there (bug reports & suggestions) and explains how to request the Dungeonhub bot for your own guild's Discord; the Discord bot option in the settings points there too.
 
 ## 0.1.37
 

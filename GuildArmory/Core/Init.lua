@@ -47,7 +47,7 @@ GA.const = {
     -- Wo man Fehler meldet, Vorschlaege macht und den Discord-Bot anfragt:
     -- der Guild-Armory-Discord (06.10.2026). Die CurseForge-Seite bleibt fuer
     -- Downloads (die Projektnummer fuehrt immer dorthin).
-    FEEDBACK_URL = "https://discord.gg/uVq98htFnA",
+    FEEDBACK_URL = "https://discord.gg/9br6y98VRv",
     CURSEFORGE_URL = "https://www.curseforge.com/projects/1704444",
 
     -- Kopfzeile von Export-Strings. Formatversion, nicht Addon-Version.
