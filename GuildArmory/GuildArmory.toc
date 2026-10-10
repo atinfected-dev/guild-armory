@@ -26,6 +26,7 @@ Localization\enUS.lua
 Localization\deDE.lua
 Database\Schema.lua
 Achievements\Catalog.lua
+Achievements\CatalogEN.lua
 Database\Database.lua
 Core\Config.lua
 Core\Debug.lua

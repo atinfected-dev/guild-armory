@@ -6,6 +6,8 @@ Fixed: with the guild chat open and the window short, the roster's member list l
 
 Fixed: resizing the window was slow and choppy, because every pixel of the drag rebuilt the whole page. Lists still adjust their rows while you drag; the page itself is rebuilt once, when the window stops changing size.
 
+The achievements speak English now. All 272 names and descriptions were German only, whatever language the addon was set to; they now follow the language setting like the rest of the addon, in English and in German, and switch along when you change it. Needs one restart of the game, as the translations come in a new file.
+
 ## 0.1.46
 
 Fixed: the Discord sign-up board fell behind once a group got full. The game's Discord bridge passes on only about 246 characters and cuts the rest; with five names the bot's marker lost its end and the bot read nothing, so the board stayed at an older state while the game was right. The marker now comes first in the line and the whole line stays under the bridge's limit; the bot also reads a marker cut at the end as long as the group in it is complete, and on start it rereads the last lines of the bridge channel to catch what it missed.

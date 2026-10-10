@@ -110,6 +110,11 @@ function Locale:Apply(force)
     for key, value in pairs(base) do GA.L[key] = value end
     for key, value in pairs(override) do GA.L[key] = value end
 
+    -- Die Achievements tragen ihre Texte im Katalog, nicht in GA.L
+    -- (10.10.2026): Name und Beschreibung mitwechseln.
+    local catalog = GA.Data and GA.Data.Catalog
+    if catalog and catalog.ApplyLanguage then catalog.ApplyLanguage(active) end
+
     return active
 end
 
